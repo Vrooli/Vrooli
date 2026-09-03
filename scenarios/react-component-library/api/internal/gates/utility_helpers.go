@@ -5,12 +5,7 @@ package gates
 
 import (
 	"bytes"
-	"context"
-	"crypto/sha256"
-	"database/sql"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,7 +35,30 @@ type Finding struct {
 	DocsRef        string
 	RuleSource     RuleSource
 	RuleDeclaredIn string
+	// Typed attribution fields are populated at the runner boundary. AssetID
+	// remains the compatibility identity consumed by older callers.
+	CatalogID string
+	LibraryID string
+	Scope     FindingScope
+	Blocking  bool
+	Owner     string
+	Severity  FindingSeverity
 }
+
+type FindingScope string
+
+const (
+	FindingScopeAsset  FindingScope = "asset"
+	FindingScopeCorpus FindingScope = "corpus"
+)
+
+type FindingSeverity string
+
+const (
+	FindingSeverityBlocking FindingSeverity = "blocking"
+	FindingSeverityWarning  FindingSeverity = "warning"
+	FindingSeverityInfo     FindingSeverity = "info"
+)
 
 // Result makes runner coverage observable. A gate that reports no findings
 // after inspecting zero inputs is not a passing gate; it is a broken runner.
@@ -85,9 +103,16 @@ type CompositionEscape struct {
 // catalog identity. Findings that cannot be resolved are runner errors and
 // are deliberately excluded from per-asset scoring.
 func NormalizeResult(root string, result Result) Result {
+	for index := range result.InformationalFindings {
+		result.InformationalFindings[index] = normalizeFinding(result.InformationalFindings[index])
+	}
+	for index := range result.RunnerError {
+		result.RunnerError[index] = normalizeFinding(result.RunnerError[index])
+	}
 	ids := catalogAssetIDs(root)
 	normalized := make([]Finding, 0, len(result.Findings))
 	for _, finding := range result.Findings {
+		finding = normalizeFinding(finding)
 		if finding.AssetID == "" {
 			result.RunnerError = append(result.RunnerError, finding)
 			continue
@@ -122,7 +147,7 @@ func NormalizeResult(root string, result Result) Result {
 
 func catalogAssetIDs(root string) map[string]bool {
 	ids := map[string]bool{}
-	paths, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	paths, _ := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -138,6 +163,31 @@ func catalogAssetIDs(root string) map[string]bool {
 		}
 	}
 	return ids
+}
+
+func normalizeFinding(finding Finding) Finding {
+	if finding.Owner == "" {
+		finding.Owner = filepath.ToSlash(finding.File)
+	}
+	if strings.HasPrefix(finding.AssetID, "__corpus__") || strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "supplemental.") || finding.AssetID == "" {
+		finding.Scope = FindingScopeCorpus
+		finding.CatalogID = ""
+		if finding.Severity == "" {
+			finding.Severity = FindingSeverityWarning
+		}
+		return finding
+	}
+	finding.Scope = FindingScopeAsset
+	if finding.CatalogID == "" {
+		finding.CatalogID = finding.AssetID
+	}
+	if strings.HasPrefix(finding.AssetID, "react-component-library:") && finding.LibraryID == "" {
+		finding.LibraryID = finding.AssetID
+	}
+	if finding.Severity == "" {
+		finding.Severity = FindingSeverityBlocking
+	}
+	return finding
 }
 
 func appendUnique(values []string, value string) []string {
@@ -233,9 +283,8 @@ func dependencyImportedByImplementation(versionDir, libraryID string) bool {
 }
 
 var (
-	cssVarRefGateRE         = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
-	cssVarDeclGateRE        = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
-	versionLivenessImportRE = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'\";]+)/([^/\s'\";]+)`)
+	cssVarRefGateRE  = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
+	cssVarDeclGateRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
 )
 
 // ValidateVersionLiveness protects the published version boundary. Every
@@ -303,7 +352,17 @@ func firstRetiredTokenReference(raw []byte) int {
 // ValidateTokenRampComplete verifies that every external literal custom
 // property used by active library source is published by the canonical RCL
 // ramp. Self-defined --rcl-* properties and dynamic families are excluded.
-func librarySourceFiles(root string) []string {
+func librarySourceFiles(root string, scope Scope) []string {
+	if scope.Set.Files != nil {
+		files := make([]string, 0, len(scope.Set.Files))
+		for _, path := range scope.Set.Files {
+			if strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx") {
+				files = append(files, path)
+			}
+		}
+		sort.Strings(files)
+		return files
+	}
 	var files []string
 	_ = librarywalk.Walk(root, func(path string, entry os.DirEntry, err error) error {
 		if err == nil && !entry.IsDir() && (strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")) {
@@ -313,82 +372,4 @@ func librarySourceFiles(root string) []string {
 	})
 	sort.Strings(files)
 	return files
-}
-
-// queryContexter is the smallest database seam needed by the immutable gate.
-// The production catalog coverage path supplies the already-open routed
-// scenario database; the root-only runner above remains useful for isolated
-// calibration fixtures.
-type queryContexter interface {
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-}
-
-// validateReleasedVersionImmutableWithDB compares released versions using an
-// already-open scenario database. Scope-aware callers reach it through the
-// single exported ValidateReleasedVersionImmutable runner.
-func validateReleasedVersionImmutableWithDB(root string, db queryContexter) (Result, error) {
-	if db == nil {
-		return Result{}, fmt.Errorf("component index database is not configured")
-	}
-	rows, err := db.QueryContext(context.Background(), `SELECT v.status, v.source_path, v.content_sha256 FROM component_versions v WHERE v.status = 'released'`)
-	if err != nil {
-		return validateReleasedVersionHashLedger(root)
-	}
-	defer rows.Close()
-	result := Result{}
-	for rows.Next() {
-		var status, sourcePath, recorded string
-		if err := rows.Scan(&status, &sourcePath, &recorded); err != nil {
-			return Result{}, err
-		}
-		if status != "released" {
-			continue
-		}
-		if filepath.Base(sourcePath) == "dependencies.json" {
-			continue
-		}
-		result.Inspected++
-		raw, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath))
-		if err != nil {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.released_version_immutable", AssetID: implementationName(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath)), File: filepath.Join("library", sourcePath),
-				Message:     fmt.Sprintf("released source cannot be read: %v", err),
-				Remediation: "Restore the file at this path, or if the version was withdrawn on purpose, remove its row from the versions table rather than deleting the source. A released version is a published contract: adopting scenarios pin it by hash, so a source that has vanished cannot be re-verified by anyone who already depends on it.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#versioning",
-			})
-			continue
-		}
-		sum := sha256.Sum256(raw)
-		current := hex.EncodeToString(sum[:])
-		// A source checkout may materialize one terminal LF even when the
-		// release record was captured without one. Treat that representation
-		// change as canonical whitespace, while still rejecting every other
-		// byte-level mutation.
-		if recorded != "" && recorded != current && !(bytes.HasSuffix(raw, []byte("\n")) && func() bool {
-			withoutTerminalLF := sha256.Sum256(bytes.TrimSuffix(raw, []byte("\n")))
-			return recorded == hex.EncodeToString(withoutTerminalLF[:])
-		}()) {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.released_version_immutable", AssetID: implementationName(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath)), File: filepath.Join("library", sourcePath),
-				Message:     fmt.Sprintf("released source changed after release: recorded %s, current %s", recorded[:12], current[:12]),
-				Remediation: "Revert this file to its released content and publish the change as a new version instead. Released versions are immutable because consumers pin them by hash; editing one in place means two scenarios can hold the same version number and get different code, which makes every downstream bug report unreproducible.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#versioning",
-			})
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return Result{}, err
-	}
-	if result.Inspected == 0 {
-		return validateReleasedVersionHashLedger(root)
-	}
-	return nonEmpty(result, "released-version-immutable"), nil
-}
-
-type releasedVersionHashLedger struct {
-	SchemaVersion int `json:"schemaVersion"`
-	Entries       []struct {
-		Path   string `json:"path"`
-		SHA256 string `json:"sha256"`
-	} `json:"entries"`
 }

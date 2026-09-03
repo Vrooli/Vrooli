@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 
@@ -109,7 +110,7 @@ func loadAssets(scope Scope) ([]assetDoc, error) {
 	for _, assetID := range scope.Assets {
 		selected[assetID] = true
 	}
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func loadLibraryAssets(scope Scope) ([]assetDoc, error) {
 	}
 	var result []assetDoc
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +291,7 @@ func consumerPinManifests(root string) (map[string]consumerPinManifest, error) {
 	result := map[string]consumerPinManifest{}
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, err := filepath.Glob(filepath.Join(libraryRoot, kind, "*", "component.json"))
+		paths, err := librarywalk.Glob(filepath.Join(libraryRoot, kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}

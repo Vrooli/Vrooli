@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getCatalogStructure } from "../../api/catalogGraph";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 
 export function StructurePanel() {
   const query = useQuery({

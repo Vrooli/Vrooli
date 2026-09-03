@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"strings"
 )
@@ -41,7 +42,7 @@ func ValidateReleaseProvenance(scope Scope) (Result, error) {
 		recorded[entry.LibraryID+"@"+entry.Version] = true
 	}
 	result := Result{}
-	manifests, err := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	manifests, err := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
 	if err != nil {
 		return Result{}, err
 	}

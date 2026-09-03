@@ -43,6 +43,9 @@ const (
 	// AccountServiceGetEntitlementsProcedure is the fully-qualified name of the AccountService's
 	// GetEntitlements RPC.
 	AccountServiceGetEntitlementsProcedure = "/landing_page_business_suite.v1.AccountService/GetEntitlements"
+	// AccountServiceGetCommercialContextProcedure is the fully-qualified name of the AccountService's
+	// GetCommercialContext RPC.
+	AccountServiceGetCommercialContextProcedure = "/landing_page_business_suite.v1.AccountService/GetCommercialContext"
 )
 
 // AccountServiceClient is a client for the landing_page_business_suite.v1.AccountService service.
@@ -53,6 +56,7 @@ type AccountServiceClient interface {
 	GetMyCredits(context.Context, *connect.Request[v1.GetMyCreditsRequest]) (*connect.Response[v1.GetMyCreditsResponse], error)
 	// Returns the caller's computed entitlements (status, tier, features, credits).
 	GetEntitlements(context.Context, *connect.Request[v1.GetEntitlementsRequest]) (*connect.Response[v1.GetEntitlementsResponse], error)
+	GetCommercialContext(context.Context, *connect.Request[v1.CommercialContextRequest]) (*connect.Response[v1.CommercialContextResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the landing_page_business_suite.v1.AccountService
@@ -84,14 +88,21 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("GetEntitlements")),
 			connect.WithClientOptions(opts...),
 		),
+		getCommercialContext: connect.NewClient[v1.CommercialContextRequest, v1.CommercialContextResponse](
+			httpClient,
+			baseURL+AccountServiceGetCommercialContextProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("GetCommercialContext")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // accountServiceClient implements AccountServiceClient.
 type accountServiceClient struct {
-	getMySubscription *connect.Client[v1.GetMySubscriptionRequest, shared.VerifySubscriptionResponse]
-	getMyCredits      *connect.Client[v1.GetMyCreditsRequest, v1.GetMyCreditsResponse]
-	getEntitlements   *connect.Client[v1.GetEntitlementsRequest, v1.GetEntitlementsResponse]
+	getMySubscription    *connect.Client[v1.GetMySubscriptionRequest, shared.VerifySubscriptionResponse]
+	getMyCredits         *connect.Client[v1.GetMyCreditsRequest, v1.GetMyCreditsResponse]
+	getEntitlements      *connect.Client[v1.GetEntitlementsRequest, v1.GetEntitlementsResponse]
+	getCommercialContext *connect.Client[v1.CommercialContextRequest, v1.CommercialContextResponse]
 }
 
 // GetMySubscription calls landing_page_business_suite.v1.AccountService.GetMySubscription.
@@ -109,6 +120,11 @@ func (c *accountServiceClient) GetEntitlements(ctx context.Context, req *connect
 	return c.getEntitlements.CallUnary(ctx, req)
 }
 
+// GetCommercialContext calls landing_page_business_suite.v1.AccountService.GetCommercialContext.
+func (c *accountServiceClient) GetCommercialContext(ctx context.Context, req *connect.Request[v1.CommercialContextRequest]) (*connect.Response[v1.CommercialContextResponse], error) {
+	return c.getCommercialContext.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the landing_page_business_suite.v1.AccountService
 // service.
 type AccountServiceHandler interface {
@@ -118,6 +134,7 @@ type AccountServiceHandler interface {
 	GetMyCredits(context.Context, *connect.Request[v1.GetMyCreditsRequest]) (*connect.Response[v1.GetMyCreditsResponse], error)
 	// Returns the caller's computed entitlements (status, tier, features, credits).
 	GetEntitlements(context.Context, *connect.Request[v1.GetEntitlementsRequest]) (*connect.Response[v1.GetEntitlementsResponse], error)
+	GetCommercialContext(context.Context, *connect.Request[v1.CommercialContextRequest]) (*connect.Response[v1.CommercialContextResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -145,6 +162,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("GetEntitlements")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceGetCommercialContextHandler := connect.NewUnaryHandler(
+		AccountServiceGetCommercialContextProcedure,
+		svc.GetCommercialContext,
+		connect.WithSchema(accountServiceMethods.ByName("GetCommercialContext")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceGetMySubscriptionProcedure:
@@ -153,6 +176,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceGetMyCreditsHandler.ServeHTTP(w, r)
 		case AccountServiceGetEntitlementsProcedure:
 			accountServiceGetEntitlementsHandler.ServeHTTP(w, r)
+		case AccountServiceGetCommercialContextProcedure:
+			accountServiceGetCommercialContextHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -172,4 +197,8 @@ func (UnimplementedAccountServiceHandler) GetMyCredits(context.Context, *connect
 
 func (UnimplementedAccountServiceHandler) GetEntitlements(context.Context, *connect.Request[v1.GetEntitlementsRequest]) (*connect.Response[v1.GetEntitlementsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AccountService.GetEntitlements is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) GetCommercialContext(context.Context, *connect.Request[v1.CommercialContextRequest]) (*connect.Response[v1.CommercialContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AccountService.GetCommercialContext is not implemented"))
 }

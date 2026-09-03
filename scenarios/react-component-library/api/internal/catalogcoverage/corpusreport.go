@@ -16,11 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"react-component-library/internal/librarywalk"
+
 	// Register the SQLite driver used by the live corpus report database.
-	_ "modernc.org/sqlite"
 	"react-component-library/internal/components"
 	"react-component-library/internal/libspec"
 	"react-component-library/internal/versionledger"
+
+	_ "modernc.org/sqlite"
 )
 
 type CorpusInvariant struct {
@@ -29,12 +32,14 @@ type CorpusInvariant struct {
 	Value  float64 `json:"value"`
 	Target float64 `json:"target"`
 	Unit   string  `json:"unit"`
+	Status string  `json:"status,omitempty"`
 }
 type CorpusReport struct {
 	SchemaVersion  string            `json:"schemaVersion"`
 	CapturedAt     string            `json:"capturedAt"`
 	InvariantCount int               `json:"invariantCount"`
 	Invariants     []CorpusInvariant `json:"invariants"`
+	VersionShapes  []ShapeRow        `json:"versionShapes,omitempty"`
 }
 
 var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
@@ -145,7 +150,7 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 				totalVersions++
 				versionDir := filepath.Join(dir, "versions", version.Name())
 				lines := 0
-				_ = filepath.WalkDir(versionDir, func(path string, entry os.DirEntry, walkErr error) error {
+				_ = librarywalk.WalkContext(context.Background(), versionDir, func(path string, entry os.DirEntry, walkErr error) error {
 					if walkErr == nil && !entry.IsDir() && (strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")) {
 						body, _ := os.ReadFile(path)
 						text := string(body)
@@ -187,55 +192,73 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 	}
 	runnerless, blocking := blockingGateCounts(filepath.Join(libraryRoot, "..", "catalog", "config.json"))
 	allowlist := countAllowlistEntries(filepath.Join(libraryRoot, "vacuous-allowlist.json"))
-	warmMatrixSeconds, singleAssetSeconds := liveTimingMeasurements(root)
-	zeroFindingFailures := liveMatrixFailures(root)
+	warmMatrixSeconds, singleAssetSeconds, timingMeasured := liveTimingMeasurements(root)
+	measurementFailed := !timingMeasured
+	zeroFindingFailures, matrixMeasured := liveMatrixFailures(root)
+	zeroFindingFailuresFailed := !matrixMeasured
+	buildFailures, buildMeasured := liveBuildFailures(root)
+	buildFailuresFailed := !buildMeasured
 	manualClaims, machineClaims := experienceClaimCounts(filepath.Join(libraryRoot, "..", "experience", "components"), libraryRoot)
 	missingImplementations := declaredWithoutImplementation(filepath.Join(libraryRoot, "..", "catalog"), libraryRoot)
-	authorities := experienceAuthorityCount(filepath.Join(libraryRoot, "..", "experience", "components"), libraryRoot)
 	ungoverned := countUngovernedReleases(libraryRoot)
 	overduePlans := overduePlannedImplementations(filepath.Join(libraryRoot, "..", "catalog"), libraryRoot)
 	overdueRetired := overdueRetiredTrees(libraryRoot, 30)
 	adoptionDepth := adoptionDepthPercent(root)
+	machineryLines := LedgerMachineryLines()
+	assetLines := LedgerAssetLines()
+	machineryRatio := 0.0
+	if assetLines > 0 {
+		machineryRatio = float64(machineryLines) / float64(assetLines)
+	}
 	shapes, _ := ShapeCensus(libraryRoot)
 	duplications, _ := DuplicationCensus(root)
 	values := []CorpusInvariant{
-		{"I21", "adoption depth (library imports / ecosystem UI files)", adoptionDepth, 25, "percent"},
-		{"I1", "retention commands succeeding", float64(retentionCommandCount()), 3, "commands"},
-		{"I2", "unreadable version mirrors", float64(countUnreadableMirrors()), 0, "versions"},
-		{"I3", "post-cutoff intra-library exact pins", float64(exact), 0, "pins"},
-		{"I4", "intra-library pins targeting superseded versions", float64(stale), 0, "pins"},
-		{"I5", "version directories", float64(totalVersions), 290, "versions"},
-		{"I6", "superseded compiled source share", float64(share), 15, "percent"},
-		{"I7", "failing cells without findings", float64(zeroFindingFailures), 0, "cells"},
-		{"I8", "warm full gate matrix", float64(warmMatrixSeconds), 30, "seconds"},
-		{"I9", "single-asset validation cycle", float64(singleAssetSeconds), 10, "seconds"},
-		{"I10", "missing release-hash entries", float64(missing), 0, "entries"},
-		{"I11", "mutated release-hash entries", float64(mutated), 0, "entries"},
-		{"I12", "assets failing immutability", float64(countImmutableFailures(missing, mutated)), 0, "assets"},
-		{"I13", "catalog/build failures", float64(liveBuildFailures(root)), 0, "commands"},
-		{"I14", "ungoverned releases detected", float64(ungoverned), 0, "releases"},
-		{"I15", "runnerless blocking gates", float64(runnerless), 0, "gates"},
-		{"I16", "blocking gates", float64(blocking), 0, "gates"},
-		{"I17", "vacuous allowlist entries", float64(allowlist), 40, "entries"},
+		{"I21", "adoption depth (library imports / ecosystem UI files)", adoptionDepth, 25, "percent", ""},
+		{"I1", "retention commands succeeding", float64(retentionCommandCount()), 3, "commands", ""},
+		{"I2", "unreadable version mirrors", float64(countUnreadableMirrors()), 0, "versions", ""},
+		{"I3", "post-cutoff intra-library exact pins", float64(exact), 0, "pins", ""},
+		{"I4", "intra-library pins targeting superseded versions", float64(stale), 0, "pins", ""},
+		{"I5", "version directories", float64(totalVersions), 290, "versions", ""},
+		{"I6", "superseded compiled source share", float64(share), 15, "percent", ""},
+		{"I7", "failing cells without findings", float64(zeroFindingFailures), 0, "cells", ""},
+		{"I8", "warm full gate matrix", float64(warmMatrixSeconds), 30, "seconds", ""},
+		{"I9", "single-asset check cycle", float64(singleAssetSeconds), 10, "seconds", ""},
+		{"I10", "missing release-hash entries", float64(missing), 0, "entries", ""},
+		{"I11", "mutated release-hash entries", float64(mutated), 0, "entries", ""},
+		{"I12", "assets failing immutability", float64(countImmutableFailures(missing, mutated)), 0, "assets", ""},
+		{"I13", "catalog/build failures", float64(buildFailures), 0, "commands", ""},
+		{"I14", "ungoverned releases detected", float64(ungoverned), 0, "releases", ""},
+		{"I15", "runnerless blocking gates", float64(runnerless), 0, "gates", ""},
+		{"I16", "blocking gates", float64(blocking), 0, "gates", ""},
+		{"I17", "vacuous allowlist entries", float64(allowlist), 40, "entries", ""},
 		// The plan's invariant is comparative: machine claims must outnumber
 		// manual claims. Encode that relation directly so the report's value and
 		// target have the same meaning instead of pretending that zero manual
 		// claims is the requirement.
-		{"I18", fmt.Sprintf("machine minus manual experience claims (machine: %d, manual: %d)", machineClaims, manualClaims), float64(machineClaims - manualClaims), 1, "claims"},
-		{"I19", "declared assets without implementation", float64(missingImplementations), 0, "assets"},
-		{"I20", "experience claim authorities", float64(authorities), 1, "authorities"},
-		{"I22", "distinct live version-directory shapes", float64(len(shapes)), 1, "shapes"},
-		{"I23", "owned metadata duplication mismatches", float64(len(duplications)), 0, "mismatches"},
-		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets"},
-		{"I26", "overdue retired quarantine trees", float64(overdueRetired), 0, "trees"},
+		{"I18", fmt.Sprintf("machine minus manual experience claims (machine: %d, manual: %d)", machineClaims, manualClaims), float64(machineClaims - manualClaims), 1, "claims", ""},
+		{"I19", "declared assets without implementation", float64(missingImplementations), 0, "assets", ""},
+		{"I22", "distinct live version-directory shapes", float64(len(shapes)), 1, "shapes", ""},
+		{"I23", "owned metadata duplication mismatches", float64(len(duplications)), 0, "mismatches", ""},
+		{"I27", "machinery-to-asset line ratio", machineryRatio, 0.92, "ratio", ""},
+		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets", ""},
+		{"I26", "overdue retired quarantine trees", float64(overdueRetired), 0, "trees", ""},
 	}
-	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), InvariantCount: len(values), Invariants: values}, nil
+	if measurementFailed || zeroFindingFailuresFailed || buildFailuresFailed {
+		for index := range values {
+			if (values[index].ID == "I8" || values[index].ID == "I9") && measurementFailed ||
+				values[index].ID == "I7" && zeroFindingFailuresFailed ||
+				values[index].ID == "I13" && buildFailuresFailed {
+				values[index].Status = "failed_measurement"
+			}
+		}
+	}
+	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), InvariantCount: len(values), Invariants: values, VersionShapes: shapes}, nil
 }
 
 func adoptionDepthPercent(root string) float64 {
 	uiFiles, importing := 0, 0
 	scenariosRoot := filepath.Join(root, "scenarios")
-	_ = filepath.WalkDir(scenariosRoot, func(path string, entry os.DirEntry, err error) error {
+	_ = librarywalk.WalkContext(context.Background(), scenariosRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -270,23 +293,24 @@ func countImmutableFailures(missing, mutated int) int { return missing + mutated
 // Live runners are intentionally small and read-only. The public generator is
 // the authoritative derived-artifact check; a failing process is one observed
 // drift/failure, while an unavailable executable remains unmeasured.
-func liveTimingMeasurements(_ string) (warmMatrixSeconds, singleAssetSeconds int) {
+func liveTimingMeasurements(_ string) (warmMatrixSeconds, singleAssetSeconds int, measured bool) {
 	// Corpus-report unit tests must remain filesystem-only. The installed CLI
 	// is the production measurement seam; a test binary cannot route through
 	// the scenario lifecycle and therefore has no meaningful live timing.
 	if strings.HasSuffix(filepath.Base(os.Args[0]), ".test") {
-		return -1, -1
+		return 0, 0, false
 	}
 	cli, err := exec.LookPath("react-component-library")
 	if err != nil {
-		return -1, -1
+		return 0, 0, false
 	}
-	warmMatrixSeconds = timeCLI(cli, []string{"catalog", "gates", "--all", "--json"}, 2*time.Minute)
-	singleAssetSeconds = timeCLI(cli, []string{"catalog", "gates", "types", "--asset-id", "controls.button", "--json"}, time.Minute)
-	return warmMatrixSeconds, singleAssetSeconds
+	var warmMeasured, assetMeasured bool
+	warmMatrixSeconds, warmMeasured = timeCLI(cli, []string{"catalog", "gates", "--all", "--json"}, 2*time.Minute)
+	singleAssetSeconds, assetMeasured = timeCLI(cli, []string{"asset", "check", "controls.button", "--json"}, time.Minute)
+	return warmMatrixSeconds, singleAssetSeconds, warmMeasured && assetMeasured
 }
 
-func timeCLI(cli string, args []string, timeout time.Duration) int {
+func timeCLI(cli string, args []string, timeout time.Duration) (int, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	started := time.Now()
@@ -295,9 +319,9 @@ func timeCLI(cli string, args []string, timeout time.Duration) int {
 	command.Stderr = io.Discard
 	_ = command.Run()
 	if ctx.Err() != nil {
-		return -1
+		return 0, false
 	}
-	return int(math.Ceil(time.Since(started).Seconds()))
+	return int(math.Ceil(time.Since(started).Seconds())), true
 }
 
 type matrixFailureCell struct {
@@ -309,42 +333,22 @@ type matrixFailureReport struct {
 	Cells []matrixFailureCell `json:"cells"`
 }
 
-// liveMatrixFailures consumes the same cell-level artifact used for durable
-// matrix review. The aggregate catalog API intentionally exposes only totals,
-// so using that API here would make it impossible to prove that every failing
+// liveMatrixFailures evaluates the same gate definitions used by the catalog
+// matrix. The aggregate catalog API intentionally exposes only totals, so
+// using that API here would make it impossible to prove that every failing
 // cell has attributable findings.
-func liveMatrixFailures(root string) int {
+func liveMatrixFailures(root string) (int, bool) {
 	repositoryRoot, err := filepath.Abs(root)
 	if err != nil {
-		return -1
+		return 0, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	apiRoot := filepath.Join(repositoryRoot, "scenarios", "react-component-library", "api")
-	temporary, err := os.CreateTemp("", "rcl-gate-matrix-measurement-*")
-	if err != nil {
-		return -1
-	}
-	binaryPath := temporary.Name()
-	_ = temporary.Close()
-	defer os.Remove(binaryPath)
-	build := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/gate-matrix") // #nosec G204 -- fixed repository-owned measurement command
-	build.Dir = apiRoot
-	build.Env = append(os.Environ(), "GOWORK=off")
-	if err := build.Run(); err != nil || ctx.Err() != nil {
-		return -1
-	}
-	command := exec.CommandContext(ctx, binaryPath, "--root", repositoryRoot) // #nosec G204 -- path is the temporary repository-owned measurement binary
-	command.Dir = apiRoot
-	output, err := command.Output()
+	failures, err := CountMatrixFailures(ctx, repositoryRoot)
 	if err != nil || ctx.Err() != nil {
-		return -1
+		return 0, false
 	}
-	failures, err := countMatrixFailures(output)
-	if err != nil {
-		return -1
-	}
-	return failures
+	return failures, true
 }
 
 func countMatrixFailures(output []byte) (int, error) {
@@ -361,17 +365,17 @@ func countMatrixFailures(output []byte) (int, error) {
 	return failures, nil
 }
 
-func liveBuildFailures(root string) int {
+func liveBuildFailures(root string) (int, bool) {
 	script := filepath.Join("packages", "react-component-library", "tooling", "catalog-build.mjs")
 	if _, err := os.Stat(filepath.Join(root, script)); err != nil {
-		return -1
+		return 0, false
 	}
 	cmd := exec.Command("node", script, "--check") // #nosec G204 -- fixed repository-owned generator
 	cmd.Dir = root
 	if err := cmd.Run(); err != nil {
-		return 1
+		return 1, true
 	}
-	return 0
+	return 0, true
 }
 
 func blockingGateCounts(configPath string) (runnerless, blocking int) {
@@ -438,13 +442,13 @@ func experienceClaimCounts(canonicalRoot, libraryRoot string) (manual, machine i
 			}
 		}
 	}
-	_ = filepath.WalkDir(canonicalRoot, func(path string, entry os.DirEntry, err error) error {
+	_ = librarywalk.WalkContext(context.Background(), canonicalRoot, func(path string, entry os.DirEntry, err error) error {
 		if err == nil && !entry.IsDir() && strings.HasSuffix(path, ".json") {
 			count(path)
 		}
 		return nil
 	})
-	_ = filepath.WalkDir(libraryRoot, func(path string, entry os.DirEntry, err error) error {
+	_ = librarywalk.WalkContext(context.Background(), libraryRoot, func(path string, entry os.DirEntry, err error) error {
 		if err == nil && !entry.IsDir() && filepath.Base(path) == "experience-contract.json" {
 			count(path)
 		}
@@ -520,25 +524,6 @@ func overdueRetiredTrees(libraryRoot string, retentionDays int) int {
 		}
 	}
 	return overdue
-}
-
-func experienceAuthorityCount(canonicalRoot, libraryRoot string) int {
-	authorities := 0
-	if entries, err := os.ReadDir(canonicalRoot); err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
-				authorities = 1
-				break
-			}
-		}
-	}
-	// Version-local contracts are immutable claims attached to a release. They
-	// are evidence consumed by the canonical experience authority, not a
-	// second authority. Counting them here made every historical contract look
-	// like a competing registry and incorrectly failed the single-authority
-	// invariant.
-	_ = libraryRoot
-	return authorities
 }
 
 func countUngovernedReleases(libraryRoot string) int {

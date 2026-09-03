@@ -2,9 +2,9 @@
 import { type ReactNode, useId } from "react";
 import { MonitorSmartphone, RotateCw, Undo2, ZoomIn } from "lucide-react";
 
-import { Button } from "../../components/Button";
-import { Input } from "../../components/Input";
-import { Select } from "../../components/Select";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

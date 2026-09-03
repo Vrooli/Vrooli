@@ -1,6 +1,7 @@
 {
-  "catalogId": "react-component-library:AuthClient",
+  "catalogId": null,
   "deprecatedVersions": [],
   "latest": "1.0.0",
-  "libraryId": "react-component-library:AuthClient"
+  "libraryId": "react-component-library:AuthClient",
+  "supplemental": true
 }

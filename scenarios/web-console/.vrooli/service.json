@@ -481,6 +481,14 @@
         "runtime_only_rationale": "web-console reaches vrooli-bridge through the configured Bridge URL and bridge session transport; the dependency is an externally orchestrated service boundary rather than an in-process import.",
         "description": "Optional remote terminal capability. web-console uses the bridge session transport when a Bridge URL and enrolled node are configured.",
         "degraded_behavior": "Local terminal sessions remain available; remote targets show bridge_url_missing or another typed capability reason until vrooli-bridge is configured."
+      },
+      "integration-hub": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Web Console consumes Integration Hub through the generated common.v1.integrations ConnectionService; no hub implementation is imported into this scenario.",
+        "description": "Provider-neutral connection metadata and lifecycle owner for managed integrations.",
+        "degraded_behavior": "Runtime dependencies and local BYOK behavior remain available; connected-account management reports an explicit unavailable state until Integration Hub recovers."
       }
     }
   },

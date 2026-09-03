@@ -1,6 +1,6 @@
 # Integrations
 
-This folder describes how Vrooli connects to external services — third-party APIs, OAuth providers, cloud services, coding-agent sign-ins, social-media accounts. The integration model is a connector + connection split, owned by the deferred `integration-hub` scenario.
+This folder describes how Vrooli connects to external services — third-party APIs, OAuth providers, cloud services, coding-agent sign-ins, social-media accounts. The integration model is a connector + connection split, owned by the `integration-hub` scenario. The current pilot exposes the provider-neutral `ConnectionService` and an OpenRouter API-key connector; additional connector manifests and auth drivers remain incremental work.
 
 ## Read order
 
@@ -39,13 +39,13 @@ A pay-per-use AI API is a borderline case. Today these live as resources because
 
 ## Status
 
-The integration-hub scenario does not exist yet. Until it does:
+The integration-hub scenario currently owns metadata-only connection lifecycle for the OpenRouter pilot. Until broader connector support lands:
 
 - Paste-string credentials live as resource credentials (the existing pattern). See [`../secrets.md`](../secrets.md).
-- Loose / scratch keys for ad-hoc testing have no clean home. See the [scratch case](connections.md#unbound-connections-the-scratch-case) for the eventual story.
-- Multi-instance integrations (the persona-actor case) are not supported. The marketing-crew persona accounts will land alongside or after integration-hub.
+- Loose / scratch keys use the Hub's unbound-connection model; provider-specific drivers are still limited.
+- Multi-instance integrations (the persona-actor case) are not yet wired end to end.
 
 ## See also
 
 - [`../secrets.md`](../secrets.md) — paste-string credential layering for resources (the existing pattern)
-- [`../architecture.md`](../architecture.md) — source-of-truth tables; integration-hub is on the deferred-scenarios list
+- [`../architecture.md`](../architecture.md) — source-of-truth tables and remaining integration work

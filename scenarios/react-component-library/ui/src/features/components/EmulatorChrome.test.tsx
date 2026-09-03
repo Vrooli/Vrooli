@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -102,7 +102,9 @@ describe("EmulatorChrome", () => {
     const trigger = screen.getByTestId(selectors.components.emulator.viewportToggle);
     await openViewport(user);
     await user.keyboard("{Escape}");
-    expect(screen.queryByTestId(selectors.components.emulator.viewportPanel)).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByTestId(selectors.components.emulator.viewportPanel)).toBeNull(),
+    );
     expect(trigger).toHaveFocus();
   });
 

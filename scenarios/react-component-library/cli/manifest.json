@@ -38,22 +38,6 @@
           }
         },
         {
-          "name": "list-scenarios",
-          "description": "List scenarios available as component-adoption targets",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ListScenarios"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "list-effective",
           "description": "List direct and mediated usage for one catalog asset",
           "positionals": [
@@ -119,72 +103,21 @@
         {
           "name": "obligations",
           "description": "Verify the durable files (resolved from the template ui/manifest.json) and contract dimensions for a scenario adoption",
-          "positionals": [{ "name": "scenario", "required": true, "description": "Target scenario name" }],
-          "binding": { "kind": "local" },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["filesystem:read"]
-          }
-        },
-        {
-          "name": "tokens-sync",
-          "description": "Add missing library token requirements to the scenario managed ramp",
-          "positionals": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Target scenario name"
-            }
-          ],
-          "flags": [
-            {
-              "name": "dry-run",
-              "description": "Report changes without writing"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "SyncScenarioTokens"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
             "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "tokens-prune",
-          "description": "Report or remove managed token declarations no live adoption requires",
-          "positionals": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Target scenario name"
-            }
-          ],
-          "flags": [
-            {
-              "name": "apply",
-              "description": "Apply the reported removals"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "PruneScenarioTokens"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
+              "filesystem:read"
             ]
           }
         },
@@ -192,406 +125,6 @@
           "name": "link",
           "description": "Link a pinned component version through the governed package dependency",
           "positionals": [
-            { "name": "component-id", "required": true, "description": "Library component id" },
-            { "name": "scenario", "required": true, "description": "Target scenario name" }
-          ],
-          "flags": [
-            { "name": "version", "description": "Library version to link; defaults to latest" },
-            { "name": "import-subpath", "description": "Explicit package export subpath" },
-            { "name": "confirm-existing", "description": "Accept an existing different package dependency" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "LinkAdoption" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
-        },
-        {
-          "name": "eject",
-          "description": "Copy a component into a scenario as an explicit reason-bearing ejection",
-          "positionals": [
-            { "name": "component-id", "required": true, "description": "Library component id" },
-            { "name": "scenario", "required": true, "description": "Target scenario name" },
-            { "name": "adopted-path", "required": true, "description": "Path within the target scenario" }
-          ],
-          "flags": [
-            { "name": "version", "description": "Library version to eject; defaults to latest" },
-            { "name": "reason", "description": "Required explanation for the ejection" },
-            { "name": "replace-existing", "description": "Replace an existing scenario source" },
-            { "name": "confirm-overwrite", "description": "Confirm replacing different source" },
-            { "name": "override-validation", "description": "Explicitly allow a blocking validation verdict" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "EjectAdoption" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
-        },
-        {
-          "name": "apply",
-          "description": "Copy a component version into a target scenario and record the adoption",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Library component id"
-            },
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Target scenario name (e.g. swarm-manager)"
-            },
-            {
-              "name": "adopted-path",
-              "required": true,
-              "description": "Path within the target scenario"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Library version to apply; defaults to latest"
-            },
-            {
-              "name": "include",
-              "description": "Repeat to opt into a suggested dependency library id",
-              "bind": {
-                "field": "include_suggestions"
-              }
-            },
-            {
-              "name": "set",
-              "local_only": true,
-              "description": "Batch item as component-id:scenario:adopted-path[:version]",
-              "bind_waiver": "The repeatable set syntax is parsed by the custom batch handler into typed BatchApplyAdoptionsRequest.items."
-            },
-            {
-              "name": "replace-existing",
-              "description": "Set to true to intentionally replace an existing scenario source file"
-            },
-            {
-              "name": "confirm-overwrite",
-              "description": "Set to true to overwrite an existing target file"
-            },
-            {
-              "name": "override-validation",
-              "description": "Explicitly allow a blocking dependency validation verdict"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ApplyAdoption"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "suggest",
-          "description": "Rank explainable component-adoption candidates from scenario UI inventory",
-          "flags": [
-            {
-              "name": "scenario",
-              "description": "Optional target scenario"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum suggestions (default 50)"
-            },
-            {
-              "name": "component-id",
-              "description": "Optional component id; suggest target scenarios for this component"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "SuggestAdoptions"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "batch-apply",
-          "description": "Apply several component-and-target pairs as one validated batch",
-          "flags": [
-            {"name": "set", "local_only": true, "description": "Repeat: component-id:scenario:adopted-path[:version]", "bind_waiver": "The repeatable set syntax is parsed by the custom batch handler into typed BatchApplyAdoptionsRequest.items."},
-            {"name": "confirm-overwrite", "local_only": true, "description": "Set to true to overwrite existing target files", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."},
-            {"name": "replace-existing", "local_only": true, "description": "Set to true to replace existing scenario source", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."},
-            {"name": "override-validation", "local_only": true, "description": "Explicitly allow blocking readiness findings", "bind_waiver": "The custom batch handler folds this CLI control into each typed BatchApplyItem."}
-          ],
-          "binding": {"kind": "connect-rpc", "service": "AdoptionsService", "method": "BatchApplyAdoptions"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "reapply",
-          "description": "Overwrite an adoption from a library version",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Adoption record id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Library version to apply; defaults to latest"
-            },
-            {
-              "name": "confirm-local-overwrite",
-              "description": "Set to true to overwrite local modifications"
-            },
-            {
-              "name": "override-validation",
-              "description": "Explicitly allow a blocking dependency validation verdict"
-            },
-            {
-              "name": "dry-run",
-              "description": "Validate closure and token requirements without writing"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ReapplyAdoption"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "delete",
-          "description": "Delete an adoption record by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Adoption record id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "confirm-remove-files",
-              "description": "Confirm removal of files owned only by this adoption"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "DeleteAdoption"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reconcile",
-          "description": "Scan existing scenario provenance and backfill missing adoption records (dry-run by default)",
-          "flags": [
-            {
-              "name": "apply",
-              "description": "Write missing adoption records to the RCL store"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ReconcileAdoptions"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "reconverge",
-          "description": "Batch-reconverge BEHIND adoptions to the current library version: re-apply CLEAN copies, flag MODIFIED copies for human review (dry-run by default)",
-          "flags": [
-            {
-              "name": "scenario",
-              "description": "Optional adopter scenario to restrict the reconverge"
-            },
-            {
-              "name": "apply",
-              "description": "Re-apply the CLEAN behind copies (default is dry-run)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ReconvergeAdoptions"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "discover",
-          "description": "Find header-less scenario UI files that content-match a library version and surface them as provenance-backfill candidates (read-only; review evidence, then confirm-discovery)",
-          "flags": [
-            {
-              "name": "scenario",
-              "description": "Optional scenario to restrict the scan"
-            },
-            {
-              "name": "min-similarity",
-              "description": "Minimum S\u00f8rensen\u2013Dice line similarity [0,1] to surface a candidate (default 0.6)"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum candidates (default 200)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "DiscoverAdoptions"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "confirm-discovery",
-          "description": "Confirm a discovery candidate: inject its @vrooliComponentSource header and create the adoption record",
-          "positionals": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Scenario holding the header-less file"
-            },
-            {
-              "name": "adopted-path",
-              "required": true,
-              "description": "Scenario-relative path of the file to tag"
-            },
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Library component id to attribute"
-            },
-            {
-              "name": "version",
-              "required": true,
-              "description": "Library version to attribute"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ConfirmDiscovery"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "refresh",
-          "description": "Recompute drift status for every adoption (or one component's)",
-          "flags": [
-            {
-              "name": "component-id",
-              "description": "Limit refresh to one component's adoptions"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "RefreshAdoptions"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "fork-report",
-          "description": "Classify every adoption's fork disposition; dry-run by default, --apply persists the report",
-          "flags": [
-            {
-              "name": "component-id",
-              "description": "Limit the report to one component's adoptions"
-            },
-            {
-              "name": "apply",
-              "description": "Persist the computed fork dispositions"
-            },
-            {
-              "name": "report",
-              "default": "true",
-              "description": "Internal command selector",
-              "bind": {
-                "field": "fork_report"
-              }
-            },
-            {
-              "name": "json",
-              "bool": true,
-              "local_only": true,
-              "description": "Emit JSON output instead of human-readable output"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AdoptionsService",
-            "method": "ForkReportAdoptions"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "resolve-path",
-          "description": "Compute the canonical adopted path for a component in a target scenario (uses the scenario's UI manifest)",
-          "positionals": [
             {
               "name": "component-id",
               "required": true,
@@ -605,35 +138,29 @@
           ],
           "flags": [
             {
-              "name": "override",
-              "description": "Use this path instead and validate path safety",
-              "bind": {
-                "field": "override_path"
-              }
-            },
-            {
-              "name": "feature",
-              "description": "Feature folder name (required when the slot needs one)"
-            },
-            {
               "name": "version",
-              "description": "Version whose full file set to place (defaults to the latest indexed version)"
+              "description": "Library version to link; defaults to latest"
             },
             {
-              "name": "template",
-              "description": "Resolve placement against this template's UI manifest instead of chasing the scenario's service.json"
+              "name": "import-subpath",
+              "description": "Explicit package export subpath"
+            },
+            {
+              "name": "confirm-existing",
+              "description": "Accept an existing different package dependency"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "AdoptionsService",
-            "method": "ResolveAdoptionPath"
+            "method": "LinkAdoption"
           },
           "governance": {
-            "effect": "read",
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
-              "network:internal"
+              "network:internal",
+              "filesystem:write"
             ]
           }
         }
@@ -643,29 +170,6 @@
       "name": "components",
       "description": "Browse and re-index the local React component registry",
       "commands": [
-        {
-          "name": "index",
-          "description": "Walk the source root and refresh the registry",
-          "flags": [
-            {
-              "name": "no-reconcile",
-              "description": "Skip reachability-based materialization reconciliation"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "IndexComponents"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
         {
           "name": "list",
           "description": "List indexed components",
@@ -720,57 +224,6 @@
           }
         },
         {
-          "name": "styles",
-          "description": "List canonical design styles components may reference",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "ListDesignStyles"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "style-fit",
-          "description": "Validate a component version against a target scenario's design style",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            },
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Target scenario name"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Component version to validate; defaults to latest"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "ValidateStyleFit"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
           "name": "get",
           "description": "Get a component by id",
           "positionals": [
@@ -784,29 +237,6 @@
             "kind": "connect-rpc",
             "service": "ComponentsService",
             "method": "GetComponent"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "get-by-library-id",
-          "description": "Get a component by its @libraryId header value",
-          "positionals": [
-            {
-              "name": "library-id",
-              "required": true,
-              "description": "@libraryId header value"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "GetComponentByLibraryId"
           },
           "governance": {
             "effect": "read",
@@ -856,149 +286,28 @@
           "name": "sweep",
           "description": "Run the durable five-stage test pipeline across every live library version",
           "flags": [
-            {"name": "resume", "bool": true, "description": "Skip versions with a prior non-blocked report"},
-            {"name": "closure", "bool": true, "description": "Include each version's pinned dependency closure", "bind": {"field": "include_closure"}},
-            {"name": "component-id", "description": "Run one component batch by UUID or library id"}
+            {
+              "name": "resume",
+              "bool": true,
+              "description": "Skip versions with a prior non-blocked report"
+            },
+            {
+              "name": "closure",
+              "bool": true,
+              "description": "Include each version's pinned dependency closure",
+              "bind": {
+                "field": "include_closure"
+              }
+            },
+            {
+              "name": "component-id",
+              "description": "Run one component batch by UUID or library id"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ComponentTestsService",
             "method": "SweepComponentTests"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "test-show",
-          "description": "Show a durable component test report",
-          "positionals": [
-            {
-              "name": "report-id",
-              "required": true,
-              "description": "Component test report id",
-              "bind": {
-                "field": "id"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentTestsService",
-            "method": "GetComponentTestReport"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "test-rerun",
-          "description": "Rerun the exact version-pinned component test represented by a durable report",
-          "positionals": [
-            {
-              "name": "report-id",
-              "required": true,
-              "description": "Prior component test report id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentTestsService",
-            "method": "RerunComponentTest"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "test-list",
-          "description": "List component test reports for an asset",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Catalog asset id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "limit",
-              "description": "Maximum reports (default 30)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentTestsService",
-            "method": "ListComponentTestReports"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "init",
-          "description": "Initialize a new library component source folder",
-          "positionals": [
-            {
-              "name": "slug",
-              "required": true,
-              "description": "Component folder slug"
-            }
-          ],
-          "flags": [
-            {
-              "name": "library-id",
-              "description": "Stable library id (default react-component-library:<slug>)"
-            },
-            {
-              "name": "display-name",
-              "description": "Human-readable display name"
-            },
-            {
-              "name": "description",
-              "description": "Short component description"
-            },
-            {
-              "name": "tags",
-              "description": "Comma-separated tags"
-            },
-            {
-              "name": "version",
-              "description": "Initial released version (default 0.1.0)",
-              "bind": {
-                "field": "initial_version"
-              }
-            },
-            {
-              "name": "file-name",
-              "description": "Initial TSX file name"
-            },
-            {
-              "name": "source-file",
-              "description": "Initial source file, or - for stdin",
-              "bind": {
-                "field": "initial_source"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "InitializeComponent"
           },
           "governance": {
             "effect": "write",
@@ -1098,7 +407,11 @@
             {
               "name": "bump",
               "description": "Semver increment when --version is omitted",
-              "values": ["major", "minor", "patch"],
+              "values": [
+                "major",
+                "minor",
+                "patch"
+              ],
               "default": "patch"
             },
             {
@@ -1114,34 +427,10 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "refresh",
-          "description": "Refresh one component from disk and report its focused preflight status",
-          "positionals": [
-            {
-              "name": "component",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Version to refresh; defaults to the active draft, then latest"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "CheckComponentVersion"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
           }
         },
         {
@@ -1183,203 +472,9 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "version-create",
-          "description": "Low-level compatibility command for creating an explicit component version folder",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            },
-            {
-              "name": "version",
-              "required": true,
-              "description": "New semver-like version"
-            }
-          ],
-          "flags": [
-            {
-              "name": "from-version",
-              "description": "Existing version to copy from"
-            },
-            {
-              "name": "draft",
-              "description": "Treat the new version as draft/pre-release",
-              "local_only": true
-            },
-            {
-              "name": "file-name",
-              "description": "TSX file name in the new folder"
-            },
-            {
-              "name": "source-file",
-              "description": "Source file, or - for stdin",
-              "bind": {
-                "field": "source"
-              }
-            },
-            {
-              "name": "parity-report",
-              "description": "JSON IngestParityReport file, or - for stdin",
-              "local_only": true
-            },
-            {
-              "name": "acknowledge-parity-waiver",
-              "description": "Explicitly waive behavior-loss findings while promoting an ingest draft"
-            },
-            {
-              "name": "changelog",
-              "description": "Changelog text for the version",
-              "bind": {
-                "field": "changelog_md"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "CreateComponentVersion"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
             "permissions": [
               "network:internal",
               "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "republish-dependents",
-          "description": "List or republish assets pinned to an older release of one dependency",
-          "positionals": [
-            {"name": "asset", "required": true, "description": "Dependency asset name or library id"},
-            {"name": "version", "required": true, "description": "Target dependency release"}
-          ],
-          "flags": [
-            {"name": "apply", "description": "Create and publish patch drafts; omission is a dry run", "local_only": true}
-          ],
-          "binding": {"kind": "local"},
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "migrate-specifiers",
-          "description": "List or republish latest assets whose authored source still uses exact library selectors",
-          "flags": [
-            {"name": "apply", "description": "Create and publish patch drafts; omission is a dry run", "local_only": true}
-          ],
-          "binding": {"kind": "local"},
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "republish-plan",
-          "description": "Emit the dependency-rank-ordered plan for migrating latest assets to major-line selectors",
-          "binding": {"kind": "local"},
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
-          }
-        },
-        {
-          "name": "manifest-update",
-          "description": "Update component manifest metadata and version pointers",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Component id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "display-name",
-              "description": "New display name"
-            },
-            {
-              "name": "description",
-              "description": "New description"
-            },
-            {
-              "name": "tags",
-              "description": "Comma-separated replacement tags"
-            },
-            {
-              "name": "latest-version",
-              "description": "Latest released version pointer"
-            },
-            {
-              "name": "draft-version",
-              "description": "Draft version pointer"
-            },
-            {
-              "name": "deprecated-versions",
-              "description": "Comma-separated deprecated versions"
-            },
-            {
-              "name": "catalog-id",
-              "description": "Stable catalog asset id"
-            },
-            {
-              "name": "replaced-by",
-              "description": "Comma-separated successor catalog asset ids"
-            },
-            {
-              "name": "clear-supplemental-justification",
-              "description": "Remove x-supplementalJustification"
-            },
-            {
-              "name": "clear-catalog-id",
-              "description": "Remove catalogId when no catalog asset exists"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "UpdateComponentManifest"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "content-get",
-          "description": "Read a component's source file",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "GetComponentContent"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
             ]
           }
         },
@@ -1420,97 +515,6 @@
             "permissions": [
               "network:internal",
               "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "versions",
-          "description": "List indexed versions for a component",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            }
-          ],
-          "flags": [
-            {
-              "name": "limit",
-              "description": "Maximum number of rows"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "ListComponentVersions"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "show-version",
-          "description": "Read the source for a component version",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            },
-            {
-              "name": "version",
-              "required": true,
-              "description": "Version folder name"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "GetComponentVersionContent"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "stories",
-          "description": "List validated story contracts for a catalog asset",
-          "positionals": [
-            {
-              "name": "component-id",
-              "required": true,
-              "description": "Catalog asset id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Only stories for this version"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum number of rows"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "ListComponentStories"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
             ]
           }
         }
@@ -1632,12 +636,12 @@
             {
               "name": "from",
               "required": true,
-              "description": "Source \u2014 @version value or adoption:<id>"
+              "description": "Source — @version value or adoption:<id>"
             },
             {
               "name": "to",
               "required": true,
-              "description": "Target \u2014 @version value or adoption:<id>"
+              "description": "Target — @version value or adoption:<id>"
             }
           ],
           "binding": {
@@ -1654,121 +658,20 @@
           }
         },
         {
-          "name": "retire-candidates",
-          "description": "List versions with no adopter, provenance, or dependency pin",
-          "flags": [{"name": "component-id", "description": "Restrict candidates to one component"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ListRetireCandidates"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
-        },
-        {
-          "name": "plan-cleanup",
-          "description": "Preview removable released versions and return an exact confirmation hash",
-          "flags": [
-            {"name": "component-id", "description": "Restrict to one component or library id"},
-            {"name": "library-id", "description": "Restrict to one library asset"},
-            {"name": "older-than-days", "description": "Only retire versions at least this many days old"}
-          ],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "PlanCleanup"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
-        },
-        {
-          "name": "cleanup",
-          "description": "Retire all eligible released versions from an exact reviewed cleanup plan",
-          "flags": [
-            {"name": "component-id", "description": "Restrict to one component or library id"},
-            {"name": "library-id", "description": "Restrict to one library asset"},
-            {"name": "older-than-days", "description": "Only retire versions at least this many days old"},
-            {"name": "plan-hash", "description": "Hash returned by plan-cleanup"},
-            {"name": "confirm", "description": "Confirm destructive retirement", "bind": {"field": "confirm"}}
-          ],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "CleanupVersions"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "cleanup-draft",
-          "description": "Preview or discard one abandoned mutable draft",
-          "positionals": [{"name": "component-id", "required": true, "description": "Component or library id"}],
-          "flags": [
-            {"name": "older-than-days", "description": "Only discard drafts at least this many days old"},
-            {"name": "confirm", "description": "Confirm destructive draft removal", "bind": {"field": "confirm"}}
-          ],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "CleanupDraft"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "progression",
-          "description": "Read durable per-version progression facts, including retired versions",
-          "flags": [{"name": "library-id", "description": "Restrict to one library asset"}, {"name": "window", "description": "Canonical time window", "values": ["this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"]}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ListVersionLedger"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "measure": {
-            "domain": "version_ledger",
-            "intent": "Compare quality, adoption, and size across every version of a library asset.",
-            "questions": ["how is this component progressing across versions", "compare version quality and adoption", "show retired versions on the progression chart"],
-            "params": {"window": {"type": "time_window", "default": "this_week"}},
-            "result": {"kind": "table", "value_field": "rows", "unit": "version rows", "summary_template": "{count} version progression rows"}
-          }
-        },
-        {
-          "name": "deprecate",
-          "description": "Mark a non-latest version deprecated",
-          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "DeprecateVersion"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "archive",
-          "description": "Reversibly evict an unreferenced version after mirror verification",
-          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
-          "flags": [{"name": "plan-hash", "description": "Hash returned by plan-cleanup"}, {"name": "confirm", "description": "Confirm reversible eviction"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ArchiveVersion"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "retire",
-          "description": "Reclaim an explicitly confirmed unreferenced version folder",
-          "positionals": [{"name": "component-id", "required": true, "description": "Component id"}, {"name": "version", "required": true, "description": "Version"}],
-          "flags": [{"name": "confirm", "description": "Confirm destructive folder reclamation", "bind": {"field": "confirm"}}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "RetireVersion"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "materialize",
-          "description": "Restore version bytes from the durable file mirror",
-          "positionals": [{"name": "component-id", "required": false, "description": "Component or library id"}, {"name": "version", "required": false, "description": "Version"}],
-          "flags": [{"name": "all", "bool": true, "description": "Materialize every recorded version"}, {"name": "into", "description": "Project into a separate directory"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "MaterializeVersion"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "reconcile-presence",
-          "description": "Report or apply the reachability-based materialized/evicted tier",
-          "flags": [
-            {"name": "component-id", "description": "Restrict reconciliation to one component or library id"},
-            {"name": "apply", "bool": true, "description": "Apply the reported tier changes"}
-          ],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ReconcilePresence"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "export-archive",
-          "description": "Export the version ledger and immutable file mirror",
-          "flags": [{"name": "out", "required": true, "description": "Output archive path", "bind": {"field": "path"}, "bind_waiver": "The public --out flag is request data for the archive destination and intentionally maps to the proto path field."}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ExportArchive"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
-          "name": "import-archive",
-          "description": "Restore a version ledger archive into an empty database",
-          "flags": [{"name": "in", "required": true, "description": "Input archive path"}, {"name": "overwrite", "bool": true, "description": "Replace existing ledger rows"}],
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ImportArchive"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
-        },
-        {
           "name": "doctor",
           "description": "Report evicted versions with missing or mismatched mirror bytes",
-          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "Doctor"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "Doctor"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1894,82 +797,6 @@
           }
         },
         {
-          "name": "refresh",
-          "description": "Synchronize one workflow from Agent Manager once",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Workflow id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "WorkflowsService",
-            "method": "RefreshWorkflow"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "stop",
-          "description": "Request that Agent Manager stop active workflow execution",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Workflow id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "WorkflowsService",
-            "method": "StopWorkflow"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "retry",
-          "description": "Retry a terminal workflow with a new idempotency key",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Workflow id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "idempotency-key",
-              "description": "Required replay-safe retry key"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "WorkflowsService",
-            "method": "RetryWorkflow"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "promotion-readiness",
           "description": "Read the parity, examples, dependency closure, origin replacement, and drift evidence required before calling an asset canonical",
           "positionals": [
@@ -2005,245 +832,220 @@
       ]
     },
     {
-      "name": "catalog",
-      "description": "Read desired-state catalog maturity and deterministic next work",
+      "name": "asset",
+      "description": "Run the governed edit-and-validate loop for one library asset",
       "commands": [
         {
-          "name": "coverage",
-          "description": "Report achieved maturity across the live catalog",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "CatalogService",
-            "method": "GetCoverage"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "next",
-          "description": "Rank the next catalog assets by maturity gap and downstream leverage",
+          "name": "check",
+          "description": "Build, validate, and print one verdict for one catalog asset",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id, for example controls.button"
+            }
+          ],
           "flags": [
             {
-              "name": "limit",
-              "description": "Maximum number of targets"
+              "name": "version",
+              "description": "Immutable version; defaults to latest"
             },
             {
-              "name": "lane",
-              "description": "Work lane: promote (default), build, or all"
+              "name": "run-tests",
+              "bool": true,
+              "description": "Run browser-backed tests when no fresh report can be reused"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Render the complete check response as JSON"
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "CatalogService",
-            "method": "ListNextWork"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal",
-              "filesystem:read"
+              "filesystem:read",
+              "filesystem:write"
             ]
-          }
-        },
-        {
-          "name": "draft",
-          "description": "Open, promote, or discard immutable catalog drafts",
-          "positionals": [
-            { "name": "action", "required": true, "description": "Action: open, promote, or discard", "local_only": true },
-            { "name": "asset-id", "description": "Stable library ID; omit with --all", "local_only": true }
-          ],
-          "flags": [
-            { "name": "all", "bool": true, "description": "Apply the action to every matching catalog asset", "local_only": true },
-            { "name": "match", "description": "Optional substring selector used with --all", "local_only": true },
-            { "name": "bump", "description": "Version bump for open: major, minor, or patch", "local_only": true },
-            { "name": "version", "description": "Explicit release version for open or promote", "local_only": true },
-            { "name": "draft-version", "description": "Draft version to promote", "local_only": true },
-            { "name": "changelog", "description": "Changelog text for promote", "local_only": true },
-            { "name": "acknowledge-parity-waiver", "description": "Acknowledge recorded parity findings while promoting", "local_only": true }
-          ],
-          "binding": { "kind": "local" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
-          }
-        },
-    {
-      "name": "gates",
-          "description": "Run one deterministic catalog gate against the live corpus",
-          "positionals": [
-            {
-              "name": "gate",
-              "required": false,
-              "description": "Executable gate id. Registry: graph-reconciled, dependency-rank, self-hosting, bas-genericity, token-vocabulary, fallback-parity, kit-compatibility, affinity-compatible, token-ramp-complete, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, version-shape, field-ownership, release-provenance, version-liveness, dist-resolution, types, api, rtl, reduced-motion, performance, console-clean, surface-discipline, composition, composition-contract, documentation, examples, fixture-adversarial, tokens, conformance, lifecycle, i18n, selector-coverage, restyle-contract, manifest-identity, manifest-metadata, declaration-coverage, overlay-surface-composition, shared-style-ownership, style-injection, style-ownership, foreign-token-classes, utility-class, consumer-pin, deprecated-import, provenance-stamp, story-grammar, story-distinctness, evidence-freshness"
-            }
-          ],
-          "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "asset-id", "description": "Run the gate for one catalog asset only"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}, {"name": "include-advisory", "bool": true, "description": "Include advisory gates such as documentation in --all"}],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "CatalogService",
-            "method": "RunGate"
-          },
-      "governance": {
-        "effect": "read",
-        "run_eligible": true,
-        "permissions": [
-          "network:internal",
-          "filesystem:read"
-        ]
-      }
-    },
-    {
-      "name": "graph",
-      "description": "Show catalog dependencies, dependents, closure bands, and blast radius for an asset",
-      "positionals": [
-        { "name": "asset-id", "required": true, "description": "Catalog asset id" }
-      ],
-      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetRelationships" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
-    },
-    {
-      "name": "graph-reconcile",
-      "description": "Compare catalog, manifest, and actual import dependency graphs",
-      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "ReconcileGraph" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
-    },
-    {
-      "name": "structure",
-      "description": "Show catalog population, graph invariants, and largest blast radii",
-      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetCatalogStructure" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
-    },
-    {
-      "name": "ports",
-      "description": "Show unmet host capabilities for an asset closure",
-      "positionals": [
-        { "name": "asset-id", "required": true, "description": "Catalog asset id" }
-      ],
-      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetPortContract" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
-    },
-    {
-      "name": "score-history",
-      "description": "Show carried-forward weighted score history",
-      "flags": [{"name": "since", "description": "First day to include (YYYY-MM-DD)"}],
-      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetScoreHistory"},
-      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
-    },
-    {
-      "name": "health",
-      "description": "Show server-computed asset health and promotion work",
-      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetHealthOverview"},
-      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
-    },
-    {
-      "name": "readiness",
-      "description": "Report catalog readiness, blast-radius triage, and runnable next steps",
-      "flags": [{"name": "floor", "description": "Preview a stricter maturity floor without changing catalog config"}],
-      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetReadiness"},
-      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
-    },
-    {
-      "name": "corpus-report",
-      "description": "Emit all version and retention corpus invariants",
-      "binding": {"kind": "local"},
-      "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
-    },
-    {
-      "name": "shape-census",
-      "description": "Report distinct live version-directory file shapes",
-      "binding": { "kind": "local" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
-    },
-    {
-      "name": "duplication-census",
-      "description": "Report duplicated catalog metadata fields",
-      "binding": { "kind": "local" },
-      "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
-    },
-    {
-      "name": "build",
-      "description": "Generate all catalog-derived artifacts from authored sources",
-      "flags": [{ "name": "check", "bool": true, "description": "Fail when derived outputs are stale" }],
-      "binding": { "kind": "local" },
-      "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] }
-    },
-    {
-      "name": "evidence",
-      "description": "Capture declared light/dark viewport evidence for an asset",
-      "positionals": [{"name": "action", "required": true, "description": "capture", "local_only": true}, {"name": "asset-id", "required": true, "description": "Catalog asset id"}],
-      "flags": [{"name": "all", "bool": true, "description": "Capture every catalog asset"}, {"name": "changed-only", "description": "Skip unchanged capture inputs"}, {"name": "batch-size", "description": "Maximum assets per BAS capture request when --all is used (default 8)", "local_only": true, "bind_waiver": "The CLI orchestrator uses this local batch boundary to issue multiple CaptureEvidence requests; it is intentionally not part of CaptureEvidenceRequest."}, {"name": "offset", "description": "Resume --all from this sorted catalog offset", "local_only": true, "bind_waiver": "The CLI orchestrator uses this local continuation offset; it is intentionally not part of CaptureEvidenceRequest."}],
-      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "CaptureEvidence"},
-      "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
-    }
-      ]
-    },
-    {
-      "name": "coverage",
-      "flat": true,
-      "description": "Inspect and prune generated validation evidence",
-      "commands": [
-        {
-          "name": "coverage",
-          "description": "Report or prune the local coverage cache",
-          "positionals": [
-            {
-              "name": "operation",
-              "required": true,
-              "description": "Only supported operation: prune"
-            }
-          ],
-          "flags": [
-            { "name": "apply", "bool": true, "description": "Apply selected deletions" },
-            { "name": "json", "bool": true, "description": "Emit JSON" },
-            { "name": "root", "description": "Override the coverage cache root" }
-          ],
-          "binding": { "kind": "local" },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": true,
-            "requires_confirmation": true,
-            "permissions": ["filesystem:read", "filesystem:write"]
           }
         }
       ]
     },
     {
-      "name": "findings",
-      "flat": true,
-      "description": "Read the deduplicated validation finding ledger in priority order",
+      "name": "catalog",
+      "description": "Read desired-state catalog maturity and deterministic next work",
       "commands": [
         {
-          "name": "findings",
-          "description": "List findings ordered by adoption count, target rung, and severity",
-          "positionals": [{"name": "operation", "required": true, "description": "Only supported operation: list"}],
-          "flags": [
-            {"name": "json", "bool": true, "description": "Emit JSON"},
-            {"name": "root", "description": "Override the findings ledger path"}
+          "name": "gates",
+          "description": "Run one deterministic catalog gate against the live corpus",
+          "positionals": [
+            {
+              "name": "gate",
+              "required": false,
+              "description": "Executable gate id. Registry: graph-reconciled, dependency-rank, self-hosting, bas-genericity, token-vocabulary, fallback-parity, kit-compatibility, affinity-compatible, token-ramp-complete, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, version-shape, field-ownership, release-provenance, version-liveness, dist-resolution, types, api, rtl, reduced-motion, performance, console-clean, surface-discipline, composition, composition-contract, documentation, examples, fixture-adversarial, tokens, conformance, lifecycle, i18n, selector-coverage, restyle-contract, manifest-identity, manifest-metadata, declaration-coverage, overlay-surface-composition, shared-style-ownership, style-injection, style-ownership, foreign-token-classes, utility-class, consumer-pin, deprecated-import, provenance-stamp, story-grammar, story-distinctness, harness-manifest, evidence-freshness"
+            }
           ],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Run every declared catalog gate"
+            },
+            {
+              "name": "asset-id",
+              "description": "Run the gate for one catalog asset only"
+            },
+            {
+              "name": "calibration-only",
+              "bool": true,
+              "description": "Run gate-owned planted-error fixtures without inspecting the corpus"
+            },
+            {
+              "name": "include-advisory",
+              "bool": true,
+              "description": "Include advisory gates such as documentation in --all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RunGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "graph",
+          "description": "Show catalog dependencies, dependents, closure bands, and blast radius for an asset",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "GetAssetRelationships"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "readiness",
+          "description": "Report catalog readiness, blast-radius triage, and runnable next steps",
+          "flags": [
+            {
+              "name": "floor",
+              "description": "Preview a stricter maturity floor without changing catalog config"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "GetReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "corpus-report",
+          "description": "Emit all version and retention corpus invariants",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "build",
+          "description": "Generate all catalog-derived artifacts from authored sources",
+          "flags": [
+            {
+              "name": "check",
+              "bool": true,
+              "description": "Fail when derived outputs are stale"
+            },
+            {
+              "name": "list-stages",
+              "bool": true,
+              "description": "List the named derivation stages without running them"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
         }
       ]
     }
   ],
   "measures": {
     "domains": [
-      {"domain": "version_ledger", "stateful": true, "reason": "Replayable analytical projection over durable version facts."}
+      {
+        "domain": "version_ledger",
+        "stateful": true,
+        "reason": "Replayable analytical projection over durable version facts."
+      }
     ],
     "omitted": [
-      {"domain": "component_versions", "reason": "Source projection consumed by version_ledger; the progression measure is the public analytical surface."},
-      {"domain": "component_test_reports", "reason": "Bounded report payloads are summarized by component_version_test_rollup and version_ledger."},
-      {"domain": "adoption_records", "reason": "Adoption facts are grouped per version in version_ledger."},
-      {"domain": "assisted_workflows", "reason": "Workflow history is an operational integration substrate, not a catalog progression measure."},
-      {"domain": "builtin_themes", "reason": "Built-in theme definitions are configuration seed data, not historical progression facts."}
+      {
+        "domain": "component_versions",
+        "reason": "Source projection consumed by version_ledger; the progression measure is the public analytical surface."
+      },
+      {
+        "domain": "component_test_reports",
+        "reason": "Bounded report payloads are summarized by component_version_test_rollup and version_ledger."
+      },
+      {
+        "domain": "adoption_records",
+        "reason": "Adoption facts are grouped per version in version_ledger."
+      },
+      {
+        "domain": "assisted_workflows",
+        "reason": "Workflow history is an operational integration substrate, not a catalog progression measure."
+      },
+      {
+        "domain": "builtin_themes",
+        "reason": "Built-in theme definitions are configuration seed data, not historical progression facts."
+      }
     ]
   },
   "exceptions": [
@@ -2254,6 +1056,161 @@
     }
   ],
   "omitted": [
+    {
+      "service": "AdoptionsService",
+      "method": "ListScenarios",
+      "reason": "Internal discovery helper; the promoted adoption workflow starts with preflight and link."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "SyncScenarioTokens",
+      "reason": "Token synchronization is performed by the governed adoption workflow, not a standalone public command."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "PruneScenarioTokens",
+      "reason": "Token pruning is an internal maintenance operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "EjectAdoption",
+      "reason": "Ejection is retained as an API capability but is not a promoted edit-loop verb."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ApplyAdoption",
+      "reason": "Adoption application is composed by the promoted link workflow."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "BatchApplyAdoptions",
+      "reason": "Batch mutation is intentionally not part of the focused public edit loop."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ReapplyAdoption",
+      "reason": "Historical compatibility operation; use the promoted link workflow."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "DeleteAdoption",
+      "reason": "Destructive adoption deletion remains API-only."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "RefreshAdoptions",
+      "reason": "Refresh is an internal reconciliation operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ForkReportAdoptions",
+      "reason": "Historical report operation is not a promoted workflow."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ReconcileAdoptions",
+      "reason": "Reconciliation is an internal maintenance operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ReconvergeAdoptions",
+      "reason": "Reconvergence is an internal maintenance operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "DiscoverAdoptions",
+      "reason": "Discovery is an internal suggestion substrate."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ConfirmDiscovery",
+      "reason": "Discovery confirmation is an internal suggestion substrate."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ResolveAdoptionPath",
+      "reason": "Path resolution is an internal adoption helper."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "SuggestAdoptions",
+      "reason": "Suggestions are consumed by the workbench UI."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "IndexComponents",
+      "reason": "Indexing is performed by the scenario lifecycle and catalog build."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "GetComponentByLibraryId",
+      "reason": "The promoted component list/get workflow accepts stable identities."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "InitializeComponent",
+      "reason": "Initialization is an internal setup operation."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "CheckComponentVersion",
+      "reason": "Version checks are composed by draft-publish and asset check."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "CreateComponentVersion",
+      "reason": "Version creation is composed by draft-begin."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "UpdateComponentManifest",
+      "reason": "Manifest mutation is composed by the governed draft workflow."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "GetComponentContent",
+      "reason": "Content reads are an internal editor helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListComponentVersions",
+      "reason": "Version history uses the promoted versions list command."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "GetComponentVersionContent",
+      "reason": "Version content reads are an internal editor helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListComponentStories",
+      "reason": "Story discovery is an internal workbench helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListDesignStyles",
+      "reason": "Design-style discovery is an internal workbench helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ValidateStyleFit",
+      "reason": "Style fit is evaluated by catalog gates and asset check."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "RefreshWorkflow",
+      "reason": "Workflow refresh is an internal maintenance operation."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "StopWorkflow",
+      "reason": "Workflow stopping remains an operational API capability."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "RetryWorkflow",
+      "reason": "Workflow retry remains an operational API capability."
+    },
     {
       "service": "ComponentsService",
       "method": "ResolveLibraryImport",

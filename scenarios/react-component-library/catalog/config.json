@@ -112,7 +112,7 @@
   ],
   "gates": [
     {
-      "id": "graph-reconciled",
+      "id": "graph-reconciled", "reads": "closure",
       "rung": "implemented",
       "description": "Reports catalog, manifest, and TypeScript import dependency drift without repairing manifests.",
       "appliesTo": [
@@ -133,7 +133,7 @@
       }
     },
     {
-      "id": "dependency-rank",
+      "id": "dependency-rank", "reads": "closure",
       "rung": "implemented",
       "description": "Generated dependency locks obey the library composition rank and never target fixtures or generators.",
       "appliesTo": [
@@ -153,7 +153,7 @@
       }
     },
     {
-      "id": "self-hosting",
+      "id": "self-hosting", "reads": "corpus",
       "rung": "production-ready",
       "description": "The catalog application consumes the published library surface and reports uncovered assets explicitly.",
       "appliesTo": [
@@ -173,7 +173,7 @@
       }
     },
     {
-      "id": "bas-genericity",
+      "id": "bas-genericity", "reads": "corpus",
       "rung": "verified",
       "description": "Browser workflows select assets through generic capabilities and runner parameters, never embedded component names or versions.",
       "appliesTo": ["foundation", "primitive", "component", "pattern", "navigation", "page-template"],
@@ -183,7 +183,7 @@
       }
     },
     {
-      "id": "token-vocabulary",
+      "id": "token-vocabulary", "reads": "asset",
       "rung": "implemented",
       "description": "Active library source uses the single retained CSS custom-property vocabulary.",
       "appliesTo": [
@@ -199,7 +199,7 @@
       }
     },
     {
-      "id": "fallback-parity",
+      "id": "fallback-parity", "reads": "closure",
       "rung": "implemented",
       "description": "Authored fallbacks for shared design properties equal the canonical base values.",
       "appliesTo": ["component"],
@@ -209,7 +209,7 @@
       }
     },
     {
-      "id": "kit-compatibility",
+      "id": "kit-compatibility", "reads": "corpus",
       "rung": "implemented",
       "description": "Every active component token contract is satisfiable by at least one registered design kit.",
       "appliesTo": ["component"],
@@ -219,7 +219,7 @@
       }
     },
     {
-      "id": "affinity-compatible",
+      "id": "affinity-compatible", "reads": "corpus",
       "rung": "implemented",
       "description": "Authored kit affinity never claims a kit outside the component's derived compatibility set.",
       "appliesTo": ["component"],
@@ -229,7 +229,7 @@
       }
     },
     {
-      "id": "token-ramp-complete",
+      "id": "token-ramp-complete", "reads": "closure",
       "rung": "implemented",
       "description": "Every externally required literal custom property is published by the canonical reference ramp.",
       "appliesTo": [
@@ -245,7 +245,7 @@
       }
     },
     {
-      "id": "scenario-token-requirements",
+      "id": "scenario-token-requirements", "reads": "corpus",
       "rung": "implemented",
       "description": "Every scenario managed token region covers the active React Component Library releases imported by that scenario, excluding host-owned Contract-tier properties.",
       "appliesTo": [
@@ -261,7 +261,7 @@
       }
     },
     {
-      "id": "released-version-immutable",
+      "id": "released-version-immutable", "reads": "corpus",
       "rung": "verified",
       "description": "Every indexed released version still matches its on-disk source bytes.",
       "appliesTo": [
@@ -283,7 +283,7 @@
       }
     },
     {
-      "id": "release-provenance",
+      "id": "release-provenance", "reads": "corpus",
       "rung": "verified",
       "description": "Every materialized release was published from a draft or carries an explicit historical backfill marker.",
       "appliesTo": [
@@ -303,7 +303,7 @@
       }
     },
     {
-      "id": "version-mirror-integrity",
+      "id": "version-mirror-integrity", "reads": "corpus",
       "rung": "implemented",
       "description": "Every evicted version retains readable file-mirror bytes for safe retention and restoration.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
@@ -311,7 +311,7 @@
       "runner": {"react-vite": "react-component-library catalog gates version-mirror-integrity"}
     },
     {
-      "id": "version-liveness",
+      "id": "version-liveness", "reads": "closure",
       "rung": "verified",
       "description": "Every live library import resolves to a surviving published version entry and no source edge crosses directly into another version directory.",
       "appliesTo": [
@@ -331,7 +331,7 @@
       }
     },
     {
-      "id": "specifier-shape",
+      "id": "specifier-shape", "reads": "asset",
       "rung": "implemented",
       "description": "Newly published intra-library imports use major-line selectors and keep exact resolution in dependencies.json.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
@@ -339,7 +339,7 @@
       "runner": {"react-vite": "react-component-library catalog gates specifier-shape"}
     },
     {
-      "id": "version-shape",
+      "id": "version-shape", "reads": "asset",
       "rung": "implemented",
       "description": "Newly published versions contain only the declared authored and generated files.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
@@ -347,7 +347,7 @@
       "runner": {"react-vite": "react-component-library catalog gates version-shape"}
     },
     {
-      "id": "field-ownership",
+      "id": "field-ownership", "reads": "corpus",
       "rung": "implemented",
       "description": "Catalog-owned metadata is not duplicated in generated manifests or source headers.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
@@ -355,7 +355,7 @@
       "runner": {"react-vite": "react-component-library catalog gates field-ownership"}
     },
     {
-      "id": "types",
+      "id": "types", "reads": "asset",
       "rung": "scaffolded",
       "description": "Strict compilation with exported public types, no accidental any, and a stable entrypoint.",
       "appliesTo": [
@@ -377,7 +377,7 @@
       }
     },
     {
-      "id": "api",
+      "id": "api", "reads": "asset",
       "rung": "implemented",
       "description": "Declared variants, modes, and parts match what the implementation actually exports.",
       "appliesTo": [
@@ -398,7 +398,7 @@
       }
     },
     {
-      "id": "unit",
+      "id": "unit", "reads": "asset",
       "rung": "implemented",
       "description": "Pure logic, state transitions, parsing, formatting, and edge cases.",
       "appliesTo": [
@@ -418,7 +418,7 @@
       }
     },
     {
-      "id": "interaction",
+      "id": "interaction", "reads": "asset",
       "rung": "implemented",
       "description": "Pointer, touch, keyboard, interruption, cancellation, nested use, and disabled behavior.",
       "appliesTo": [
@@ -434,7 +434,7 @@
       }
     },
     {
-      "id": "accessibility",
+      "id": "accessibility", "reads": "asset",
       "rung": "verified",
       "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
       "appliesTo": [
@@ -458,7 +458,7 @@
       ]
     },
     {
-      "id": "responsive",
+      "id": "responsive", "reads": "asset",
       "rung": "verified",
       "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
       "appliesTo": [
@@ -480,7 +480,7 @@
       "runnerConfig": { "minimumViewports": 2 }
     },
     {
-      "id": "visual",
+      "id": "visual", "reads": "asset",
       "rung": "verified",
       "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
       "appliesTo": [
@@ -504,7 +504,7 @@
       "runnerConfig": { "requiresCapture": true }
     },
     {
-      "id": "rtl",
+      "id": "rtl", "reads": "asset",
       "rung": "verified",
       "description": "Direction-aware layout, keyboard movement, gestures, icon direction, and transitions.",
       "appliesTo": [
@@ -523,7 +523,7 @@
       ]
     },
     {
-      "id": "reduced-motion",
+      "id": "reduced-motion", "reads": "asset",
       "rung": "verified",
       "description": "Reduced or disabled motion with no meaning lost and no broken lifecycle.",
       "appliesTo": [
@@ -542,7 +542,7 @@
       ]
     },
     {
-      "id": "performance",
+      "id": "performance", "reads": "asset",
       "rung": "production-ready",
       "description": "Bundle profile, render benchmark, interaction latency, layout stability, and listener cleanup.",
       "appliesTo": [
@@ -561,7 +561,7 @@
       ]
     },
     {
-      "id": "console-clean",
+      "id": "console-clean", "reads": "asset",
       "rung": "production-ready",
       "description": "Successful story renders emit no console errors, uncaught page errors, or failed network requests.",
       "appliesTo": [
@@ -580,7 +580,7 @@
       ]
     },
     {
-      "id": "surface-discipline",
+      "id": "surface-discipline", "reads": "asset",
       "rung": "production-ready",
       "description": "Declared surface elevation agrees with both static ramp usage and captured computed box-shadow.",
       "appliesTo": [
@@ -599,7 +599,7 @@
       ]
     },
     {
-      "id": "composition",
+      "id": "composition", "reads": "asset",
       "rung": "production-ready",
       "description": "Scores the stamped rendered tree on shared composition and records explicitly reasoned bespoke escapes.",
       "appliesTo": [
@@ -615,7 +615,7 @@
       }
     },
     {
-      "id": "composition-contract",
+      "id": "composition-contract", "reads": "asset",
       "rung": "implemented",
       "description": "Reconciles declared shared context providers and consumers and rejects hard-coded context values.",
       "appliesTo": [
@@ -631,7 +631,7 @@
       }
     },
     {
-      "id": "documentation",
+      "id": "documentation", "reads": "asset",
       "rung": "production-ready",
       "description": "Description, usage, API, behavior, accessibility, performance notes, and anti-patterns.",
       "appliesTo": [
@@ -652,7 +652,7 @@
       }
     },
     {
-      "id": "examples",
+      "id": "examples", "reads": "asset",
       "rung": "production-ready",
       "description": "Named specimens covering every required state, authored as story contract data.",
       "appliesTo": [
@@ -668,7 +668,7 @@
       }
     },
     {
-      "id": "fixture-adversarial",
+      "id": "fixture-adversarial", "reads": "corpus",
       "rung": "verified",
       "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
       "appliesTo": [
@@ -680,7 +680,7 @@
       }
     },
     {
-      "id": "tokens",
+      "id": "tokens", "reads": "asset",
       "rung": "verified",
       "description": "Every declared design ramp is present, spacing values stay on the approved grid, contrast pairs meet their floor, and component source does not bypass an available token.",
       "appliesTo": [
@@ -692,7 +692,7 @@
       }
     },
     {
-      "id": "conformance",
+      "id": "conformance", "reads": "corpus",
       "rung": "verified",
       "description": "Reports design-system type scale, ramp adherence, icon scale, and elevation/radius conformance separately from defect floors.",
       "appliesTo": [
@@ -708,7 +708,7 @@
       }
     },
     {
-      "id": "lifecycle",
+      "id": "lifecycle", "reads": "asset",
       "rung": "verified",
       "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",
       "appliesTo": [
@@ -732,7 +732,7 @@
         "navigation"
       ],
       "blocking": true,
-      "id": "i18n",
+      "id": "i18n", "reads": "asset",
       "description": "Requires user-facing library strings to resolve through the host locale bridge.",
       "runner": {
         "react-vite": "react-component-library catalog gates i18n"
@@ -748,14 +748,14 @@
         "navigation"
       ],
       "blocking": true,
-      "id": "selector-coverage",
+      "id": "selector-coverage", "reads": "asset",
       "description": "Requires native interactive elements to expose selectors rooted at their catalog asset id.",
       "runner": {
         "react-vite": "react-component-library catalog gates selector-coverage"
       }
     },
     {
-      "id": "restyle-contract",
+      "id": "restyle-contract", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template"],
       "blocking": true,
@@ -763,7 +763,7 @@
       "runner": { "react-vite": "react-component-library catalog gates restyle-contract" }
     },
     {
-      "id": "manifest-identity",
+      "id": "manifest-identity", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -771,7 +771,7 @@
       "runner": { "react-vite": "react-component-library catalog gates manifest-identity" }
     },
     {
-      "id": "manifest-metadata",
+      "id": "manifest-metadata", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -779,7 +779,7 @@
       "runner": { "react-vite": "react-component-library catalog gates manifest-metadata" }
     },
     {
-      "id": "declaration-coverage",
+      "id": "declaration-coverage", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -787,7 +787,7 @@
       "runner": { "react-vite": "react-component-library catalog gates declaration-coverage" }
     },
     {
-      "id": "overlay-surface-composition",
+      "id": "overlay-surface-composition", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["component", "pattern"],
       "blocking": true,
@@ -795,7 +795,7 @@
       "runner": { "react-vite": "react-component-library catalog gates overlay-surface-composition" }
     },
     {
-      "id": "shared-style-ownership",
+      "id": "shared-style-ownership", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -803,7 +803,7 @@
       "runner": { "react-vite": "react-component-library catalog gates shared-style-ownership" }
     },
     {
-      "id": "style-injection",
+      "id": "style-injection", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -811,7 +811,7 @@
       "runner": { "react-vite": "react-component-library catalog gates style-injection" }
     },
     {
-      "id": "style-ownership",
+      "id": "style-ownership", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -819,7 +819,7 @@
       "runner": { "react-vite": "react-component-library catalog gates style-ownership" }
     },
     {
-      "id": "foreign-token-classes",
+      "id": "foreign-token-classes", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -827,7 +827,7 @@
       "runner": { "react-vite": "react-component-library catalog gates foreign-token-classes" }
     },
     {
-      "id": "utility-class",
+      "id": "utility-class", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -835,7 +835,7 @@
       "runner": { "react-vite": "react-component-library catalog gates utility-class" }
     },
     {
-      "id": "consumer-pin",
+      "id": "consumer-pin", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -843,7 +843,7 @@
       "runner": { "react-vite": "react-component-library catalog gates consumer-pin" }
     },
     {
-      "id": "deprecated-import",
+      "id": "deprecated-import", "reads": "closure",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -851,7 +851,7 @@
       "runner": { "react-vite": "react-component-library catalog gates deprecated-import" }
     },
     {
-      "id": "provenance-stamp",
+      "id": "provenance-stamp", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -859,7 +859,7 @@
       "runner": { "react-vite": "react-component-library catalog gates provenance-stamp" }
     },
     {
-      "id": "story-grammar",
+      "id": "story-grammar", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template"],
       "blocking": true,
@@ -867,7 +867,7 @@
       "runner": { "react-vite": "react-component-library catalog gates story-grammar" }
     },
     {
-      "id": "story-distinctness",
+      "id": "story-distinctness", "reads": "corpus",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template"],
       "blocking": true,
@@ -875,7 +875,7 @@
       "runner": { "react-vite": "react-component-library catalog gates story-distinctness" }
     },
     {
-      "id": "dist-resolution",
+      "id": "dist-resolution", "reads": "closure",
       "rung": "implemented",
       "appliesTo": ["foundation", "primitive", "component", "pattern", "page-template", "navigation", "runtime-hook", "runtime-service", "adapter"],
       "blocking": true,
@@ -883,7 +883,15 @@
       "runner": { "react-vite": "react-component-library catalog gates dist-resolution" }
     },
     {
-      "id": "evidence-freshness",
+      "id": "harness-manifest", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Preview harness registrations, implementations, and story references remain valid and side-effect free.",
+      "runner": { "react-vite": "react-component-library catalog gates harness-manifest" }
+    },
+    {
+      "id": "evidence-freshness", "reads": "asset",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template"],
       "blocking": true,

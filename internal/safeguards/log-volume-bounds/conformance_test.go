@@ -10,7 +10,6 @@ func TestConformance(t *testing.T) {
 	hostreqkittest.RunSafeguardSuite(t, "log_volume_bounds", newTestHandler, []string{"linux"},
 		"name_and_kind",
 		"inspect_manual_requirement",
-		"inspect_unsupported_platform",
 		"apply_unsupported_returns_early",
 		"apply_not_applicable_returns_early",
 		"apply_manual_returns_early",

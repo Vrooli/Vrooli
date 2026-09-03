@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "agent-manager",
-  "input_digest": "sha256:40b9dfc2ef6eb362de80abcec4b5d59ea35568eef9057fee71f52c35deeedba3",
+  "input_digest": "sha256:3d367384d872870d7bb688b0dcb36db90283334198049777abed629c960d9778",
   "input_files": [
     "schemas/agent-manager/v1/api/service.proto",
     "schemas/agent-manager/v1/domain/episode.proto",

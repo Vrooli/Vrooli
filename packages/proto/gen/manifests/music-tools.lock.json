@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "music-tools",
-  "input_digest": "sha256:3ba6704116a7d835d317e17c9202d45a2f6d51b41c39f6451e9e1c123ef24a6e",
+  "input_digest": "sha256:da12e0663dda963ef851b3d99e6f8e63d8ab4b00e33edc30e521f84238ec3eaf",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/music-tools/v1/notes/attachments.proto",

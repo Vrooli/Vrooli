@@ -62,24 +62,51 @@ reports better state than it has, not from lifecycle mechanics:
   an immutable reference. See the Pinned Runtime Principle in
   [deployment-contract.md](deployment-contract.md). An engine that can change
   on the next pull is an undeclared regression source.
-- **Readiness health semantics.** The manifest health check is a readiness
-  probe: it must fail until the resource can serve its primary capability,
-  including model/data load. A liveness-only probe (process up, model absent)
-  breaks orchestration ordering and defeats consumer auto-recovery, which
-  retries against a "healthy" resource that cannot serve. Supplementary checks
-  may declare `kind: liveness` explicitly.
+- **Readiness health semantics.** A `kind: readiness` health check must fail
+  until the resource can serve its primary capability, including model/data
+  load. A liveness-only probe (process up, model absent) breaks orchestration
+  ordering and defeats consumer auto-recovery, which retries against a
+  "healthy" resource that cannot serve. A check with no declared kind is a
+  readiness check.
+- **Liveness health semantics.** A `kind: liveness` check asks whether a
+  *serving* resource is meeting its contract. The control plane executes it
+  alongside readiness. A failing liveness check leaves `serving: true` and sets
+  `healthy: false`; it never makes a running resource look stopped.
 - **Declared degradation.** A resource with more than one operating mode
-  (GPU/CPU, model sizes, engine fallbacks) must expose the active mode on an
-  info/status surface and must surface running below its configured mode as a
-  visible status. Degraded is a state, never a secret; silent mode switches
-  have historically produced weeks-long invisible failures.
+  (accelerator backend, model sizes, engine fallbacks) must expose the active
+  mode on an info/status surface and must surface running below its configured
+  mode as a visible status. Degraded is a state, never a secret; silent mode
+  switches have historically produced weeks-long invisible failures.
+
+  This rule is enforced, not merely stated. `vrooli resource status <name>`
+  carries `declared_mode`, `observed_mode`, `mode_drift`, and `serving` for
+  every resource that declares an `acceleration` block. When the control plane
+  reads the host and finds the resource on a backend below the one it declared,
+  the status becomes:
+
+  | Field | Value |
+  |---|---|
+  | `running` | `true` |
+  | `serving` | `true` |
+  | `healthy` | `false` |
+  | `status_code` | `mode_drift` |
+  | `health` | `degraded` |
+
+  `serving` is what separates degraded from down. A consumer that restarts on
+  `healthy: false` alone would loop against a resource that is working, and a
+  restart does not move a resource onto a backend the host cannot reach.
+  Placement is read from the host or reported as unknown; it is never inferred
+  from configuration, from an environment variable, or from a log line.
 - **Timeout honesty.** `startup_timeout_seconds` budgets the worst normal
   case, including first-run downloads. The human-readable estimate can
   distinguish warm from first-run; the enforced timeout must not kill a
   genuinely progressing first start.
-- **Capacity visibility.** A resource that declares a `gpu` block also
-  declares a `capacity` block (or records why the broker must not manage it),
-  so co-tenant VRAM planning sees every claimant.
+- **Capacity visibility.** A resource that declares a non-CPU backend in its
+  `acceleration` block also declares `acceleration.claim` (or records why the
+  broker must not manage it), so co-tenant VRAM planning sees every claimant. A
+  `vram` claim must carry `yield_when_idle` and a `profile` whose last step
+  equals `floor_bytes`; without them the broker can never ask the resource to
+  step down, and the reservation is a number nobody can act on.
 
 ## Assessment Dimensions
 
@@ -101,6 +128,54 @@ maturity level above remains the primary classification.
 Use the total (0--18) only to prioritize investigation. A low score with no
 consumers can be a cheap cleanup; a low score with many consumers may require a
 careful compatibility migration first.
+
+## Accelerator re-assessment (2026-08-21)
+
+The six heavy resources were re-scored after the accelerator contract landed.
+Scores are 0--2 per dimension; only the dimensions the accelerator work moved
+are listed, with the reason each one moved.
+
+| Resource | Level | Contract | Runtime and health | Portability | Deployment readiness | What moved |
+|---|---|---|---|---|---|---|
+| `ollama` | M4 | 2 | 2 | 2 | 2 | One `acceleration` block replaces three surfaces; placement verified live (`observed_mode: cuda`); declares `metal` so the same declaration selects per platform |
+| `whisper` | M4 | 2 | 2 | 1 | 1 | Contract complete; CPU is now declared and observed without drift because upstream publishes no Linux CUDA asset and this host lacks a CUDA build toolchain. Portability and deployment stay at 1; CUDA intent and the missing signed artifact remain recorded |
+| `reranker` | M4 | 2 | 2 | 1 | 1 | Gained its first accelerator declaration at `require: required` — it selected a CUDA image while declaring nothing; its CPU target is now `unsupported` with the measured `libiomp5.so` reason |
+| `kokoro` | M4 | 2 | 2 | 1 | 2 | Gained the degrade ladder and `yield_when_idle` it never had; its VRAM reservation is now steppable instead of a number the broker could not act on |
+| `kyutai-stt` | M4 | 2 | 2 | 1 | 2 | Its bare `stop` degrade verb became the fleet-wide `capacity degrade --to unloaded`, preserving the stop semantics |
+| `speaker-verification` | M4 | 2 | 2 | 1 | 2 | Same ladder gain as kokoro; floor moved to 0, which is what running on the CPU actually holds |
+
+No resource changed maturity *level*: all six were M4 before and remain M4. The
+work moved dimension scores, not the classification, and the two that stay at 1
+on portability do so for a measured upstream reason rather than a Vrooli gap.
+
+### sherpa-onnx assessment (2026-08-28)
+
+`sherpa-onnx` is currently M3, not M4: the native lifecycle and four-capability
+adapter are implemented and tested, but its Linux artifact is staged rather
+than durably published, so the deployment contract is not satisfied. The nine
+dimension scores are recorded here so the missing release gate cannot be
+mistaken for a runtime claim:
+
+| Resource | Level | Contract | Archetype | Operator surface | Configuration | Runtime/health | Tests | Portability | Legacy debt | Deployment readiness |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `sherpa-onnx` | M3 | 2 (Phase 12 manifest validation) | 2 (Phase 17 native bundle) | 2 (Phase 17/18 CLI and stage) | 2 (Phase 17 pinned data) | 1 (Phase 17 native tests; no governed live start) | 2 (Phase 17 native-test) | 1 (Linux amd64 only; Phase 17) | 2 (Phase 17 Go adapter) | 0 (Phase 19 publication absent) |
+
+The score is M3 rather than M4 because M4 requires a verified delivery artifact
+for the claimed deployment target. The signed, self-contained Linux amd64
+stage proves build readiness but is not publication evidence. The resource does
+not declare an acceleration block because no CUDA execution provider was
+qualified or pinned; its current provider is CPU. The three unclaimed targets
+still need target-native builds, signatures, and smoke tests.
+
+### The Runtime Honesty rules are now enforced, not merely written
+
+Three rules in this document existed as prose with no mechanism:
+
+| Rule | Now enforced by |
+|---|---|
+| "Degraded is a state, never a secret" | `mode_drift` status code with `serving: true` and `healthy: false`, set by the one placement verifier |
+| Liveness checks are supplementary | The control plane *executes* them; a failing one degrades without downing |
+| A resource declaring a device also declares a claim | The claim lives inside `acceleration`, and the schema rejects a `vram` claim without `yield_when_idle` and a profile ending at the floor |
 
 ## Evidence Collection
 
@@ -138,12 +213,12 @@ Hosted capability owned elsewhere?             → cloud-api
 Existing host executable is the runtime?       → external-cli
 Vrooli owns an executable/operator binary?     → native-cli
 Vrooli owns a local supervised service?        → managed-service (target archetype)
-One container is the best supported runtime?   → docker-service
-Multiple coordinated containers are required?  → compose-service
-Lifecycle cannot yet be owned safely?          → manual-resource
+One container is the best supported runtime?   → managed-service
+Multiple coordinated containers are required?  → managed-service
+Lifecycle cannot yet be owned safely?          → native-cli
 ```
 
-`docker-service` and `compose-service` are deliberate host-runtime choices,
+`managed-service` and `managed-service` are deliberate host-runtime choices,
 not defaults. Before choosing either, record why a cloud API, external CLI,
 native CLI, or managed local service is less suitable. This is especially
 important for desktop bundles, where a Docker daemon may be too costly or not
@@ -255,9 +330,9 @@ README notes remain the source for runtime constraints.
 | antigravity | M4 | `resource.json`, `cli/main_test.go` |
 | claude-code | M4 | `resource.json`, `cli/main_test.go` |
 | codex | M4 | `resource.json`, `cli/main_test.go` |
+| doc-parse | M4 | `resource.json`, pinned WASI build lane, checksum staging, `cli/internal/artifact`, `cli/internal/platform`, and parser readiness tests |
 | gemini | M4 | `resource.json`, `cli/main_test.go` |
 | grok | M4 | `resource.json`, `cli/main_test.go` |
-| home-assistant | M4 | `resource.json`, `cli/main_test.go` |
 | k6 | M4 | `resource.json`, `cli/main_test.go` |
 | kokoro | M4 | `resource.json`, `cli/main_test.go` |
 | kopia | M4 | `resource.json`, `cli/main_test.go` |
@@ -273,6 +348,6 @@ README notes remain the source for runtime constraints.
 | searxng | M4 | `resource.json`, `cli/main_test.go` |
 | speaker-verification | M4 | `resource.json`, `cli/main_test.go` |
 | twilio | M4 | `resource.json`, `cli/main_test.go` |
-| unstructured-io | M4 | `resource.json`, `cli/main_test.go` |
+| unstructured-io | M4 | `resource.json`, pinned linux/amd64 image manifest, measured readiness parse, `cli/main_test.go`, and documented Docker/accuracy constraints |
 | vault | M4 | `resource.json`, managed artifact checks, `cli/main_test.go` |
 | whisper | M4 | `resource.json`, `cli/main_test.go` |

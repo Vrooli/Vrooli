@@ -7,22 +7,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/envkit-go"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
-	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
-	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
-	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
-	versionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect"
 )
 
 type handlers struct {
-	client     catalogconnect.CatalogServiceClient
-	components componentsconnect.ComponentsServiceClient
-	lifecycle  versionsconnect.VersionLifecycleServiceClient
+	client catalogconnect.CatalogServiceClient
 }
 
 func (h *handlers) corpusReport(_ cliapp.RunContext) error {
@@ -32,28 +27,25 @@ func (h *handlers) corpusReport(_ cliapp.RunContext) error {
 	}
 	cmd := exec.Command("go", "run", "./cmd/corpus-report", "--root", filepath.Join(root, "..", "..")) // #nosec G204 -- fixed command and repository-owned root
 	cmd.Dir = filepath.Join(root, "api")
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func (h *handlers) census(ctx cliapp.RunContext, mode string) error {
-	root, err := scenarioRoot()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("go", "run", "./cmd/catalog-census", "--root", filepath.Join(root, "..", ".."), "--mode", mode) // #nosec G204 -- fixed command and repository-owned root
-	cmd.Dir = filepath.Join(root, "api")
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
-}
-
-func (h *handlers) shapeCensus(ctx cliapp.RunContext) error { return h.census(ctx, "shape") }
-func (h *handlers) duplicationCensus(ctx cliapp.RunContext) error {
-	return h.census(ctx, "duplication")
-}
-
 func (h *handlers) build(ctx cliapp.RunContext) error {
+	if ctx.BoolFlag("list-stages") {
+		for _, stage := range []string{
+			"sync-exports      — synchronize package exports",
+			"generate-manifests — derive component manifests",
+			"release-hashes    — update immutable release hashes",
+			"story-contracts   — derive story contracts",
+			"dependency-locks  — resolve major-line dependency locks",
+		} {
+			fmt.Println(stage)
+		}
+		return nil
+	}
 	root, err := scenarioRoot()
 	if err != nil {
 		return err
@@ -91,124 +83,13 @@ func scenarioRoot() (string, error) {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// Gate matrices are cancellable server jobs, not short metadata calls. The
+	// default scenario client deadline can cancel a valid matrix while it is
+	// persisting its final evidence row.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 20*time.Minute)
 	return &handlers{
-		client:     catalogconnect.NewCatalogServiceClient(httpClient, baseURL),
-		components: componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
-		lifecycle:  versionsconnect.NewVersionLifecycleServiceClient(httpClient, baseURL),
+		client: catalogconnect.NewCatalogServiceClient(httpClient, baseURL),
 	}
-}
-
-func (h *handlers) draft(ctx cliapp.RunContext) error {
-	action := strings.ToLower(strings.TrimSpace(ctx.Positional("action")))
-	if action != "open" && action != "promote" && action != "discard" {
-		return fmt.Errorf("usage: catalog draft <open|promote|discard> <asset-id> [--all]")
-	}
-	ids := []string{}
-	if ctx.BoolFlag("all") {
-		resp, err := h.components.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Match: ctx.Flag("match"), Limit: 1000}))
-		if err != nil {
-			return cliapp.WrapAPIError("list draft targets", err, nil)
-		}
-		for _, component := range resp.Msg.GetComponents() {
-			if component != nil && component.GetLibraryId() != "" {
-				ids = append(ids, component.GetLibraryId())
-			}
-		}
-	} else if id := strings.TrimSpace(ctx.Positional("asset-id")); id != "" {
-		ids = append(ids, id)
-	}
-	if len(ids) == 0 {
-		return fmt.Errorf("an asset-id is required unless --all is set")
-	}
-
-	results := make([]string, 0, len(ids))
-	components := make([]*componentsv1.Component, 0, len(ids))
-	for _, id := range ids {
-		switch action {
-		case "open":
-			resp, err := h.components.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: id, Bump: ctx.Flag("bump"), Version: ctx.Flag("version")}))
-			if err != nil {
-				return cliapp.WrapAPIError("open catalog draft", err, nil)
-			}
-			if resp.Msg == nil || resp.Msg.Component == nil || resp.Msg.Version == nil {
-				return fmt.Errorf("server returned no draft for %s", id)
-			}
-			components = append(components, resp.Msg.Component)
-			results = append(results, fmt.Sprintf("%s draft=%s", id, resp.Msg.Version.Version))
-		case "promote":
-			resp, err := h.components.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: id, DraftVersion: ctx.Flag("draft-version"), Version: ctx.Flag("version"), ChangelogMd: ctx.Flag("changelog"), AcknowledgeParityWaiver: ctx.Flag("acknowledge-parity-waiver") != ""}))
-			if err != nil {
-				return cliapp.WrapAPIError("promote catalog draft", err, nil)
-			}
-			if resp.Msg == nil || resp.Msg.Component == nil || resp.Msg.Version == nil {
-				return fmt.Errorf("server returned no promoted version for %s", id)
-			}
-			components = append(components, resp.Msg.Component)
-			results = append(results, fmt.Sprintf("%s released=%s", id, resp.Msg.Version.Version))
-		case "discard":
-			resp, err := h.lifecycle.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: id, Confirm: true}))
-			if err != nil {
-				return cliapp.WrapAPIError("discard catalog draft", err, nil)
-			}
-			if resp.Msg == nil || resp.Msg.Item == nil || resp.Msg.Item.Version == nil {
-				return fmt.Errorf("server returned no discarded draft for %s", id)
-			}
-			results = append(results, fmt.Sprintf("%s discarded=%s", id, resp.Msg.Item.Version.Version))
-		}
-	}
-	return cliapp.RenderProtoList(ctx, &componentsv1.ListComponentsResponse{Components: components}, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Catalog draft %s completed for %d asset(s).", action, len(ids))},
-		ResultsHeading: "Draft lane",
-		Results:        results,
-	})
-}
-
-func (h *handlers) coverage(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetCoverage(context.Background(), connect.NewRequest(&catalogv1.GetCoverageRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog coverage", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
-		return fmt.Errorf("server returned no catalog coverage")
-	}
-	r := resp.Msg.Report
-	summary := fmt.Sprintf("Catalog completion %.1f%% (%d/%d); mandatory gates %.1f%% (%d/%d); evidence pass %d, fail %d, unmeasured %d; weighted quality %.1f%%; production-ready %.1f%%.",
-		r.Maturity.GetCatalogCompletion().GetRatio()*100, r.Maturity.GetCatalogCompletion().GetNumerator(), r.Maturity.GetCatalogCompletion().GetDenominator(),
-		r.Maturity.GetMandatoryGateCoverage().GetRatio()*100, r.Maturity.GetMandatoryGateCoverage().GetNumerator(), r.Maturity.GetMandatoryGateCoverage().GetDenominator(),
-		r.Maturity.GetPassEvidence(), r.Maturity.GetFailEvidence(), r.Maturity.GetUnmeasuredEvidence(),
-		r.Maturity.GetWeightedQuality().GetRatio()*100, r.Maturity.GetProductionReadyCoverage().GetRatio()*100)
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Maturity distribution", Results: formatMaturity(r.Maturity.GetByRung())})
-}
-
-func (h *handlers) next(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListNextWork(context.Background(), connect.NewRequest(&catalogv1.ListNextWorkRequest{Limit: 10, Lane: ctx.Flag("lane")}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog next work", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog next work")
-	}
-	rows := make([]string, 0, len(resp.Msg.Rows))
-	for _, row := range resp.Msg.Rows {
-		rows = append(rows, fmt.Sprintf("%s [%s/%s] %s -> %s (blocks %d)", row.AssetId, row.Platform, row.Target, row.Achieved, row.Name, row.BlocksDownstream))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Next work: %d target(s).", len(rows))}, ResultsHeading: "Ranked next work", Results: rows})
-}
-
-func (h *handlers) scoreHistory(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetScoreHistory(context.Background(), connect.NewRequest(&catalogv1.GetScoreHistoryRequest{Since: ctx.Flag("since")}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog score history", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog score history")
-	}
-	results := make([]string, 0, len(resp.Msg.Points))
-	for _, point := range resp.Msg.Points {
-		results = append(results, fmt.Sprintf("%s score %.1f%%; at 100%% %d; below 50%% %d", point.RecordedAt, point.Score, point.AssetsAt_100, point.AssetsBelow_50))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Score history: %d day(s).", len(results))}, ResultsHeading: "Daily score", Results: results})
 }
 
 func (h *handlers) readiness(ctx cliapp.RunContext) error {
@@ -248,49 +129,6 @@ func readinessFloor(ctx cliapp.RunContext) string {
 	return ""
 }
 
-func (h *handlers) evidence(ctx cliapp.RunContext) error {
-	if ctx.Positional("action") != "capture" {
-		return fmt.Errorf("usage: catalog evidence capture <asset-id>")
-	}
-	all := ctx.BoolFlag("all")
-	batchSize := 0
-	if raw := ctx.Flag("batch-size"); raw != "" {
-		if _, err := fmt.Sscanf(raw, "%d", &batchSize); err != nil || batchSize < 1 {
-			return fmt.Errorf("batch-size must be a positive integer")
-		}
-	}
-	if all && batchSize == 0 {
-		batchSize = 8
-	}
-	offset := 0
-	if raw := ctx.Flag("offset"); raw != "" {
-		if _, err := fmt.Sscanf(raw, "%d", &offset); err != nil || offset < 0 {
-			return fmt.Errorf("offset must be a non-negative integer")
-		}
-	}
-	total := int32(0)
-	var last *catalogv1.CaptureEvidenceResponse
-	for {
-		resp, err := h.client.CaptureEvidence(context.Background(), connect.NewRequest(&catalogv1.CaptureEvidenceRequest{AssetId: ctx.Positional("asset-id"), All: all, ChangedOnly: ctx.Flag("changed-only") == "true", Limit: int32(batchSize), Offset: int32(offset)}))
-		if err != nil {
-			return cliapp.WrapAPIError("capture catalog evidence", err, nil)
-		}
-		if resp == nil || resp.Msg == nil {
-			return fmt.Errorf("server returned no catalog evidence capture")
-		}
-		last = resp.Msg
-		total += resp.Msg.RowsWritten
-		if !all || resp.Msg.Complete {
-			break
-		}
-		if resp.Msg.NextOffset <= int32(offset) {
-			return fmt.Errorf("catalog evidence capture did not advance past offset %d", offset)
-		}
-		offset = int(resp.Msg.NextOffset)
-	}
-	return cliapp.RenderProtoList(ctx, last, cliapp.ListReport{Summary: []string{fmt.Sprintf("Captured %d evidence row(s) for %s.", total, last.AssetId)}, ResultsHeading: "Capture", Results: []string{last.CaptureDirectory, last.WorkbenchUrl}})
-}
-
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
 	if gate == "" && !ctx.BoolFlag("all") {
@@ -308,8 +146,9 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	// and then the affected locations — repeating an identical paragraph per
 	// row buries the single fact the reader needs under its own restatement.
 	type group struct {
-		code, severity, remediation, docs string
-		locations                         []string
+		code, severity, scope, owner, remediation, docs string
+		blocking                                        bool
+		locations                                       []string
 	}
 	order := make([]string, 0, len(resp.Msg.Findings))
 	groups := map[string]*group{}
@@ -324,7 +163,7 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 		key := finding.Code + "\x00" + finding.Remediation
 		existing, seen := groups[key]
 		if !seen {
-			existing = &group{code: finding.Code, severity: finding.Severity, remediation: finding.Remediation, docs: finding.DocsRef}
+			existing = &group{code: finding.Code, severity: findingSeverityLabel(finding), scope: findingScopeLabel(finding), owner: finding.Owner, blocking: finding.Blocking, remediation: finding.Remediation, docs: finding.DocsRef}
 			groups[key] = existing
 			order = append(order, key)
 		}
@@ -340,6 +179,9 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	for _, key := range order {
 		g := groups[key]
 		entry := fmt.Sprintf("[%s] %s — %d location(s)", g.code, g.severity, len(g.locations))
+		if g.scope != "" || g.owner != "" {
+			entry += fmt.Sprintf(" (%s%s)", g.scope, ownerSuffix(g.owner))
+		}
 		shown := g.locations
 		if len(shown) > maxLocations {
 			shown = shown[:maxLocations]
@@ -369,7 +211,7 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	}
 	blocking, advisory := 0, 0
 	for _, finding := range resp.Msg.Findings {
-		if finding.Severity == "error" {
+		if finding.Blocking || finding.Severity == "error" {
 			blocking++
 		} else {
 			advisory++
@@ -411,6 +253,41 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	return nil
 }
 
+func findingSeverityLabel(finding *catalogv1.GateFinding) string {
+	if finding.Blocking || finding.SeverityClass == catalogv1.FindingSeverity_FINDING_SEVERITY_BLOCKING || finding.Severity == "error" {
+		return "error"
+	}
+	if finding.Severity != "" {
+		return finding.Severity
+	}
+	switch finding.SeverityClass {
+	case catalogv1.FindingSeverity_FINDING_SEVERITY_WARNING:
+		return "warning"
+	case catalogv1.FindingSeverity_FINDING_SEVERITY_INFO:
+		return "info"
+	default:
+		return "warning"
+	}
+}
+
+func findingScopeLabel(finding *catalogv1.GateFinding) string {
+	switch finding.Scope {
+	case catalogv1.FindingScope_FINDING_SCOPE_CORPUS:
+		return "corpus"
+	case catalogv1.FindingScope_FINDING_SCOPE_ASSET:
+		return "asset"
+	default:
+		return ""
+	}
+}
+
+func ownerSuffix(owner string) string {
+	if owner == "" {
+		return ""
+	}
+	return ", owner " + owner
+}
+
 func (h *handlers) graph(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetAssetRelationships(context.Background(), connect.NewRequest(&catalogv1.GetAssetRelationshipsRequest{AssetId: ctx.Positional("asset-id")}))
 	if err != nil {
@@ -425,79 +302,4 @@ func (h *handlers) graph(ctx cliapp.RunContext) error {
 		results = append(results, fmt.Sprintf("rung %d (%s): %d", band.Rung, band.RungName, band.Count))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset graph: %s; blast radius %d.", r.Root.AssetId, len(r.TransitiveDependents))}, ResultsHeading: "Relationships", Results: results})
-}
-
-func (h *handlers) structure(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetCatalogStructure(context.Background(), connect.NewRequest(&catalogv1.GetCatalogStructureRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog structure", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Structure == nil {
-		return fmt.Errorf("server returned no catalog structure")
-	}
-	structure := resp.Msg.Structure
-	results := make([]string, 0, len(structure.Population)+len(structure.Invariants)+len(structure.BlastRadius))
-	for _, row := range structure.Population {
-		results = append(results, fmt.Sprintf("rung %d (%s): %d", row.Rung, row.RungName, row.Count))
-	}
-	for _, invariant := range structure.Invariants {
-		results = append(results, fmt.Sprintf("%s: %s", invariant.Label, invariant.Status))
-	}
-	for _, row := range structure.BlastRadius {
-		if row.Asset != nil {
-			results = append(results, fmt.Sprintf("blast radius %s: %d", row.Asset.AssetId, row.TransitiveDependentCount))
-		}
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Catalog structure"}, ResultsHeading: "Structure", Results: results})
-}
-
-func (h *handlers) reconcile(ctx cliapp.RunContext) error {
-	resp, err := h.client.ReconcileGraph(context.Background(), connect.NewRequest(&catalogv1.ReconcileGraphRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("reconcile catalog graph", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no graph reconciliation")
-	}
-	counts := map[string]int32{}
-	if resp.Msg.Distribution != nil {
-		counts = resp.Msg.Distribution.Counts
-	}
-	verdicts := make([]string, 0, len(counts))
-	for verdict := range counts {
-		verdicts = append(verdicts, verdict)
-	}
-	sort.Strings(verdicts)
-	results := make([]string, 0, len(counts))
-	for _, verdict := range verdicts {
-		results = append(results, fmt.Sprintf("%s: %d", verdict, counts[verdict]))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Graph reconciliation: %d assets.", len(resp.Msg.Assets))}, ResultsHeading: "Verdict distribution", Results: results})
-}
-
-func (h *handlers) ports(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetAssetPortContract(context.Background(), connect.NewRequest(&catalogv1.GetAssetPortContractRequest{AssetId: ctx.Positional("asset-id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog ports", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Contract == nil {
-		return fmt.Errorf("server returned no asset port contract")
-	}
-	contract := resp.Msg.Contract
-	results := make([]string, 0, len(contract.UnmetPorts))
-	for _, port := range contract.UnmetPorts {
-		results = append(results, fmt.Sprintf("%s: demanded by %d asset(s), %d candidate satisfier(s)", port.CapabilityId, len(port.DemandingAssets), len(port.CandidateSatisfiers)))
-	}
-	if contract.SelfContained {
-		results = append(results, "self-contained: closure satisfies all host ports")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset port contract: %d closure assets.", contract.ClosureCount)}, ResultsHeading: "Unmet ports", Results: results})
-}
-
-func formatMaturity(values map[string]int32) []string {
-	rows := make([]string, 0, len(values))
-	for key, value := range values {
-		rows = append(rows, fmt.Sprintf("%s: %d", key, value))
-	}
-	return rows
 }

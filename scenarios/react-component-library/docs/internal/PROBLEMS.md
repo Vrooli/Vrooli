@@ -258,3 +258,23 @@ a migration handoff with a planned retirement path back into
 - Evidence: Opened and published `Slider@1.1.2` through the governed patch path, adding TSDoc for the public value-display type and props interface without editing `Slider@1.1.1`. Retired the predecessor with the exact cleanup hash. The immutable component test for `react-component-library:Slider@1.1.2` passed all closure, source, contract, declared-behavior, and experience-evidence stages; package build, export/boundary tests, catalog check, and the key corpus invariants pass.
 - Outstanding: D7 and D38 remain open for inherited scenario-wide lint/check and comprehensive Test Genie failures. Slider's documentation finding is resolved; current matrix output shows documentation `pass` for `controls.slider`.
 - Measured: 2026-08-31.
+
+- Rung: W3 / R0 — one-asset verdict and final validation re-measurement
+- Evidence: W0 goal search returns the archived `react-component-library-adoption-integrity` and `design-language-foundation` goals; the current PRD targets remain compatible with the scenario work. Targeted catalog, preview, component-test, graph-reconciliation, and CLI package tests pass. `asset check controls.button --version 2.2.6 --json` returns `PUBLISHABLE`; three cached runs complete in approximately 0.22 seconds, and fresh Button rerun `ctr_11089f797b910cba` passes.
+- Blocker: The full server-owned run `20260903-014026-7e1c5531` finished 15/28 phases passed, 12 failed, 1 skipped. BAS was subsequently restored and the Button component rerun passed; the remaining API-suite failure is historical fallback-parity drift in immutable released sources. A re-anchored GCT baseline is ready, but the validation producer still reports `UNKNOWN` because its required `/home/matthalloran8/.vrooli/test-runs/react-component-library` workspace is not readable. The final machinery ceilings and fresh-agent proof remain open.
+- Measured: 2026-09-03.
+
+- Rung: W3 / R0 — semantic revision stability and test reuse
+- Evidence: Catalog rebuilds previously changed only `dependencies.json.resolvedAt` yet invalidated folded revisions and forced a browser rerun. Revision hashing now canonicalizes that bookkeeping field while retaining lock dependency choices; the Button `2.2.6` check returns `PUBLISHABLE`, zero findings, and `tests ... reused=true` in 0.25 s. The API now honors `--run-tests`: a missing report without the flag returns `STALE_TESTS`, while the flag permits execution.
+- Outstanding: Full scenario/UI validation, corpus ceilings, and fresh-agent proof remain open as recorded above.
+- Measured: 2026-09-03.
+
+- Rung: W3 / R0 — preview preference and focused UI recheck
+- Evidence: A missing/empty persisted preview-kit preference now resolves to `vrooli-default`; the focused `ComponentEditor` suite passes 29/29 and the diagnostics contract again reports the canonical kit. The adoption dialog’s two overwrite/override failures remain reproducible only in the broader rapid-typing test interaction, where the controlled identifier is truncated before submission; no submit-contract workaround was retained.
+- Outstanding: The comprehensive UI suites and server-owned scenario run remain red on the previously recorded broad findings. This focused correction does not claim plan completion.
+- Measured: 2026-09-03.
+
+- Rung: W3 / R0 — published fallback-parity repair and comprehensive re-measurement
+- Evidence: Governed patch releases were published for `AsyncBoundary`, `BottomSheet`, `ErrorState`, `FormWizard`, `FreshnessArc`, `FullPageDrawer`, `PasswordInput`, `ProvenanceInk`, `RadioGroup`, `ResponsiveDialog`, `RollingNumber`, and `SampleSeries`; superseded exported versions were marked deprecated and catalog build regenerated 254 projections / 310 versioned exports with 0 broken imports. Full API and CLI Go suites pass, and the fallback-parity gate reports 467 inspected files with zero findings.
+- Outstanding: The server-owned run `20260903-025030-d84f53c5` is terminal FAIL (14 passed, 13 failed, 1 skipped) with inherited UI, dependency, docs, unit, storage, workflow, business, experience, tidiness, security, measures, and component-test findings. UI suites remain red (general: 25 failures / 499 passes; library: 49 failures / 1,058 passes). Corpus targets and fresh-agent proof remain open.
+- Measured: 2026-09-03.

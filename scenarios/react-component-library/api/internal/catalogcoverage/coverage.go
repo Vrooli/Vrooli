@@ -57,6 +57,7 @@ type GateDefinition struct {
 	Rung                 AchievedRung
 	Blocking             bool
 	Attribution          string
+	Reads                string            `json:"reads"`
 	Runner               map[string]string `json:"runner"`
 	AppliesTo            []string
 	ExperienceClaimTypes []string `json:"experienceClaimTypes"`

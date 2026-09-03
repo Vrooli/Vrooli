@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.cli.v1;
 
 import "cli/v1/common.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
 
@@ -37,6 +38,9 @@ message ScenarioListResponse {
 
   // Scenarios skipped due to discovery errors; empty on a clean sweep.
   repeated DiscoveryFailure discovery_failures = 4;
+
+  // Time at which the control plane completed this inventory projection.
+  google.protobuf.Timestamp observed_at = 5;
 }
 
 // ScenarioListSummary is the count rollup in the `summary` envelope key.
@@ -73,6 +77,9 @@ message Scenario {
 
   // Allocated ports for a running scenario; empty when not running.
   repeated ScenarioPort ports = 7;
+
+  // Current lifecycle health reported by the control plane.
+  string health_status = 8;
 }
 
 // ScenarioPort describes one allocated port for a running scenario.

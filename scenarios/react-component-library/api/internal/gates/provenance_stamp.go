@@ -14,7 +14,7 @@ func ValidateProvenanceStamp(scope Scope) (Result, error) {
 	root := scope.Root
 	var paths []string
 	for _, base := range []string{filepath.Join(root, "scenarios", "react-component-library", "library"), filepath.Join(root, "scenarios", "react-component-library", "ui")} {
-		err := librarywalk.Walk(base, func(path string, entry os.DirEntry, walkErr error) error {
+		err := librarywalk.WalkContext(scope.Context, base, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
@@ -28,8 +28,12 @@ func ValidateProvenanceStamp(scope Scope) (Result, error) {
 		}
 	}
 	sort.Strings(paths)
-	result := Result{Inspected: len(paths)}
+	result := Result{}
 	for _, path := range paths {
+		if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(path)) {
+			continue
+		}
+		result.Inspected++
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return Result{}, err

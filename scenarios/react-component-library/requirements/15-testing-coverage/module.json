@@ -126,7 +126,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/scripts/catalog-conformance.mjs",
+          "ref": "catalog build --check",
           "phase": "unit",
           "status": "failing",
           "notes": "`pnpm run catalog:check` passed and a temporary TypeScript error failed as expected during Phase 3."

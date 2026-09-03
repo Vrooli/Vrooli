@@ -52,14 +52,17 @@ message ComponentTestReport {
   string root_library_id = 2;
   string root_version = 3;
   bool include_closure = 4;
-  google.protobuf.Timestamp created_at = 5;
-  string verdict = 6;
-  repeated ComponentTestResult results = 7;
-  repeated ComponentTestArtifact artifacts = 8;
+	google.protobuf.Timestamp created_at = 5;
+	string verdict = 6;
+	repeated ComponentTestResult results = 7;
+	repeated ComponentTestArtifact artifacts = 8;
+	string source_revision = 9;
 }
 
 message RunComponentTestResponse {
-  ComponentTestReport report = 1;
+	ComponentTestReport report = 1;
+	bool reused = 2;
+	string source_revision = 3;
 }
 message RerunComponentTestRequest {
   string report_id = 1;

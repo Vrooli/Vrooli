@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
-import { StatusBadge } from "../components/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import {
   componentsClient,
   getCatalogAsset,
@@ -23,6 +23,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
 import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
+import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { VersionCleanupPanel } from "../features/versions/VersionCleanupPanel";
 import { RelationshipsPanel } from "../features/catalog/RelationshipsPanel";
@@ -46,11 +47,13 @@ function DetailTabs({
   onChange,
   versionCount,
   renderable = true,
+  testable = true,
 }: {
   active: InfoTab;
   onChange: (tab: InfoTab) => void;
   versionCount: number;
   renderable?: boolean;
+  testable?: boolean;
 }) {
   const { t } = useTranslation();
   const tabs: Array<{ id: InfoTab; label: string; count?: number }> = [
@@ -73,6 +76,14 @@ function DetailTabs({
       id: "experience",
       label: t("componentDetail.info.experience", { defaultValue: "Experience" }),
     },
+    ...(testable
+      ? [
+          {
+            id: "tests" as const,
+            label: t("componentDetail.info.tests", { defaultValue: "Tests" }),
+          },
+        ]
+      : []),
     { id: "relationships", label: "Relationships" },
   ];
 
@@ -151,6 +162,7 @@ function HookWorkspace({
             onChange={onTabChange}
             versionCount={asset.metrics?.versionCount ?? 0}
             renderable={false}
+            testable={false}
           />
         }
         metadataSlot={
@@ -287,7 +299,7 @@ export function ComponentDetailPage() {
     enabled:
       Boolean(id) &&
       Boolean(data?.component) &&
-      (infoTab === "overview" || infoTab === "experience"),
+      (infoTab === "overview" || infoTab === "experience" || infoTab === "tests"),
     retry: false,
   });
   const sourceContentQuery = useQuery({
@@ -438,6 +450,13 @@ export function ComponentDetailPage() {
                 experience={experienceQuery.data}
                 isLoading={experienceQuery.isLoading}
                 isError={experienceQuery.isError}
+              />
+            )}
+            {infoTab === "tests" && (
+              <ComponentTestPanel
+                componentId={component.id}
+                version={component.latestVersion || component.version || ""}
+                experience={experienceQuery.data}
               />
             )}
             {infoTab === "overview" && (

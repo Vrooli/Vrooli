@@ -26,6 +26,19 @@ func TestEvidenceStorePersistsAndListsRows(t *testing.T) {
 	require.Equal(t, "rev-1", rows[0].SourceRevision)
 }
 
+func TestEvidenceStoreRecoversAfterCanceledSchemaProbe(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(Schema)))
+	store := NewEvidenceStore(database)
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := store.Save(canceled, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "visual", Result: "pass", SourceRevision: "rev-canceled"}})
+	require.ErrorIs(t, err, context.Canceled)
+	// A disconnected matrix must not cache its request-scoped cancellation as
+	// a permanent schema error. The next valid request must be able to persist.
+	require.NoError(t, store.Save(context.Background(), []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "visual", Result: "pass", SourceRevision: "rev-recovered"}}))
+}
+
 func TestEvidenceFromUnmeasuredResultNeverWritesPass(t *testing.T) {
 	root := t.TempDir()
 	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
@@ -111,6 +124,46 @@ func TestCurrentRevisionAcceptsRepositoryAndLibraryRoots(t *testing.T) {
 	fromLibrary, err := CurrentRevision(filepath.Join(scenarioRoot, "library"), "controls.button")
 	require.NoError(t, err)
 	require.Equal(t, fromRepository, fromLibrary)
+}
+
+func TestCurrentRevisionForVersionChangesOnlyTheRequestedVersion(t *testing.T) {
+	root := t.TempDir()
+	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")
+	assetDir := filepath.Join(scenarioRoot, "catalog", "assets", "controls")
+	componentDir := filepath.Join(scenarioRoot, "library", "components", "Button")
+	for _, version := range []string{"1.0.0", "1.1.0"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(componentDir, "versions", version), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(componentDir, "versions", version, "Button.tsx"), []byte("export const Button = '"+version+"';"), 0o644))
+	}
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"asset":{"id":"controls.button"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","libraryId":"rcl:Button","latest":"1.1.0"}`), 0o644))
+	first, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	second, err := CurrentRevisionForVersion(root, "rcl:Button", "1.1.0")
+	require.NoError(t, err)
+	require.NotEqual(t, first, second)
+	changed := filepath.Join(componentDir, "versions", "1.0.0", "Button.tsx")
+	require.NoError(t, os.WriteFile(changed, []byte("export const Button = 'changed';"), 0o644))
+	firstChanged, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	secondUnchanged, err := CurrentRevisionForVersion(root, "rcl:Button", "1.1.0")
+	require.NoError(t, err)
+	require.NotEqual(t, first, firstChanged)
+	require.Equal(t, second, secondUnchanged)
+}
+
+func TestCurrentRevisionForVersionIgnoresLockResolutionTimestamp(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "button", "Button", "")
+	lock := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "button", "versions", "1.0.0", "dependencies.json")
+	require.NoError(t, os.WriteFile(lock, []byte(`{"schemaVersion":2,"libraryId":"rcl:Button","version":"1.0.0","resolvedAt":"2026-01-01T00:00:00Z","dependencies":[]}`), 0o644))
+	first, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(lock, []byte(`{"schemaVersion":2,"libraryId":"rcl:Button","version":"1.0.0","resolvedAt":"2099-01-01T00:00:00Z","dependencies":[]}`), 0o644))
+	second, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, first, second, "generator bookkeeping must not invalidate evidence")
 }
 
 func writeAsset(t *testing.T, root, name, libraryName, dependencies string) {

@@ -6,7 +6,7 @@
 
 ```bash
 cd packages/proto
-make generate SCENARIO=<scenario>  # staged, locked, dependency-aware routine path
+go run -mod=mod ./cmd/protogen generate --changed  # staged, locked, dependency-aware routine path
 make lint       # buf lint
 make breaking SCENARIO=<scenario>  # proto-health impact check
 make verify-committed-gen  # CI-style committed gen/ diff guard
@@ -72,8 +72,7 @@ Why local? Two reasons:
 ## Adding a new .proto
 
 1. Create the file under `packages/proto/schemas/<scenario>/v1/<dir>/<name>.proto` matching the existing layout.
-2. `cd packages/proto && make generate SCENARIO=<scenario>` (or repeat
-   `SCENARIO` for several related edits).
+2. `cd packages/proto && go run -mod=mod ./cmd/protogen generate --changed`.
 3. Commit `schemas/<...>`, the new files under `gen/`, and the refreshed `gen/manifests/<scenario>.lock.json`.
 4. `make verify-committed-gen` enforces the committed generated artifacts match.
 

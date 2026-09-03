@@ -1,6 +1,7 @@
 package preview
 
 import (
+	"encoding/base64"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -358,6 +359,17 @@ func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *te
 	require.Contains(t, html, `type: "rcl-preview-event"`)
 	require.Contains(t, html, `React.createElement(Specimen, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })`)
 	require.Less(t, strings.Index(html, `const postPreviewEvent =`), strings.Index(html, `const resolveProps = createNodeFactory`))
+}
+
+func TestStoryHarnessModuleURLKeepsBundledModulesInSeparateScopes(t *testing.T) {
+	url := storyHarnessModuleURL("const jsx = 1; export const Story = jsx", "const jsx = 2; export const Showcase = jsx")
+	const prefix = "data:text/javascript;base64,"
+	require.True(t, strings.HasPrefix(url, prefix))
+	module, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(url, prefix))
+	require.NoError(t, err)
+	source := string(module)
+	require.Equal(t, 2, strings.Count(source, "export * from"))
+	require.NotContains(t, source, "const jsx = 1;\nconst jsx = 2;")
 }
 
 func withPackageRuntimeCandidates(t *testing.T, fn func(string) []string) {

@@ -24,6 +24,11 @@ type contractDoc struct {
 	Environment struct {
 		Variables map[string]string `json:"variables"`
 	} `json:"environment"`
+	BuildGoFlags struct {
+		Develop      []string `json:"develop"`
+		Distribution []string `json:"distribution"`
+		Scenario     []string `json:"scenario"`
+	} `json:"build.go_flags"`
 	Sandbox struct {
 		FullRepoScopes      []string `json:"full_repo_scopes"`
 		ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
@@ -166,6 +171,13 @@ func (c *Contract) RootMarkers() RootMarkers {
 
 func (c *Contract) Layout() Layout {
 	return c.doc.Layout
+}
+
+// BuildGoFlags returns the repository's compile-affecting Go flag policy.
+func (c *Contract) BuildGoFlags() map[string][]string {
+	return map[string][]string{
+		"develop": slices.Clone(c.doc.BuildGoFlags.Develop), "distribution": slices.Clone(c.doc.BuildGoFlags.Distribution), "scenario": slices.Clone(c.doc.BuildGoFlags.Scenario),
+	}
 }
 
 // RuntimeHomeSpec returns a deep copy of the runtime-home structural spec.

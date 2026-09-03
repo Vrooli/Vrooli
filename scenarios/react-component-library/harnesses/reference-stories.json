@@ -4,17 +4,6 @@
   "purpose": "Machine-validated contract examples for every shared Preview harness family. These examples are not catalog assets and never enter adoption closure.",
   "stories": [
     {
-      "id": "direct-default",
-      "family": "direct",
-      "subjectKind": "component",
-      "story": {
-        "id": "default",
-        "mode": "live",
-        "args": {},
-        "expect": [{ "kind": "text", "text": "Example subject" }]
-      }
-    },
-    {
       "id": "showcase-default",
       "family": "showcase",
       "subjectKind": "component",

@@ -26,25 +26,25 @@ A real improvement closes a gap in the scenario's actual behavior, safety, or co
 
 ---
 
-### **1. The three gaming patterns we actually caught**
+### **1. The three gaming patterns we actually caught (cite them as D1, D2, D3)**
 
 These are not hypothetical. The closed-loop controller's first live runs produced each of these in miniature; the classifier now watches for them by name.
 
-#### **DON'T loosen or delete a `[REQ:]`-tagged test to make it pass — fix the contract.**
+#### **D1 — DON'T loosen or delete a `[REQ:]`-tagged test to make it pass — fix the contract.**
 
 A test tagged `[REQ: ...]` (or whose enclosing case maps to a tracked requirement) is the *executable definition* of that requirement. Weakening its assertions — turning `t.Fatalf("want ok, got %s", x)` into `t.Log(...)`, replacing `toEqual(expected)` with a non-empty check, deleting the assertion entirely — does not satisfy the requirement, it **un-defines** it.
 
 - **DO** make the code satisfy the assertion. If the assertion is genuinely *wrong*, change it to be **more accurate to the PRD/requirement**, never looser — and say why in the diff.
 - A requirement "validated" by a weakened test is no longer validated. The controller will not count it toward operational-targets, and zeros the iteration's credit.
 
-#### **DON'T delete a known-issue ledger — migrate it.**
+#### **D2 — DON'T delete a known-issue ledger — migrate it.**
 
 `docs/internal/PROBLEMS.md` and `docs/internal/PROGRESS.md` are **tracked gaps**, the institutional memory of deferred work. Deleting one to "clean up" erases the only record that the gap exists. That is the highest-leverage gaming move and the easiest to catch.
 
 - **DO** resolve the entries (do the work) and then update the ledger, or migrate them to wherever they now belong (a backlog item, an issue). The entry leaves the ledger because it was *handled*, never because the file was *removed*.
 - These files are core internal docs — "always present, never skip" (see `documentation-health`). A deletion in a diff is treated as gaming.
 
-#### **DON'T suppress a finding — fix it, or scope the rule with a regression test.**
+#### **D3 — DON'T suppress a finding — fix it, or scope the rule with a regression test.**
 
 Adding `nolint`, `// +build ignore`, `eslint-disable`, `@ts-ignore`/`@ts-nocheck`, `# type: ignore`, lowering a coverage/threshold knob, or flipping an auditor rule to `enabled: false` makes the complaint disappear without addressing it.
 

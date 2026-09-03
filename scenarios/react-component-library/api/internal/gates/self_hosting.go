@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 	"react-component-library/internal/librarywalk"
 )
 
@@ -61,8 +62,8 @@ func ValidateSelfHosting(scope Scope) (Result, error) {
 		if readErr != nil {
 			return readErr
 		}
-		for _, match := range libraryImportRE.FindAllStringSubmatch(string(data), -1) {
-			if assetID := known[match[1]]; assetID != "" {
+		for _, specifier := range libspec.ParseAll(string(data)) {
+			if assetID := known[specifier.Name]; assetID != "" {
 				consumed[assetID] = true
 			}
 		}

@@ -4,10 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { componentsClient } from "../../api/components";
-import { Button } from "../../components/Button";
-import { Dialog } from "../../components/Dialog";
-import { Input } from "../../components/Input";
-import { Textarea } from "../../components/Textarea";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strings"
 	"time"
 )
@@ -707,7 +708,7 @@ func (r *Repository) verifyVersionDirectory(ctx context.Context, c Candidate, ve
 		return fmt.Errorf("cannot retire %s@%s: file mirror is empty", c.LibraryID, c.Version)
 	}
 	seen := map[string]struct{}{}
-	if err := filepath.WalkDir(versionDir, func(path string, entry os.DirEntry, walkErr error) error {
+	if err := librarywalk.WalkContext(context.Background(), versionDir, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

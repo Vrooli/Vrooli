@@ -8,10 +8,10 @@ import { WorkflowKind } from "@vrooli/proto-types/react-component-library/v1/wor
 import { adoptionsClient } from "../api/adoptions";
 import { listCatalogAssets } from "../api/components";
 import { useTranslation } from "../i18n";
-import { Button } from "./Button";
-import { Dialog } from "./Dialog";
-import { Input } from "./Input";
-import { Select } from "./Select";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
 
 export type LauncherAction = "menu" | "extract" | "adopt" | "create" | null;
 

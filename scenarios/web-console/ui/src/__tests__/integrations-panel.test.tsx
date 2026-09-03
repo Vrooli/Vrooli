@@ -13,14 +13,23 @@ vi.mock("@vrooli/api-base", () => ({
   createScenarioConnectTransport: () => ({}),
 }));
 
-const { mockFetchCapabilities, mockRunCapabilityAction } = vi.hoisted(() => ({
+const { mockFetchCapabilities, mockRunCapabilityAction, mockGetConnections, mockGetCommercialContext } = vi.hoisted(() => ({
   mockFetchCapabilities: vi.fn(),
   mockRunCapabilityAction: vi.fn(),
+  mockGetConnections: vi.fn(),
+  mockGetCommercialContext: vi.fn(),
 }));
 
 vi.mock("../api/capabilities", () => ({
   fetchCapabilities: mockFetchCapabilities,
   runCapabilityAction: mockRunCapabilityAction,
+}));
+
+vi.mock("../api/monetization", () => ({
+  getConnections: mockGetConnections,
+  getCommercialContext: mockGetCommercialContext,
+  testOpenRouterKey: vi.fn(),
+  removeOpenRouterKey: vi.fn(),
 }));
 
 const mockCapabilities: CapabilitiesResponse = {
@@ -94,9 +103,53 @@ const mockCapabilities: CapabilitiesResponse = {
 beforeEach(() => {
   mockFetchCapabilities.mockReset();
   mockRunCapabilityAction.mockReset();
+  mockGetConnections.mockReset();
+  mockGetCommercialContext.mockReset();
+  mockGetConnections.mockResolvedValue({ connections: [] });
 });
 
 describe("IntegrationsPanel", () => {
+  it("renders configured connections with lifecycle actions separately from runtime health", async () => {
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+    mockGetConnections.mockResolvedValue({
+      connections: [{
+        id: "vrooli/openrouter",
+        provider: "OpenRouter",
+        connection_name: "OpenRouter API credential",
+        status: "connected",
+        bindings: ["ai-command-generation"],
+        next_action: "Manage this credential in Account settings.",
+        supported_actions: ["test", "delete"],
+      }],
+    });
+
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("OpenRouter API credential")).toBeInTheDocument();
+    expect(screen.getByText(strings.integrationsPanel.testConnection)).toBeInTheDocument();
+    expect(screen.getByText(strings.integrationsPanel.removeConnection)).toBeInTheDocument();
+    expect(screen.getByTestId("integrations-group-resources")).toBeInTheDocument();
+  });
+
+  it("does not render lifecycle controls that the owner does not advertise", async () => {
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+    mockGetConnections.mockResolvedValue({
+      connections: [{
+        id: "vrooli/openrouter",
+        provider: "OpenRouter",
+        connection_name: "Managed connection",
+        status: "connected",
+        supported_actions: ["refresh"],
+      }],
+    });
+
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("Managed connection")).toBeInTheDocument();
+    expect(screen.queryByText(strings.integrationsPanel.testConnection)).not.toBeInTheDocument();
+    expect(screen.queryByText(strings.integrationsPanel.removeConnection)).not.toBeInTheDocument();
+  });
+
   it("shows loading state while fetching", () => {
     mockFetchCapabilities.mockReturnValue(new Promise(() => {}));
     renderWithProviders(<IntegrationsPanel open={true} />);
@@ -113,6 +166,25 @@ describe("IntegrationsPanel", () => {
     });
   });
 
+  it("keeps connected accounts visible when runtime health fails", async () => {
+    await i18n.changeLanguage("en");
+    mockFetchCapabilities.mockRejectedValue(new Error("Runtime registry unavailable"));
+    mockGetConnections.mockResolvedValue({
+      connections: [{
+        id: "vrooli/openrouter",
+        provider: "OpenRouter",
+        connection_name: "Managed connection",
+        status: "connected",
+        supported_actions: [],
+      }],
+    });
+
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("Managed connection")).toBeInTheDocument();
+    expect(screen.getByTestId("runtime-dependencies")).toHaveTextContent("Failed to load integrations");
+  });
+
   it("renders all capability cards", async () => {
     mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
@@ -122,6 +194,38 @@ describe("IntegrationsPanel", () => {
         expect(screen.getByTestId(`cap-card-${capability.id}`)).toBeTruthy();
       }
     });
+  });
+
+  it("keeps connected accounts visibly separate from runtime health", async () => {
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    expect(await screen.findByTestId("connected-accounts")).toBeInTheDocument();
+    expect(screen.getByTestId("integrations-group-scenarios")).toBeInTheDocument();
+    expect(screen.getByTestId("integrations-group-resources")).toBeInTheDocument();
+    expect(screen.getByTestId("needs-attention")).toBeInTheDocument();
+  });
+
+  it("prioritizes recovery guidance before account and runtime details", async () => {
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+    renderWithProviders(<IntegrationsPanel open />);
+
+    const panel = await screen.findByTestId("needs-attention");
+    const accounts = screen.getByTestId("connected-accounts");
+    expect(panel.compareDocumentPosition(accounts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not infer a connected account from an available runtime capability", async () => {
+    mockFetchCapabilities.mockResolvedValue({
+      capabilities: [mockCapabilities.capabilities[0]!],
+      timestamp: mockCapabilities.timestamp,
+    });
+
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText(strings.integrationsPanel.noProviderAccounts)).toBeInTheDocument();
+    expect(screen.getByTestId("connected-accounts")).toBeInTheDocument();
+    expect(screen.queryByText("OpenRouter API credential")).not.toBeInTheDocument();
   });
 
   it("shows correct active count", async () => {

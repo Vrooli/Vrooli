@@ -164,6 +164,13 @@ Config states *what is permitted*. Member prose states *how to choose within it*
 
 ---
 
+## Self-repair authority
+
+Host-state detection and remediation belong to the control plane. Team members
+may observe, schedule, and report host state, and may request a typed control-
+plane recovery operation, but they must not carry a private host-repair
+implementation or mutate host state directly.
+
 ## Score scale (used by the audit skill)
 
 Layers are scored on this scale:

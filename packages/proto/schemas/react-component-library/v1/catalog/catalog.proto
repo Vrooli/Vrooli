@@ -8,6 +8,7 @@ service CatalogService {
 	rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
 	rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
 	rpc RunGate(RunGateRequest) returns (RunGateResponse);
+	rpc CheckAsset(CheckAssetRequest) returns (CheckAssetResponse);
 	rpc GetAssetRelationships(GetAssetRelationshipsRequest) returns (GetAssetRelationshipsResponse);
 	rpc GetCatalogStructure(GetCatalogStructureRequest) returns (GetCatalogStructureResponse);
 	rpc ReconcileGraph(ReconcileGraphRequest) returns (ReconcileGraphResponse);
@@ -232,6 +233,28 @@ message GateFinding {
 	string docs_ref = 8;
 	string rule_source = 9;
 	string rule_declared_in = 10;
+	// Stable dotted catalog identity. asset_id remains as a deprecated alias
+	// for older clients during the migration to typed finding attribution.
+	string catalog_id = 11;
+	string library_id = 12;
+	FindingScope scope = 13;
+	bool blocking = 14;
+	// Repository-relative authored file that owns the fix.
+	string owner = 15;
+	FindingSeverity severity_class = 16;
+}
+
+enum FindingScope {
+	FINDING_SCOPE_UNSPECIFIED = 0;
+	FINDING_SCOPE_ASSET = 1;
+	FINDING_SCOPE_CORPUS = 2;
+}
+
+enum FindingSeverity {
+	FINDING_SEVERITY_UNSPECIFIED = 0;
+	FINDING_SEVERITY_BLOCKING = 1;
+	FINDING_SEVERITY_WARNING = 2;
+	FINDING_SEVERITY_INFO = 3;
 }
 message RunGateResponse {
   string gate = 1;
@@ -246,6 +269,26 @@ message RunGateResponse {
 	double composition_median = 10;
 	int32 bespoke_escape_count = 11;
 	repeated CompositionEscape composition_escapes = 12;
+}
+
+message AssetCheckStage {
+	string name = 1;
+	string status = 2;
+	double seconds = 3;
+	string detail = 4;
+}
+message CheckAssetRequest {
+	string asset_id = 1;
+	string version = 2;
+	bool run_tests = 3;
+}
+message CheckAssetResponse {
+	string asset_id = 1;
+	string verdict = 2;
+	repeated AssetCheckStage stages = 3;
+	repeated GateFinding findings = 4;
+	string reused_report_id = 5;
+	string source_revision = 6;
 }
 
 message CompositionEscape {

@@ -150,7 +150,7 @@ func TestInstalledPackageCandidatesIgnoreLibraryUINodeModules(t *testing.T) {
 func TestRuntimeHandlerServesPackageOnlyFromGovernedStore(t *testing.T) {
 	root := t.TempDir()
 	store := filepath.Join(root, "tools")
-	packageRoot := filepath.Join(store, "preview-runtime-store-only", "node_modules", "store-only")
+	packageRoot := filepath.Join(store, "node_modules", "store-only")
 	require.NoError(t, os.MkdirAll(packageRoot, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"version":"1.2.3","module":"index.js"}`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "index.js"), []byte(`export const source = "governed-store";`), 0o600))

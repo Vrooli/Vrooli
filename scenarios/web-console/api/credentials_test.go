@@ -17,6 +17,7 @@ import (
 
 type credentialHandlerClient struct {
 	refs        []credentialclient.CredentialRef
+	status      credentialclient.CredentialStatus
 	provision   credentialclient.ProvisionRequest
 	deleteID    string
 	deleteField string
@@ -34,7 +35,7 @@ func (c *credentialHandlerClient) Delete(_ context.Context, identity, field stri
 	return nil
 }
 func (c *credentialHandlerClient) Status(context.Context, string, string) (credentialclient.CredentialStatus, error) {
-	return credentialclient.CredentialStatus{}, nil
+	return c.status, nil
 }
 func (c *credentialHandlerClient) List(context.Context) ([]credentialclient.CredentialRef, error) {
 	return c.refs, nil
@@ -91,6 +92,21 @@ func TestCredentialProvisionRejectsUndeclaredCredential(t *testing.T) {
 	}
 }
 
+func TestCredentialDeleteRejectsUndeclaredCredential(t *testing.T) {
+	client := &credentialHandlerClient{}
+	server := &Server{credentialClient: client}
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/credentials/provision", strings.NewReader(`{"identity":"other","field":"token"}`))
+	req.RemoteAddr = "127.0.0.1:1234"
+	rec := httptest.NewRecorder()
+	server.credentialDeleteHandler(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	if client.deleteID != "" || client.deleteField != "" {
+		t.Fatalf("undeclared credential was deleted: %s/%s", client.deleteID, client.deleteField)
+	}
+}
+
 func TestCredentialProvisionRejectsCrossOriginBeforeAuthority(t *testing.T) {
 	client := &credentialHandlerClient{refs: []credentialclient.CredentialRef{{LogicalID: webConsoleOpenRouterIdentity, Field: webConsoleOpenRouterField}}}
 	server := &Server{credentialClient: client}
@@ -136,6 +152,54 @@ func TestResolveLPBSIdentityUsesAuthenticatedAuthorityResponse(t *testing.T) {
 	identity, err := resolveLPBSIdentity(context.Background(), server.URL, "access-token")
 	if err != nil || identity != "verified@example.com" {
 		t.Fatalf("resolveLPBSIdentity() = %q, %v", identity, err)
+	}
+}
+
+func TestCommercialContextFailsClosedWhenAccountIsUnavailable(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/commercial-context?placement=integrations", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	recorder := httptest.NewRecorder()
+	(&Server{}).commercialContextHandler(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable || strings.Contains(recorder.Body.String(), "entitlement") {
+		t.Fatalf("status/body = %d/%q", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestConnectionsHandlerReturnsMetadataWithoutSecret(t *testing.T) {
+	client := &credentialHandlerClient{status: credentialclient.CredentialStatus{Configured: true, Provider: "credential-authority"}}
+	server := &Server{credentialClient: client}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/integrations/connections", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	recorder := httptest.NewRecorder()
+	server.connectionsHandler(recorder, request)
+	body := recorder.Body.String()
+	if recorder.Code != http.StatusOK || !strings.Contains(body, "OpenRouter API credential") || !strings.Contains(body, "supported_actions") || !strings.Contains(body, "test") || !strings.Contains(body, "delete") || strings.Contains(body, "secret") || strings.Contains(body, "credential-authority") {
+		t.Fatalf("status/body = %d/%q", recorder.Code, body)
+	}
+}
+
+func TestConnectionsHandlerOmitsUnconfiguredCredential(t *testing.T) {
+	server := &Server{credentialClient: &credentialHandlerClient{}}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/integrations/connections", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	recorder := httptest.NewRecorder()
+	server.connectionsHandler(recorder, request)
+	if recorder.Code != http.StatusOK || strings.Contains(recorder.Body.String(), "OpenRouter") {
+		t.Fatalf("status/body = %d/%q", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestConnectionsHandlerDoesNotCollapseAuthorityOutageIntoEmptyState(t *testing.T) {
+	server := &Server{credentialClient: &credentialHandlerClient{status: credentialclient.CredentialStatus{
+		ProviderState:  "unavailable",
+		ProviderDetail: "sensitive backend diagnostic",
+	}}}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/integrations/connections", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	recorder := httptest.NewRecorder()
+	server.connectionsHandler(recorder, request)
+	if recorder.Code != http.StatusBadGateway || strings.Contains(recorder.Body.String(), "sensitive backend diagnostic") {
+		t.Fatalf("status/body = %d/%q", recorder.Code, recorder.Body.String())
 	}
 }
 

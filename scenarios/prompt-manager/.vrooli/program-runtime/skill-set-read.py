@@ -7,6 +7,12 @@ Phases: validate -> collect -> classify -> report. Read-only. Rows: registered s
 scenario pack for the scenario, presence of the usage id (<scenario>) and improve id
 (<scenario>-improve), token size from skill read, and read counts from skill-usage when that
 binding answers; a row whose binding fails is reported unavailable with the reason.
+
+Status rule (program-contracts.md §"The envelope"): a row with a permanent reason never lowers
+the status; only a transient scenario_unreachable row or a failed read makes the board partial.
+The read-counts row is unreliable:proto_drift_skill_usage while the skill-usage binding 500s on
+the unknown proto field `projected` (2026-09-02); that is a failed read, so the board is partial
+until the binding is repaired.
 """
 
 try:
@@ -22,6 +28,8 @@ envelope = {
     "errors": [], "evidence": [],
 }
 handles = {}
+PERMANENT = ("no_governed_binding", "kernel_invoke_budget", "read_elsewhere:", "pending_telemetry")
+counters = {"transient_unavailable": 0}
 
 
 def fail(status, klass, detail, where):
@@ -31,20 +39,38 @@ def fail(status, klass, detail, where):
 
 
 def classify_transport(exc):
+    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
     if isinstance(exc, (NameError, AttributeError)):
-        raise  # a kernel-bound name is missing: never disguise it as a binding error
-    text = str(exc).lower()
-    if "unreachable" in text or "bridge" in text or "scenario_not_running" in text:
-        return "unavailable", "scenario_unreachable"
+        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
+    text = str(exc)
+    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
+                   "no running runtime ports", "connection refused"):
+        if needle in text:
+            return ("unavailable", "scenario_unreachable")
     if "requires an explicit grant" in text:
-        return "refused", "no_grant"
-    return "failed", "binding_error"
+        return ("refused", "no_grant")
+    if "not run eligible" in text or "run_eligible" in text:
+        return ("refused", "not_run_eligible")
+    if "inference spend" in text:
+        return ("refused", "inference_spend_exceeded")
+    if "delegated run spend" in text:
+        return ("refused", "delegated_run_spend_exceeded")
+    if "no determinable primary response field" in text or "rows must be one of" in text:
+        return ("failed", "ambiguous_response")
+    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
+        if needle in text:
+            return ("failed", "invalid_input")
+    if "deadline" in text:
+        return ("failed", "deadline_exceeded")
+    return ("failed", "binding_error")
 
 
 def row(name, reading, unavailable=False, reason=None, sensor=None, target=None, in_band=None):
     # canonical setpoint row shape; target/in_band stay None for pure reads that carry no band
     envelope["signals"]["rows"].append({"row": name, "reading": reading, "target": target, "in_band": in_band, "unavailable": unavailable, "reason": reason})
     envelope["signals"]["unavailable" if unavailable else "readable"] += 1
+    if unavailable and not (reason or "").startswith(PERMANENT):
+        counters["transient_unavailable"] += 1
     if sensor:
         envelope["evidence"].append(sensor)
 
@@ -70,6 +96,7 @@ def step_collect():  # COLLECT · registry list first; usage counts are optional
     try:
         handles["usage"] = prompt_manager.skill_usage.skill_usage(rows="rows")  # two repeated fields: rows, unread
     except Exception as exc:
+        classify_transport(exc)  # re-raises kernel_runtime; a transport/binding error is recorded per row
         handles["usage_error"] = str(exc)[:200]
     return "classify"
 
@@ -92,14 +119,18 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
             sensor="prompt-manager skill read <usage> <improve>")
     except Exception as exc:
         status, klass = classify_transport(exc)
-        row("set-token-size", None, unavailable=True, reason=f"{klass}: {str(exc)[:120]}")
+        envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": "classify:set-token-size"})
+        row("set-token-size", None, unavailable=True, reason="scenario_unreachable" if klass == "scenario_unreachable" else f"unreliable:{klass}",
+            sensor="prompt-manager skill read <usage> <improve>")
     # Read counts: the skill-usage binding answers or it does not.
     if "usage" in handles:
         used = handles["usage"].filter(lambda r: belongs({"id": r.get("skillId") or r.get("id") or r.get("skill") or ""}))
         row("read-counts", {"rows": used.count(), "sample": used.head(3)}, sensor="prompt-manager skill-usage")
     else:
-        row("read-counts", None, unavailable=True, reason=f"binding_error: {handles.get('usage_error')}")
-    envelope["status"] = "ok" if envelope["signals"]["unavailable"] == 0 else "partial"
+        # The binding 500s on the unknown proto field `projected`: a binding_error, reason proto drift.
+        envelope["errors"].append({"class": "binding_error", "detail": str(handles.get("usage_error"))[:240], "where": "collect:read-counts"})
+        row("read-counts", None, unavailable=True, reason="unreliable:proto_drift_skill_usage", sensor="prompt-manager skill-usage")
+    envelope["status"] = "ok" if counters["transient_unavailable"] == 0 else "partial"
     return "report"
 
 

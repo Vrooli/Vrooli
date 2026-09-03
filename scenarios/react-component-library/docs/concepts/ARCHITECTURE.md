@@ -491,8 +491,7 @@ CLI and relationships read model.
 
 ## Cross-References
 
-- [`START-HERE.md`](../START-HERE.md) — first implementation workflow
-- [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
+- [`asset-update-flow.md`](../guides/asset-update-flow.md) — first implementation and local workflow
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership
 - [`FLOWS.md`](FLOWS.md) — workflow and state-transition map
 - [`DATA.md`](DATA.md) — data ownership and storage

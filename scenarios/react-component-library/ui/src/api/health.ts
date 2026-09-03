@@ -3,10 +3,10 @@ import { buildApiUrl } from "@vrooli/api-base";
 import { ResponseSchema } from "@vrooli/proto-types/react-component-library/v1/health/health_pb";
 import type { Response as HealthResponse } from "@vrooli/proto-types/react-component-library/v1/health/health_pb";
 
-import { API_BASE, PROTO_READ_OPTIONS, decodeApiError } from "./client";
+import { API_BASE, PROTO_READ_OPTIONS, boundedFetch, decodeApiError } from "./client";
 
 export async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch(buildApiUrl("/health", { baseUrl: API_BASE }), {
+  const res = await boundedFetch(buildApiUrl("/health", { baseUrl: API_BASE }), {
     method: "GET",
     cache: "no-store",
   });

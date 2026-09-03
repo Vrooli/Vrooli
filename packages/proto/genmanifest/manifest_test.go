@@ -71,6 +71,64 @@ func TestWriteManifestDeterministic(t *testing.T) {
 	}
 }
 
+func TestChangedScenariosDetectsInputAndToolchainChanges(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "leaf", "v1", "leaf.proto"), "syntax = \"proto3\";\npackage leaf.v1;\nmessage Leaf {}\n")
+	writeFile(t, filepath.Join(protoRoot, "schemas", "other", "v1", "other.proto"), "syntax = \"proto3\";\npackage other.v1;\nmessage Other {}\n")
+	for _, name := range []string{"leaf", "other"} {
+		manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteManifest(ManifestPath(protoRoot, name), manifest); err != nil {
+			t.Fatal(err)
+		}
+	}
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changed) != 0 {
+		t.Fatalf("unchanged locks reported as changed: %v", changed)
+	}
+	writeFile(t, filepath.Join(protoRoot, "schemas", "leaf", "v1", "leaf.proto"), "syntax = \"proto3\";\npackage leaf.v1;\nmessage Leaf { string value = 1; }\n")
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("input change reported %v, want [leaf]", changed)
+	}
+	writeFile(t, filepath.Join(repoRoot, "internal", "tools", "buf", "tool.json"), `{"version":"2.0.0"}`)
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"leaf", "other"}) {
+		t.Fatalf("toolchain change reported %v, want both sets", changed)
+	}
+}
+
+func TestChangedScenariosIncludesDependentsOfMissingLock(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "common", "v1", "common.proto"), "syntax = \"proto3\";\npackage common.v1;\nmessage Common {}\n")
+	writeFile(t, filepath.Join(protoRoot, "schemas", "dependent", "v1", "dependent.proto"), "syntax = \"proto3\";\npackage dependent.v1;\nimport \"common/v1/common.proto\";\nmessage Dependent { common.v1.Common value = 1; }\n")
+	dependent, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, "dependent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteManifest(ManifestPath(protoRoot, "dependent"), dependent); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"common", "dependent"}) {
+		t.Fatalf("missing lock scope = %v, want [common dependent]", changed)
+	}
+}
+
 func makeRepo(t *testing.T) (string, string) {
 	t.Helper()
 	repoRoot := t.TempDir()

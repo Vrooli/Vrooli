@@ -669,6 +669,148 @@ func (x *ReadinessElement) GetEvidence() string {
 	return ""
 }
 
+// BootRecoveryPrecondition is one named verdict of the boot-recovery
+// readiness check: state is ok, failed or undetermined, always with a reason.
+type BootRecoveryPrecondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BootRecoveryPrecondition) Reset() {
+	*x = BootRecoveryPrecondition{}
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BootRecoveryPrecondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BootRecoveryPrecondition) ProtoMessage() {}
+
+func (x *BootRecoveryPrecondition) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BootRecoveryPrecondition.ProtoReflect.Descriptor instead.
+func (*BootRecoveryPrecondition) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *BootRecoveryPrecondition) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *BootRecoveryPrecondition) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *BootRecoveryPrecondition) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// BootRecovery is the typed projection of the system-boot-recovery-readiness
+// check: would the autoheal boot path work if the host rebooted now. Status
+// is the check's status (ok, critical, undetermined) or "unknown" when the
+// check has not run since the API started; remediation is the one repair.
+type BootRecovery struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Status        string                      `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Preconditions []*BootRecoveryPrecondition `protobuf:"bytes,2,rep,name=preconditions,proto3" json:"preconditions,omitempty"`
+	EvaluatedAt   *timestamppb.Timestamp      `protobuf:"bytes,3,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	Remediation   string                      `protobuf:"bytes,4,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	Message       string                      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BootRecovery) Reset() {
+	*x = BootRecovery{}
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BootRecovery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BootRecovery) ProtoMessage() {}
+
+func (x *BootRecovery) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BootRecovery.ProtoReflect.Descriptor instead.
+func (*BootRecovery) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *BootRecovery) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *BootRecovery) GetPreconditions() []*BootRecoveryPrecondition {
+	if x != nil {
+		return x.Preconditions
+	}
+	return nil
+}
+
+func (x *BootRecovery) GetEvaluatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvaluatedAt
+	}
+	return nil
+}
+
+func (x *BootRecovery) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *BootRecovery) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type GetReadinessResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Available         bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
@@ -678,13 +820,14 @@ type GetReadinessResponse struct {
 	Elements          []*ReadinessElement    `protobuf:"bytes,5,rep,name=elements,proto3" json:"elements,omitempty"`
 	Episodes          []*HealEpisode         `protobuf:"bytes,6,rep,name=episodes,proto3" json:"episodes,omitempty"`
 	ComputedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	BootRecovery      *BootRecovery          `protobuf:"bytes,8,opt,name=boot_recovery,json=bootRecovery,proto3" json:"boot_recovery,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetReadinessResponse) Reset() {
 	*x = GetReadinessResponse{}
-	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +839,7 @@ func (x *GetReadinessResponse) String() string {
 func (*GetReadinessResponse) ProtoMessage() {}
 
 func (x *GetReadinessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +852,7 @@ func (x *GetReadinessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadinessResponse.ProtoReflect.Descriptor instead.
 func (*GetReadinessResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetReadinessResponse) GetAvailable() bool {
@@ -761,6 +904,13 @@ func (x *GetReadinessResponse) GetComputedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetReadinessResponse) GetBootRecovery() *BootRecovery {
+	if x != nil {
+		return x.BootRecovery
+	}
+	return nil
+}
+
 var File_vrooli_autoheal_v1_healing_healing_proto protoreflect.FileDescriptor
 
 const file_vrooli_autoheal_v1_healing_healing_proto_rawDesc = "" +
@@ -808,7 +958,17 @@ const file_vrooli_autoheal_v1_healing_healing_proto_rawDesc = "" +
 	"\n" +
 	"latency_ms\x18\x04 \x01(\x03R\tlatencyMs\x12\x18\n" +
 	"\astarter\x18\x05 \x01(\tR\astarter\x12\x1a\n" +
-	"\bevidence\x18\x06 \x01(\tR\bevidence\"\xa0\x03\n" +
+	"\bevidence\x18\x06 \x01(\tR\bevidence\"\\\n" +
+	"\x18BootRecoveryPrecondition\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x84\x02\n" +
+	"\fBootRecovery\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12a\n" +
+	"\rpreconditions\x18\x02 \x03(\v2;.vrooli.vrooli_autoheal.v1.healing.BootRecoveryPreconditionR\rpreconditions\x12=\n" +
+	"\fevaluated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x12 \n" +
+	"\vremediation\x18\x04 \x01(\tR\vremediation\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\"\xf6\x03\n" +
 	"\x14GetReadinessResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12-\n" +
 	"\x12unavailable_reason\x18\x02 \x01(\tR\x11unavailableReason\x12\x17\n" +
@@ -817,7 +977,8 @@ const file_vrooli_autoheal_v1_healing_healing_proto_rawDesc = "" +
 	"\belements\x18\x05 \x03(\v23.vrooli.vrooli_autoheal.v1.healing.ReadinessElementR\belements\x12J\n" +
 	"\bepisodes\x18\x06 \x03(\v2..vrooli.vrooli_autoheal.v1.healing.HealEpisodeR\bepisodes\x12;\n" +
 	"\vcomputed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAt*y\n" +
+	"computedAt\x12T\n" +
+	"\rboot_recovery\x18\b \x01(\v2/.vrooli.vrooli_autoheal.v1.healing.BootRecoveryR\fbootRecovery*y\n" +
 	"\aOutcome\x12\x17\n" +
 	"\x13OUTCOME_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11OUTCOME_SUCCEEDED\x10\x01\x12\x12\n" +
@@ -844,49 +1005,54 @@ func file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_autoheal_v1_healing_healing_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_autoheal_v1_healing_healing_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_vrooli_autoheal_v1_healing_healing_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_vrooli_autoheal_v1_healing_healing_proto_goTypes = []any{
-	(Outcome)(0),                  // 0: vrooli.vrooli_autoheal.v1.healing.Outcome
-	(*HealOutcome)(nil),           // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome
-	(*HealEpisode)(nil),           // 2: vrooli.vrooli_autoheal.v1.healing.HealEpisode
-	(*ListOutcomesRequest)(nil),   // 3: vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
-	(*ListOutcomesResponse)(nil),  // 4: vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
-	(*GetEpisodesRequest)(nil),    // 5: vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
-	(*GetEpisodesResponse)(nil),   // 6: vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
-	(*GetHistoryRequest)(nil),     // 7: vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
-	(*GetHistoryResponse)(nil),    // 8: vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
-	(*GetReadinessRequest)(nil),   // 9: vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
-	(*ReadinessElement)(nil),      // 10: vrooli.vrooli_autoheal.v1.healing.ReadinessElement
-	(*GetReadinessResponse)(nil),  // 11: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(Outcome)(0),                     // 0: vrooli.vrooli_autoheal.v1.healing.Outcome
+	(*HealOutcome)(nil),              // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome
+	(*HealEpisode)(nil),              // 2: vrooli.vrooli_autoheal.v1.healing.HealEpisode
+	(*ListOutcomesRequest)(nil),      // 3: vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
+	(*ListOutcomesResponse)(nil),     // 4: vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
+	(*GetEpisodesRequest)(nil),       // 5: vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
+	(*GetEpisodesResponse)(nil),      // 6: vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
+	(*GetHistoryRequest)(nil),        // 7: vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
+	(*GetHistoryResponse)(nil),       // 8: vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
+	(*GetReadinessRequest)(nil),      // 9: vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
+	(*ReadinessElement)(nil),         // 10: vrooli.vrooli_autoheal.v1.healing.ReadinessElement
+	(*BootRecoveryPrecondition)(nil), // 11: vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition
+	(*BootRecovery)(nil),             // 12: vrooli.vrooli_autoheal.v1.healing.BootRecovery
+	(*GetReadinessResponse)(nil),     // 13: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
+	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
 }
 var file_vrooli_autoheal_v1_healing_healing_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_autoheal.v1.healing.HealOutcome.outcome:type_name -> vrooli.vrooli_autoheal.v1.healing.Outcome
-	12, // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome.observed_at:type_name -> google.protobuf.Timestamp
+	14, // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.vrooli_autoheal.v1.healing.HealEpisode.outcome:type_name -> vrooli.vrooli_autoheal.v1.healing.Outcome
-	12, // 3: vrooli.vrooli_autoheal.v1.healing.HealEpisode.started_at:type_name -> google.protobuf.Timestamp
-	12, // 4: vrooli.vrooli_autoheal.v1.healing.HealEpisode.completed_at:type_name -> google.protobuf.Timestamp
+	14, // 3: vrooli.vrooli_autoheal.v1.healing.HealEpisode.started_at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.vrooli_autoheal.v1.healing.HealEpisode.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse.outcomes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealOutcome
 	2,  // 6: vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse.episodes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealEpisode
 	1,  // 7: vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse.outcomes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealOutcome
-	12, // 8: vrooli.vrooli_autoheal.v1.healing.ReadinessElement.ready_at:type_name -> google.protobuf.Timestamp
-	12, // 9: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.process_started_at:type_name -> google.protobuf.Timestamp
-	10, // 10: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.elements:type_name -> vrooli.vrooli_autoheal.v1.healing.ReadinessElement
-	2,  // 11: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.episodes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealEpisode
-	12, // 12: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.computed_at:type_name -> google.protobuf.Timestamp
-	3,  // 13: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:input_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
-	5,  // 14: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:input_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
-	7,  // 15: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
-	9,  // 16: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:input_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
-	4,  // 17: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:output_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
-	6,  // 18: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:output_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
-	8,  // 19: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
-	11, // 20: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:output_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
-	17, // [17:21] is the sub-list for method output_type
-	13, // [13:17] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	14, // 8: vrooli.vrooli_autoheal.v1.healing.ReadinessElement.ready_at:type_name -> google.protobuf.Timestamp
+	11, // 9: vrooli.vrooli_autoheal.v1.healing.BootRecovery.preconditions:type_name -> vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition
+	14, // 10: vrooli.vrooli_autoheal.v1.healing.BootRecovery.evaluated_at:type_name -> google.protobuf.Timestamp
+	14, // 11: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.process_started_at:type_name -> google.protobuf.Timestamp
+	10, // 12: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.elements:type_name -> vrooli.vrooli_autoheal.v1.healing.ReadinessElement
+	2,  // 13: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.episodes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealEpisode
+	14, // 14: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.computed_at:type_name -> google.protobuf.Timestamp
+	12, // 15: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.boot_recovery:type_name -> vrooli.vrooli_autoheal.v1.healing.BootRecovery
+	3,  // 16: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:input_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
+	5,  // 17: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:input_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
+	7,  // 18: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
+	9,  // 19: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:input_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
+	4,  // 20: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:output_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
+	6,  // 21: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:output_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
+	8,  // 22: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
+	13, // 23: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:output_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
+	20, // [20:24] is the sub-list for method output_type
+	16, // [16:20] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_autoheal_v1_healing_healing_proto_init() }
@@ -900,7 +1066,7 @@ func file_vrooli_autoheal_v1_healing_healing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_autoheal_v1_healing_healing_proto_rawDesc), len(file_vrooli_autoheal_v1_healing_healing_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

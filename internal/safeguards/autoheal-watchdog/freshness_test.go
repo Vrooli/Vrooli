@@ -6,131 +6,126 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
-// writeLoopTree lays out the minimal source tree loopBinaryStale walks.
-func writeLoopTree(t *testing.T) (root string, loop string) {
+// writeLoopComponent lays out the loop component the way the lifecycle engine
+// leaves it after `vrooli scenario setup`: a module directory, a built binary,
+// and the freshness manifest stamped next to the binary. It returns the repo
+// root and the binary path.
+func writeLoopComponent(t *testing.T) (root string, loop string) {
 	t.Helper()
 	root = t.TempDir()
-	scenario := filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal")
-	loopDir := filepath.Join(scenario, "cli", "loop")
-	recoverDir := filepath.Join(scenario, "langrecover")
-	for _, dir := range []string{loopDir, recoverDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+	loopDir := loopModuleDir(root)
+	if err := os.MkdirAll(loopDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(loopDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(recoverDir, "signatures.go"), []byte("package langrecover\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(loopDir, "go.mod"), []byte("module vrooli-autoheal-loop\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return root, filepath.Join(scenario, "cli", "vrooli-autoheal-loop")
+	loop = loopPath(root, "linux")
+	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root, loop
 }
 
-func touch(t *testing.T, path string, when time.Time) {
+// stampLoopManifest records the manifest the engine would write for the
+// current loop sources. The write time is placed in the future so the
+// stat-cache trusts unchanged files; content edits are still re-hashed.
+func stampLoopManifest(t *testing.T, root, loop string) {
 	t.Helper()
-	if err := os.Chtimes(path, when, when); err != nil {
+	spec := cliutil.FreshnessSpec{
+		SourceRoot:   loopModuleDir(root),
+		ContextRoot:  root,
+		Inputs:       []string{"scenarios/vrooli-autoheal/cli/loop"},
+		SkipFiles:    []string{filepath.Base(loop)},
+		SkipSuffixes: []string{"_test.go", cliutil.FreshnessManifestSuffix},
+	}
+	manifest, err := cliutil.ComputeFreshnessManifest(spec, "go_module", map[string]string{"toolchain": "go1.25.0"}, time.Now().Add(time.Minute).UnixNano())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cliutil.WriteFreshnessManifest(cliutil.FreshnessManifestPath(loop), manifest); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestLoopBinaryStaleWhenMissing(t *testing.T) {
-	root, loop := writeLoopTree(t)
-	stale, reason := loopBinaryStale(root, loop)
-	if !stale {
-		t.Fatal("a missing binary must be stale")
+func TestLoopBinaryVerdictStaleWhenMissing(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	stampLoopManifest(t, root, loop)
+	if err := os.Remove(loop); err != nil {
+		t.Fatal(err)
+	}
+	verdict, reason := loopBinaryVerdict(root, loop)
+	if verdict != verdictStale {
+		t.Fatalf("verdict = %q, want stale for a missing binary", verdict)
 	}
 	if reason != "binary missing" {
 		t.Errorf("reason = %q", reason)
 	}
 }
 
-func TestLoopBinaryFreshWhenNewerThanSources(t *testing.T) {
-	root, loop := writeLoopTree(t)
-	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
-		t.Fatal(err)
+// A binary the engine never stamped is unproven. Reporting it fresh is how the
+// old mtime path let a months-old watchdog read "Already present".
+func TestLoopBinaryVerdictUnknownWithoutManifest(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	verdict, reason := loopBinaryVerdict(root, loop)
+	if verdict != verdictUnknown {
+		t.Fatalf("verdict = %q, want unknown without a manifest", verdict)
 	}
-	touch(t, loop, time.Now().Add(time.Hour))
+	if reason == "" {
+		t.Error("unknown verdict must name the missing manifest")
+	}
+}
 
-	if stale, reason := loopBinaryStale(root, loop); stale {
-		t.Fatalf("binary newer than sources must be fresh, got %q", reason)
+func TestLoopBinaryVerdictFreshWhenManifestMatches(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	stampLoopManifest(t, root, loop)
+	if verdict, reason := loopBinaryVerdict(root, loop); verdict != verdictFresh {
+		t.Fatalf("verdict = %q (%s), want fresh when sources match the manifest", verdict, reason)
 	}
 }
 
 // The 2026-09-01 case: the binary was months older than its source, the
 // safeguard reported "Already present", and the fix never shipped.
-func TestLoopBinaryStaleWhenSourceIsNewer(t *testing.T) {
-	root, loop := writeLoopTree(t)
-	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
+func TestLoopBinaryVerdictStaleWhenSourceChanged(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	stampLoopManifest(t, root, loop)
+	if err := os.WriteFile(filepath.Join(loopModuleDir(root), "main.go"), []byte("package main\n\n// changed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	touch(t, loop, time.Now().Add(-48*time.Hour))
-
-	stale, reason := loopBinaryStale(root, loop)
-	if !stale {
-		t.Fatal("source newer than binary must be stale")
+	verdict, reason := loopBinaryVerdict(root, loop)
+	if verdict != verdictStale {
+		t.Fatalf("verdict = %q, want stale after a source edit", verdict)
 	}
 	if reason == "" {
-		t.Error("stale result must explain which file is newer")
+		t.Error("stale result must explain what changed")
 	}
 }
 
-// The loop depends on langrecover, so a change there must also force a
-// rebuild: otherwise the recovery floor runs superseded detection logic.
-func TestLoopBinaryStaleWhenLangrecoverIsNewer(t *testing.T) {
-	root, loop := writeLoopTree(t)
-	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
+// Test files do not change the built binary, so they must not stale it.
+func TestLoopBinaryVerdictIgnoresTestSources(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	stampLoopManifest(t, root, loop)
+	if err := os.WriteFile(filepath.Join(loopModuleDir(root), "main_test.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	past := time.Now().Add(-48 * time.Hour)
-	touch(t, loop, past)
-	touch(t, filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "cli", "loop", "main.go"), past.Add(-time.Hour))
-	touch(t, filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "langrecover", "signatures.go"), time.Now())
-
-	stale, reason := loopBinaryStale(root, loop)
-	if !stale {
-		t.Fatal("a newer langrecover source must make the loop binary stale")
-	}
-	if reason == "" {
-		t.Error("expected a reason naming the newer file")
+	if verdict, reason := loopBinaryVerdict(root, loop); verdict != verdictFresh {
+		t.Fatalf("a new test file must not stale the loop, got %q (%s)", verdict, reason)
 	}
 }
 
-// Test files do not change the built binary, so they must not force rebuilds.
-func TestLoopBinaryIgnoresTestSources(t *testing.T) {
-	root, loop := writeLoopTree(t)
-	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
+// A corrupt manifest is unknown, not fresh and not an endless rebuild loop.
+func TestLoopBinaryVerdictUnknownWhenManifestCorrupt(t *testing.T) {
+	root, loop := writeLoopComponent(t)
+	if err := os.WriteFile(cliutil.FreshnessManifestPath(loop), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	past := time.Now().Add(-48 * time.Hour)
-	loopDir := filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "cli", "loop")
-	touch(t, filepath.Join(loopDir, "main.go"), past.Add(-time.Hour))
-	touch(t, filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "langrecover", "signatures.go"), past.Add(-time.Hour))
-	touch(t, loop, past)
-
-	testFile := filepath.Join(loopDir, "main_test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	touch(t, testFile, time.Now())
-
-	if stale, reason := loopBinaryStale(root, loop); stale {
-		t.Fatalf("a newer test file must not force a rebuild, got %q", reason)
-	}
-}
-
-// A source tree that cannot be walked must not trigger endless rebuilds.
-func TestLoopBinaryNotStaleWhenSourcesUnreadable(t *testing.T) {
-	root := t.TempDir()
-	loop := filepath.Join(root, "vrooli-autoheal-loop")
-	if err := os.WriteFile(loop, []byte("binary"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// No scenario tree exists under root, so the walk fails.
-	if stale, _ := loopBinaryStale(root, loop); stale {
-		t.Fatal("unreadable sources must not report stale")
+	if verdict, _ := loopBinaryVerdict(root, loop); verdict != verdictUnknown {
+		t.Fatalf("verdict = %q, want unknown for a corrupt manifest", verdict)
 	}
 }

@@ -1,7 +1,59 @@
 # Configuring credentials
 
-Vrooli declares credentials only in resource and scenario manifests. A
-descriptor identifies a credential without selecting a storage backend:
+## Credential blast radius
+
+Every credential has both a provisioning kind and a blast radius. `operator`
+credentials come from an external issuer and can be replaced; `generated`
+credentials are minted by Vrooli and must be retained. Classify the cost of
+loss as `benign` (a re-handshake), `disruptive` (sessions need overlap), or
+`destructive` (sealed data becomes unreadable). Generated destructive values
+must be versioned key rings, never single keys.
+
+Generated credentials are resolved through `ResolveOrMint`. A witness stored
+with the data protected by the credential records that the deployment has
+history. If the authority reports the credential absent and the witness exists,
+startup refuses with this exact message:
+
+`<identity>:<field> has been minted on this deployment before and is now absent from the credential store. This is credential loss, not a first start.`
+
+Restore the credential store from the recovery bundle before using the explicit
+`--accept-credential-loss` override. The witness never stores credential values.
+
+Admin surfaces that accept a secret must write it through to the credential
+authority. Scenario databases must retain only non-secret configuration; this
+is the write-through rule that keeps recovery export and `credentials doctor`
+complete. An admin Stripe save therefore fails while the credential store is
+locked, and a development host without an encryption ring refuses to create
+plaintext API-key rows.
+
+See the durable design record at
+[`docs/architecture/credential-blast-radius.html`](../architecture/credential-blast-radius.html).
+
+Credentials are provisioned inside onboarding. One command reaches it:
+
+```bash
+vrooli setup --include-optional --maintenance-window --sudo-mode=ask --onboarding=auto
+```
+
+The wizard shows a card for every credential in scope and takes the value
+straight to the credential authority. The `vrooli credentials` commands below
+remain the control-plane surface for diagnosis, recovery, and scripted use; they
+are not the route an operator has to take to configure a host.
+
+Two commands prove the state, and they must agree:
+
+```bash
+vrooli credentials doctor --format json
+curl -s http://127.0.0.1:$(vrooli scenario port vrooli-onboarding API_PORT)/api/v2/readiness
+```
+
+The doctor reports the whole repository population. Readiness reports the
+selection plus the project scope, along with the blockers that stop
+configuration from being reported complete.
+
+Vrooli declares credentials in the repository-root manifest and in resource and
+scenario manifests. A descriptor identifies a credential without selecting a
+storage backend:
 
 ```json
 "credentials": {"descriptors": [{
@@ -21,6 +73,24 @@ Resources and scenarios use the same block and the same descriptor shape, so a
 scenario-owned credential is the same thing to the store, to `doctor`, and to a
 recovery bundle as a resource-owned one. A credential nothing declares is a
 credential no backup captures.
+
+### The project scope
+
+The repository root is itself a service manifest, and `<root>/.vrooli/service.json`
+is the authoritative owner of host-owned credentials that have no scenario
+directory to hang a declaration from. `vrooli/remote-desktop` username and
+password are the reference case: the credential belongs to a host safeguard, not
+to any scenario.
+
+Project-scope descriptors carry the owner label `project` on every surface —
+`vrooli credentials doctor`, `GET /api/v2/credentials`, and the onboarding
+credential cards — so one address reads the same way everywhere. They are in
+scope on a repository install regardless of what the operator selected, because
+they are not derived from a selection.
+
+A desktop bundle stages no repository-root manifest by design; it must not
+inherit a development machine's setup requirements. Project scope is therefore
+absent in bundle mode, and that exclusion is asserted by a test.
 
 ### `env` is optional, and declaring it is a decision
 
@@ -339,7 +409,13 @@ Credential vrooli/openrouter/api-key: unconfigured (provider libsecret, availabl
 
 ## Provisioning
 
-Provision through the secure terminal prompt, never a command argument:
+The sanctioned route is the onboarding credentials step, reached by
+`vrooli setup ... --onboarding=auto`. The wizard relays the value to the
+credential authority; it never places it in a response, a log, a URL, a command
+argument, operator state, or browser storage.
+
+For scripted use and for diagnosis, the control-plane command provisions through
+a secure terminal prompt, never a command argument:
 
 ```bash
 vrooli credentials provision --identity vrooli/openrouter --field api-key

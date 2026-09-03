@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
 )
 
 func ValidateStoryDistinctness(scope Scope) (Result, error) {
 	root := scope.Root
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err
 	}

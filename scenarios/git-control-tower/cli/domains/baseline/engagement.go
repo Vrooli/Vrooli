@@ -325,7 +325,7 @@ type startResult struct {
 
 func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	var scenario, modeFlag, slug, ttlStr, anchor string
-	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, jsonOut bool
+	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, replace, jsonOut bool
 	fs := newFlagSet("baseline start")
 	fs.StringVar(&scenario, "scenario", "", "Scenario slug (required)")
 	fs.StringVar(&modeFlag, "mode", modeAuto, "Execution mode: auto|shadow|live")
@@ -337,6 +337,7 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	fs.BoolVar(&modifiesLifecycle, "modifies-lifecycle", false, "Declare the change modifies lifecycle/registry/promote machinery (→ live)")
 	fs.BoolVar(&singleton, "singleton-resource", false, "Declare the change needs a non-duplicable singleton resource (→ live)")
 	fs.BoolVar(&noAnchor, "no-anchor", false, "Skip capturing a diff anchor (restore-point safety net only)")
+	fs.BoolVar(&replace, "replace", false, "Take over a live engagement for this scenario and slug (refused without it)")
 	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -346,6 +347,7 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 		scenario: scenario, mode: modeFlag, slug: slug, ttl: ttlStr, anchor: anchor,
 		signals:  modeSignals{writesSharedStore: writesShared, modifiesLifecycle: modifiesLifecycle, singletonResource: singleton, operatorConfirm: operatorConfirm},
 		noAnchor: noAnchor,
+		replace:  replace,
 	})
 	if err != nil {
 		return err
@@ -365,6 +367,7 @@ type startParams struct {
 	anchor   string
 	signals  modeSignals
 	noAnchor bool
+	replace  bool
 }
 
 // startEngagement runs the full start sequence, returning the structured result.
@@ -454,6 +457,12 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 	if anchorName != "" {
 		writeArgs = append(writeArgs, "--anchor", anchorName)
 	}
+	if p.replace {
+		writeArgs = append(writeArgs, "--replace")
+	}
+	// A live engagement for this scenario and slug is another session's
+	// restore point; the control plane refuses to overwrite it and names the
+	// holder. --replace is the explicit override.
 	if _, err := runCommand(ctx, "vrooli", writeArgs...); err != nil {
 		return startResult{}, fmt.Errorf("write engagement manifest: %w", err)
 	}

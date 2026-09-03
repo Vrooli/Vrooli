@@ -6,6 +6,21 @@ artifact must be rebuilt. It hashes the exact set of source files a binary
 imports (the precise `go list -deps` closure) — so an edit to an *unrelated*
 scenario never marks this one stale.
 
+The manifest engine is the only freshness verdict authority. It enumerates
+inputs with `git ls-files --cached --others --exclude-standard` inside a work
+tree and uses a conservative `WalkDir` fallback outside one. Git only selects
+candidate files; it never decides whether an artifact is stale. A missing or
+invalid manifest is stale once and is stamped after the next successful build.
+There is no mtime-only fallback.
+
+For Go components, deriving the precise import closure is cached beside the
+component at `.vrooli-closure-go_module.json`. The cache key includes the
+component's `go.mod` and `go.sum`, every local replacement module's module
+files, and the resolved Go toolchain version. A warm freshness check therefore
+does not rerun `go list`; changing any of those inputs invalidates the sidecar
+and refreshes the closure. The sidecar is a build output and is excluded from
+all freshness manifests.
+
 A pure content hash has one blind spot: when a **non-file build input** changes
 (toolchain, target OS/arch, CGO, build tags) the source bytes are identical, so a
 content hash reports *fresh* even though a rebuild would emit a different binary.
@@ -46,6 +61,13 @@ Resolved by `uiBuildKeyInputs`:
 |---|---|---|
 | `node_env` | `NODE_ENV` | Vite emits different output for dev vs prod |
 | `node_major` | `node --version` major | esbuild/Vite output can differ across Node majors |
+
+### Other registered builders
+
+Builder knowledge lives in the lifecycle registry. The `python_uv` row keys
+`pyproject.toml`, `uv.lock`, Python, and uv versions, and stamps
+`api/.venv/pyvenv.cfg`. Component verdicts are evaluated independently, so a
+fresh UI does not rebuild because an API is stale and vice versa.
 
 ## Rules
 

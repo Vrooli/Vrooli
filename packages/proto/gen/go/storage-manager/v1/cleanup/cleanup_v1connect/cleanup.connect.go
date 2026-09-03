@@ -54,6 +54,15 @@ const (
 	// CleanupServiceReportPressureProcedure is the fully-qualified name of the CleanupService's
 	// ReportPressure RPC.
 	CleanupServiceReportPressureProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ReportPressure"
+	// CleanupServiceStartRecoveryProcedure is the fully-qualified name of the CleanupService's
+	// StartRecovery RPC.
+	CleanupServiceStartRecoveryProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/StartRecovery"
+	// CleanupServiceWaitRecoveryProcedure is the fully-qualified name of the CleanupService's
+	// WaitRecovery RPC.
+	CleanupServiceWaitRecoveryProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/WaitRecovery"
+	// CleanupServiceListRecoveryProcedure is the fully-qualified name of the CleanupService's
+	// ListRecovery RPC.
+	CleanupServiceListRecoveryProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListRecovery"
 )
 
 // CleanupServiceClient is a client for the vrooli.cleanup_manager.v1.cleanup.CleanupService
@@ -74,6 +83,11 @@ type CleanupServiceClient interface {
 	// failure. Duplicate concurrent reports of the same event are expected and
 	// are collapsed into one execution.
 	ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error)
+	// Recovery runs are server-owned: callers receive an id immediately and
+	// wait or inspect status through the typed ledger.
+	StartRecovery(context.Context, *connect.Request[cleanup.RecoveryRunRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error)
+	WaitRecovery(context.Context, *connect.Request[cleanup.RecoveryWaitRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error)
+	ListRecovery(context.Context, *connect.Request[cleanup.RecoveryHistoryRequest]) (*connect.Response[cleanup.RecoveryHistoryResponse], error)
 }
 
 // NewCleanupServiceClient constructs a client for the
@@ -130,6 +144,24 @@ func NewCleanupServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(cleanupServiceMethods.ByName("ReportPressure")),
 			connect.WithClientOptions(opts...),
 		),
+		startRecovery: connect.NewClient[cleanup.RecoveryRunRequest, cleanup.RecoveryRunResponse](
+			httpClient,
+			baseURL+CleanupServiceStartRecoveryProcedure,
+			connect.WithSchema(cleanupServiceMethods.ByName("StartRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		waitRecovery: connect.NewClient[cleanup.RecoveryWaitRequest, cleanup.RecoveryRunResponse](
+			httpClient,
+			baseURL+CleanupServiceWaitRecoveryProcedure,
+			connect.WithSchema(cleanupServiceMethods.ByName("WaitRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		listRecovery: connect.NewClient[cleanup.RecoveryHistoryRequest, cleanup.RecoveryHistoryResponse](
+			httpClient,
+			baseURL+CleanupServiceListRecoveryProcedure,
+			connect.WithSchema(cleanupServiceMethods.ByName("ListRecovery")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -142,6 +174,9 @@ type cleanupServiceClient struct {
 	applyPlan        *connect.Client[cleanup.ApplyPlanRequest, cleanup.ApplyPlanResponse]
 	listAudit        *connect.Client[cleanup.ListAuditRequest, cleanup.ListAuditResponse]
 	reportPressure   *connect.Client[cleanup.ReportPressureRequest, cleanup.ReportPressureResponse]
+	startRecovery    *connect.Client[cleanup.RecoveryRunRequest, cleanup.RecoveryRunResponse]
+	waitRecovery     *connect.Client[cleanup.RecoveryWaitRequest, cleanup.RecoveryRunResponse]
+	listRecovery     *connect.Client[cleanup.RecoveryHistoryRequest, cleanup.RecoveryHistoryResponse]
 }
 
 // ListProviders calls vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders.
@@ -179,6 +214,21 @@ func (c *cleanupServiceClient) ReportPressure(ctx context.Context, req *connect.
 	return c.reportPressure.CallUnary(ctx, req)
 }
 
+// StartRecovery calls vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery.
+func (c *cleanupServiceClient) StartRecovery(ctx context.Context, req *connect.Request[cleanup.RecoveryRunRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error) {
+	return c.startRecovery.CallUnary(ctx, req)
+}
+
+// WaitRecovery calls vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery.
+func (c *cleanupServiceClient) WaitRecovery(ctx context.Context, req *connect.Request[cleanup.RecoveryWaitRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error) {
+	return c.waitRecovery.CallUnary(ctx, req)
+}
+
+// ListRecovery calls vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery.
+func (c *cleanupServiceClient) ListRecovery(ctx context.Context, req *connect.Request[cleanup.RecoveryHistoryRequest]) (*connect.Response[cleanup.RecoveryHistoryResponse], error) {
+	return c.listRecovery.CallUnary(ctx, req)
+}
+
 // CleanupServiceHandler is an implementation of the
 // vrooli.cleanup_manager.v1.cleanup.CleanupService service.
 type CleanupServiceHandler interface {
@@ -197,6 +247,11 @@ type CleanupServiceHandler interface {
 	// failure. Duplicate concurrent reports of the same event are expected and
 	// are collapsed into one execution.
 	ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error)
+	// Recovery runs are server-owned: callers receive an id immediately and
+	// wait or inspect status through the typed ledger.
+	StartRecovery(context.Context, *connect.Request[cleanup.RecoveryRunRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error)
+	WaitRecovery(context.Context, *connect.Request[cleanup.RecoveryWaitRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error)
+	ListRecovery(context.Context, *connect.Request[cleanup.RecoveryHistoryRequest]) (*connect.Response[cleanup.RecoveryHistoryResponse], error)
 }
 
 // NewCleanupServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -248,6 +303,24 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 		connect.WithSchema(cleanupServiceMethods.ByName("ReportPressure")),
 		connect.WithHandlerOptions(opts...),
 	)
+	cleanupServiceStartRecoveryHandler := connect.NewUnaryHandler(
+		CleanupServiceStartRecoveryProcedure,
+		svc.StartRecovery,
+		connect.WithSchema(cleanupServiceMethods.ByName("StartRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	cleanupServiceWaitRecoveryHandler := connect.NewUnaryHandler(
+		CleanupServiceWaitRecoveryProcedure,
+		svc.WaitRecovery,
+		connect.WithSchema(cleanupServiceMethods.ByName("WaitRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	cleanupServiceListRecoveryHandler := connect.NewUnaryHandler(
+		CleanupServiceListRecoveryProcedure,
+		svc.ListRecovery,
+		connect.WithSchema(cleanupServiceMethods.ByName("ListRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.cleanup_manager.v1.cleanup.CleanupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CleanupServiceListProvidersProcedure:
@@ -264,6 +337,12 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 			cleanupServiceListAuditHandler.ServeHTTP(w, r)
 		case CleanupServiceReportPressureProcedure:
 			cleanupServiceReportPressureHandler.ServeHTTP(w, r)
+		case CleanupServiceStartRecoveryProcedure:
+			cleanupServiceStartRecoveryHandler.ServeHTTP(w, r)
+		case CleanupServiceWaitRecoveryProcedure:
+			cleanupServiceWaitRecoveryHandler.ServeHTTP(w, r)
+		case CleanupServiceListRecoveryProcedure:
+			cleanupServiceListRecoveryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -299,4 +378,16 @@ func (UnimplementedCleanupServiceHandler) ListAudit(context.Context, *connect.Re
 
 func (UnimplementedCleanupServiceHandler) ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure is not implemented"))
+}
+
+func (UnimplementedCleanupServiceHandler) StartRecovery(context.Context, *connect.Request[cleanup.RecoveryRunRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery is not implemented"))
+}
+
+func (UnimplementedCleanupServiceHandler) WaitRecovery(context.Context, *connect.Request[cleanup.RecoveryWaitRequest]) (*connect.Response[cleanup.RecoveryRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery is not implemented"))
+}
+
+func (UnimplementedCleanupServiceHandler) ListRecovery(context.Context, *connect.Request[cleanup.RecoveryHistoryRequest]) (*connect.Response[cleanup.RecoveryHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery is not implemented"))
 }

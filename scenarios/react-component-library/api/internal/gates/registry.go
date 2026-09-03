@@ -1,19 +1,57 @@
 package gates
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+	"strings"
+
+	"react-component-library/internal/librarywalk"
+)
 
 // Scope identifies the repository and, optionally, the assets a gate must
 // inspect. An empty Assets slice means the full corpus.
 type Scope struct {
-	Root   string
-	Assets []string
-	DB     *sql.DB
+	Context  context.Context
+	Root     string
+	Assets   []string
+	DB       *sql.DB
+	Revision func(string, string) (string, error)
+	Set      librarywalk.Set
 }
 
 func (s Scope) IsFullCorpus() bool { return len(s.Assets) == 0 }
 
-// Runner executes one catalog gate.
-type Runner func(Scope) (Result, error)
+// Reads declares the minimum input set a gate needs in order to compute its
+// rule. It is metadata for the runner contract, not permission to widen the
+// caller's reported asset scope.
+type Reads uint8
+
+const (
+	ReadsAsset Reads = iota
+	ReadsClosure
+	ReadsCorpus
+)
+
+var readOverrides = map[string]Reads{
+	"graph-reconciled": ReadsClosure, "dependency-rank": ReadsClosure, "kit-compatibility": ReadsCorpus,
+	"affinity-compatible": ReadsCorpus, "dist-resolution": ReadsClosure, "deprecated-import": ReadsClosure,
+	"version-liveness": ReadsClosure, "fallback-parity": ReadsClosure, "token-ramp-complete": ReadsClosure,
+	"types": ReadsAsset, "tokens": ReadsAsset, "token-vocabulary": ReadsAsset, "api": ReadsAsset,
+	"story-grammar": ReadsAsset, "conformance": ReadsCorpus, "version-shape": ReadsAsset, "examples": ReadsAsset,
+	"specifier-shape": ReadsAsset, "rtl": ReadsAsset, "reduced-motion": ReadsAsset, "performance": ReadsAsset,
+	"console-clean": ReadsAsset, "surface-discipline": ReadsAsset, "lifecycle": ReadsAsset, "i18n": ReadsAsset,
+	"restyle-contract": ReadsAsset, "manifest-identity": ReadsAsset, "manifest-metadata": ReadsAsset,
+	"style-injection": ReadsAsset, "style-ownership": ReadsAsset, "utility-class": ReadsAsset,
+	"provenance-stamp": ReadsAsset, "evidence-freshness": ReadsAsset, "composition": ReadsAsset,
+	"composition-contract": ReadsAsset,
+}
+
+// Runner is the compatibility shape used by direct calibration/unit callers.
+// Registry dispatch uses ContextRunner so the production seam is cancellable.
+type (
+	Runner        func(Scope) (Result, error)
+	ContextRunner func(context.Context, Scope) (Result, error)
+)
 
 // RuleSource identifies the declaration layer that imposed a rule.
 type RuleSource string
@@ -28,8 +66,8 @@ const (
 // Definition is the single executable registration record for a gate.
 type Definition struct {
 	ID                string
-	Run               Runner
-	CorpusScoped      bool
+	Run               ContextRunner
+	Reads             Reads
 	DeterminismInputs []string
 }
 
@@ -91,15 +129,35 @@ var registry = []Definition{
 	registeredDefinition("provenance-stamp", true, ValidateProvenanceStamp, "catalog/assets/**", "library/**"),
 	registeredDefinition("story-grammar", true, ValidateStoryGrammar, "catalog/assets/**", "library/**"),
 	registeredDefinition("story-distinctness", true, ValidateStoryDistinctness, "catalog/assets/**", "library/**"),
+	registeredDefinition("harness-manifest", true, ValidateHarnessManifest, "harnesses/manifest.json", "harnesses/**", "library/**"),
 	registeredDefinition("evidence-freshness", true, ValidateEvidenceFreshness, "catalog/assets/**", "library/**"),
 }
 
-func registeredDefinition(id string, corpus bool, run Runner, inputs ...string) Definition {
-	return Definition{ID: id, CorpusScoped: corpus, Run: run, DeterminismInputs: append([]string(nil), inputs...)}
+func registeredDefinition(id string, corpus bool, run func(Scope) (Result, error), inputs ...string) Definition {
+	reads := declaredReads(id, corpus)
+	return Definition{ID: id, Reads: reads, Run: legacyRunner(run), DeterminismInputs: append([]string(nil), inputs...)}
+}
+
+func legacyRunner(run func(Scope) (Result, error)) ContextRunner {
+	return func(ctx context.Context, scope Scope) (Result, error) {
+		scope.Context = ctx
+		return run(scope)
+	}
 }
 
 func declarationOnlyDefinition(id string, corpus bool, inputs ...string) Definition {
-	return Definition{ID: id, CorpusScoped: corpus, DeterminismInputs: append([]string(nil), inputs...)}
+	reads := declaredReads(id, corpus)
+	return Definition{ID: id, Reads: reads, DeterminismInputs: append([]string(nil), inputs...)}
+}
+
+func declaredReads(id string, corpus bool) Reads {
+	if reads, ok := readOverrides[id]; ok {
+		return reads
+	}
+	if corpus {
+		return ReadsCorpus
+	}
+	return ReadsAsset
 }
 
 // Definitions returns a copy so callers cannot mutate the executable order.
@@ -139,8 +197,75 @@ func Run(id string, scope Scope) (Result, bool, error) {
 // selection. This prevents a registry declaration from becoming descriptive
 // metadata that the execution path silently ignores.
 func RunDefinition(definition Definition, scope Scope) (Result, error) {
-	if definition.CorpusScoped {
-		scope.Assets = nil
+	if scope.Context == nil {
+		scope.Context = context.Background()
 	}
-	return definition.Run(scope)
+	if err := scope.Context.Err(); err != nil {
+		return Result{}, err
+	}
+	if scope.Set.Files == nil && scope.Set.Versions == nil && scope.Root != "" {
+		set, err := librarywalk.Files(scope.Context, scope.Root, librarywalk.Scope{Assets: assetSet(scope.Assets)}, librarywalk.Reads(definition.Reads))
+		if err != nil {
+			return Result{}, err
+		}
+		scope.Set = set
+	}
+	runScope := scope
+	if definition.Reads == ReadsCorpus {
+		// Corpus gates are intentionally invariant under an asset selector. The
+		// selector controls which gates are applicable, not the meaning of a
+		// corpus measurement.
+		runScope.Assets = nil
+	}
+	result, err := definition.Run(scope.Context, runScope)
+	if err != nil {
+		return result, err
+	}
+	if definition.Reads != ReadsCorpus && definition.Reads != ReadsClosure {
+		return filterToScope(result, scope.Assets), nil
+	}
+	return filterToScope(result, scope.Assets), nil
+}
+
+func assetSet(assets []string) map[string]struct{} {
+	if len(assets) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(assets))
+	for _, asset := range assets {
+		set[asset] = struct{}{}
+	}
+	return set
+}
+
+func filterToScope(result Result, assets []string) Result {
+	if len(assets) == 0 {
+		return result
+	}
+	allowed := make(map[string]struct{}, len(assets))
+	for _, asset := range assets {
+		allowed[asset] = struct{}{}
+	}
+	keep := func(f Finding) bool {
+		if f.AssetID == "" || len(f.AssetID) > 10 && f.AssetID[:10] == "__corpus__." {
+			return false
+		}
+		if _, ok := allowed[f.AssetID]; ok {
+			return true
+		}
+		for asset := range allowed {
+			if f.AssetID == strings.TrimPrefix(asset, "react-component-library:") {
+				return true
+			}
+		}
+		return false
+	}
+	filtered := result.Findings[:0]
+	for _, finding := range result.Findings {
+		if keep(finding) {
+			filtered = append(filtered, finding)
+		}
+	}
+	result.Findings = filtered
+	return result
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strings"
 )
 
@@ -20,11 +21,14 @@ func ValidateManifestIdentity(scope Scope) (Result, error) {
 		knownCatalogIDs[asset.Asset.ID] = true
 	}
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}
 		for _, manifest := range paths {
+			if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(manifest)) {
+				continue
+			}
 			data, err := os.ReadFile(manifest)
 			if err != nil {
 				return Result{}, err

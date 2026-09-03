@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
 )
 
@@ -91,7 +93,7 @@ func NewServer() (*Server, error) {
 		repoLock:     NewRepoLock(),
 		audit:        auditLogger,
 		sandbox:      NewWorkspaceSandboxClient(5 * time.Second),
-		capabilities: NewCapabilityRegistry(knownCapabilities, newStatusCheckers(), 30*time.Second),
+		capabilities: NewCapabilityRegistry(projectedCapabilities(), newStatusCheckers(), 30*time.Second),
 		sshDeps:      ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
@@ -109,6 +111,27 @@ func NewServer() (*Server, error) {
 	srv.initServices()
 	srv.setupRoutes()
 	return srv, nil
+}
+
+func projectedCapabilities() []CapabilityDef {
+	overlays := make(map[string]capabilityregistry.Overlay, len(capabilityFeatures))
+	for id, features := range capabilityFeatures {
+		overlays[id] = capabilityregistry.Overlay{ID: id, Features: append([]string(nil), features...)}
+	}
+	defs, err := capabilityregistry.ProjectManifest(filepath.Join("..", ".vrooli", "service.json"), overlays)
+	if err != nil {
+		panic("git-control-tower capability manifest invalid: " + err.Error())
+	}
+	return defs
+}
+
+var capabilityFeatures = map[string][]string{
+	"workspace-sandbox":         {"Approved changes panel", "Commit preview filtering"},
+	"browser-automation-studio": {"Visual capture", "Screenshot history", "Periodic snapshots"},
+	"test-genie":                {"Test execution", "Test history", "Phase-based testing"},
+	"tidiness-manager":          {"Code quality score", "Lint/type issues", "File metrics", "Light scanning"},
+	"agent-manager":             {"Agent runs", "Multi-turn conversations", "Change approval"},
+	"scenario-auditor":          {"Standards checks", "Rule violations", "Automated fixes", "Multi-source rules"},
 }
 
 func initDatabase() (*sql.DB, AuditLogger, error) {

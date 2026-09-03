@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createScopedStore,
   useSelectionStore,
-} from "./SelectionStore/versions/1.0.0/SelectionStore";
+} from "@vrooli/react-component-library/SelectionStore/1";
 
 describe("selection store", () => {
   afterEach(cleanup);

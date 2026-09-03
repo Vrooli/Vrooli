@@ -8,6 +8,7 @@ import (
 
 	"web-console/internal/backend"
 
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 	caps "web-console/internal/capabilities"
 )
 
@@ -137,17 +138,43 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 		result = a.stampInstallOutcome(ctx, req.TargetID, result)
 		return ActionResult{Success: result.Success, Status: result.Status, Message: result.Message, OperationID: result.OperationID, CapabilityID: result.CapabilityID, ActionKind: string(result.ActionKind), Snapshot: a.Resolve(ctx)}, nil
 	}
-	svc := caps.LifecycleActionService{
+	if req.ActionKind == string(caps.ActionKindScenarioStart) || req.ActionKind == string(caps.ActionKindScenarioRestart) {
+		if a.Registry == nil {
+			return ActionResult{}, fmt.Errorf("capabilities registry is not configured")
+		}
+		var current *caps.State
+		for _, state := range a.Registry.Resolve(ctx) {
+			if state.ID == req.CapabilityID {
+				candidate := state
+				current = &candidate
+				break
+			}
+		}
+		if current == nil {
+			return ActionResult{}, fmt.Errorf("capability %q is not declared", req.CapabilityID)
+		}
+		if current.ActionKind != caps.ActionKind(req.ActionKind) || current.Status != caps.StatusUnavailable {
+			return ActionResult{}, fmt.Errorf("lifecycle action %q is not eligible while capability %q is %s", req.ActionKind, req.CapabilityID, current.Status)
+		}
+	}
+	svc := capreg.LifecycleActionService{
 		Defs:    caps.Known,
-		Runner:  a.ActionRunner,
+		Runner:  sharedCommandRunner{runner: a.ActionRunner},
 		CLIPath: a.CLIPath,
 	}
-	result, err := svc.Run(ctx, caps.LifecycleActionRequest{
-		CapabilityID: req.CapabilityID,
-		ActionKind:   caps.ActionKind(req.ActionKind),
+	sharedResult, err := svc.Run(ctx, capreg.LifecycleActionRequest{
+		IntegrationID: req.CapabilityID,
+		ActionKind:    capreg.ActionKind(req.ActionKind),
 	})
 	if err != nil {
 		return ActionResult{}, err
+	}
+	result := caps.LifecycleActionResult{
+		Success:      sharedResult.Success,
+		Status:       sharedResult.Status,
+		Message:      sharedResult.Message,
+		CapabilityID: sharedResult.IntegrationID,
+		ActionKind:   caps.ActionKind(sharedResult.ActionKind),
 	}
 	if a.Registry != nil {
 		a.Registry.Invalidate()
@@ -166,6 +193,16 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 		ActionKind:   string(result.ActionKind),
 		Snapshot:     snap,
 	}, nil
+}
+
+type sharedCommandRunner struct{ runner caps.CommandRunner }
+
+func (r sharedCommandRunner) Run(ctx context.Context, name string, args ...string) (capreg.CommandResult, error) {
+	if r.runner == nil {
+		return capreg.ExecCommandRunner{}.Run(ctx, name, args...)
+	}
+	result, err := r.runner.Run(ctx, name, args...)
+	return capreg.CommandResult{Stdout: result.Stdout, Stderr: result.Stderr, ExitCode: result.ExitCode}, err
 }
 
 func (a *Adapter) log(format string, args ...any) {

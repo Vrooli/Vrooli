@@ -107,15 +107,110 @@ Filesystem runtime storage is only one part of scenario storage.
 Scenarios should also follow these rules:
 
 - resource-backed persistence is declared in `path:scenarios/<name>/.vrooli/service.json`
+- every filesystem class a scenario writes (`config`, `data`, `cache`, `logs`, or `state`) has an explicit `storage.entries` declaration, including an empty declaration when it writes none
+- every storage entry states `regenerable: true` or `regenerable: false`; omission is a schema error
+- every regenerable entry carries a workload-derived `budget.max_age` or `budget.max_bytes`; do not copy the current measured size into the ceiling
 - schema and seed assets live under `api/internal/<domain>/`
-- scenarios should prefer resource-injected environment variables instead of hard-coded connection details
+- scenarios should prefer resource-injected environment variables instead of hard-coded connection details for **networked resources**; the embedded SQLite path is the exception and is resolved from the scenario id (see [SQLite: A Scenario Names Itself](#sqlite-a-scenario-names-itself))
 - scenario-private database/file layout details should be documented in scenario-local docs when they matter
 
 Typical examples:
 
 - PostgreSQL schema init in `api/internal/<domain>/storage/postgres/schema.sql`
 - scenario dependency declaration in `.vrooli/service.json`
-- SQLite database path resolved through `package:api-core/storage` rather than under the scenario folder
+- SQLite database resolved through `storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "<name>"})` rather than from an environment variable
+
+## SQLite: A Scenario Names Itself
+
+A scenario opens its SQLite database by naming **itself**. It does not read a
+path from the environment.
+
+```go
+dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "notification-hub"})
+```
+
+or, when the connection goes through `package:api-core/database`, one field
+replaces the whole step:
+
+```go
+db, err := database.Open(ctx, database.Config{
+    Driver:   database.DriverSQLite,
+    Scenario: "notification-hub",
+})
+```
+
+The resolved path is a pure function of the scenario's own slug and its
+variant-aware namespace. There is no per-scenario path input left for another
+process to supply.
+
+### Why the environment is not an input
+
+Scenarios used to resolve their path from `SQLITE_PATH`, falling back to
+`SQLITE_DB`, **above** their own identity. A variable that does not identify a
+scenario cannot be scoped to one, so any process that exported it redirected the
+database of every scenario it went on to start. The supervisor scenario declared
+`SQLITE_PATH` in its manifest and restarted sick scenarios by exec'ing the CLI;
+each restarted child inherited the value and opened the supervisor's file.
+
+Twelve scenarios ended up sharing one 9.35 GB database behind a single writer
+lock, including Test Genie's run ledger and the plan corpus. Every layer was
+individually reasonable — a manifest declaring where its data lives, a
+supervisor restarting sick scenarios, a scenario honouring an explicit override
+— and no scenario's own tests could see it, because the defect lives in process
+environment inheritance rather than in any code path a test exercises.
+
+### What the environment may still supply
+
+Two variables are read, and both are safe for the same reason: they are
+**scenario-agnostic**. Each names a namespace or a tree, not one scenario's
+file, so every scenario beneath them still resolves to its own separate path.
+Inheriting one isolates; it cannot collide.
+
+| Variable | Effect | Why it is safe to inherit |
+| --- | --- | --- |
+| `VROOLI_STORAGE_NAMESPACE` | Scopes storage to `<scenario>` or `<scenario>_<variant>` | Carries the variant, not a path; the seam additionally rejects a root that names a different scenario |
+| `VROOLI_STORAGE_ROOT` | Redirects every storage class root under one tree | Names a tree; each scenario still resolves its own path within it |
+
+`VROOLI_STORAGE_ROOT` is how a test harness leases a scenario isolated storage,
+and it outranks the lifecycle-assigned data directory precisely so a scenario
+under test never runs against production data.
+
+### Explicit paths
+
+A test, migration, or diagnostic that needs to name a file passes it as a
+function **argument**:
+
+```go
+dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+```
+
+An override that lives in the environment is an override that gets inherited; an
+argument cannot leak into a child process. For reading a database this scenario
+does not own — a census, a backup audit — use `storage.SQLiteReadOnlyDSNAt`,
+which cannot write, take a lock, or create the file.
+
+### Tuning
+
+The canonical pragma set lives in exactly one place. A scenario with a genuine
+reason to differ states it in typed form rather than assembling its own string:
+
+```go
+storage.SQLiteTuning{PageSizeBytes: 4096, MMapSizeBytes: 268435456}
+```
+
+Before consolidation, sixty-plus scenarios each carried a private copy of the
+pragma string and they had drifted into four implementations — including one
+still written in the pre-`_pragma` grammar that the driver ignores, so that
+scenario had never actually run in WAL mode despite a comment saying it did.
+
+### Enforcement
+
+`storage-manager validate` runs the `isolation.database-path-from-environment`
+analyzer over every scenario. It fails a generic database-path read and a
+hand-rolled SQLite DSN, and a fleet-wide test asserts the whole repository stays
+clean. A scenario-scoped variable (`BAS_SQLITE_PATH`, `PLAYBOOKS_SQLITE_DSN`) is
+not flagged: its name carries its owner, so it cannot silently capture a
+sibling.
 
 ## Skills And Authority
 
@@ -129,8 +224,8 @@ Relevant skills include:
 Those skills already steer agents toward:
 
 - declaring storage dependencies in `service.json`
-- using environment-driven configuration
-- using `package:api-core/storage` for mutable filesystem state
+- using environment-driven configuration for **resource** connection details (Postgres, Redis, Qdrant), which the lifecycle scopes per variant
+- using `package:api-core/storage` for mutable filesystem state, including the SQLite database path, which is resolved from the scenario id rather than from the environment
 - treating deploy directories as disposable
 
 That guidance is aligned with this document, but this page is the canonical cross-scenario documentation layer.
@@ -143,6 +238,8 @@ These are legacy or non-target patterns for scenarios:
 - mutable writes to `../data/...`
 - hard-coded absolute paths such as `$HOME/...` or `/tmp/...` for durable state
 - hand-rolled `DATA_DIR` traversal logic when `package:api-core/storage` is available
+- reading a database path from a **generic** environment variable (`SQLITE_PATH`, `SQLITE_DB`, or a `file:` `DATABASE_URL`), which lets any process that exports it redirect a sibling scenario's database
+- assembling a SQLite DSN by hand instead of going through `package:api-core/storage`
 - storing real runtime state under bundle/deploy/app target directories
 
 ## Relationship To The Repo Contract

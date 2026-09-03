@@ -13,7 +13,10 @@ try:
 except NameError:
     inputs = {}
 window = inputs.get("window")
-WINDOW_TOKENS = {"this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"}  # measures canonical tokens
+WINDOW_TOKENS = {"TIME_WINDOW_TOKEN_THIS_WEEK", "TIME_WINDOW_TOKEN_LAST_7D", "TIME_WINDOW_TOKEN_LAST_30D",
+                 "TIME_WINDOW_TOKEN_THIS_MONTH", "TIME_WINDOW_TOKEN_LAST_MONTH", "TIME_WINDOW_TOKEN_THIS_QUARTER"}
+# measures.v1.TimeWindowToken enum names: protojson binds an enum by its name, not by the CLI's lowercase token.
+# Only ai_gateway.measures.total takes a window; agent_manager.measures.run_volume takes none.
 
 envelope = {
     "program": "prompt-manager.vision-walk-prep", "version": "1",
@@ -31,14 +34,30 @@ def fail(status, klass, detail, where):
 
 
 def classify_transport(exc):
+    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
     if isinstance(exc, (NameError, AttributeError)):
-        raise  # a kernel-bound name is missing: never disguise it as a binding error
-    text = str(exc).lower()
-    if "unreachable" in text or "bridge" in text or "scenario_not_running" in text:
-        return "unavailable", "scenario_unreachable"
+        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
+    text = str(exc)
+    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
+                   "no running runtime ports", "connection refused"):
+        if needle in text:
+            return ("unavailable", "scenario_unreachable")
     if "requires an explicit grant" in text:
-        return "refused", "no_grant"
-    return "failed", "binding_error"
+        return ("refused", "no_grant")
+    if "not run eligible" in text or "run_eligible" in text:
+        return ("refused", "not_run_eligible")
+    if "inference spend" in text:
+        return ("refused", "inference_spend_exceeded")
+    if "delegated run spend" in text:
+        return ("refused", "delegated_run_spend_exceeded")
+    if "no determinable primary response field" in text or "rows must be one of" in text:
+        return ("failed", "ambiguous_response")
+    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
+        if needle in text:
+            return ("failed", "invalid_input")
+    if "deadline" in text:
+        return ("failed", "deadline_exceeded")
+    return ("failed", "binding_error")
 
 
 def guarded(call):
@@ -59,7 +78,7 @@ def step_validate():  # VALIDATE
 def step_collect():  # COLLECT · two governed reads, each guarded
     envelope["phase"] = "collect"
     total = (lambda: ai_gateway.measures.total(window={"token": window})) if window else (lambda: ai_gateway.measures.total())  # TimeWindow is a message, not a string
-    handles["fleet"], handles["inference"] = gather(guarded(lambda: agent_manager.measures.run_volume()), guarded(total))
+    handles["fleet"], handles["inference"] = gather(guarded(lambda: agent_manager.measures.run_volume()), guarded(total))  # run_volume takes no window
     return "classify"
 
 

@@ -142,9 +142,15 @@ func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
 		return nil, fmt.Errorf("parse catalog config: %w", err)
 	}
 	for i := range doc.Gates {
-		if definition, ok := gates.Lookup(doc.Gates[i].ID); ok && definition.CorpusScoped {
+		if definition, ok := gates.Lookup(doc.Gates[i].ID); ok && definition.Reads == gates.ReadsCorpus {
+			if doc.Gates[i].Reads != "" && doc.Gates[i].Reads != "corpus" {
+				return nil, fmt.Errorf("gate %q reads mismatch: config=%q registry=corpus", doc.Gates[i].ID, doc.Gates[i].Reads)
+			}
 			doc.Gates[i].Attribution = "corpus"
 		} else {
+			if doc.Gates[i].Reads != "" && doc.Gates[i].Reads != "asset" && doc.Gates[i].Reads != "closure" {
+				return nil, fmt.Errorf("gate %q reads mismatch: config=%q", doc.Gates[i].ID, doc.Gates[i].Reads)
+			}
 			doc.Gates[i].Attribution = "attributable"
 		}
 	}

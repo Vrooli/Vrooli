@@ -41,6 +41,9 @@ const (
 	CatalogServiceListNextWorkProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/ListNextWork"
 	// CatalogServiceRunGateProcedure is the fully-qualified name of the CatalogService's RunGate RPC.
 	CatalogServiceRunGateProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/RunGate"
+	// CatalogServiceCheckAssetProcedure is the fully-qualified name of the CatalogService's CheckAsset
+	// RPC.
+	CatalogServiceCheckAssetProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/CheckAsset"
 	// CatalogServiceGetAssetRelationshipsProcedure is the fully-qualified name of the CatalogService's
 	// GetAssetRelationships RPC.
 	CatalogServiceGetAssetRelationshipsProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetRelationships"
@@ -73,6 +76,7 @@ type CatalogServiceClient interface {
 	GetCoverage(context.Context, *connect.Request[catalog.GetCoverageRequest]) (*connect.Response[catalog.GetCoverageResponse], error)
 	ListNextWork(context.Context, *connect.Request[catalog.ListNextWorkRequest]) (*connect.Response[catalog.ListNextWorkResponse], error)
 	RunGate(context.Context, *connect.Request[catalog.RunGateRequest]) (*connect.Response[catalog.RunGateResponse], error)
+	CheckAsset(context.Context, *connect.Request[catalog.CheckAssetRequest]) (*connect.Response[catalog.CheckAssetResponse], error)
 	GetAssetRelationships(context.Context, *connect.Request[catalog.GetAssetRelationshipsRequest]) (*connect.Response[catalog.GetAssetRelationshipsResponse], error)
 	GetCatalogStructure(context.Context, *connect.Request[catalog.GetCatalogStructureRequest]) (*connect.Response[catalog.GetCatalogStructureResponse], error)
 	ReconcileGraph(context.Context, *connect.Request[catalog.ReconcileGraphRequest]) (*connect.Response[catalog.ReconcileGraphResponse], error)
@@ -111,6 +115,12 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+CatalogServiceRunGateProcedure,
 			connect.WithSchema(catalogServiceMethods.ByName("RunGate")),
+			connect.WithClientOptions(opts...),
+		),
+		checkAsset: connect.NewClient[catalog.CheckAssetRequest, catalog.CheckAssetResponse](
+			httpClient,
+			baseURL+CatalogServiceCheckAssetProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("CheckAsset")),
 			connect.WithClientOptions(opts...),
 		),
 		getAssetRelationships: connect.NewClient[catalog.GetAssetRelationshipsRequest, catalog.GetAssetRelationshipsResponse](
@@ -169,6 +179,7 @@ type catalogServiceClient struct {
 	getCoverage           *connect.Client[catalog.GetCoverageRequest, catalog.GetCoverageResponse]
 	listNextWork          *connect.Client[catalog.ListNextWorkRequest, catalog.ListNextWorkResponse]
 	runGate               *connect.Client[catalog.RunGateRequest, catalog.RunGateResponse]
+	checkAsset            *connect.Client[catalog.CheckAssetRequest, catalog.CheckAssetResponse]
 	getAssetRelationships *connect.Client[catalog.GetAssetRelationshipsRequest, catalog.GetAssetRelationshipsResponse]
 	getCatalogStructure   *connect.Client[catalog.GetCatalogStructureRequest, catalog.GetCatalogStructureResponse]
 	reconcileGraph        *connect.Client[catalog.ReconcileGraphRequest, catalog.ReconcileGraphResponse]
@@ -192,6 +203,11 @@ func (c *catalogServiceClient) ListNextWork(ctx context.Context, req *connect.Re
 // RunGate calls vrooli.react_component_library.v1.catalog.CatalogService.RunGate.
 func (c *catalogServiceClient) RunGate(ctx context.Context, req *connect.Request[catalog.RunGateRequest]) (*connect.Response[catalog.RunGateResponse], error) {
 	return c.runGate.CallUnary(ctx, req)
+}
+
+// CheckAsset calls vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset.
+func (c *catalogServiceClient) CheckAsset(ctx context.Context, req *connect.Request[catalog.CheckAssetRequest]) (*connect.Response[catalog.CheckAssetResponse], error) {
+	return c.checkAsset.CallUnary(ctx, req)
 }
 
 // GetAssetRelationships calls
@@ -244,6 +260,7 @@ type CatalogServiceHandler interface {
 	GetCoverage(context.Context, *connect.Request[catalog.GetCoverageRequest]) (*connect.Response[catalog.GetCoverageResponse], error)
 	ListNextWork(context.Context, *connect.Request[catalog.ListNextWorkRequest]) (*connect.Response[catalog.ListNextWorkResponse], error)
 	RunGate(context.Context, *connect.Request[catalog.RunGateRequest]) (*connect.Response[catalog.RunGateResponse], error)
+	CheckAsset(context.Context, *connect.Request[catalog.CheckAssetRequest]) (*connect.Response[catalog.CheckAssetResponse], error)
 	GetAssetRelationships(context.Context, *connect.Request[catalog.GetAssetRelationshipsRequest]) (*connect.Response[catalog.GetAssetRelationshipsResponse], error)
 	GetCatalogStructure(context.Context, *connect.Request[catalog.GetCatalogStructureRequest]) (*connect.Response[catalog.GetCatalogStructureResponse], error)
 	ReconcileGraph(context.Context, *connect.Request[catalog.ReconcileGraphRequest]) (*connect.Response[catalog.ReconcileGraphResponse], error)
@@ -277,6 +294,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		CatalogServiceRunGateProcedure,
 		svc.RunGate,
 		connect.WithSchema(catalogServiceMethods.ByName("RunGate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceCheckAssetHandler := connect.NewUnaryHandler(
+		CatalogServiceCheckAssetProcedure,
+		svc.CheckAsset,
+		connect.WithSchema(catalogServiceMethods.ByName("CheckAsset")),
 		connect.WithHandlerOptions(opts...),
 	)
 	catalogServiceGetAssetRelationshipsHandler := connect.NewUnaryHandler(
@@ -335,6 +358,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListNextWorkHandler.ServeHTTP(w, r)
 		case CatalogServiceRunGateProcedure:
 			catalogServiceRunGateHandler.ServeHTTP(w, r)
+		case CatalogServiceCheckAssetProcedure:
+			catalogServiceCheckAssetHandler.ServeHTTP(w, r)
 		case CatalogServiceGetAssetRelationshipsProcedure:
 			catalogServiceGetAssetRelationshipsHandler.ServeHTTP(w, r)
 		case CatalogServiceGetCatalogStructureProcedure:
@@ -370,6 +395,10 @@ func (UnimplementedCatalogServiceHandler) ListNextWork(context.Context, *connect
 
 func (UnimplementedCatalogServiceHandler) RunGate(context.Context, *connect.Request[catalog.RunGateRequest]) (*connect.Response[catalog.RunGateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.RunGate is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) CheckAsset(context.Context, *connect.Request[catalog.CheckAssetRequest]) (*connect.Response[catalog.CheckAssetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset is not implemented"))
 }
 
 func (UnimplementedCatalogServiceHandler) GetAssetRelationships(context.Context, *connect.Request[catalog.GetAssetRelationshipsRequest]) (*connect.Response[catalog.GetAssetRelationshipsResponse], error) {

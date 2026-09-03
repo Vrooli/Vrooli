@@ -1,26 +1,22 @@
 /** @vrooliComponentSource data-display.data-table */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { FileCode2, Grid2X2, List, Network, Search } from "lucide-react";
-import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { listCatalogAssets, type CatalogAsset } from "../../api/components";
 import { selectors } from "../../consts/selectors";
-import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
-import { Input } from "../../components/Input";
-import { Button } from "../../components/Button";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1";
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
 } from "@vrooli/react-component-library/ExperienceSurface/1";
-import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
-import { workflowsClient } from "../../api/workflows";
 import { assetInfoTab, assetPath } from "../../routes";
-import { VersionCleanupPanel } from "../versions/VersionCleanupPanel";
 
 type Presentation = "tree" | "list" | "cards";
 type KindTab = "components" | "hooks";
@@ -150,98 +146,6 @@ function AssetRow({
     >
       {content}
     </Link>
-  );
-}
-
-function CatalogActions() {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [showManual, setShowManual] = useState(false);
-  const [showAssisted, setShowAssisted] = useState(false);
-  const [sourceScenario, setSourceScenario] = useState("");
-  const [sourcePath, setSourcePath] = useState("");
-  const assisted = useMutation({
-    mutationFn: () =>
-      workflowsClient.startWorkflow({
-        kind: 1,
-        sourceScenario,
-        sourcePath,
-        idempotencyKey: `catalog-extract:${sourceScenario}:${sourcePath}`,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      setShowAssisted(false);
-    },
-  });
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    assisted.mutate();
-  };
-  return (
-    <div className="space-y-space-2xs">
-      <div className="flex flex-wrap gap-space-2xs">
-        <Button size="sm" onClick={() => setShowManual(true)}>
-          {t("catalog.addManual", { defaultValue: "Add component" })}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => setShowAssisted((open) => !open)}>
-          {t("catalog.addAssisted", { defaultValue: "Assisted extraction" })}
-        </Button>
-      </div>
-      {showManual && <CreateComponentDialog onClose={() => setShowManual(false)} />}
-      {showAssisted && (
-        <form
-          onSubmit={submit}
-          className="grid gap-space-2xs rounded-panel border border-app-border p-space-xs text-sm"
-        >
-          <p className="text-app-muted-foreground">
-            {t("catalog.assistedDescription", {
-              defaultValue:
-                "Queue a catalog-maintainer run. It will use direct React Component Library APIs for any catalog writes.",
-            })}
-          </p>
-          <label htmlFor="catalog-source-scenario">
-            {t("catalog.sourceScenario", { defaultValue: "Source scenario" })}
-            <Input
-              id="catalog-source-scenario"
-              aria-label={t("catalog.sourceScenario", { defaultValue: "Source scenario" })}
-              value={sourceScenario}
-              onChange={(event) => setSourceScenario(event.target.value)}
-              required
-              className="mt-space-3xs"
-            />
-          </label>
-          <label htmlFor="catalog-source-path">
-            {t("catalog.sourcePath", { defaultValue: "Source path" })}
-            <Input
-              id="catalog-source-path"
-              aria-label={t("catalog.sourcePath", { defaultValue: "Source path" })}
-              value={sourcePath}
-              onChange={(event) => setSourcePath(event.target.value)}
-              required
-              className="mt-space-3xs"
-              placeholder={t(strings.catalog.sourcePathPlaceholder)}
-            />
-          </label>
-          {assisted.error && (
-            <p role="alert" className="text-xs text-app-danger">
-              {t("catalog.assistedError", { defaultValue: "Unable to queue assisted extraction." })}
-            </p>
-          )}
-          <div>
-            <Button
-              size="sm"
-              type="submit"
-              disabled={assisted.isPending || !sourceScenario.trim() || !sourcePath.trim()}
-            >
-              {assisted.isPending
-                ? t("catalog.assistedStarting", { defaultValue: "Starting…" })
-                : t("catalog.assistedStart", { defaultValue: "Start extraction" })}
-            </Button>
-          </div>
-        </form>
-      )}
-      <VersionCleanupPanel compact />
-    </div>
   );
 }
 
@@ -383,7 +287,6 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           : "flex max-w-5xl flex-col gap-space-sm"
       }
     >
-      {!compact && <CatalogActions />}
       {!compact && <AdoptedAssetShowcase />}
       <Tabs
         items={[
@@ -450,9 +353,20 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         </p>
       )}
       {query.error && (
-        <p role="alert" className="text-xs text-app-danger">
-          {t("catalog.error", { defaultValue: "The catalog could not be loaded." })}
-        </p>
+        <div
+          role="alert"
+          data-rcl-error-rpc="ListComponents"
+          className="grid gap-space-2xs rounded-control border border-app-danger/30 bg-app-danger/5 p-space-xs text-xs text-app-danger"
+        >
+          <p>
+            {t("catalog.error", {
+              defaultValue: "ListComponents could not load the catalog.",
+            })}
+          </p>
+          <Button type="button" size="sm" variant="secondary" onClick={() => void query.refetch()}>
+            {t("common.retry", { defaultValue: "Retry" })}
+          </Button>
+        </div>
       )}
       {!query.isLoading && !query.error && assets.length === 0 && (
         <p className="rounded-control border border-dashed border-app-border p-space-xs text-sm text-app-muted-foreground">
@@ -494,7 +408,11 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
       surfaceId={surfaceId}
       state={readinessState}
       statusMessage={
-        query.isLoading ? t("catalog.loading", { defaultValue: "Loading catalog…" }) : undefined
+        query.isLoading
+          ? t("catalog.loading", { defaultValue: "Loading catalog…" })
+          : query.error
+            ? t("catalog.error", { defaultValue: "ListComponents could not load the catalog." })
+            : undefined
       }
     >
       {content}

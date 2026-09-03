@@ -22,23 +22,6 @@
       "configKeys": ["title", "detail", "status"]
     },
     {
-      "id": "direct",
-      "version": "1.0.0",
-      "export": "Direct",
-      "archetypes": ["direct"],
-      "subjectKinds": [
-        "foundation",
-        "hook",
-        "primitive",
-        "component",
-        "pattern",
-        "navigation",
-        "page-template"
-      ],
-      "requiredCapabilities": [],
-      "configKeys": []
-    },
-    {
       "id": "controlled-state",
       "version": "1.0.0",
       "export": "ControlledState",

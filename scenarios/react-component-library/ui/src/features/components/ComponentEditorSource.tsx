@@ -2,8 +2,8 @@
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
-import { Button } from "../../components/Button";
-import { IconButton } from "../../components/IconButton";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1";
 import { selectors } from "../../consts/selectors";

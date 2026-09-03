@@ -56,10 +56,10 @@ func (r *SQLiteRepository) Save(ctx context.Context, report Report) error {
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM component_test_reports WHERE id = ?)`, report.ID).Scan(&alreadySaved); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	if _, err = tx.ExecContext(ctx, `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, source_revision, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET component_id=excluded.component_id, root_library_id=excluded.root_library_id,
 root_version=excluded.root_version, include_closure=excluded.include_closure, created_at=excluded.created_at,
-verdict=excluded.verdict, results_json=excluded.results_json`, report.ID, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.IncludeClosure, created, report.Verdict, string(results)); err != nil {
+source_revision=excluded.source_revision, verdict=excluded.verdict, results_json=excluded.results_json`, report.ID, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.IncludeClosure, report.SourceRevision, created, report.Verdict, string(results)); err != nil {
 		return err
 	}
 	if !alreadySaved {
@@ -179,7 +179,7 @@ DELETE FROM component_test_reports WHERE id IN (SELECT id FROM to_delete)`, ceil
 }
 
 func (r *SQLiteRepository) query(ctx context.Context, where string, arg any, limit int) ([]Report, error) {
-	query := `SELECT id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json FROM component_test_reports ` + where + ` ORDER BY created_at DESC LIMIT ?`
+	query := `SELECT id, component_id, root_library_id, root_version, include_closure, source_revision, created_at, verdict, results_json FROM component_test_reports ` + where + ` ORDER BY created_at DESC LIMIT ?`
 	args := []any{}
 	if arg != nil {
 		if many, ok := arg.([]any); ok {
@@ -198,10 +198,12 @@ func (r *SQLiteRepository) query(ctx context.Context, where string, arg any, lim
 	for rows.Next() {
 		var report Report
 		var created string
+		var sourceRevision string
 		var results string
-		if err := rows.Scan(&report.ID, &report.RootComponentID, &report.RootLibraryID, &report.RootVersion, &report.IncludeClosure, &created, &report.Verdict, &results); err != nil {
+		if err := rows.Scan(&report.ID, &report.RootComponentID, &report.RootLibraryID, &report.RootVersion, &report.IncludeClosure, &sourceRevision, &created, &report.Verdict, &results); err != nil {
 			return nil, err
 		}
+		report.SourceRevision = sourceRevision
 		if err := report.CreatedAt.UnmarshalText([]byte(created)); err != nil {
 			return nil, err
 		}

@@ -14,8 +14,7 @@ through a governed package surface.
 
 ```bash
 react-component-library components draft-begin react-component-library:Button
-react-component-library catalog build
-react-component-library catalog gates story-grammar --asset-id controls.button
+react-component-library asset check controls.button
 react-component-library components draft-publish react-component-library:Button
 ```
 
@@ -33,9 +32,9 @@ make start
 react-component-library status
 ```
 
-Use [docs/START-HERE.md](docs/START-HERE.md) for orientation and
-[docs/guides/asset-update-flow.md](docs/guides/asset-update-flow.md) for the
-complete change procedure. Run the scenario-owned suite with
+Use [docs/guides/asset-update-flow.md](docs/guides/asset-update-flow.md) for
+the complete change procedure and [docs/reference/cli-commands.md](docs/reference/cli-commands.md)
+for the command surface. Run the scenario-owned suite with
 `vrooli scenario test react-component-library` when a full workflow check is
 needed.
 
@@ -65,6 +64,6 @@ bundler. Package maintenance tooling lives in
 
 - [Asset derivation](docs/concepts/ASSET-DERIVATION.md) — ownership and
   generated projections.
-- [Quickstart](docs/QUICKSTART.md) — lifecycle setup and operations.
+- [CLI reference](docs/reference/cli-commands.md) — lifecycle setup and operations.
 - [Architecture](docs/concepts/ARCHITECTURE.md) — API, CLI, UI, and storage.
 - [Testing](docs/internal/TESTING.md) — targeted and scenario-owned checks.

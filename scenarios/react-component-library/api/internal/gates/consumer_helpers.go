@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 	"react-component-library/internal/librarywalk"
 )
 
@@ -44,11 +45,14 @@ func scenarioConsumerPins(root string) ([]consumerPin, error) {
 		if err != nil {
 			return err
 		}
-		for _, match := range scenarioRCLPinRE.FindAllStringSubmatch(string(raw), -1) {
-			key := match[1] + "@" + match[2]
+		for _, specifier := range libspec.ParseAll(string(raw)) {
+			if specifier.Selector == "" {
+				continue
+			}
+			key := specifier.Name + "@" + specifier.Selector
 			pin := byKey[key]
 			if pin == nil {
-				pin = &consumerPin{Asset: match[1], Version: match[2], Scenarios: map[string]bool{}}
+				pin = &consumerPin{Asset: specifier.Name, Version: specifier.Selector, Scenarios: map[string]bool{}}
 				byKey[key] = pin
 			}
 			pin.Scenarios[parts[0]] = true
@@ -152,7 +156,7 @@ func allLibrarySources(scope Scope) ([]string, error) {
 func deprecatedLibraryVersions(root string) (map[string][]string, error) {
 	result := map[string][]string{}
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}

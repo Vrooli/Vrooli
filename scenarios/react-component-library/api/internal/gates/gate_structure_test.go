@@ -94,6 +94,40 @@ func TestEveryExecutableGateHasAnOwnedImplementationFile(t *testing.T) {
 	}
 }
 
+func TestNoNumberedGateFiles(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		if len(entry.Name()) > 0 && entry.Name()[0] >= '0' && entry.Name()[0] <= '9' {
+			t.Fatalf("numbered gate implementation %s bypasses the registry", entry.Name())
+		}
+	}
+}
+
+func TestScopeIsAContract(t *testing.T) {
+	seen := map[string]struct{}{}
+	for _, definition := range Definitions() {
+		if definition.ID == "" {
+			t.Fatal("gate definition has no stable ID")
+		}
+		if _, duplicate := seen[definition.ID]; duplicate {
+			t.Fatalf("gate definition %q is registered more than once", definition.ID)
+		}
+		seen[definition.ID] = struct{}{}
+		if definition.Reads > ReadsCorpus {
+			t.Fatalf("gate %q declares unknown read scope %d", definition.ID, definition.Reads)
+		}
+		if definition.Run != nil && len(definition.DeterminismInputs) == 0 {
+			t.Fatalf("executable gate %q has no determinism inputs", definition.ID)
+		}
+	}
+}
+
 func TestEveryGateHonoursItsScope(t *testing.T) {
 	root, err := filepath.Abs("../../../../..")
 	if err != nil {
@@ -111,7 +145,7 @@ func TestEveryGateHonoursItsScope(t *testing.T) {
 		if scopedErr != nil {
 			continue
 		}
-		if definition.CorpusScoped {
+		if definition.Reads == ReadsCorpus {
 			if scoped.Inspected != full.Inspected {
 				t.Errorf("corpus-scoped gate %q changed inspected count from %d to %d", definition.ID, full.Inspected, scoped.Inspected)
 			}

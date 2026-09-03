@@ -6,10 +6,12 @@ package gates
 // therefore a failed calibration, not evidence of quality.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strings"
 )
 
@@ -52,7 +54,12 @@ func GateRunnerFor(gate string) GateRunner {
 	if !ok {
 		return nil
 	}
-	return definition.Run
+	return func(scope Scope) (Result, error) {
+		if scope.Context == nil {
+			scope.Context = context.Background()
+		}
+		return definition.Run(scope.Context, scope)
+	}
 }
 
 // Calibrate evaluates every fixture owned by gate. A missing fixture is a
@@ -132,7 +139,7 @@ func Calibrate(root, gate string, runner GateRunner) (CalibrationReport, error) 
 
 func loadCalibrationFixtures(root, gate string) ([]CalibrationFixture, error) {
 	dir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "calibration", gate)
-	paths, err := filepath.Glob(filepath.Join(dir, "fixture.json"))
+	paths, err := librarywalk.Glob(filepath.Join(dir, "fixture.json"))
 	if err != nil {
 		return nil, err
 	}

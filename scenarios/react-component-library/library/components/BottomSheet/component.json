@@ -2,6 +2,7 @@
   "assetKind": "component",
   "catalogId": "overlays.bottom-sheet",
   "deprecatedVersions": [
+    "1.2.0",
     "1.0.5",
     "1.2.7",
     "1.0.4",
@@ -37,6 +38,6 @@
     "1.2.8",
     "1.2.9"
   ],
-  "latest": "1.2.10",
+  "latest": "1.2.11",
   "libraryId": "react-component-library:BottomSheet"
 }

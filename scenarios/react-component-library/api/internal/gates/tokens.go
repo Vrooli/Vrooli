@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strconv"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 
 func ValidateTokens(scope Scope) (Result, error) {
 	root := scope.Root
-	paths, err := filepath.Glob(filepath.Join(root, "templates", "design", "*", "adapters", "react-vite-tailwind", "tokens.css"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "templates", "design", "*", "adapters", "react-vite-tailwind", "tokens.css"))
 	if err != nil {
 		return Result{}, err
 	}

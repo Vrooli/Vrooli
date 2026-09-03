@@ -24,7 +24,7 @@ func ValidateConformance(scope Scope) (Result, error) {
 		return Result{}, statErr
 	}
 	var paths []string
-	err := librarywalk.Walk(uiRoot, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(scope.Context, uiRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

@@ -348,10 +348,10 @@ Only require what is essential; keep optional lists short and relevant. PoR cita
 
 To publish a skill:
 
-1. Create the skill directory in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
+1. Create the skill directory. Scenario-owned skills (the roles in §"Scenario skill sets") live in `path:scenarios/<scenario>/skills/<skill-id>/`; cross-scenario skills live in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
 2. Add the following files:
    - `SKILL.md` — skill content
-   - `skill.json` — metadata with `id`, `name`, `description`, `modes`, `tags`
+   - `skill.json` — generated sidecar for pack skills (`skill-sidecar-gen`); scenario-owned skills need frontmatter only, and the frontmatter must carry the full Vrooli block (`kind`, `modes`, `status`, `revision`, `requires`, `origin`), not the bare plugin dialect
 3. Run `prompt-manager skill sync` to pick up changes.
 4. Verify via `prompt-manager skill show <id>`.
 
@@ -444,6 +444,67 @@ A destination-clear skill is a *precondition* for climbing the promotion ladder:
 
 - **Mandatory** for audit-shaped skills (the steer cohort listed above).
 - **Optional** for Tools, Search, Practice, and greenfield-directive steer skills — borrow when useful, do not force.
+
+---
+
+## Scenario skill sets: roles, step rungs, and the learning spine
+
+A scenario owes a small, derivable set of skills. The set is declared once in the scenario's `.vrooli/service.json` under `skills`, lives in `scenarios/<scenario>/skills/<skill-id>/SKILL.md`, and is read today by the `prompt-manager.skill-set-read` program (registered ids, files present, token size, read counts). Grading of waivers, program references, frontmatter dialect, and sensor reality is planned as a skill-set validator command and a test-genie phase; until they exist, `skill-validation` §3.12 carries those checks by hand. Quality is judged by `skill-validation`, never by the validator.
+
+### The three roles
+
+| Role | Category | Owed when | Content |
+|---|---|---|---|
+| **Usage** | `tools` | The scenario has a CLI manifest (`cli/manifest.json`) | The judgment that beats `--help`, written as a decision tree whose leaves carry a rung label (below); the learning spine when a memory scope is declared; the in-use settings the agent may change without a diff; the debug order; safety |
+| **Feature** | `tools` or `practice` | Optional. Only after the pattern appears in two or more agents (`capability-extraction` §Extraction Test) | One decision table for one use case; never a restatement of the reference |
+| **Improve** | `practice` | The scenario owns a projection (Answer, Validate, Guide, Act) **or** two or more scenarios or teams depend on it | The control-loop sections in `improve-skill-authoring`: setpoint, sensors, golden corpora, curation moves, ladder rungs, anti-gaming by id, evidence, stop rules |
+
+Any owed role a scenario does not ship needs a waiver with a dated reason in the declaration. A waiver that hides a role the trigger says is owed is suppression-shaped and earns zero credit (`improvement-do-and-dont`).
+
+There is no "light improve" role. Learning that happens while the scenario is used belongs in the usage skill (the learning spine). Curation of the scenario's own instruments — its program library, its findings ledger, its corpora — belongs in the improve skill.
+
+Skill ids share one namespace across packs and scenarios. A scenario skill is named `<scenario>` for the usage role, `<scenario>-improve` for the improve role, and `<scenario>-<feature>` for a feature role. Frontmatter `name` equals the folder name.
+
+### Step rungs
+
+A usage skill is a decision tree. Every leaf is a step, and every step sits on one rung. Label the rung on the leaf so a reader knows what the step costs and what promotes it.
+
+| Rung | The step is | Promotes when |
+|---|---|---|
+| S0 | Prose the agent reads and judges | The judgment settles into a fixed table |
+| S1 | One CLI command with a deterministic output contract | The same call recurs with the same shape across agents |
+| S2 | A prompt-manager Action wrapping that command | Several S1/S2 steps always run together with stable joins |
+| S3 | A contract program (`scenarios/program-runtime/docs/guides/program-contracts.md`) invoked as one step | The skill's whole happy path is one program and the tree only branches on its envelope |
+| S4 | The skill is a thin tree over one library program | Retirement of prose per `PROMOTION_LADDER.md`, keeping safety, scope, and ownership |
+
+This is `PROMOTION_LADDER.md` applied per step. A scenario with no programs is not failing anything: its leaves are S0 to S2 and its improve skill knows which to promote first. The count of leaves per rung is a report figure (`skill-improvement-suggestions` E10), not a setpoint sensor: no program reads it, and an improve skill never cites a sensor that is computed by hand.
+
+A leaf that names a program writes it as `run <scenario>.<program>` and branches on the envelope's `status` and `errors[0].class`. The program's contract (not the skill) declares those values.
+
+### The learning spine
+
+A usage skill learns in use when the scenario declares a memory scope. The spine has three beats and is declared in frontmatter so the validator can see it:
+
+```yaml
+metadata:
+  learning:
+    scope: "<scenario>-usage"      # a vrooli-memory scope with a facet vocabulary
+    capture: "every attempt"       # or: "on failure", "on novel outcome"
+```
+
+1. **Recall before acting.** Wake the scope for the ambient set, or recall a target subject. Apply what it says before choosing a command.
+2. **Act** through the tree.
+3. **Capture after acting.** One journal entry per attempt in the declared scope, with a declared entry kind (for example `task-record`, `site-note`, `workflow-verdict`) and the work-record fields (trigger, approach, evidence, outcome).
+
+The commands and flags for each beat are the `vrooli-memory` usage skill's; a usage skill cites that skill and names only its own scope and kinds.
+
+Curation — pins after repeated confirmation, supersession when advice stops working, classification rules with a dry run — is done by the skill's tree at S1 to S3. At S4 the tree lives in the orchestrator program and memory reads and writes become contract-declared phases (recall in collect, capture in report). The mechanics of scopes, facets, pins, rules, and supersession are the `vrooli-memory` usage skill's; cite it, do not restate it.
+
+A scenario whose own ledger is the memory (web-search's findings) declares that ledger as the scope's substitute and cites its own curation verbs.
+
+### Programs as steps
+
+A program a skill names must exist as a scenario-owned file under `scenarios/<scenario>/.vrooli/program-runtime/<name>.py` with a sibling `<name>.json` contract, or as a promoted library entry. The contract, not the skill, is the source of truth for inputs, outputs, statuses, and error classes. A skill that restates a contract drifts; it cites the program by name and branches on the declared vocabulary.
 
 ---
 

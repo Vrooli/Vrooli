@@ -189,7 +189,8 @@ cd packages/proto && make generate SCENARIO=<scenario>
 This stages and regenerates all language outputs (Go, TypeScript, Python),
 creates `py.typed` markers, rebuilds the descriptor image, and writes
 per-scenario generation manifests under `gen/manifests/` before publishing only
-changed outputs. Use `--scenario` for a dependency-aware scoped run.
+changed outputs. Use `go run -mod=mod ./cmd/protogen generate --changed` for
+the routine dependency-aware scoped run, or `--scenario` for an explicit scope.
 
 ### 4. Verify your changes
 

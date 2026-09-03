@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { getAssetPortContract, getAssetRelationships } from "../../api/catalogGraph";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { assetPath } from "../../routes";
 
 function AssetLink({ assetId, name, rung }: { assetId: string; name: string; rung: number }) {

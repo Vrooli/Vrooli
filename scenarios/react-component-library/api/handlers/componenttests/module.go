@@ -58,7 +58,54 @@ func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string
 // ModuleWithExecutorAndFixture keeps both the browser and generated-fixture
 // boundaries explicit for module tests.
 func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
-	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor}, domain.NewSQLiteRepository(db))
+	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor, Revision: func(ctx context.Context, assetID, version string) (string, error) {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(sourceRoot), "catalog")); err != nil {
+			// Module tests and isolated providers may intentionally omit the
+			// catalog projection. In that case the runner retains its legacy
+			// deterministic identity; production always supplies the catalog.
+			return "", nil
+		}
+		// ExpectedReport identifies the root by catalog id, while the
+		// version-revision helper walks library manifests by library id.
+		// Resolve through the shared registry service before hashing so both
+		// identities remain valid at this boundary.
+		revisionID := assetID
+		if component, lookupErr := assets.Get(ctx, assetID); lookupErr == nil && component.LibraryID != "" {
+			revisionID = component.LibraryID
+		} else if component, lookupErr := assets.GetByLibraryID(ctx, assetID); lookupErr == nil && component.LibraryID != "" {
+			revisionID = component.LibraryID
+		} else if items, listErr := assets.List(ctx, components.SearchQuery{Limit: 2000}); listErr == nil {
+			for _, component := range items {
+				if component.ID == assetID || component.CatalogID == assetID || component.LibraryID == assetID {
+					revisionID = component.LibraryID
+					break
+				}
+			}
+		}
+		if revisionID == assetID {
+			for _, libraryRoot := range []string{sourceRoot, filepath.Join(sourceRoot, "library")} {
+				implementations, loadErr := catalogcoverage.LoadImplementations(libraryRoot)
+				if loadErr != nil {
+					continue
+				}
+				for _, implementation := range implementations {
+					if implementation.CatalogID == assetID && implementation.LibraryID != "" {
+						revisionID = implementation.LibraryID
+						break
+					}
+				}
+				if revisionID != assetID {
+					break
+				}
+			}
+		}
+		if revisionID == assetID {
+			return "", fmt.Errorf("resolve revision library id for %q from source root %q", assetID, sourceRoot)
+		}
+		// Revision helpers accept the scenario root; sourceRoot is the
+		// scenario's library directory.
+		return catalogcoverage.CurrentRevisionForVersion(filepath.Dir(sourceRoot), revisionID, version)
+	}}, domain.NewSQLiteRepository(db))
 	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, assets: assets, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), sourceRoot: sourceRoot, sweeps: domain.NewSQLiteSweepRepository(db)})
 	var probe func(context.Context) error
 	if prober, ok := executor.(domain.ExecutorProber); ok {
@@ -81,14 +128,61 @@ type connectHandler struct {
 }
 
 func (h *connectHandler) RunComponentTest(ctx context.Context, req *connect.Request[componenttestsv1.RunComponentTestRequest]) (*connect.Response[componenttestsv1.RunComponentTestResponse], error) {
-	report, err := h.service.Run(ctx, domain.Request{ComponentID: req.Msg.GetComponentId(), Version: req.Msg.GetVersion(), IncludeClosure: req.Msg.GetIncludeClosure()})
+	componentID, err := h.resolveComponentID(ctx, req.Msg.GetComponentId())
+	if err != nil {
+		return nil, h.error(err)
+	}
+	report, reused, err := h.service.RunWithReuse(ctx, domain.Request{ComponentID: componentID, Version: req.Msg.GetVersion(), IncludeClosure: req.Msg.GetIncludeClosure()})
 	if err != nil {
 		return nil, h.error(err)
 	}
 	if err := h.recordContractEvidence(ctx, report); err != nil {
 		return nil, h.error(err)
 	}
-	return connect.NewResponse(&componenttestsv1.RunComponentTestResponse{Report: toProto(report)}), nil
+	return connect.NewResponse(&componenttestsv1.RunComponentTestResponse{Report: toProto(report), Reused: reused, SourceRevision: report.SourceRevision}), nil
+}
+
+func (h *connectHandler) resolveComponentID(ctx context.Context, requested string) (string, error) {
+	requested = strings.TrimSpace(requested)
+	if requested == "" || h.assets == nil {
+		return requested, nil
+	}
+	if component, err := h.assets.Get(ctx, requested); err == nil && component.LibraryID != "" {
+		return component.LibraryID, nil
+	}
+	if component, err := h.assets.GetByLibraryID(ctx, requested); err == nil && component.LibraryID != "" {
+		return component.LibraryID, nil
+	}
+	items, listErr := h.assets.List(ctx, components.SearchQuery{Limit: 2000})
+	if listErr == nil {
+		for _, component := range items {
+			if component.ID == requested || component.LibraryID == requested || component.CatalogID == requested {
+				return component.LibraryID, nil
+			}
+		}
+	}
+	// The registry index can lag the authored catalog after a build. The
+	// filesystem manifest remains the source of truth for resolving the public
+	// catalog id, so a stale index must not make the public test command fail.
+	var manifestErr error
+	if strings.TrimSpace(h.sourceRoot) != "" {
+		implementations, loadErr := catalogcoverage.LoadImplementations(h.sourceRoot)
+		manifestErr = loadErr
+		if loadErr == nil {
+			for _, implementation := range implementations {
+				if implementation.CatalogID == requested {
+					return implementation.LibraryID, nil
+				}
+			}
+		}
+	}
+	if listErr != nil {
+		return "", listErr
+	}
+	if manifestErr != nil {
+		return "", fmt.Errorf("component %q not found (manifest fallback at %q failed: %w)", requested, h.sourceRoot, manifestErr)
+	}
+	return "", fmt.Errorf("component %q not found in registry or manifests at %q", requested, h.sourceRoot)
 }
 
 func (h *connectHandler) RerunComponentTest(ctx context.Context, req *connect.Request[componenttestsv1.RerunComponentTestRequest]) (*connect.Response[componenttestsv1.RerunComponentTestResponse], error) {
@@ -245,7 +339,7 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 	if requested := strings.TrimSpace(req.Msg.GetComponentId()); requested != "" {
 		filtered := assets[:0]
 		for _, asset := range assets {
-			if asset.ID == requested || asset.LibraryID == requested {
+			if asset.ID == requested || asset.LibraryID == requested || asset.CatalogID == requested {
 				filtered = append(filtered, asset)
 			}
 		}
@@ -383,7 +477,7 @@ func (h *connectHandler) error(err error) error {
 }
 
 func toProto(report domain.Report) *componenttestsv1.ComponentTestReport {
-	out := &componenttestsv1.ComponentTestReport{Id: report.ID, RootLibraryId: report.RootLibraryID, RootVersion: report.RootVersion, IncludeClosure: report.IncludeClosure, CreatedAt: timestamppb.New(report.CreatedAt), Verdict: string(report.Verdict), Results: make([]*componenttestsv1.ComponentTestResult, 0, len(report.Results)), Artifacts: make([]*componenttestsv1.ComponentTestArtifact, 0, len(report.Artifacts))}
+	out := &componenttestsv1.ComponentTestReport{Id: report.ID, RootLibraryId: report.RootLibraryID, RootVersion: report.RootVersion, IncludeClosure: report.IncludeClosure, CreatedAt: timestamppb.New(report.CreatedAt), Verdict: string(report.Verdict), SourceRevision: report.SourceRevision, Results: make([]*componenttestsv1.ComponentTestResult, 0, len(report.Results)), Artifacts: make([]*componenttestsv1.ComponentTestArtifact, 0, len(report.Artifacts))}
 	for _, result := range report.Results {
 		protoResult := &componenttestsv1.ComponentTestResult{Stage: string(result.Stage), AssetLibraryId: result.AssetLibraryID, Version: result.Version, Subject: result.Subject, Verdict: string(result.Verdict), Message: result.Message, Remediation: result.Remediation}
 		for _, evidence := range result.Evidence {

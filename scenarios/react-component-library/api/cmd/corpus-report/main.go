@@ -20,4 +20,9 @@ func main() {
 	}
 	out, _ := json.MarshalIndent(report, "", "  ")
 	fmt.Println(string(out))
+	for _, invariant := range report.Invariants {
+		if invariant.Status == "failed_measurement" {
+			os.Exit(2)
+		}
+	}
 }

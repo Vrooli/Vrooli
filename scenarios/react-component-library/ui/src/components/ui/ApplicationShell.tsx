@@ -4,7 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/1";
 import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
 import { BottomNav } from "@vrooli/react-component-library/BottomNav/1";
-import { WorkspaceHeader } from "../WorkspaceHeader";
+import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { useTranslation } from "../../i18n";
 import { BarChart3, FolderTree, Menu, Settings as SettingsIcon, Sparkles } from "lucide-react";

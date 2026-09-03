@@ -3,10 +3,41 @@ package libspec
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestNoSecondGrammar(t *testing.T) {
+	root, err := filepath.Abs("../../../../../")
+	require.NoError(t, err)
+	count := 0
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "node_modules" || entry.Name() == "dist" || entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" && filepath.Ext(path) != ".mjs" {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(data), "react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:") {
+			count++
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, count, "only the shared Go grammar and JS binding may define the parser regex")
+}
 
 func TestParseAllUsesOneGrammar(t *testing.T) {
 	got := Sorted(ParseAll(`import "@vrooli/react-component-library/Button"; import "@vrooli/react-component-library/Panel/2"; import "@vrooli/react-component-library/Panel/2.1.0"`))

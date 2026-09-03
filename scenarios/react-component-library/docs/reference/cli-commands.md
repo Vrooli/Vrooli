@@ -60,6 +60,19 @@ react-component-library configure api_base
 
 ## Scenario commands — `components`
 
+### `catalog build` derivation stages
+
+`catalog build` is the single entry point for derived catalog artifacts. Use
+`--list-stages` to inspect the owned stages without changing the tree:
+
+```bash
+react-component-library catalog build --list-stages
+```
+
+The stages are `sync-exports`, `generate-manifests`, `release-hashes`,
+`story-contracts`, and `dependency-locks`. `--check` runs the same sequence in
+read-only stale-output mode.
+
 The `components` group is the authoring and registry surface for the
 Git-tracked library source tree.
 

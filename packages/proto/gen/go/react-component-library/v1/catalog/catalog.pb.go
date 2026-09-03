@@ -21,6 +21,107 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type FindingScope int32
+
+const (
+	FindingScope_FINDING_SCOPE_UNSPECIFIED FindingScope = 0
+	FindingScope_FINDING_SCOPE_ASSET       FindingScope = 1
+	FindingScope_FINDING_SCOPE_CORPUS      FindingScope = 2
+)
+
+// Enum value maps for FindingScope.
+var (
+	FindingScope_name = map[int32]string{
+		0: "FINDING_SCOPE_UNSPECIFIED",
+		1: "FINDING_SCOPE_ASSET",
+		2: "FINDING_SCOPE_CORPUS",
+	}
+	FindingScope_value = map[string]int32{
+		"FINDING_SCOPE_UNSPECIFIED": 0,
+		"FINDING_SCOPE_ASSET":       1,
+		"FINDING_SCOPE_CORPUS":      2,
+	}
+)
+
+func (x FindingScope) Enum() *FindingScope {
+	p := new(FindingScope)
+	*p = x
+	return p
+}
+
+func (x FindingScope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FindingScope) Descriptor() protoreflect.EnumDescriptor {
+	return file_react_component_library_v1_catalog_catalog_proto_enumTypes[0].Descriptor()
+}
+
+func (FindingScope) Type() protoreflect.EnumType {
+	return &file_react_component_library_v1_catalog_catalog_proto_enumTypes[0]
+}
+
+func (x FindingScope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FindingScope.Descriptor instead.
+func (FindingScope) EnumDescriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{0}
+}
+
+type FindingSeverity int32
+
+const (
+	FindingSeverity_FINDING_SEVERITY_UNSPECIFIED FindingSeverity = 0
+	FindingSeverity_FINDING_SEVERITY_BLOCKING    FindingSeverity = 1
+	FindingSeverity_FINDING_SEVERITY_WARNING     FindingSeverity = 2
+	FindingSeverity_FINDING_SEVERITY_INFO        FindingSeverity = 3
+)
+
+// Enum value maps for FindingSeverity.
+var (
+	FindingSeverity_name = map[int32]string{
+		0: "FINDING_SEVERITY_UNSPECIFIED",
+		1: "FINDING_SEVERITY_BLOCKING",
+		2: "FINDING_SEVERITY_WARNING",
+		3: "FINDING_SEVERITY_INFO",
+	}
+	FindingSeverity_value = map[string]int32{
+		"FINDING_SEVERITY_UNSPECIFIED": 0,
+		"FINDING_SEVERITY_BLOCKING":    1,
+		"FINDING_SEVERITY_WARNING":     2,
+		"FINDING_SEVERITY_INFO":        3,
+	}
+)
+
+func (x FindingSeverity) Enum() *FindingSeverity {
+	p := new(FindingSeverity)
+	*p = x
+	return p
+}
+
+func (x FindingSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FindingSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_react_component_library_v1_catalog_catalog_proto_enumTypes[1].Descriptor()
+}
+
+func (FindingSeverity) Type() protoreflect.EnumType {
+	return &file_react_component_library_v1_catalog_catalog_proto_enumTypes[1]
+}
+
+func (x FindingSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FindingSeverity.Descriptor instead.
+func (FindingSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{1}
+}
+
 type AssetNode struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -2306,8 +2407,17 @@ type GateFinding struct {
 	DocsRef        string `protobuf:"bytes,8,opt,name=docs_ref,json=docsRef,proto3" json:"docs_ref,omitempty"`
 	RuleSource     string `protobuf:"bytes,9,opt,name=rule_source,json=ruleSource,proto3" json:"rule_source,omitempty"`
 	RuleDeclaredIn string `protobuf:"bytes,10,opt,name=rule_declared_in,json=ruleDeclaredIn,proto3" json:"rule_declared_in,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stable dotted catalog identity. asset_id remains as a deprecated alias
+	// for older clients during the migration to typed finding attribution.
+	CatalogId string       `protobuf:"bytes,11,opt,name=catalog_id,json=catalogId,proto3" json:"catalog_id,omitempty"`
+	LibraryId string       `protobuf:"bytes,12,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
+	Scope     FindingScope `protobuf:"varint,13,opt,name=scope,proto3,enum=vrooli.react_component_library.v1.catalog.FindingScope" json:"scope,omitempty"`
+	Blocking  bool         `protobuf:"varint,14,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	// Repository-relative authored file that owns the fix.
+	Owner         string          `protobuf:"bytes,15,opt,name=owner,proto3" json:"owner,omitempty"`
+	SeverityClass FindingSeverity `protobuf:"varint,16,opt,name=severity_class,json=severityClass,proto3,enum=vrooli.react_component_library.v1.catalog.FindingSeverity" json:"severity_class,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GateFinding) Reset() {
@@ -2408,6 +2518,48 @@ func (x *GateFinding) GetRuleDeclaredIn() string {
 		return x.RuleDeclaredIn
 	}
 	return ""
+}
+
+func (x *GateFinding) GetCatalogId() string {
+	if x != nil {
+		return x.CatalogId
+	}
+	return ""
+}
+
+func (x *GateFinding) GetLibraryId() string {
+	if x != nil {
+		return x.LibraryId
+	}
+	return ""
+}
+
+func (x *GateFinding) GetScope() FindingScope {
+	if x != nil {
+		return x.Scope
+	}
+	return FindingScope_FINDING_SCOPE_UNSPECIFIED
+}
+
+func (x *GateFinding) GetBlocking() bool {
+	if x != nil {
+		return x.Blocking
+	}
+	return false
+}
+
+func (x *GateFinding) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *GateFinding) GetSeverityClass() FindingSeverity {
+	if x != nil {
+		return x.SeverityClass
+	}
+	return FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
 }
 
 type RunGateResponse struct {
@@ -2542,6 +2694,218 @@ func (x *RunGateResponse) GetCompositionEscapes() []*CompositionEscape {
 	return nil
 }
 
+type AssetCheckStage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Seconds       float64                `protobuf:"fixed64,3,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetCheckStage) Reset() {
+	*x = AssetCheckStage{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetCheckStage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetCheckStage) ProtoMessage() {}
+
+func (x *AssetCheckStage) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetCheckStage.ProtoReflect.Descriptor instead.
+func (*AssetCheckStage) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *AssetCheckStage) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AssetCheckStage) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AssetCheckStage) GetSeconds() float64 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+func (x *AssetCheckStage) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type CheckAssetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	RunTests      bool                   `protobuf:"varint,3,opt,name=run_tests,json=runTests,proto3" json:"run_tests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckAssetRequest) Reset() {
+	*x = CheckAssetRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAssetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAssetRequest) ProtoMessage() {}
+
+func (x *CheckAssetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAssetRequest.ProtoReflect.Descriptor instead.
+func (*CheckAssetRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *CheckAssetRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *CheckAssetRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CheckAssetRequest) GetRunTests() bool {
+	if x != nil {
+		return x.RunTests
+	}
+	return false
+}
+
+type CheckAssetResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Verdict        string                 `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Stages         []*AssetCheckStage     `protobuf:"bytes,3,rep,name=stages,proto3" json:"stages,omitempty"`
+	Findings       []*GateFinding         `protobuf:"bytes,4,rep,name=findings,proto3" json:"findings,omitempty"`
+	ReusedReportId string                 `protobuf:"bytes,5,opt,name=reused_report_id,json=reusedReportId,proto3" json:"reused_report_id,omitempty"`
+	SourceRevision string                 `protobuf:"bytes,6,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CheckAssetResponse) Reset() {
+	*x = CheckAssetResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAssetResponse) ProtoMessage() {}
+
+func (x *CheckAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAssetResponse.ProtoReflect.Descriptor instead.
+func (*CheckAssetResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *CheckAssetResponse) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *CheckAssetResponse) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *CheckAssetResponse) GetStages() []*AssetCheckStage {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
+func (x *CheckAssetResponse) GetFindings() []*GateFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *CheckAssetResponse) GetReusedReportId() string {
+	if x != nil {
+		return x.ReusedReportId
+	}
+	return ""
+}
+
+func (x *CheckAssetResponse) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
+}
+
 type CompositionEscape struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -2552,7 +2916,7 @@ type CompositionEscape struct {
 
 func (x *CompositionEscape) Reset() {
 	*x = CompositionEscape{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2564,7 +2928,7 @@ func (x *CompositionEscape) String() string {
 func (*CompositionEscape) ProtoMessage() {}
 
 func (x *CompositionEscape) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2577,7 +2941,7 @@ func (x *CompositionEscape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositionEscape.ProtoReflect.Descriptor instead.
 func (*CompositionEscape) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{34}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CompositionEscape) GetAssetId() string {
@@ -2608,7 +2972,7 @@ type CalibrationResult struct {
 
 func (x *CalibrationResult) Reset() {
 	*x = CalibrationResult{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2620,7 +2984,7 @@ func (x *CalibrationResult) String() string {
 func (*CalibrationResult) ProtoMessage() {}
 
 func (x *CalibrationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2633,7 +2997,7 @@ func (x *CalibrationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CalibrationResult.ProtoReflect.Descriptor instead.
 func (*CalibrationResult) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{35}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CalibrationResult) GetGate() string {
@@ -2696,7 +3060,7 @@ type ScoreHistoryPoint struct {
 
 func (x *ScoreHistoryPoint) Reset() {
 	*x = ScoreHistoryPoint{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2708,7 +3072,7 @@ func (x *ScoreHistoryPoint) String() string {
 func (*ScoreHistoryPoint) ProtoMessage() {}
 
 func (x *ScoreHistoryPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2721,7 +3085,7 @@ func (x *ScoreHistoryPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoreHistoryPoint.ProtoReflect.Descriptor instead.
 func (*ScoreHistoryPoint) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{36}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ScoreHistoryPoint) GetRecordedAt() string {
@@ -2807,7 +3171,7 @@ type ScoreHistoryEvent struct {
 
 func (x *ScoreHistoryEvent) Reset() {
 	*x = ScoreHistoryEvent{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2819,7 +3183,7 @@ func (x *ScoreHistoryEvent) String() string {
 func (*ScoreHistoryEvent) ProtoMessage() {}
 
 func (x *ScoreHistoryEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2832,7 +3196,7 @@ func (x *ScoreHistoryEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoreHistoryEvent.ProtoReflect.Descriptor instead.
 func (*ScoreHistoryEvent) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{37}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ScoreHistoryEvent) GetType() string {
@@ -2879,7 +3243,7 @@ type GetScoreHistoryRequest struct {
 
 func (x *GetScoreHistoryRequest) Reset() {
 	*x = GetScoreHistoryRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2891,7 +3255,7 @@ func (x *GetScoreHistoryRequest) String() string {
 func (*GetScoreHistoryRequest) ProtoMessage() {}
 
 func (x *GetScoreHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2904,7 +3268,7 @@ func (x *GetScoreHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScoreHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetScoreHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{38}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetScoreHistoryRequest) GetSince() string {
@@ -2923,7 +3287,7 @@ type GetScoreHistoryResponse struct {
 
 func (x *GetScoreHistoryResponse) Reset() {
 	*x = GetScoreHistoryResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2935,7 +3299,7 @@ func (x *GetScoreHistoryResponse) String() string {
 func (*GetScoreHistoryResponse) ProtoMessage() {}
 
 func (x *GetScoreHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2948,7 +3312,7 @@ func (x *GetScoreHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScoreHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetScoreHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{39}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetScoreHistoryResponse) GetPoints() []*ScoreHistoryPoint {
@@ -2972,7 +3336,7 @@ type HealthNode struct {
 
 func (x *HealthNode) Reset() {
 	*x = HealthNode{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2984,7 +3348,7 @@ func (x *HealthNode) String() string {
 func (*HealthNode) ProtoMessage() {}
 
 func (x *HealthNode) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2997,7 +3361,7 @@ func (x *HealthNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthNode.ProtoReflect.Descriptor instead.
 func (*HealthNode) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{40}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *HealthNode) GetAsset() *AssetNode {
@@ -3053,7 +3417,7 @@ type HealthEdge struct {
 
 func (x *HealthEdge) Reset() {
 	*x = HealthEdge{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3065,7 +3429,7 @@ func (x *HealthEdge) String() string {
 func (*HealthEdge) ProtoMessage() {}
 
 func (x *HealthEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3078,7 +3442,7 @@ func (x *HealthEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthEdge.ProtoReflect.Descriptor instead.
 func (*HealthEdge) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{41}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *HealthEdge) GetFromAssetId() string {
@@ -3110,7 +3474,7 @@ type GetHealthOverviewRequest struct {
 
 func (x *GetHealthOverviewRequest) Reset() {
 	*x = GetHealthOverviewRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3122,7 +3486,7 @@ func (x *GetHealthOverviewRequest) String() string {
 func (*GetHealthOverviewRequest) ProtoMessage() {}
 
 func (x *GetHealthOverviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3135,7 +3499,7 @@ func (x *GetHealthOverviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthOverviewRequest.ProtoReflect.Descriptor instead.
 func (*GetHealthOverviewRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{42}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{45}
 }
 
 type GetHealthOverviewResponse struct {
@@ -3157,7 +3521,7 @@ type GetHealthOverviewResponse struct {
 
 func (x *GetHealthOverviewResponse) Reset() {
 	*x = GetHealthOverviewResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3169,7 +3533,7 @@ func (x *GetHealthOverviewResponse) String() string {
 func (*GetHealthOverviewResponse) ProtoMessage() {}
 
 func (x *GetHealthOverviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3182,7 +3546,7 @@ func (x *GetHealthOverviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthOverviewResponse.ProtoReflect.Descriptor instead.
 func (*GetHealthOverviewResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{43}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetHealthOverviewResponse) GetCoverage() *CoverageReport {
@@ -3275,7 +3639,7 @@ type ReadinessRun struct {
 
 func (x *ReadinessRun) Reset() {
 	*x = ReadinessRun{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3287,7 +3651,7 @@ func (x *ReadinessRun) String() string {
 func (*ReadinessRun) ProtoMessage() {}
 
 func (x *ReadinessRun) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3300,7 +3664,7 @@ func (x *ReadinessRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadinessRun.ProtoReflect.Descriptor instead.
 func (*ReadinessRun) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{44}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ReadinessRun) GetRunId() string {
@@ -3354,7 +3718,7 @@ type ReadinessConfig struct {
 
 func (x *ReadinessConfig) Reset() {
 	*x = ReadinessConfig{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[45]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3366,7 +3730,7 @@ func (x *ReadinessConfig) String() string {
 func (*ReadinessConfig) ProtoMessage() {}
 
 func (x *ReadinessConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[45]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3379,7 +3743,7 @@ func (x *ReadinessConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadinessConfig.ProtoReflect.Descriptor instead.
 func (*ReadinessConfig) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{45}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ReadinessConfig) GetDeclaredFloor() string {
@@ -3452,7 +3816,7 @@ type ReadinessTriageRow struct {
 
 func (x *ReadinessTriageRow) Reset() {
 	*x = ReadinessTriageRow{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[46]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3464,7 +3828,7 @@ func (x *ReadinessTriageRow) String() string {
 func (*ReadinessTriageRow) ProtoMessage() {}
 
 func (x *ReadinessTriageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[46]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3477,7 +3841,7 @@ func (x *ReadinessTriageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadinessTriageRow.ProtoReflect.Descriptor instead.
 func (*ReadinessTriageRow) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{46}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ReadinessTriageRow) GetGate() string {
@@ -3531,7 +3895,7 @@ type GetReadinessRequest struct {
 
 func (x *GetReadinessRequest) Reset() {
 	*x = GetReadinessRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[47]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3543,7 +3907,7 @@ func (x *GetReadinessRequest) String() string {
 func (*GetReadinessRequest) ProtoMessage() {}
 
 func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[47]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3556,7 +3920,7 @@ func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadinessRequest.ProtoReflect.Descriptor instead.
 func (*GetReadinessRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{47}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetReadinessRequest) GetFloor() string {
@@ -3581,7 +3945,7 @@ type GetReadinessResponse struct {
 
 func (x *GetReadinessResponse) Reset() {
 	*x = GetReadinessResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[48]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3593,7 +3957,7 @@ func (x *GetReadinessResponse) String() string {
 func (*GetReadinessResponse) ProtoMessage() {}
 
 func (x *GetReadinessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[48]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3606,7 +3970,7 @@ func (x *GetReadinessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadinessResponse.ProtoReflect.Descriptor instead.
 func (*GetReadinessResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{48}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *GetReadinessResponse) GetCoverage() *CoverageReport {
@@ -3670,7 +4034,7 @@ type KindMismatch struct {
 
 func (x *KindMismatch) Reset() {
 	*x = KindMismatch{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[49]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3682,7 +4046,7 @@ func (x *KindMismatch) String() string {
 func (*KindMismatch) ProtoMessage() {}
 
 func (x *KindMismatch) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[49]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3695,7 +4059,7 @@ func (x *KindMismatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KindMismatch.ProtoReflect.Descriptor instead.
 func (*KindMismatch) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{49}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *KindMismatch) GetAssetId() string {
@@ -3740,7 +4104,7 @@ type CaptureEvidenceRequest struct {
 
 func (x *CaptureEvidenceRequest) Reset() {
 	*x = CaptureEvidenceRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[50]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3752,7 +4116,7 @@ func (x *CaptureEvidenceRequest) String() string {
 func (*CaptureEvidenceRequest) ProtoMessage() {}
 
 func (x *CaptureEvidenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[50]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3765,7 +4129,7 @@ func (x *CaptureEvidenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureEvidenceRequest.ProtoReflect.Descriptor instead.
 func (*CaptureEvidenceRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{50}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *CaptureEvidenceRequest) GetAssetId() string {
@@ -3818,7 +4182,7 @@ type CaptureEvidenceResponse struct {
 
 func (x *CaptureEvidenceResponse) Reset() {
 	*x = CaptureEvidenceResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[51]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3830,7 +4194,7 @@ func (x *CaptureEvidenceResponse) String() string {
 func (*CaptureEvidenceResponse) ProtoMessage() {}
 
 func (x *CaptureEvidenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[51]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3843,7 +4207,7 @@ func (x *CaptureEvidenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureEvidenceResponse.ProtoReflect.Descriptor instead.
 func (*CaptureEvidenceResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{51}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *CaptureEvidenceResponse) GetAssetId() string {
@@ -4099,7 +4463,7 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12)\n" +
 	"\x10calibration_only\x18\x03 \x01(\bR\x0fcalibrationOnly\x12\x19\n" +
 	"\basset_id\x18\x04 \x01(\tR\aassetId\x12)\n" +
-	"\x10include_advisory\x18\x05 \x01(\bR\x0fincludeAdvisory\"\xa2\x02\n" +
+	"\x10include_advisory\x18\x05 \x01(\bR\x0fincludeAdvisory\"\xc4\x04\n" +
 	"\vGateFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
@@ -4112,7 +4476,15 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\vrule_source\x18\t \x01(\tR\n" +
 	"ruleSource\x12(\n" +
 	"\x10rule_declared_in\x18\n" +
-	" \x01(\tR\x0eruleDeclaredIn\"\xb1\b\n" +
+	" \x01(\tR\x0eruleDeclaredIn\x12\x1d\n" +
+	"\n" +
+	"catalog_id\x18\v \x01(\tR\tcatalogId\x12\x1d\n" +
+	"\n" +
+	"library_id\x18\f \x01(\tR\tlibraryId\x12M\n" +
+	"\x05scope\x18\r \x01(\x0e27.vrooli.react_component_library.v1.catalog.FindingScopeR\x05scope\x12\x1a\n" +
+	"\bblocking\x18\x0e \x01(\bR\bblocking\x12\x14\n" +
+	"\x05owner\x18\x0f \x01(\tR\x05owner\x12a\n" +
+	"\x0eseverity_class\x18\x10 \x01(\x0e2:.vrooli.react_component_library.v1.catalog.FindingSeverityR\rseverityClass\"\xb1\b\n" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
 	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +
@@ -4132,7 +4504,23 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aD\n" +
 	"\x16CompositionScoresEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"F\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"o\n" +
+	"\x0fAssetCheckStage\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\aseconds\x18\x03 \x01(\x01R\aseconds\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"e\n" +
+	"\x11CheckAssetRequest\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1b\n" +
+	"\trun_tests\x18\x03 \x01(\bR\brunTests\"\xc4\x02\n" +
+	"\x12CheckAssetResponse\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x18\n" +
+	"\averdict\x18\x02 \x01(\tR\averdict\x12R\n" +
+	"\x06stages\x18\x03 \x03(\v2:.vrooli.react_component_library.v1.catalog.AssetCheckStageR\x06stages\x12R\n" +
+	"\bfindings\x18\x04 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12(\n" +
+	"\x10reused_report_id\x18\x05 \x01(\tR\x0ereusedReportId\x12'\n" +
+	"\x0fsource_revision\x18\x06 \x01(\tR\x0esourceRevision\"F\n" +
 	"\x11CompositionEscape\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xdb\x01\n" +
@@ -4246,11 +4634,22 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x17missing_contract_assets\x18\x05 \x03(\tR\x15missingContractAssets\x12\x1f\n" +
 	"\vnext_offset\x18\x06 \x01(\x05R\n" +
 	"nextOffset\x12\x1a\n" +
-	"\bcomplete\x18\a \x01(\bR\bcomplete2\xb3\r\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete*`\n" +
+	"\fFindingScope\x12\x1d\n" +
+	"\x19FINDING_SCOPE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13FINDING_SCOPE_ASSET\x10\x01\x12\x18\n" +
+	"\x14FINDING_SCOPE_CORPUS\x10\x02*\x8b\x01\n" +
+	"\x0fFindingSeverity\x12 \n" +
+	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19FINDING_SEVERITY_BLOCKING\x10\x01\x12\x1c\n" +
+	"\x18FINDING_SEVERITY_WARNING\x10\x02\x12\x19\n" +
+	"\x15FINDING_SEVERITY_INFO\x10\x032\xbf\x0e\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +
-	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\xaa\x01\n" +
+	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\x89\x01\n" +
+	"\n" +
+	"CheckAsset\x12<.vrooli.react_component_library.v1.catalog.CheckAssetRequest\x1a=.vrooli.react_component_library.v1.catalog.CheckAssetResponse\x12\xaa\x01\n" +
 	"\x15GetAssetRelationships\x12G.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest\x1aH.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse\x12\xa4\x01\n" +
 	"\x13GetCatalogStructure\x12E.vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest\x1aF.vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse\x12\x95\x01\n" +
 	"\x0eReconcileGraph\x12@.vrooli.react_component_library.v1.catalog.ReconcileGraphRequest\x1aA.vrooli.react_component_library.v1.catalog.ReconcileGraphResponse\x12\xa7\x01\n" +
@@ -4272,156 +4671,168 @@ func file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP() []byte 
 	return file_react_component_library_v1_catalog_catalog_proto_rawDescData
 }
 
-var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_react_component_library_v1_catalog_catalog_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
 var file_react_component_library_v1_catalog_catalog_proto_goTypes = []any{
-	(*AssetNode)(nil),                     // 0: vrooli.react_component_library.v1.catalog.AssetNode
-	(*RungBand)(nil),                      // 1: vrooli.react_component_library.v1.catalog.RungBand
-	(*AssetRelationships)(nil),            // 2: vrooli.react_component_library.v1.catalog.AssetRelationships
-	(*GetAssetRelationshipsRequest)(nil),  // 3: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
-	(*GetAssetRelationshipsResponse)(nil), // 4: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
-	(*GetCatalogStructureRequest)(nil),    // 5: vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
-	(*RungPopulation)(nil),                // 6: vrooli.react_component_library.v1.catalog.RungPopulation
-	(*StructureInvariant)(nil),            // 7: vrooli.react_component_library.v1.catalog.StructureInvariant
-	(*BlastRadiusRow)(nil),                // 8: vrooli.react_component_library.v1.catalog.BlastRadiusRow
-	(*CatalogStructure)(nil),              // 9: vrooli.react_component_library.v1.catalog.CatalogStructure
-	(*GetCatalogStructureResponse)(nil),   // 10: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
-	(*ReconcileGraphRequest)(nil),         // 11: vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
-	(*ReconciliationAsset)(nil),           // 12: vrooli.react_component_library.v1.catalog.ReconciliationAsset
-	(*ReconciliationDistribution)(nil),    // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution
-	(*ReconcileGraphResponse)(nil),        // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
-	(*GetAssetPortContractRequest)(nil),   // 15: vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
-	(*UnmetPort)(nil),                     // 16: vrooli.react_component_library.v1.catalog.UnmetPort
-	(*AssetPortContract)(nil),             // 17: vrooli.react_component_library.v1.catalog.AssetPortContract
-	(*GetAssetPortContractResponse)(nil),  // 18: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
-	(*GetCoverageRequest)(nil),            // 19: vrooli.react_component_library.v1.catalog.GetCoverageRequest
-	(*CoverageRow)(nil),                   // 20: vrooli.react_component_library.v1.catalog.CoverageRow
-	(*Rollup)(nil),                        // 21: vrooli.react_component_library.v1.catalog.Rollup
-	(*MaturitySummary)(nil),               // 22: vrooli.react_component_library.v1.catalog.MaturitySummary
-	(*ScoreBreakdown)(nil),                // 23: vrooli.react_component_library.v1.catalog.ScoreBreakdown
-	(*CorpusStatus)(nil),                  // 24: vrooli.react_component_library.v1.catalog.CorpusStatus
-	(*CoverageMetric)(nil),                // 25: vrooli.react_component_library.v1.catalog.CoverageMetric
-	(*DeclaredCapabilityCoverage)(nil),    // 26: vrooli.react_component_library.v1.catalog.DeclaredCapabilityCoverage
-	(*CoverageReport)(nil),                // 27: vrooli.react_component_library.v1.catalog.CoverageReport
-	(*GetCoverageResponse)(nil),           // 28: vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	(*ListNextWorkRequest)(nil),           // 29: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	(*ListNextWorkResponse)(nil),          // 30: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	(*RunGateRequest)(nil),                // 31: vrooli.react_component_library.v1.catalog.RunGateRequest
-	(*GateFinding)(nil),                   // 32: vrooli.react_component_library.v1.catalog.GateFinding
-	(*RunGateResponse)(nil),               // 33: vrooli.react_component_library.v1.catalog.RunGateResponse
-	(*CompositionEscape)(nil),             // 34: vrooli.react_component_library.v1.catalog.CompositionEscape
-	(*CalibrationResult)(nil),             // 35: vrooli.react_component_library.v1.catalog.CalibrationResult
-	(*ScoreHistoryPoint)(nil),             // 36: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
-	(*ScoreHistoryEvent)(nil),             // 37: vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
-	(*GetScoreHistoryRequest)(nil),        // 38: vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
-	(*GetScoreHistoryResponse)(nil),       // 39: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
-	(*HealthNode)(nil),                    // 40: vrooli.react_component_library.v1.catalog.HealthNode
-	(*HealthEdge)(nil),                    // 41: vrooli.react_component_library.v1.catalog.HealthEdge
-	(*GetHealthOverviewRequest)(nil),      // 42: vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
-	(*GetHealthOverviewResponse)(nil),     // 43: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
-	(*ReadinessRun)(nil),                  // 44: vrooli.react_component_library.v1.catalog.ReadinessRun
-	(*ReadinessConfig)(nil),               // 45: vrooli.react_component_library.v1.catalog.ReadinessConfig
-	(*ReadinessTriageRow)(nil),            // 46: vrooli.react_component_library.v1.catalog.ReadinessTriageRow
-	(*GetReadinessRequest)(nil),           // 47: vrooli.react_component_library.v1.catalog.GetReadinessRequest
-	(*GetReadinessResponse)(nil),          // 48: vrooli.react_component_library.v1.catalog.GetReadinessResponse
-	(*KindMismatch)(nil),                  // 49: vrooli.react_component_library.v1.catalog.KindMismatch
-	(*CaptureEvidenceRequest)(nil),        // 50: vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
-	(*CaptureEvidenceResponse)(nil),       // 51: vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
-	nil,                                   // 52: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
-	nil,                                   // 53: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	nil,                                   // 54: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
-	nil,                                   // 55: vrooli.react_component_library.v1.catalog.CoverageReport.CompositionScoresEntry
-	nil,                                   // 56: vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
-	nil,                                   // 57: vrooli.react_component_library.v1.catalog.RunGateResponse.CompositionScoresEntry
+	(FindingScope)(0),                     // 0: vrooli.react_component_library.v1.catalog.FindingScope
+	(FindingSeverity)(0),                  // 1: vrooli.react_component_library.v1.catalog.FindingSeverity
+	(*AssetNode)(nil),                     // 2: vrooli.react_component_library.v1.catalog.AssetNode
+	(*RungBand)(nil),                      // 3: vrooli.react_component_library.v1.catalog.RungBand
+	(*AssetRelationships)(nil),            // 4: vrooli.react_component_library.v1.catalog.AssetRelationships
+	(*GetAssetRelationshipsRequest)(nil),  // 5: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	(*GetAssetRelationshipsResponse)(nil), // 6: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	(*GetCatalogStructureRequest)(nil),    // 7: vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	(*RungPopulation)(nil),                // 8: vrooli.react_component_library.v1.catalog.RungPopulation
+	(*StructureInvariant)(nil),            // 9: vrooli.react_component_library.v1.catalog.StructureInvariant
+	(*BlastRadiusRow)(nil),                // 10: vrooli.react_component_library.v1.catalog.BlastRadiusRow
+	(*CatalogStructure)(nil),              // 11: vrooli.react_component_library.v1.catalog.CatalogStructure
+	(*GetCatalogStructureResponse)(nil),   // 12: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	(*ReconcileGraphRequest)(nil),         // 13: vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	(*ReconciliationAsset)(nil),           // 14: vrooli.react_component_library.v1.catalog.ReconciliationAsset
+	(*ReconciliationDistribution)(nil),    // 15: vrooli.react_component_library.v1.catalog.ReconciliationDistribution
+	(*ReconcileGraphResponse)(nil),        // 16: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	(*GetAssetPortContractRequest)(nil),   // 17: vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	(*UnmetPort)(nil),                     // 18: vrooli.react_component_library.v1.catalog.UnmetPort
+	(*AssetPortContract)(nil),             // 19: vrooli.react_component_library.v1.catalog.AssetPortContract
+	(*GetAssetPortContractResponse)(nil),  // 20: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	(*GetCoverageRequest)(nil),            // 21: vrooli.react_component_library.v1.catalog.GetCoverageRequest
+	(*CoverageRow)(nil),                   // 22: vrooli.react_component_library.v1.catalog.CoverageRow
+	(*Rollup)(nil),                        // 23: vrooli.react_component_library.v1.catalog.Rollup
+	(*MaturitySummary)(nil),               // 24: vrooli.react_component_library.v1.catalog.MaturitySummary
+	(*ScoreBreakdown)(nil),                // 25: vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	(*CorpusStatus)(nil),                  // 26: vrooli.react_component_library.v1.catalog.CorpusStatus
+	(*CoverageMetric)(nil),                // 27: vrooli.react_component_library.v1.catalog.CoverageMetric
+	(*DeclaredCapabilityCoverage)(nil),    // 28: vrooli.react_component_library.v1.catalog.DeclaredCapabilityCoverage
+	(*CoverageReport)(nil),                // 29: vrooli.react_component_library.v1.catalog.CoverageReport
+	(*GetCoverageResponse)(nil),           // 30: vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	(*ListNextWorkRequest)(nil),           // 31: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	(*ListNextWorkResponse)(nil),          // 32: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	(*RunGateRequest)(nil),                // 33: vrooli.react_component_library.v1.catalog.RunGateRequest
+	(*GateFinding)(nil),                   // 34: vrooli.react_component_library.v1.catalog.GateFinding
+	(*RunGateResponse)(nil),               // 35: vrooli.react_component_library.v1.catalog.RunGateResponse
+	(*AssetCheckStage)(nil),               // 36: vrooli.react_component_library.v1.catalog.AssetCheckStage
+	(*CheckAssetRequest)(nil),             // 37: vrooli.react_component_library.v1.catalog.CheckAssetRequest
+	(*CheckAssetResponse)(nil),            // 38: vrooli.react_component_library.v1.catalog.CheckAssetResponse
+	(*CompositionEscape)(nil),             // 39: vrooli.react_component_library.v1.catalog.CompositionEscape
+	(*CalibrationResult)(nil),             // 40: vrooli.react_component_library.v1.catalog.CalibrationResult
+	(*ScoreHistoryPoint)(nil),             // 41: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	(*ScoreHistoryEvent)(nil),             // 42: vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
+	(*GetScoreHistoryRequest)(nil),        // 43: vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
+	(*GetScoreHistoryResponse)(nil),       // 44: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
+	(*HealthNode)(nil),                    // 45: vrooli.react_component_library.v1.catalog.HealthNode
+	(*HealthEdge)(nil),                    // 46: vrooli.react_component_library.v1.catalog.HealthEdge
+	(*GetHealthOverviewRequest)(nil),      // 47: vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
+	(*GetHealthOverviewResponse)(nil),     // 48: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
+	(*ReadinessRun)(nil),                  // 49: vrooli.react_component_library.v1.catalog.ReadinessRun
+	(*ReadinessConfig)(nil),               // 50: vrooli.react_component_library.v1.catalog.ReadinessConfig
+	(*ReadinessTriageRow)(nil),            // 51: vrooli.react_component_library.v1.catalog.ReadinessTriageRow
+	(*GetReadinessRequest)(nil),           // 52: vrooli.react_component_library.v1.catalog.GetReadinessRequest
+	(*GetReadinessResponse)(nil),          // 53: vrooli.react_component_library.v1.catalog.GetReadinessResponse
+	(*KindMismatch)(nil),                  // 54: vrooli.react_component_library.v1.catalog.KindMismatch
+	(*CaptureEvidenceRequest)(nil),        // 55: vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
+	(*CaptureEvidenceResponse)(nil),       // 56: vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
+	nil,                                   // 57: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	nil,                                   // 58: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	nil,                                   // 59: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	nil,                                   // 60: vrooli.react_component_library.v1.catalog.CoverageReport.CompositionScoresEntry
+	nil,                                   // 61: vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
+	nil,                                   // 62: vrooli.react_component_library.v1.catalog.RunGateResponse.CompositionScoresEntry
 }
 var file_react_component_library_v1_catalog_catalog_proto_depIdxs = []int32{
-	0,  // 0: vrooli.react_component_library.v1.catalog.RungBand.assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	0,  // 1: vrooli.react_component_library.v1.catalog.AssetRelationships.root:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	0,  // 2: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependencies:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	0,  // 3: vrooli.react_component_library.v1.catalog.AssetRelationships.closure:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	1,  // 4: vrooli.react_component_library.v1.catalog.AssetRelationships.closure_bands:type_name -> vrooli.react_component_library.v1.catalog.RungBand
-	0,  // 5: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	0,  // 6: vrooli.react_component_library.v1.catalog.AssetRelationships.transitive_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	2,  // 7: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse.relationships:type_name -> vrooli.react_component_library.v1.catalog.AssetRelationships
-	0,  // 8: vrooli.react_component_library.v1.catalog.BlastRadiusRow.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	6,  // 9: vrooli.react_component_library.v1.catalog.CatalogStructure.population:type_name -> vrooli.react_component_library.v1.catalog.RungPopulation
-	7,  // 10: vrooli.react_component_library.v1.catalog.CatalogStructure.invariants:type_name -> vrooli.react_component_library.v1.catalog.StructureInvariant
-	8,  // 11: vrooli.react_component_library.v1.catalog.CatalogStructure.blast_radius:type_name -> vrooli.react_component_library.v1.catalog.BlastRadiusRow
-	9,  // 12: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse.structure:type_name -> vrooli.react_component_library.v1.catalog.CatalogStructure
-	52, // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.counts:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
-	12, // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.assets:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationAsset
-	13, // 15: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.distribution:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution
-	0,  // 16: vrooli.react_component_library.v1.catalog.UnmetPort.demanding_assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	0,  // 17: vrooli.react_component_library.v1.catalog.UnmetPort.candidate_satisfiers:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	16, // 18: vrooli.react_component_library.v1.catalog.AssetPortContract.unmet_ports:type_name -> vrooli.react_component_library.v1.catalog.UnmetPort
-	17, // 19: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse.contract:type_name -> vrooli.react_component_library.v1.catalog.AssetPortContract
-	53, // 20: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	25, // 21: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	25, // 22: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	25, // 23: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	25, // 24: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	23, // 25: vrooli.react_component_library.v1.catalog.MaturitySummary.by_gate:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
-	23, // 26: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung_score:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
-	24, // 27: vrooli.react_component_library.v1.catalog.MaturitySummary.corpus:type_name -> vrooli.react_component_library.v1.catalog.CorpusStatus
-	20, // 28: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	54, // 29: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
-	21, // 30: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	21, // 31: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	22, // 32: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	55, // 33: vrooli.react_component_library.v1.catalog.CoverageReport.composition_scores:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.CompositionScoresEntry
-	26, // 34: vrooli.react_component_library.v1.catalog.CoverageReport.capability_coverage:type_name -> vrooli.react_component_library.v1.catalog.DeclaredCapabilityCoverage
-	27, // 35: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
-	20, // 36: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	22, // 37: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	20, // 38: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	20, // 39: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.build:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	32, // 40: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
-	32, // 41: vrooli.react_component_library.v1.catalog.RunGateResponse.runner_errors:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
-	35, // 42: vrooli.react_component_library.v1.catalog.RunGateResponse.calibration:type_name -> vrooli.react_component_library.v1.catalog.CalibrationResult
-	56, // 43: vrooli.react_component_library.v1.catalog.RunGateResponse.surface_verdict_counts:type_name -> vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
-	57, // 44: vrooli.react_component_library.v1.catalog.RunGateResponse.composition_scores:type_name -> vrooli.react_component_library.v1.catalog.RunGateResponse.CompositionScoresEntry
-	34, // 45: vrooli.react_component_library.v1.catalog.RunGateResponse.composition_escapes:type_name -> vrooli.react_component_library.v1.catalog.CompositionEscape
-	37, // 46: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint.events:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
-	36, // 47: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse.points:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
-	0,  // 48: vrooli.react_component_library.v1.catalog.HealthNode.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
-	27, // 49: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
-	36, // 50: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.history:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
-	40, // 51: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.nodes:type_name -> vrooli.react_component_library.v1.catalog.HealthNode
-	41, // 52: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.edges:type_name -> vrooli.react_component_library.v1.catalog.HealthEdge
-	20, // 53: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	49, // 54: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.kind_mismatches:type_name -> vrooli.react_component_library.v1.catalog.KindMismatch
-	44, // 55: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.run:type_name -> vrooli.react_component_library.v1.catalog.ReadinessRun
-	45, // 56: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.config:type_name -> vrooli.react_component_library.v1.catalog.ReadinessConfig
-	27, // 57: vrooli.react_component_library.v1.catalog.GetReadinessResponse.coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
-	44, // 58: vrooli.react_component_library.v1.catalog.GetReadinessResponse.run:type_name -> vrooli.react_component_library.v1.catalog.ReadinessRun
-	45, // 59: vrooli.react_component_library.v1.catalog.GetReadinessResponse.config:type_name -> vrooli.react_component_library.v1.catalog.ReadinessConfig
-	46, // 60: vrooli.react_component_library.v1.catalog.GetReadinessResponse.triage:type_name -> vrooli.react_component_library.v1.catalog.ReadinessTriageRow
-	19, // 61: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
-	29, // 62: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	31, // 63: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
-	3,  // 64: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
-	5,  // 65: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
-	11, // 66: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
-	15, // 67: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
-	38, // 68: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:input_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
-	42, // 69: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:input_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
-	47, // 70: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:input_type -> vrooli.react_component_library.v1.catalog.GetReadinessRequest
-	50, // 71: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:input_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
-	28, // 72: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	30, // 73: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	33, // 74: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
-	4,  // 75: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
-	10, // 76: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
-	14, // 77: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
-	18, // 78: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
-	39, // 79: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:output_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
-	43, // 80: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:output_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
-	48, // 81: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:output_type -> vrooli.react_component_library.v1.catalog.GetReadinessResponse
-	51, // 82: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:output_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
-	72, // [72:83] is the sub-list for method output_type
-	61, // [61:72] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	2,  // 0: vrooli.react_component_library.v1.catalog.RungBand.assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 1: vrooli.react_component_library.v1.catalog.AssetRelationships.root:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 2: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependencies:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 3: vrooli.react_component_library.v1.catalog.AssetRelationships.closure:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	3,  // 4: vrooli.react_component_library.v1.catalog.AssetRelationships.closure_bands:type_name -> vrooli.react_component_library.v1.catalog.RungBand
+	2,  // 5: vrooli.react_component_library.v1.catalog.AssetRelationships.direct_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 6: vrooli.react_component_library.v1.catalog.AssetRelationships.transitive_dependents:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	4,  // 7: vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse.relationships:type_name -> vrooli.react_component_library.v1.catalog.AssetRelationships
+	2,  // 8: vrooli.react_component_library.v1.catalog.BlastRadiusRow.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	8,  // 9: vrooli.react_component_library.v1.catalog.CatalogStructure.population:type_name -> vrooli.react_component_library.v1.catalog.RungPopulation
+	9,  // 10: vrooli.react_component_library.v1.catalog.CatalogStructure.invariants:type_name -> vrooli.react_component_library.v1.catalog.StructureInvariant
+	10, // 11: vrooli.react_component_library.v1.catalog.CatalogStructure.blast_radius:type_name -> vrooli.react_component_library.v1.catalog.BlastRadiusRow
+	11, // 12: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse.structure:type_name -> vrooli.react_component_library.v1.catalog.CatalogStructure
+	57, // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.counts:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	14, // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.assets:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationAsset
+	15, // 15: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.distribution:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution
+	2,  // 16: vrooli.react_component_library.v1.catalog.UnmetPort.demanding_assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	2,  // 17: vrooli.react_component_library.v1.catalog.UnmetPort.candidate_satisfiers:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	18, // 18: vrooli.react_component_library.v1.catalog.AssetPortContract.unmet_ports:type_name -> vrooli.react_component_library.v1.catalog.UnmetPort
+	19, // 19: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse.contract:type_name -> vrooli.react_component_library.v1.catalog.AssetPortContract
+	58, // 20: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	27, // 21: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	27, // 22: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	27, // 23: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	27, // 24: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	25, // 25: vrooli.react_component_library.v1.catalog.MaturitySummary.by_gate:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	25, // 26: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung_score:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	26, // 27: vrooli.react_component_library.v1.catalog.MaturitySummary.corpus:type_name -> vrooli.react_component_library.v1.catalog.CorpusStatus
+	22, // 28: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	59, // 29: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	23, // 30: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	23, // 31: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	24, // 32: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	60, // 33: vrooli.react_component_library.v1.catalog.CoverageReport.composition_scores:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.CompositionScoresEntry
+	28, // 34: vrooli.react_component_library.v1.catalog.CoverageReport.capability_coverage:type_name -> vrooli.react_component_library.v1.catalog.DeclaredCapabilityCoverage
+	29, // 35: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	22, // 36: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	24, // 37: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	22, // 38: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	22, // 39: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.build:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	0,  // 40: vrooli.react_component_library.v1.catalog.GateFinding.scope:type_name -> vrooli.react_component_library.v1.catalog.FindingScope
+	1,  // 41: vrooli.react_component_library.v1.catalog.GateFinding.severity_class:type_name -> vrooli.react_component_library.v1.catalog.FindingSeverity
+	34, // 42: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	34, // 43: vrooli.react_component_library.v1.catalog.RunGateResponse.runner_errors:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	40, // 44: vrooli.react_component_library.v1.catalog.RunGateResponse.calibration:type_name -> vrooli.react_component_library.v1.catalog.CalibrationResult
+	61, // 45: vrooli.react_component_library.v1.catalog.RunGateResponse.surface_verdict_counts:type_name -> vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
+	62, // 46: vrooli.react_component_library.v1.catalog.RunGateResponse.composition_scores:type_name -> vrooli.react_component_library.v1.catalog.RunGateResponse.CompositionScoresEntry
+	39, // 47: vrooli.react_component_library.v1.catalog.RunGateResponse.composition_escapes:type_name -> vrooli.react_component_library.v1.catalog.CompositionEscape
+	36, // 48: vrooli.react_component_library.v1.catalog.CheckAssetResponse.stages:type_name -> vrooli.react_component_library.v1.catalog.AssetCheckStage
+	34, // 49: vrooli.react_component_library.v1.catalog.CheckAssetResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	42, // 50: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint.events:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
+	41, // 51: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse.points:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	2,  // 52: vrooli.react_component_library.v1.catalog.HealthNode.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	29, // 53: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	41, // 54: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.history:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	45, // 55: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.nodes:type_name -> vrooli.react_component_library.v1.catalog.HealthNode
+	46, // 56: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.edges:type_name -> vrooli.react_component_library.v1.catalog.HealthEdge
+	22, // 57: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	54, // 58: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.kind_mismatches:type_name -> vrooli.react_component_library.v1.catalog.KindMismatch
+	49, // 59: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.run:type_name -> vrooli.react_component_library.v1.catalog.ReadinessRun
+	50, // 60: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.config:type_name -> vrooli.react_component_library.v1.catalog.ReadinessConfig
+	29, // 61: vrooli.react_component_library.v1.catalog.GetReadinessResponse.coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	49, // 62: vrooli.react_component_library.v1.catalog.GetReadinessResponse.run:type_name -> vrooli.react_component_library.v1.catalog.ReadinessRun
+	50, // 63: vrooli.react_component_library.v1.catalog.GetReadinessResponse.config:type_name -> vrooli.react_component_library.v1.catalog.ReadinessConfig
+	51, // 64: vrooli.react_component_library.v1.catalog.GetReadinessResponse.triage:type_name -> vrooli.react_component_library.v1.catalog.ReadinessTriageRow
+	21, // 65: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
+	31, // 66: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	33, // 67: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
+	37, // 68: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:input_type -> vrooli.react_component_library.v1.catalog.CheckAssetRequest
+	5,  // 69: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	7,  // 70: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	13, // 71: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	17, // 72: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	43, // 73: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:input_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
+	47, // 74: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:input_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
+	52, // 75: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:input_type -> vrooli.react_component_library.v1.catalog.GetReadinessRequest
+	55, // 76: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:input_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
+	30, // 77: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	32, // 78: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	35, // 79: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
+	38, // 80: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:output_type -> vrooli.react_component_library.v1.catalog.CheckAssetResponse
+	6,  // 81: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	12, // 82: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	16, // 83: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	20, // 84: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	44, // 85: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:output_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
+	48, // 86: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:output_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
+	53, // 87: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:output_type -> vrooli.react_component_library.v1.catalog.GetReadinessResponse
+	56, // 88: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:output_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
+	77, // [77:89] is the sub-list for method output_type
+	65, // [65:77] is the sub-list for method input_type
+	65, // [65:65] is the sub-list for extension type_name
+	65, // [65:65] is the sub-list for extension extendee
+	0,  // [0:65] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_catalog_catalog_proto_init() }
@@ -4434,13 +4845,14 @@ func file_react_component_library_v1_catalog_catalog_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_catalog_catalog_proto_rawDesc), len(file_react_component_library_v1_catalog_catalog_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   58,
+			NumEnums:      2,
+			NumMessages:   61,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_react_component_library_v1_catalog_catalog_proto_goTypes,
 		DependencyIndexes: file_react_component_library_v1_catalog_catalog_proto_depIdxs,
+		EnumInfos:         file_react_component_library_v1_catalog_catalog_proto_enumTypes,
 		MessageInfos:      file_react_component_library_v1_catalog_catalog_proto_msgTypes,
 	}.Build()
 	File_react_component_library_v1_catalog_catalog_proto = out.File

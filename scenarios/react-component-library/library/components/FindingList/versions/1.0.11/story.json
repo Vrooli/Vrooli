@@ -23,9 +23,9 @@
       },
       "composition": {
         "harness": {
-          "asset": "preview.direct",
+          "asset": "preview.showcase",
           "version": "1.0.0",
-          "export": "Direct"
+          "export": "Showcase"
         }
       },
       "expect": [
@@ -45,9 +45,9 @@
       },
       "composition": {
         "harness": {
-          "asset": "preview.direct",
+          "asset": "preview.showcase",
           "version": "1.0.0",
-          "export": "Direct"
+          "export": "Showcase"
         }
       },
       "expect": [

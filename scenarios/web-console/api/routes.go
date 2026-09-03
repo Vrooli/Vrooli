@@ -59,6 +59,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
 	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/integrations/connections", s.connectionsHandler).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/commercial-context", s.commercialContextHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
 	sessionsH.Module(&sessionsH.Adapter{
 		Manager:             s.sessions,

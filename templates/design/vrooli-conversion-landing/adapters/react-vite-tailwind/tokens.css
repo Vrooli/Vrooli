@@ -1,4 +1,7 @@
 :root {
+  --text-heading-sm: 600 16px / 22px var(--font-sans);
+  --text-heading-sm-size: 16px;
+  --text-heading-sm-line: 22px;
   /* @tier Expression */
   --color-background: #07090f;
   /* @tier Expression */

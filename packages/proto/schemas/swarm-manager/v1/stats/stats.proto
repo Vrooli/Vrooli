@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.stats;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats;stats_v1";
+
+// StatsService exposes the producer-owned aggregate portfolio projection used
+// by operational consumers. The richer legacy /api/v1/stats JSON surface stays
+// available for backward compatibility; this contract contains only stable
+// Command Center feature fields and their source observation time.
+service StatsService {
+  rpc GetPortfolioStats(GetPortfolioStatsRequest) returns (PortfolioStats);
+}
+
+message GetPortfolioStatsRequest {}
+
+message PortfolioStats {
+  // Time at which the producer refreshed this aggregate projection.
+  google.protobuf.Timestamp observed_at = 1;
+  int64 swarm_throughput = 2;
+  int64 throughput_stats = 3;
+  int64 swarm_active_agents = 4;
+  double agent_stats = 5;
+  double timing_stats = 6;
+  int64 blocking_stats = 7;
+  int64 dashboard_stats = 8;
+  int64 composite_throughput = 9;
+  int64 review_stats = 10;
+  int64 scope_stats = 11;
+}

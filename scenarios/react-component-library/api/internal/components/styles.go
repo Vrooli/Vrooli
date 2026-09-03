@@ -88,5 +88,25 @@ func defaultDesignRoot() (string, error) {
 	if !ok {
 		return "", fmt.Errorf("resolve design root: runtime caller unavailable")
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "templates", "design")), nil
+	candidates := []string{
+		filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "templates", "design"),
+		filepath.Join("..", "..", "templates", "design"),
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(cwd, "templates", "design"),
+			filepath.Join(cwd, "..", "..", "templates", "design"),
+			filepath.Join(cwd, "..", "..", "..", "templates", "design"),
+		)
+	}
+	for _, candidate := range candidates {
+		candidate = filepath.Clean(candidate)
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			absolute, err := filepath.Abs(candidate)
+			if err == nil {
+				return absolute, nil
+			}
+		}
+	}
+	return filepath.Abs(filepath.Clean(candidates[0]))
 }

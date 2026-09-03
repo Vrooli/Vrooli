@@ -24,12 +24,32 @@ service CleanupService {
   // failure. Duplicate concurrent reports of the same event are expected and
   // are collapsed into one execution.
   rpc ReportPressure(ReportPressureRequest) returns (ReportPressureResponse);
+
+  // Recovery runs are server-owned: callers receive an id immediately and
+  // wait or inspect status through the typed ledger.
+  rpc StartRecovery(RecoveryRunRequest) returns (RecoveryRunResponse);
+  rpc WaitRecovery(RecoveryWaitRequest) returns (RecoveryRunResponse);
+  rpc ListRecovery(RecoveryHistoryRequest) returns (RecoveryHistoryResponse);
 }
 
 message ListProvidersRequest {}
 
 message ListProvidersResponse {
   repeated Provider providers = 1;
+}
+
+// SafetyTier is the authority boundary used by autonomous recovery. A
+// regenerable provider must be derived, recreated by its tool, contained to
+// its exact root, and free of live leases. Provider.safety_tier remains a
+// string for wire compatibility with older clients; this enum is the
+// canonical vocabulary for new clients.
+enum SafetyTier {
+  SAFETY_TIER_UNSPECIFIED = 0;
+  SAFETY_TIER_SAFE = 1;
+  SAFETY_TIER_REGENERABLE = 5;
+  SAFETY_TIER_SAFE_WITH_OWNER = 2;
+  SAFETY_TIER_CONDITIONAL = 3;
+  SAFETY_TIER_FORBIDDEN = 4;
 }
 
 message Provider {
@@ -162,12 +182,27 @@ message AuditEvent {
 // because critical is the band that permits deletion with no operator present.
 enum PressureBand {
   PRESSURE_BAND_UNSPECIFIED = 0;
-  // Record the observation. No remediation.
+  // Record the observation and file a growth signal. No autonomous recovery.
   PRESSURE_BAND_WARNING = 1;
-  // Run estimate and preview. Persist the result. Delete nothing.
+  // Start a recovery run through the autonomous ladder.
   PRESSURE_BAND_HIGH = 2;
-  // Apply safe-tier providers with no operator present.
+  // Start a recovery run through the autonomous ladder at critical pressure.
   PRESSURE_BAND_CRITICAL = 3;
+}
+
+message HotWriter {
+  string root = 1;
+  int64 bytes_per_hour = 2;
+  int64 window_seconds = 3;
+  int64 current_bytes = 4;
+}
+
+enum PressureTrigger {
+  PRESSURE_TRIGGER_UNSPECIFIED = 0;
+  PRESSURE_TRIGGER_BAND = 1;
+  PRESSURE_TRIGGER_FLOOR = 2;
+  PRESSURE_TRIGGER_RATE = 3;
+  PRESSURE_TRIGGER_MANUAL = 4;
 }
 
 message ReportPressureRequest {
@@ -180,6 +215,9 @@ message ReportPressureRequest {
   PressureBand band = 4;
   // Bytes still available to an unprivileged writer, for the audit record.
   int64 available_bytes = 5;
+  int64 fill_rate_bytes_per_hour = 6;
+  repeated HotWriter hot_writers = 7;
+  PressureTrigger trigger = 8;
 }
 
 // PressureAction is what storage-manager actually did about the report.
@@ -216,4 +254,43 @@ message ReportPressureResponse {
   bool autonomous_apply_enabled = 9;
   // Scenario QA bug reference filed for a warning-band unbounded owner, when present.
   string bug_reference = 10;
+  string run_id = 11;
+}
+
+message RecoveryRunRequest {
+  PressureTrigger trigger = 1;
+  string partition = 2;
+  double used_percent = 3;
+  int64 available_bytes = 4;
+  bool dry_run = 5;
+  // Requested free-space percentage. Zero keeps the server default.
+  double target_free_percent = 6;
+}
+
+message RecoveryWaitRequest {
+  string run_id = 1;
+}
+
+message RecoveryHistoryRequest {
+  int32 limit = 1;
+}
+
+message RecoveryRunResponse {
+  string run_id = 1;
+  string status = 2;
+  string trigger = 3;
+  string partition = 4;
+  string action = 5;
+  int64 estimated_bytes = 6;
+  int64 reclaimed_bytes = 7;
+  string plan_id = 8;
+  string reason = 9;
+	google.protobuf.Timestamp started_at = 10;
+	google.protobuf.Timestamp completed_at = 11;
+	int64 target_free_bytes = 12;
+	string stopped_because = 13;
+}
+
+message RecoveryHistoryResponse {
+  repeated RecoveryRunResponse runs = 1;
 }

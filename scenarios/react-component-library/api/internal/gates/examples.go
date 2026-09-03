@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 )
 
@@ -12,12 +13,15 @@ func ValidateExamples(scope Scope) (Result, error) {
 	root := scope.Root
 	result := Result{}
 	for _, kind := range []string{"components", "primitives"} {
-		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}
 		sort.Strings(manifests)
 		for _, manifestPath := range manifests {
+			if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(manifestPath)) {
+				continue
+			}
 			data, err := os.ReadFile(manifestPath)
 			if err != nil {
 				return Result{}, err

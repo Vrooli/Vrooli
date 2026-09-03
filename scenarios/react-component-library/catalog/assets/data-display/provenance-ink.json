@@ -27,7 +27,7 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "foundations.style-sheet",
+        "asset": "foundations.base-styles",
         "reason": "Ink rules are injected once and keyed on data attributes."
       },
       {

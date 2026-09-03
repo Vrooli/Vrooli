@@ -25,7 +25,7 @@ Readiness  → Is that claimed support implemented and evidenced today?
 An archetype provides a feasible envelope, not an unconditional promise. For
 example, `cloud-api` is normally a good desktop fit, but a provider may still
 need network access, credentials, or a region-specific entitlement. A
-`docker-service` may be usable on Windows with Docker Desktop, but that is not
+`managed-service` may be usable on Windows with Docker Desktop, but that is not
 the same claim as a native, self-contained Windows service.
 
 ## Terms
@@ -137,11 +137,66 @@ module, writes a sibling manifest and build metadata, and supports freshness
 rebuilds. It is not the deployed-desktop installer. See
 [`packages/cli-core/README.md`](../../packages/cli-core/README.md).
 
+### One acquisition contract
+
+The arrival of a native artifact is separate from the launch artifact. The
+`managed_service.acquisition` block is the source contract: it declares an
+ordered `targets` list, a URL or digest-pinned OCI image, download digest when
+applicable, archive/layout, launch path, and a `when` predicate over host
+facts. The `managed_service.artifact` block remains the launch gate and holds
+the executable checksum or tree digest.
+
+The same contract is consumed by `vrooli resource install`,
+`vrooli-dist --resource-artifacts`, and the desktop bundler. `os` and `arch`
+are build-time facts. GPU and other machine facts are runtime-only and cannot
+be used by a `vendorable` item. This keeps signed releases deterministic while
+allowing host-required resources to resolve a more precise target on the
+machine where they run.
+
+#### Per-target acquisition kind
+
+`acquisition.kind` sets the default source mechanism, and a single target may
+override it with its own `kind`. This exists because one item can have genuinely
+different upstreams per platform. PostgreSQL is the worked example: on Linux it
+stages a digest-pinned OCI filesystem tree, because the official image carries
+the shared libraries the server links against, while on macOS and Windows it
+stages a checksum-pinned upstream archive, because no equivalent image exists
+and the published archives are self-contained. Declaring one acquisition-wide
+kind would force one of those two to be wrong.
+
+Use a per-target `kind` only when the upstreams really differ. A single kind for
+every target remains the normal case and the easier contract to read.
+
+#### Per-target launch and bootstrap differences
+
+Three fields express platform variation without a `runtime.GOOS` branch in the
+driver:
+
+| Field | Replaces | Use when |
+|---|---|---|
+| `acquisition.targets[].bin_path` | `artifact.entry_path` | The staged tree roots the executable differently per target |
+| `managed_service.arguments_by_platform` | `managed_service.arguments` | A launch argument is meaningless or harmful on a platform |
+| `managed_service.bootstrap.executable_by_platform` and `bootstrap.arguments_by_platform` | the matching `bootstrap` fields | The first-run tool or its flags differ per target |
+
+Keys are `os` or `os-arch`; an exact `os-arch` key wins over the bare `os`. Each
+override replaces the declared default entirely rather than merging, so the
+effective value is readable in one place. PostgreSQL on Windows uses two of
+these: `-k` names a Unix-domain socket directory, and Windows PostgreSQL has no
+Unix-domain sockets, while `--auth-local` writes a `pg_hba.conf` `local` line
+that exists only on Unix.
+
+Managed services may also declare `data_artifacts`. These are non-executable,
+checksum-verified inputs such as model files staged below `RESOURCE_DATA_DIR`.
+They use the same fact-predicated acquisition contract and are installed by
+`vrooli resource install` before the service starts, but are never accepted as
+the supervisor's launch artifact. Keeping model delivery explicit prevents a
+native server archive from silently depending on hand-staged model bytes.
+
 ## Pinned Runtime Principle
 
 The Native Artifact Principle pins managed-service binaries by checksum. The
 same determinism requirement applies to the container archetypes: a mature
-`docker-service` or `compose-service` resource references every pulled image
+`managed-service` or `managed-service` resource references every pulled image
 by an immutable reference — a version tag at minimum, a digest preferred.
 
 Floating references (`latest`, `stable`, `latest-*`) are not acceptable in a
@@ -156,10 +211,16 @@ is pinned by the repository's own Dockerfile and base-image pins.
 
 Enforcement:
 
+- the closed resource-driver validator rejects `managed-service` declarations
+  unless an explicit operator override carries both a reason and an ISO review
+  date (`vrooli capability conformance --declarations-only`;
+  `internal/deployability.CheckResourceDeclarations`); this keeps the Docker
+  driver available for control-plane observation while preventing new resource
+  runtime dependencies from silently acquiring a daemon
 - manifest validation rejects floating `runtime.image` references for
-  `docker-service` resources (`internal/resources/manifest`,
+  `managed-service` resources (`internal/resources/manifest`,
   `ValidatePinnedImageRef`)
-- a fleet lint walks `compose-service` compose files and their GPU overlays
+- a fleet lint walks `managed-service` compose files and their GPU overlays
   and rejects floating pulled-image references
   (`internal/resources/manifest/runtime_pinning_realmanifest_test.go`);
   grandfathered debt is listed there explicitly and must shrink, not grow
@@ -192,6 +253,19 @@ section rather than hiding delivery behavior in shell installers.
       "version": "1.0.0",
       "bundle_artifact": "example-service_${os}_${arch}",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "acquisition": {
+      "kind": "url",
+      "targets": [
+        {
+          "when": { "os": "linux", "arch": "amd64" },
+          "url": "https://example.invalid/example-service-linux-amd64.tar.gz",
+          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "archive": "tar.gz",
+          "layout": "file",
+          "bin_path": "example-service"
+        }
+      ]
     },
     "attach_health_path": "/v1/sys/health",
     "arguments": ["serve", "--config", "${VROOLI_RESOURCE_CONFIG_DIR}/service.json"]
@@ -253,10 +327,10 @@ it cannot silently claim more than its runtime can deliver.
 | `native-cli` | `bundled-client` | Must cross-build and package the owned binary. |
 | `managed-service` | `bundled-service` | The resource declares provider authority explicitly; a bundled runtime may only start a Vrooli-owned verified artifact. |
 | `external-cli` | `native-host-tool` or bundled companion | Upstream binary, licensing, and version support determine feasibility. |
-| `docker-service` | `docker-desktop` | Docker Desktop/Engine is a conditional host dependency. |
-| `compose-service` | `docker-desktop` | Same host dependency plus multi-container resource cost. |
-| `desktop-app` | `native-host-tool` | Platform-specific install/discovery and permissions. |
-| `manual-resource` | `manual` | Never claim automatic lifecycle ownership. |
+| `managed-service` | `docker-desktop` | Docker Desktop/Engine is a conditional host dependency. |
+| `managed-service` | `docker-desktop` | Same host dependency plus multi-container resource cost. |
+| `native-cli` | `native-host-tool` | Platform-specific install/discovery and permissions. |
+| `native-cli` | `manual` | Never claim automatic lifecycle ownership. |
 
 `managed-service` is the canonical contract for a Vrooli-owned local process.
 It does not authorize a resource to adopt an arbitrary process or open port:
@@ -403,6 +477,34 @@ Private state and logs reside under the application data root and are visible
 through the authenticated runtime status and log surfaces; the resource does
 not create a launcher entry or adopt a host process.
 
+## Native audio resource contract
+
+The audio stack follows the same managed-service rules, but its native runtime
+artifacts have an additional portability constraint: a server binary that
+loads sibling shared libraries is one artifact tree, not one executable.
+
+- `resources/whisper` supervises the checksum-pinned whisper.cpp server and
+  GGML model. Its platform claim is earned independently for each upstream
+  target; an XCFramework or an upstream archive that has not been smoke-tested
+  as a server is not macOS evidence.
+- `resources/sherpa-onnx` owns the Vrooli HTTP/WebSocket adapter for Kokoro
+  TTS, streaming STT, speaker operations, and source separation. The server
+  bundle contains `server/sherpa-onnx-server` plus the matching sherpa and ONNX
+  Runtime libraries under `lib/`.
+- A sherpa executable bundle must therefore declare `layout: "dir"`, an
+  explicit `entry_path`, and a deterministic tree digest. Its acquisition
+  target must also provide the archive layout and `artifact_sha256`; the
+  upstream sherpa runtime package alone is not the Vrooli adapter and cannot
+  be substituted for it.
+- A target remains explicitly `unsupported` until a target-native Vrooli
+  adapter bundle is signed, published, acquired into an empty artifact root,
+  and smoke-tested through the managed lifecycle. Cross-compilation and
+  library availability are build evidence only.
+
+This boundary keeps optional model data (voices, punctuation, speaker, and
+separation models) as independently checksum-pinned data artifacts while the
+supervised executable tree remains immutable and lifecycle-owned.
+
 ## Canonical Mature Source Layouts
 
 All mature resources use the common Go-first skeleton. Generated binaries,
@@ -437,10 +539,10 @@ allowed to reintroduce shell helpers.
 | `external-cli` | discovery, version/auth/config adaptation | only declarative host-tool metadata |
 | `native-cli` | command domains and owned capability implementation | Go executable code and tests |
 | `managed-service` | service, config, migration, health, platform adapters | Go service code; explicit `*_windows.go` gates where necessary |
-| `docker-service` | config renderer and Docker API/controller adapter | declarative image/volume/env metadata in manifest |
-| `compose-service` | topology/config translation and readiness policy | declarative graph/template assets only when genuinely required |
-| `desktop-app` | discovery, permissions, launch/status integration | platform adapter code and docs |
-| `manual-resource` | validation and diagnostics | instructions/validation data, not fake lifecycle scripts |
+| `managed-service` | config renderer and Docker API/controller adapter | declarative image/volume/env metadata in manifest |
+| `managed-service` | topology/config translation and readiness policy | declarative graph/template assets only when genuinely required |
+| `native-cli` | discovery, permissions, launch/status integration | platform adapter code and docs |
+| `native-cli` | validation and diagnostics | instructions/validation data, not fake lifecycle scripts |
 
 The target layout declares a Go module, its manifest contract, and only the
 runtime assets genuinely required by the selected archetype.
@@ -478,18 +580,18 @@ runtime assets genuinely required by the selected archetype.
 
 ```json
 {
-  "name": "searxng",
-  "template": "docker-service",
-  "driver": "docker-service",
+  "name": "example-docker-resource",
+  "template": "managed-service",
+  "driver": "managed-service",
   "cli": {
-    "command": "resource-searxng",
+    "command": "resource-example-docker",
     "adapter": { "kind": "go_module", "module_dir": "cli" },
     "distribution": {
       "kind": "prebuilt_artifact",
-      "artifact_name": "resource-searxng_${os}_${arch}"
+      "artifact_name": "resource-example-docker_${os}_${arch}"
     }
   },
-  "runtime": { "image": "ghcr.io/searxng/searxng:<pinned-version>" },
+  "runtime": { "image": "registry.example.invalid/example:<pinned-version>" },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -502,8 +604,11 @@ runtime assets genuinely required by the selected archetype.
 }
 ```
 
-The desktop bundle ships `resource-searxng` as a native Go controller. It does
-not ship or run `install.sh`; Docker remains visible as a separate requirement.
+This example describes the remaining Docker-service archetype only; it is not
+the SearXNG contract. SearXNG is now a `managed-service` with a `composed`
+acquisition tree and a `bundled-service` desktop profile, so its desktop bundle
+does not require Docker. The Docker requirement remains visible for resources
+that still intentionally use this archetype.
 
 ## Desktop Bundle Decision Model
 
@@ -523,7 +628,7 @@ embedded. For every required resource and requested target it should:
 | ineligible | A required resource has no valid runtime route on this target. | Build an explicitly non-promotable validation artifact, record the named limitation in `resource-deployment-plan.json`, and keep runtime readiness terminal. |
 | error | The plan or its verified inputs are invalid. | Refuse to create any bundle. |
 
-Example: a Windows desktop request that needs a `docker-service` should report
+Example: a Windows desktop request that needs a `managed-service` should report
 that Docker Desktop is required. A resource declared `unsupported` may still
 produce a non-promotable validation artifact with its limitation recorded; it
 must not reach a healthy runtime unless the scenario explicitly accepts a

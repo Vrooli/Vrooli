@@ -3,6 +3,7 @@
   "assetKind": "component",
   "catalogId": "feedback.error-state",
   "deprecatedVersions": [
+    "1.1.0",
     "1.0.4",
     "1.0.6",
     "1.0.5",
@@ -18,6 +19,6 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:ErrorState"
 }

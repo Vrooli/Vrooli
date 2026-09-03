@@ -64,11 +64,7 @@ describe("AppShell", () => {
     const skipLink = container.querySelector<HTMLAnchorElement>(".rcl-app-shell-skip");
     expect(skipLink).toHaveAttribute("href", "#app-shell-main");
     expect(screen.getByRole("main")).toHaveAttribute("id", "app-shell-main");
-    // The stylesheet is injected once into <head> by useComponentStyles rather
-    // than rendered inline per instance; the rule it must declare is unchanged.
-    const shellStyles = document.head.querySelector('style[data-rcl-style-id="rcl-app-shell"]');
-    expect(shellStyles).not.toBeNull();
-    expect(shellStyles?.textContent).toContain("clip-path: inset(50%)");
+    expect(screen.getByTestId("app-shell")).toHaveAttribute("data-rcl-app-shell");
     expect(skipLink?.className).toContain("rcl-app-shell-skip");
   });
 

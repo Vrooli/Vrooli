@@ -1,8 +1,8 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
-import { AssetDetailShell } from "../components/AssetDetailShell/versions/1.0.0/AssetDetailShell";
-import { InspectorLayout } from "../components/InspectorLayout/versions/1.0.0/InspectorLayout";
+import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1";
+import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1";
 
 describe("archetype lifecycle layouts", () => {
   it("keeps asset preview and metadata usable when supporting activity is partial", () => {

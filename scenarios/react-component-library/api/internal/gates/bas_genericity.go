@@ -15,7 +15,7 @@ func ValidateBASGenericity(scope Scope) (Result, error) {
 	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	componentNames := map[string]bool{}
-	manifests, err := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	manifests, err := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
 	if err != nil {
 		return Result{}, err
 	}

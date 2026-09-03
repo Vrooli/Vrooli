@@ -302,6 +302,338 @@ func (x *GetEntitlementsResponse) GetBillingCycleStart() int32 {
 	return 0
 }
 
+// CommercialContext contains account facts and presentation-only content.
+// Facts are authoritative for display and diagnostics; access decisions stay
+// in the trusted operation owner. Offers and recommendations can be cached,
+// but cannot grant entitlements.
+type CommercialContextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Placement     string                 `protobuf:"bytes,1,opt,name=placement,proto3" json:"placement,omitempty"`
+	CapabilityId  string                 `protobuf:"bytes,2,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommercialContextRequest) Reset() {
+	*x = CommercialContextRequest{}
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommercialContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommercialContextRequest) ProtoMessage() {}
+
+func (x *CommercialContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommercialContextRequest.ProtoReflect.Descriptor instead.
+func (*CommercialContextRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_account_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CommercialContextRequest) GetPlacement() string {
+	if x != nil {
+		return x.Placement
+	}
+	return ""
+}
+
+func (x *CommercialContextRequest) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+type CommercialAccountFacts struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SubscriptionStatus string                 `protobuf:"bytes,1,opt,name=subscription_status,json=subscriptionStatus,proto3" json:"subscription_status,omitempty"`
+	PlanTier           string                 `protobuf:"bytes,2,opt,name=plan_tier,json=planTier,proto3" json:"plan_tier,omitempty"`
+	CreditBalance      int64                  `protobuf:"varint,3,opt,name=credit_balance,json=creditBalance,proto3" json:"credit_balance,omitempty"`
+	EntitlementIds     []string               `protobuf:"bytes,4,rep,name=entitlement_ids,json=entitlementIds,proto3" json:"entitlement_ids,omitempty"`
+	EvaluatedAt        string                 `protobuf:"bytes,5,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CommercialAccountFacts) Reset() {
+	*x = CommercialAccountFacts{}
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommercialAccountFacts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommercialAccountFacts) ProtoMessage() {}
+
+func (x *CommercialAccountFacts) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommercialAccountFacts.ProtoReflect.Descriptor instead.
+func (*CommercialAccountFacts) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_account_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CommercialAccountFacts) GetSubscriptionStatus() string {
+	if x != nil {
+		return x.SubscriptionStatus
+	}
+	return ""
+}
+
+func (x *CommercialAccountFacts) GetPlanTier() string {
+	if x != nil {
+		return x.PlanTier
+	}
+	return ""
+}
+
+func (x *CommercialAccountFacts) GetCreditBalance() int64 {
+	if x != nil {
+		return x.CreditBalance
+	}
+	return 0
+}
+
+func (x *CommercialAccountFacts) GetEntitlementIds() []string {
+	if x != nil {
+		return x.EntitlementIds
+	}
+	return nil
+}
+
+func (x *CommercialAccountFacts) GetEvaluatedAt() string {
+	if x != nil {
+		return x.EvaluatedAt
+	}
+	return ""
+}
+
+type CommercialContent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ContentId      string                 `protobuf:"bytes,1,opt,name=content_id,json=contentId,proto3" json:"content_id,omitempty"`
+	Placement      string                 `protobuf:"bytes,2,opt,name=placement,proto3" json:"placement,omitempty"`
+	Title          string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Description    string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Priority       string                 `protobuf:"bytes,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	Eligible       bool                   `protobuf:"varint,6,opt,name=eligible,proto3" json:"eligible,omitempty"`
+	CtaLabel       string                 `protobuf:"bytes,7,opt,name=cta_label,json=ctaLabel,proto3" json:"cta_label,omitempty"`
+	CtaDestination string                 `protobuf:"bytes,8,opt,name=cta_destination,json=ctaDestination,proto3" json:"cta_destination,omitempty"`
+	ExpiresAt      string                 `protobuf:"bytes,9,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Dismissible    bool                   `protobuf:"varint,10,opt,name=dismissible,proto3" json:"dismissible,omitempty"`
+	DismissedUntil string                 `protobuf:"bytes,11,opt,name=dismissed_until,json=dismissedUntil,proto3" json:"dismissed_until,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CommercialContent) Reset() {
+	*x = CommercialContent{}
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommercialContent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommercialContent) ProtoMessage() {}
+
+func (x *CommercialContent) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommercialContent.ProtoReflect.Descriptor instead.
+func (*CommercialContent) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_account_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CommercialContent) GetContentId() string {
+	if x != nil {
+		return x.ContentId
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetPlacement() string {
+	if x != nil {
+		return x.Placement
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetEligible() bool {
+	if x != nil {
+		return x.Eligible
+	}
+	return false
+}
+
+func (x *CommercialContent) GetCtaLabel() string {
+	if x != nil {
+		return x.CtaLabel
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetCtaDestination() string {
+	if x != nil {
+		return x.CtaDestination
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *CommercialContent) GetDismissible() bool {
+	if x != nil {
+		return x.Dismissible
+	}
+	return false
+}
+
+func (x *CommercialContent) GetDismissedUntil() string {
+	if x != nil {
+		return x.DismissedUntil
+	}
+	return ""
+}
+
+type CommercialContextResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Account       *CommercialAccountFacts `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`
+	Content       []*CommercialContent    `protobuf:"bytes,2,rep,name=content,proto3" json:"content,omitempty"`
+	GeneratedAt   string                  `protobuf:"bytes,3,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	StaleAfter    string                  `protobuf:"bytes,4,opt,name=stale_after,json=staleAfter,proto3" json:"stale_after,omitempty"`
+	Source        string                  `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommercialContextResponse) Reset() {
+	*x = CommercialContextResponse{}
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommercialContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommercialContextResponse) ProtoMessage() {}
+
+func (x *CommercialContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_account_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommercialContextResponse.ProtoReflect.Descriptor instead.
+func (*CommercialContextResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_account_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CommercialContextResponse) GetAccount() *CommercialAccountFacts {
+	if x != nil {
+		return x.Account
+	}
+	return nil
+}
+
+func (x *CommercialContextResponse) GetContent() []*CommercialContent {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *CommercialContextResponse) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *CommercialContextResponse) GetStaleAfter() string {
+	if x != nil {
+		return x.StaleAfter
+	}
+	return ""
+}
+
+func (x *CommercialContextResponse) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 var File_landing_page_business_suite_v1_account_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_account_proto_rawDesc = "" +
@@ -321,11 +653,43 @@ const file_landing_page_business_suite_v1_account_proto_rawDesc = "" +
 	"\bfeatures\x18\x04 \x03(\tR\bfeatures\x12V\n" +
 	"\acredits\x18\x05 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.CreditsBalanceR\acredits\x12d\n" +
 	"\fsubscription\x18\x06 \x01(\v2@.vrooli.landing_page_business_suite.v1.shared.SubscriptionStatusR\fsubscription\x12.\n" +
-	"\x13billing_cycle_start\x18\a \x01(\x05R\x11billingCycleStart2\xaa\x03\n" +
+	"\x13billing_cycle_start\x18\a \x01(\x05R\x11billingCycleStart\"]\n" +
+	"\x18CommercialContextRequest\x12\x1c\n" +
+	"\tplacement\x18\x01 \x01(\tR\tplacement\x12#\n" +
+	"\rcapability_id\x18\x02 \x01(\tR\fcapabilityId\"\xd9\x01\n" +
+	"\x16CommercialAccountFacts\x12/\n" +
+	"\x13subscription_status\x18\x01 \x01(\tR\x12subscriptionStatus\x12\x1b\n" +
+	"\tplan_tier\x18\x02 \x01(\tR\bplanTier\x12%\n" +
+	"\x0ecredit_balance\x18\x03 \x01(\x03R\rcreditBalance\x12'\n" +
+	"\x0fentitlement_ids\x18\x04 \x03(\tR\x0eentitlementIds\x12!\n" +
+	"\fevaluated_at\x18\x05 \x01(\tR\vevaluatedAt\"\xf0\x02\n" +
+	"\x11CommercialContent\x12\x1d\n" +
+	"\n" +
+	"content_id\x18\x01 \x01(\tR\tcontentId\x12\x1c\n" +
+	"\tplacement\x18\x02 \x01(\tR\tplacement\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bpriority\x18\x05 \x01(\tR\bpriority\x12\x1a\n" +
+	"\beligible\x18\x06 \x01(\bR\beligible\x12\x1b\n" +
+	"\tcta_label\x18\a \x01(\tR\bctaLabel\x12'\n" +
+	"\x0fcta_destination\x18\b \x01(\tR\x0ectaDestination\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\t \x01(\tR\texpiresAt\x12 \n" +
+	"\vdismissible\x18\n" +
+	" \x01(\bR\vdismissible\x12'\n" +
+	"\x0fdismissed_until\x18\v \x01(\tR\x0edismissedUntil\"\x96\x02\n" +
+	"\x19CommercialContextResponse\x12P\n" +
+	"\aaccount\x18\x01 \x01(\v26.landing_page_business_suite.v1.CommercialAccountFactsR\aaccount\x12K\n" +
+	"\acontent\x18\x02 \x03(\v21.landing_page_business_suite.v1.CommercialContentR\acontent\x12!\n" +
+	"\fgenerated_at\x18\x03 \x01(\tR\vgeneratedAt\x12\x1f\n" +
+	"\vstale_after\x18\x04 \x01(\tR\n" +
+	"staleAfter\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source2\xb8\x04\n" +
 	"\x0eAccountService\x12\x97\x01\n" +
 	"\x11GetMySubscription\x128.landing_page_business_suite.v1.GetMySubscriptionRequest\x1aH.vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse\x12y\n" +
 	"\fGetMyCredits\x123.landing_page_business_suite.v1.GetMyCreditsRequest\x1a4.landing_page_business_suite.v1.GetMyCreditsResponse\x12\x82\x01\n" +
-	"\x0fGetEntitlements\x126.landing_page_business_suite.v1.GetEntitlementsRequest\x1a7.landing_page_business_suite.v1.GetEntitlementsResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x0fGetEntitlements\x126.landing_page_business_suite.v1.GetEntitlementsRequest\x1a7.landing_page_business_suite.v1.GetEntitlementsResponse\x12\x8b\x01\n" +
+	"\x14GetCommercialContext\x128.landing_page_business_suite.v1.CommercialContextRequest\x1a9.landing_page_business_suite.v1.CommercialContextResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_account_proto_rawDescOnce sync.Once
@@ -339,32 +703,40 @@ func file_landing_page_business_suite_v1_account_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_account_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_landing_page_business_suite_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_landing_page_business_suite_v1_account_proto_goTypes = []any{
 	(*GetMySubscriptionRequest)(nil),          // 0: landing_page_business_suite.v1.GetMySubscriptionRequest
 	(*GetMyCreditsRequest)(nil),               // 1: landing_page_business_suite.v1.GetMyCreditsRequest
 	(*GetMyCreditsResponse)(nil),              // 2: landing_page_business_suite.v1.GetMyCreditsResponse
 	(*GetEntitlementsRequest)(nil),            // 3: landing_page_business_suite.v1.GetEntitlementsRequest
 	(*GetEntitlementsResponse)(nil),           // 4: landing_page_business_suite.v1.GetEntitlementsResponse
-	(*shared.CreditsBalance)(nil),             // 5: vrooli.landing_page_business_suite.v1.shared.CreditsBalance
-	(*shared.SubscriptionStatus)(nil),         // 6: vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus
-	(*shared.VerifySubscriptionResponse)(nil), // 7: vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
+	(*CommercialContextRequest)(nil),          // 5: landing_page_business_suite.v1.CommercialContextRequest
+	(*CommercialAccountFacts)(nil),            // 6: landing_page_business_suite.v1.CommercialAccountFacts
+	(*CommercialContent)(nil),                 // 7: landing_page_business_suite.v1.CommercialContent
+	(*CommercialContextResponse)(nil),         // 8: landing_page_business_suite.v1.CommercialContextResponse
+	(*shared.CreditsBalance)(nil),             // 9: vrooli.landing_page_business_suite.v1.shared.CreditsBalance
+	(*shared.SubscriptionStatus)(nil),         // 10: vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus
+	(*shared.VerifySubscriptionResponse)(nil), // 11: vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
 }
 var file_landing_page_business_suite_v1_account_proto_depIdxs = []int32{
-	5, // 0: landing_page_business_suite.v1.GetMyCreditsResponse.balance:type_name -> vrooli.landing_page_business_suite.v1.shared.CreditsBalance
-	5, // 1: landing_page_business_suite.v1.GetEntitlementsResponse.credits:type_name -> vrooli.landing_page_business_suite.v1.shared.CreditsBalance
-	6, // 2: landing_page_business_suite.v1.GetEntitlementsResponse.subscription:type_name -> vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus
-	0, // 3: landing_page_business_suite.v1.AccountService.GetMySubscription:input_type -> landing_page_business_suite.v1.GetMySubscriptionRequest
-	1, // 4: landing_page_business_suite.v1.AccountService.GetMyCredits:input_type -> landing_page_business_suite.v1.GetMyCreditsRequest
-	3, // 5: landing_page_business_suite.v1.AccountService.GetEntitlements:input_type -> landing_page_business_suite.v1.GetEntitlementsRequest
-	7, // 6: landing_page_business_suite.v1.AccountService.GetMySubscription:output_type -> vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
-	2, // 7: landing_page_business_suite.v1.AccountService.GetMyCredits:output_type -> landing_page_business_suite.v1.GetMyCreditsResponse
-	4, // 8: landing_page_business_suite.v1.AccountService.GetEntitlements:output_type -> landing_page_business_suite.v1.GetEntitlementsResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	9,  // 0: landing_page_business_suite.v1.GetMyCreditsResponse.balance:type_name -> vrooli.landing_page_business_suite.v1.shared.CreditsBalance
+	9,  // 1: landing_page_business_suite.v1.GetEntitlementsResponse.credits:type_name -> vrooli.landing_page_business_suite.v1.shared.CreditsBalance
+	10, // 2: landing_page_business_suite.v1.GetEntitlementsResponse.subscription:type_name -> vrooli.landing_page_business_suite.v1.shared.SubscriptionStatus
+	6,  // 3: landing_page_business_suite.v1.CommercialContextResponse.account:type_name -> landing_page_business_suite.v1.CommercialAccountFacts
+	7,  // 4: landing_page_business_suite.v1.CommercialContextResponse.content:type_name -> landing_page_business_suite.v1.CommercialContent
+	0,  // 5: landing_page_business_suite.v1.AccountService.GetMySubscription:input_type -> landing_page_business_suite.v1.GetMySubscriptionRequest
+	1,  // 6: landing_page_business_suite.v1.AccountService.GetMyCredits:input_type -> landing_page_business_suite.v1.GetMyCreditsRequest
+	3,  // 7: landing_page_business_suite.v1.AccountService.GetEntitlements:input_type -> landing_page_business_suite.v1.GetEntitlementsRequest
+	5,  // 8: landing_page_business_suite.v1.AccountService.GetCommercialContext:input_type -> landing_page_business_suite.v1.CommercialContextRequest
+	11, // 9: landing_page_business_suite.v1.AccountService.GetMySubscription:output_type -> vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse
+	2,  // 10: landing_page_business_suite.v1.AccountService.GetMyCredits:output_type -> landing_page_business_suite.v1.GetMyCreditsResponse
+	4,  // 11: landing_page_business_suite.v1.AccountService.GetEntitlements:output_type -> landing_page_business_suite.v1.GetEntitlementsResponse
+	8,  // 12: landing_page_business_suite.v1.AccountService.GetCommercialContext:output_type -> landing_page_business_suite.v1.CommercialContextResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_account_proto_init() }
@@ -378,7 +750,7 @@ func file_landing_page_business_suite_v1_account_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_account_proto_rawDesc), len(file_landing_page_business_suite_v1_account_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "typecheck-fixture-negative",
+  "input_digest": "sha256:c5b5445e5675da616a8d6a2e4e02e82950285ad70246c1b108ea27d31a9f8a2b",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/typecheck-fixture-negative/v1/notes/attachments.proto",
+    "schemas/typecheck-fixture-negative/v1/notes/notes.proto",
+    "schemas/typecheck-fixture-negative/v1/shared/errors.proto",
+    "schemas/typecheck-fixture-negative/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/typecheck-fixture-negative/v1/notes/attachments.pb.go": "sha256:433b82db93195d601e0a5a99fec4b48ee3c0bc5871f5391d4e7d28022d51ba98",
+    "gen/go/typecheck-fixture-negative/v1/notes/notes.pb.go": "sha256:40873d9b2a80907b34f8f13d60b211fe71ccffeaa874ea4fc907a6be80e2533e",
+    "gen/go/typecheck-fixture-negative/v1/notes/notes_v1connect/notes.connect.go": "sha256:34ae189875297f3f24c56b6ef0f8b26ff8121de2ef61559b7336c882ef47b4ea",
+    "gen/go/typecheck-fixture-negative/v1/shared/errors.pb.go": "sha256:22605dd1bf919dc165e8978580ba7bf51c6097ed448c20fed287f8731df8b012",
+    "gen/go/typecheck-fixture-negative/v1/shared/health.pb.go": "sha256:64e5744dcaa34e23e2651d64f1f97e1958c9b850bc8c73699c1f336a8b9b4146",
+    "gen/python/typecheck_fixture_negative/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typecheck_fixture_negative/v1/notes/attachments_pb2.py": "sha256:e8036f12685aebf226acdbf0d0d3291ade8af531fc66e0599e4ebaaa801b9a0d",
+    "gen/python/typecheck_fixture_negative/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/typecheck_fixture_negative/v1/notes/notes_pb2.py": "sha256:a3caadeda39e8627c9c93f4fa395d1e0a36752fdc7bac888bdb39044423a55e7",
+    "gen/python/typecheck_fixture_negative/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/typecheck_fixture_negative/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typecheck_fixture_negative/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typecheck_fixture_negative/v1/shared/errors_pb2.py": "sha256:026879193ea3a5eb0382666d96e8f85675ccb6afb739919653a987ad7ceb095b",
+    "gen/python/typecheck_fixture_negative/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/typecheck_fixture_negative/v1/shared/health_pb2.py": "sha256:a02c07f212d1f081ef99bd12ef67336a1950cdf073600d1d7dc3b18d345e57f7",
+    "gen/python/typecheck_fixture_negative/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/typecheck_fixture_negative/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/typecheck-fixture-negative/v1/notes/attachments_pb.ts": "sha256:c288ab48e84a430144e6ac5a88a437816c37a1d03ba7b977bd0a48251268a04b",
+    "gen/typescript/typecheck-fixture-negative/v1/notes/notes_pb.ts": "sha256:07e433efcc4419cd89d61bd6363df41ad20800da965f1d9d7f6d03f8bd7ed22c",
+    "gen/typescript/typecheck-fixture-negative/v1/shared/errors_pb.ts": "sha256:b813c3100e5c90d5190a326599150f159863247a998f0b475561f18c13c0d6c4",
+    "gen/typescript/typecheck-fixture-negative/v1/shared/health_pb.ts": "sha256:303d978769e3d3362fcc9180f1a93aa80023cbfc802e14695003a1f877d84eae"
+  }
+}

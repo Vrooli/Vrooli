@@ -10,7 +10,17 @@ import (
 
 func ValidateGraphReconciled(scope Scope) (Result, error) {
 	root := scope.Root
-	report, err := graphreconcile.Reconcile(context.Background(), root)
+	ctx := scope.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var report graphreconcile.Report
+	var err error
+	if len(scope.Assets) > 0 {
+		report, err = graphreconcile.ReconcileScoped(ctx, root, scope.Assets)
+	} else {
+		report, err = graphreconcile.Reconcile(ctx, root)
+	}
 	if err != nil {
 		return Result{}, err
 	}

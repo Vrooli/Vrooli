@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-search",
-  "input_digest": "sha256:a27adde086c1529f01d0a23a710da9e82672a7e924002bbeb4e6be928f97300d",
+  "input_digest": "sha256:eb46759ae6eee12763eac905b9b7514b7a9e5920c30935d655e6f4cbf0cd5d1a",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/web-search/v1/errors/errors.proto",

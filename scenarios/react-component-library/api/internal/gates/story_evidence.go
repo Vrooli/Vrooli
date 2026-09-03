@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 )
 
 type persistedStoryReport struct {
@@ -40,14 +41,10 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 	// Use the same routed evidence database as the freshness gate. The
 	// scenario's source tree may not contain a local database in development,
 	// while the control plane keeps the live store under ~/.vrooli/data.
-	db, err := openEvidenceDatabase(root)
-	if err != nil {
-		return Result{}, err
-	}
+	db := scope.DB
 	if db == nil {
 		return Result{}, nil
 	}
-	defer db.Close()
 	rows, err := db.QueryContext(context.Background(), `SELECT results_json FROM component_test_reports ORDER BY created_at DESC`)
 	if err != nil {
 		return Result{}, err
@@ -65,7 +62,18 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 	for _, asset := range assets {
 		byID[asset.Asset.ID] = asset
 	}
+	storyPaths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	if err != nil {
+		return Result{}, err
+	}
+	storyPathByAsset := map[string]string{}
 	result := Result{}
+	for _, storyPath := range storyPaths {
+		storyPathByAsset[implementationName(storyPath)] = storyPath
+		if len(scope.Assets) == 0 || scopeReportsAsset(scope, implementationName(storyPath)) {
+			result.Inspected++
+		}
+	}
 	seen := map[string]bool{}
 	for rows.Next() {
 		var raw string
@@ -84,12 +92,14 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 			if assetID == "" {
 				continue
 			}
+			if len(scope.Assets) > 0 && !scopeReportsAsset(scope, assetID) {
+				continue
+			}
 			key := assetID + "\x00" + story.Subject
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			result.Inspected++
 			result.InspectedAssets = appendUnique(result.InspectedAssets, assetID)
 			for _, rawEvidence := range story.Evidence {
 				var evidence persistedEvidence
@@ -110,7 +120,7 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 						budget = byID[assetID].Budgets.MountMS
 					}
 					if evidence.Performance.MountMS > budget {
-						result.Findings = append(result.Findings, Finding{Code: "catalog.performance_budget", AssetID: assetID, Message: fmt.Sprintf("story %q mountMs %.2f exceeds budget %.2f", story.Subject, evidence.Performance.MountMS, budget), Remediation: "Reduce mount work or raise the explicit budget with evidence."})
+						result.Findings = append(result.Findings, Finding{Code: "catalog.performance_budget", AssetID: assetID, File: repoRel(root, storyPathByAsset[assetID]), Message: fmt.Sprintf("story %q mountMs %.2f exceeds budget %.2f", story.Subject, evidence.Performance.MountMS, budget), Remediation: "Reduce mount work or raise the explicit budget with evidence."})
 					}
 				}
 			}
@@ -131,8 +141,19 @@ func decodePersistedStoryReport(raw []byte) (persistedStoryReport, error) {
 	return persistedStoryReport{Results: results}, nil
 }
 
-func unmeasuredStoryGate(root string) Result {
-	result, _ := UnmeasuredGate(root)
+func unmeasuredStoryGate(scope Scope) Result {
+	result, _ := UnmeasuredGate(scope.Root)
+	if len(scope.Assets) > 0 {
+		assets, err := loadLibraryAssets(scope)
+		if err == nil {
+			result.Inspected = 0
+			for _, asset := range assets {
+				if scopeReportsAsset(scope, asset.Asset.ID) {
+					result.Inspected++
+				}
+			}
+		}
+	}
 	return result
 }
 
@@ -150,7 +171,7 @@ func defaultMountBudget(kind string) float64 {
 func libraryAssetIDs(root string) (map[string]string, error) {
 	result := map[string]string{}
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}

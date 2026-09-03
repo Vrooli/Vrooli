@@ -72,6 +72,7 @@ const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement
 //              carries no shell conditional.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
+  const isLibrary = mode === "library";
   const assetStampPlugins = process.env.RCL_DISABLE_ASSET_STAMP === "1"
     ? []
     : [assetStamp({ reportFile: resolve(rootDir, "dist", "asset-stamp-report.json") })];
@@ -203,7 +204,9 @@ export default defineConfig(({ mode }): UserConfig => {
         },
       },
       include: [
-        "src/**/*.{test,spec}.{ts,tsx}",
+        isLibrary
+          ? "../library/**/*.{test,spec}.{ts,tsx}"
+          : "src/**/*.{test,spec}.{ts,tsx}",
       ],
     },
   };

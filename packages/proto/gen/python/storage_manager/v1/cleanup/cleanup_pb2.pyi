@@ -10,12 +10,29 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SafetyTier(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SAFETY_TIER_UNSPECIFIED: _ClassVar[SafetyTier]
+    SAFETY_TIER_SAFE: _ClassVar[SafetyTier]
+    SAFETY_TIER_REGENERABLE: _ClassVar[SafetyTier]
+    SAFETY_TIER_SAFE_WITH_OWNER: _ClassVar[SafetyTier]
+    SAFETY_TIER_CONDITIONAL: _ClassVar[SafetyTier]
+    SAFETY_TIER_FORBIDDEN: _ClassVar[SafetyTier]
+
 class PressureBand(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PRESSURE_BAND_UNSPECIFIED: _ClassVar[PressureBand]
     PRESSURE_BAND_WARNING: _ClassVar[PressureBand]
     PRESSURE_BAND_HIGH: _ClassVar[PressureBand]
     PRESSURE_BAND_CRITICAL: _ClassVar[PressureBand]
+
+class PressureTrigger(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PRESSURE_TRIGGER_UNSPECIFIED: _ClassVar[PressureTrigger]
+    PRESSURE_TRIGGER_BAND: _ClassVar[PressureTrigger]
+    PRESSURE_TRIGGER_FLOOR: _ClassVar[PressureTrigger]
+    PRESSURE_TRIGGER_RATE: _ClassVar[PressureTrigger]
+    PRESSURE_TRIGGER_MANUAL: _ClassVar[PressureTrigger]
 
 class PressureAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -25,10 +42,21 @@ class PressureAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRESSURE_ACTION_APPLIED: _ClassVar[PressureAction]
     PRESSURE_ACTION_DEDUPLICATED: _ClassVar[PressureAction]
     PRESSURE_ACTION_SUPPRESSED: _ClassVar[PressureAction]
+SAFETY_TIER_UNSPECIFIED: SafetyTier
+SAFETY_TIER_SAFE: SafetyTier
+SAFETY_TIER_REGENERABLE: SafetyTier
+SAFETY_TIER_SAFE_WITH_OWNER: SafetyTier
+SAFETY_TIER_CONDITIONAL: SafetyTier
+SAFETY_TIER_FORBIDDEN: SafetyTier
 PRESSURE_BAND_UNSPECIFIED: PressureBand
 PRESSURE_BAND_WARNING: PressureBand
 PRESSURE_BAND_HIGH: PressureBand
 PRESSURE_BAND_CRITICAL: PressureBand
+PRESSURE_TRIGGER_UNSPECIFIED: PressureTrigger
+PRESSURE_TRIGGER_BAND: PressureTrigger
+PRESSURE_TRIGGER_FLOOR: PressureTrigger
+PRESSURE_TRIGGER_RATE: PressureTrigger
+PRESSURE_TRIGGER_MANUAL: PressureTrigger
 PRESSURE_ACTION_UNSPECIFIED: PressureAction
 PRESSURE_ACTION_OBSERVED: PressureAction
 PRESSURE_ACTION_PREVIEWED: PressureAction
@@ -262,22 +290,40 @@ class AuditEvent(_message.Message):
     redacted: bool
     def __init__(self, id: _Optional[str] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., type: _Optional[str] = ..., plan_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., message: _Optional[str] = ..., redacted: _Optional[bool] = ...) -> None: ...
 
+class HotWriter(_message.Message):
+    __slots__ = ("root", "bytes_per_hour", "window_seconds", "current_bytes")
+    ROOT_FIELD_NUMBER: _ClassVar[int]
+    BYTES_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    root: str
+    bytes_per_hour: int
+    window_seconds: int
+    current_bytes: int
+    def __init__(self, root: _Optional[str] = ..., bytes_per_hour: _Optional[int] = ..., window_seconds: _Optional[int] = ..., current_bytes: _Optional[int] = ...) -> None: ...
+
 class ReportPressureRequest(_message.Message):
-    __slots__ = ("source_scenario", "partition", "used_percent", "band", "available_bytes")
+    __slots__ = ("source_scenario", "partition", "used_percent", "band", "available_bytes", "fill_rate_bytes_per_hour", "hot_writers", "trigger")
     SOURCE_SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PARTITION_FIELD_NUMBER: _ClassVar[int]
     USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
     BAND_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    FILL_RATE_BYTES_PER_HOUR_FIELD_NUMBER: _ClassVar[int]
+    HOT_WRITERS_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
     source_scenario: str
     partition: str
     used_percent: float
     band: PressureBand
     available_bytes: int
-    def __init__(self, source_scenario: _Optional[str] = ..., partition: _Optional[str] = ..., used_percent: _Optional[float] = ..., band: _Optional[_Union[PressureBand, str]] = ..., available_bytes: _Optional[int] = ...) -> None: ...
+    fill_rate_bytes_per_hour: int
+    hot_writers: _containers.RepeatedCompositeFieldContainer[HotWriter]
+    trigger: PressureTrigger
+    def __init__(self, source_scenario: _Optional[str] = ..., partition: _Optional[str] = ..., used_percent: _Optional[float] = ..., band: _Optional[_Union[PressureBand, str]] = ..., available_bytes: _Optional[int] = ..., fill_rate_bytes_per_hour: _Optional[int] = ..., hot_writers: _Optional[_Iterable[_Union[HotWriter, _Mapping]]] = ..., trigger: _Optional[_Union[PressureTrigger, str]] = ...) -> None: ...
 
 class ReportPressureResponse(_message.Message):
-    __slots__ = ("band", "action", "plan_id", "estimated_bytes", "reclaimed_bytes", "providers_applied", "providers_withheld", "reason", "autonomous_apply_enabled", "bug_reference")
+    __slots__ = ("band", "action", "plan_id", "estimated_bytes", "reclaimed_bytes", "providers_applied", "providers_withheld", "reason", "autonomous_apply_enabled", "bug_reference", "run_id")
     BAND_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -288,6 +334,7 @@ class ReportPressureResponse(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     AUTONOMOUS_APPLY_ENABLED_FIELD_NUMBER: _ClassVar[int]
     BUG_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
     band: PressureBand
     action: PressureAction
     plan_id: str
@@ -298,4 +345,69 @@ class ReportPressureResponse(_message.Message):
     reason: str
     autonomous_apply_enabled: bool
     bug_reference: str
-    def __init__(self, band: _Optional[_Union[PressureBand, str]] = ..., action: _Optional[_Union[PressureAction, str]] = ..., plan_id: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., providers_applied: _Optional[_Iterable[str]] = ..., providers_withheld: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., autonomous_apply_enabled: _Optional[bool] = ..., bug_reference: _Optional[str] = ...) -> None: ...
+    run_id: str
+    def __init__(self, band: _Optional[_Union[PressureBand, str]] = ..., action: _Optional[_Union[PressureAction, str]] = ..., plan_id: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., providers_applied: _Optional[_Iterable[str]] = ..., providers_withheld: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., autonomous_apply_enabled: _Optional[bool] = ..., bug_reference: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class RecoveryRunRequest(_message.Message):
+    __slots__ = ("trigger", "partition", "used_percent", "available_bytes", "dry_run", "target_free_percent")
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FREE_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    trigger: PressureTrigger
+    partition: str
+    used_percent: float
+    available_bytes: int
+    dry_run: bool
+    target_free_percent: float
+    def __init__(self, trigger: _Optional[_Union[PressureTrigger, str]] = ..., partition: _Optional[str] = ..., used_percent: _Optional[float] = ..., available_bytes: _Optional[int] = ..., dry_run: _Optional[bool] = ..., target_free_percent: _Optional[float] = ...) -> None: ...
+
+class RecoveryWaitRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RecoveryHistoryRequest(_message.Message):
+    __slots__ = ("limit",)
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+
+class RecoveryRunResponse(_message.Message):
+    __slots__ = ("run_id", "status", "trigger", "partition", "action", "estimated_bytes", "reclaimed_bytes", "plan_id", "reason", "started_at", "completed_at", "target_free_bytes", "stopped_because")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FREE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    STOPPED_BECAUSE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    trigger: str
+    partition: str
+    action: str
+    estimated_bytes: int
+    reclaimed_bytes: int
+    plan_id: str
+    reason: str
+    started_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    target_free_bytes: int
+    stopped_because: str
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., trigger: _Optional[str] = ..., partition: _Optional[str] = ..., action: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., plan_id: _Optional[str] = ..., reason: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., target_free_bytes: _Optional[int] = ..., stopped_because: _Optional[str] = ...) -> None: ...
+
+class RecoveryHistoryResponse(_message.Message):
+    __slots__ = ("runs",)
+    RUNS_FIELD_NUMBER: _ClassVar[int]
+    runs: _containers.RepeatedCompositeFieldContainer[RecoveryRunResponse]
+    def __init__(self, runs: _Optional[_Iterable[_Union[RecoveryRunResponse, _Mapping]]] = ...) -> None: ...

@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -308,7 +309,9 @@ type AnalyticsSummary struct {
 	// Highest-clicked CTA element id in the window, when any.
 	TopCta *string `protobuf:"bytes,4,opt,name=top_cta,json=topCta,proto3,oneof" json:"top_cta,omitempty"`
 	// Click-through rate for top_cta (clicks / views * 100).
-	TopCtaCtr     *float64 `protobuf:"fixed64,5,opt,name=top_cta_ctr,json=topCtaCtr,proto3,oneof" json:"top_cta_ctr,omitempty"`
+	TopCtaCtr *float64 `protobuf:"fixed64,5,opt,name=top_cta_ctr,json=topCtaCtr,proto3,oneof" json:"top_cta_ctr,omitempty"`
+	// Time at which the producer completed this aggregate projection.
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -376,6 +379,13 @@ func (x *AnalyticsSummary) GetTopCtaCtr() float64 {
 		return *x.TopCtaCtr
 	}
 	return 0
+}
+
+func (x *AnalyticsSummary) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
 }
 
 // GetAnalyticsSummaryRequest requests the aggregate summary for a date window.
@@ -560,7 +570,7 @@ var File_landing_page_business_suite_v1_metrics_proto protoreflect.FileDescripto
 
 const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x85\x02\n" +
+	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x02\n" +
 	"\x11TrackEventRequest\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x01 \x01(\tR\teventType\x12\x1d\n" +
@@ -592,13 +602,15 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\x10avg_scroll_depth\x18\n" +
 	" \x01(\x01H\x01R\x0eavgScrollDepth\x88\x01\x01B\b\n" +
 	"\x06_trendB\x13\n" +
-	"\x11_avg_scroll_depth\"\x94\x02\n" +
+	"\x11_avg_scroll_depth\"\xd1\x02\n" +
 	"\x10AnalyticsSummary\x12%\n" +
 	"\x0etotal_visitors\x18\x01 \x01(\x03R\rtotalVisitors\x12'\n" +
 	"\x0ftotal_downloads\x18\x02 \x01(\x03R\x0etotalDownloads\x12Q\n" +
 	"\rvariant_stats\x18\x03 \x03(\v2,.landing_page_business_suite.v1.VariantStatsR\fvariantStats\x12\x1c\n" +
 	"\atop_cta\x18\x04 \x01(\tH\x00R\x06topCta\x88\x01\x01\x12#\n" +
-	"\vtop_cta_ctr\x18\x05 \x01(\x01H\x01R\ttopCtaCtr\x88\x01\x01B\n" +
+	"\vtop_cta_ctr\x18\x05 \x01(\x01H\x01R\ttopCtaCtr\x88\x01\x01\x12;\n" +
+	"\vobserved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAtB\n" +
 	"\n" +
 	"\b_top_ctaB\x0e\n" +
 	"\f_top_cta_ctr\"V\n" +
@@ -644,22 +656,24 @@ var file_landing_page_business_suite_v1_metrics_proto_goTypes = []any{
 	(*GetVariantStatsRequest)(nil),     // 5: landing_page_business_suite.v1.GetVariantStatsRequest
 	(*GetVariantStatsResponse)(nil),    // 6: landing_page_business_suite.v1.GetVariantStatsResponse
 	(*structpb.Struct)(nil),            // 7: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),      // 8: google.protobuf.Timestamp
 }
 var file_landing_page_business_suite_v1_metrics_proto_depIdxs = []int32{
 	7, // 0: landing_page_business_suite.v1.TrackEventRequest.event_data:type_name -> google.protobuf.Struct
 	2, // 1: landing_page_business_suite.v1.AnalyticsSummary.variant_stats:type_name -> landing_page_business_suite.v1.VariantStats
-	2, // 2: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
-	0, // 3: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
-	4, // 4: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
-	5, // 5: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
-	1, // 6: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
-	3, // 7: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
-	6, // 8: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	8, // 2: landing_page_business_suite.v1.AnalyticsSummary.observed_at:type_name -> google.protobuf.Timestamp
+	2, // 3: landing_page_business_suite.v1.GetVariantStatsResponse.stats:type_name -> landing_page_business_suite.v1.VariantStats
+	0, // 4: landing_page_business_suite.v1.MetricsService.TrackEvent:input_type -> landing_page_business_suite.v1.TrackEventRequest
+	4, // 5: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:input_type -> landing_page_business_suite.v1.GetAnalyticsSummaryRequest
+	5, // 6: landing_page_business_suite.v1.MetricsService.GetVariantStats:input_type -> landing_page_business_suite.v1.GetVariantStatsRequest
+	1, // 7: landing_page_business_suite.v1.MetricsService.TrackEvent:output_type -> landing_page_business_suite.v1.TrackEventResponse
+	3, // 8: landing_page_business_suite.v1.MetricsService.GetAnalyticsSummary:output_type -> landing_page_business_suite.v1.AnalyticsSummary
+	6, // 9: landing_page_business_suite.v1.MetricsService.GetVariantStats:output_type -> landing_page_business_suite.v1.GetVariantStatsResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_metrics_proto_init() }

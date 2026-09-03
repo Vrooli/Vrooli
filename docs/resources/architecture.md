@@ -105,6 +105,9 @@ test evidence.
 
 `resource.json` is the authoritative declarative artifact for:
 
+See [authoring-a-resource.md](authoring-a-resource.md) for the decision tables
+and validation path used when adding a resource.
+
 - name and display metadata
 - driver choice
 - portability tier
@@ -179,7 +182,7 @@ If multiple resources need the same logic, that logic should move out of the res
 
 Driver choice should reflect actual integration shape.
 
-### `docker-service`
+### Retired container integration
 
 Use when one primary container runtime contract is sufficient.
 
@@ -195,7 +198,7 @@ Expected design:
 - shared driver owns install/start/stop/status/logs behavior
 - per-resource code only for true configuration specialization
 
-### `compose-service`
+### Managed-service integrations
 
 Use when the resource is genuinely a multi-service graph.
 
@@ -205,8 +208,8 @@ Expected design:
 - shared control plane owns orchestration and readiness policy
 - service dependencies are modeled, not hidden behind sleeps or shell sequencing hacks
 
-As with `docker-service`, use this only for a real multi-service graph. It is
-not a substitute for a portable local runtime design.
+Use this only for a real multi-service graph. It is not a substitute for a
+portable local runtime design.
 
 ### `external-cli`
 
@@ -238,7 +241,99 @@ cross-platform process, configuration, health, and provider-authority model.
 It permits reuse only of a verified Vrooli-owned service; arbitrary external
 endpoints remain attach-only.
 
-### `cloud-api`
+#### Declared acquisition
+
+Managed-service and vendorable-tool bytes arrive through one declared
+acquisition contract. A manifest provides an ordered list of targets, each
+with a URL, composed step list, or pinned OCI image, download verification, artifact layout, and a
+`when` predicate over host facts such as `os`, `arch`, `accel.backend`, or
+`accel.cuda_compute`. The runtime installer, release stager, and desktop bundler
+all resolve that same declaration; none may carry a per-resource fetch table.
+
+### The accelerator contract
+
+A resource that runs work on a device other than the CPU declares it once, in
+the `acceleration` block of its `resource.json`:
+
+```json
+"acceleration": {
+  "backends": ["cuda", "metal", "cpu"],
+  "require": "preferred",
+  "cuda": { "min_compute": "8.9", "compose_overlay": "docker/docker-compose.gpu.yml" },
+  "metal": {},
+  "cpu": {},
+  "claim": { "resource_kind": "vram", "preferred_bytes": 0, "...": "..." }
+}
+```
+
+`backends` is an ordered preference drawn from the closed set `cuda`, `metal`,
+`rocm`, `vulkan`, `cpu`; the last entry is the floor. `require` is `required`,
+`preferred` (the default) or `none`. The capacity claim lives inside the block,
+so a resource cannot reserve VRAM without declaring the backend it needs it on.
+
+**`internal/accel` owns accelerator truth.** A resource declares what it wants;
+the control plane decides where it goes, verifies where it landed, and reports
+both:
+
+| Question | Answered by |
+|---|---|
+| What can this host reach? | `internal/hostinventory` publishes `accel.backends`, `accel.backend`, `accel.cuda_compute`, `accel.vram_bytes` and `accel.vendor` |
+| Which backend does this resource get? | `accel.Readiness` — the first declared backend the host can reach, with a per-backend verdict for the ones it skipped |
+| Where did the process actually land? | `accel.VerifyPlacement` over a `PlacementTarget` that is a host process, a container, or a compose service |
+| Is that a problem? | `mode_drift` on the resource status: `running: true`, `serving: true`, `healthy: false` |
+
+Two rules keep this honest, and both are enforced by tests rather than by
+convention:
+
+- `internal/accel` runs no command. Every host observation arrives through a
+  `FactSource` reading `internal/hostinventory`, and every container probe
+  through an injected `ContainerProbe`. `hostinventory` keeps sole ownership of
+  vendor-tool calls, so a second copy of `nvidia-smi` parsing cannot grow.
+- Placement is read from the host or reported as `unknown`. It is never inferred
+  from configuration, from an environment variable, or from a log line. A
+  resource is never trusted about its own placement.
+
+The same code path selects and verifies `cuda` on Linux, `metal` on macOS and
+`rocm` on an AMD host. Where no live host was available to verify placement, the
+status reports `unknown` rather than assuming agreement — see
+[platform-support.md](../reference/platform-support.md).
+
+The host fact provider supplies runtime facts. Directory artifacts are verified
+by a tree digest and launch only their declared entry path. This includes
+interpreted-runtime services such as SearXNG, where a relocatable Python
+runtime, locked wheels, and application source are composed into one verified
+tree before launch. Release staging supplies only
+build-time facts (`os` and `arch`), so a vendorable item may not predicate on a
+GPU or other target-machine property. Directory artifacts are verified by a
+tree digest and launch only their declared entry path. A single-file artifact
+is verified byte-for-byte immediately before execution. The operator can use
+`vrooli resource acquisition explain <name>` to see the facts, candidates,
+rejections, and selected target.
+
+### Control-plane host ownership
+
+The control plane keeps host observation, host requirement resolution, and
+host actuation separate. The package boundaries are:
+
+| Package family | Owns | Does not own |
+|---|---|---|
+| `internal/hostfacts` | Cached, low-level host facts and their freshness | Requirement policy or remediation |
+| `internal/hostinventory` | OS/tool/device probes and normalized inventory | Resource-specific policy or privileged writes |
+| `internal/hostlifecycle` | Host lifecycle observations and service-manager seams | Scenario lifecycle orchestration |
+| `internal/hostpresentation` | Presentation/session capability classification | Desktop policy or UI rendering |
+| `internal/hostpressure` | Memory, thermal, and pressure observations | Capacity reservations or process admission |
+| `internal/hostsession` | Session identity and host-session facts | Credential storage or operator authorization |
+| `internal/hostreqspec` | Declarative host-requirement vocabulary | Host probing and execution |
+| `internal/hostreq` | Requirement resolution and eligibility verdicts | Privileged host mutation |
+| `internal/hostreqcheck` | Static manifest/handler consistency checks | Runtime host observation |
+| `internal/hostreqkit` | Shared handler and host-actuation interfaces | Scenario-owned repair implementations |
+| `internal/hostreqrun` | Resolve-then-ensure orchestration | Defining requirements or bypassing the control plane |
+
+`packages/hostreq` is the public façade over `internal/hostreq`; the `hostreq*`
+packages remain distinct because their inputs and side effects differ as shown
+above. Repository-root discovery has one authority in
+`packages/repo-contract-go`; application services and safeguards delegate to
+that resolver rather than walking for private marker files.
 
 Use when Vrooli does not own the service runtime, only the local representation and validation of a hosted capability.
 
@@ -248,7 +343,7 @@ Expected design:
 - shared control plane handles credential/config validation and connectivity probing
 - resource-local code handles provider-specific behavior where necessary
 
-### `desktop-app`
+### Retired desktop integration
 
 Use when the resource is a native desktop application dependency.
 
@@ -258,7 +353,7 @@ Expected design:
 - unsupported platforms fail clearly
 - manual/host-specific installation is documented instead of hidden behind weak automation
 
-### `manual`
+### Retired fallback integration
 
 Use when Vrooli can describe and partially validate a resource but does not own its lifecycle fully.
 
@@ -272,14 +367,14 @@ Expected design:
 
 Phase 2 defines what each canonical template kind is expected to converge toward.
 
-### `docker-service`
+### Managed-service baseline
 
 - minimal resource-local code
 - shared driver owns most lifecycle behavior
 - resource-local config generation only when required
 - resource storage rooted outside repo
 
-### `compose-service`
+### Managed-service extension
 
 - compose graph is first-class
 - readiness and dependency order are explicit
@@ -304,13 +399,13 @@ Phase 2 defines what each canonical template kind is expected to converge toward
 - no runtime ownership fiction
 - secrets are referenced, not embedded
 
-### `desktop-app`
+### Native-cli desktop extension
 
 - host path detection and unsupported behavior are explicit
 - platform-specific limitations are documented honestly
 - generated scaffolds should not hide manual prerequisites
 
-### `manual-resource`
+### Managed-service fallback
 
 - validation/doc clarity over lifecycle automation
 - limits are explicit

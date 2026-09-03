@@ -60,7 +60,7 @@ identifies a customer, SKU, revenue line, or monetization hypothesis.
 
 ## Cross-References
 
-- [`../START-HERE.md`](../START-HERE.md) — orientation workflow
+- [`../guides/asset-update-flow.md`](../guides/asset-update-flow.md) — orientation and asset workflow
 - [`../../PRD.md`](../../PRD.md) — product requirements
 - [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation

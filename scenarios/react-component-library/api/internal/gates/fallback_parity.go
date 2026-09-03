@@ -1,6 +1,7 @@
 package gates
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,27 @@ func ValidateFallbackParity(scope Scope) (Result, error) {
 	for _, token := range tokens {
 		canonical[token.Name] = normalizeTokenValue(token.Value)
 	}
+	// Backfilled releases preserve immutable historical bytes. Their fallbacks
+	// were authored against an earlier canonical ramp and are intentionally not
+	// rewritten during a current-corpus parity check; newly published releases
+	// remain fully subject to this gate.
+	var ledger struct {
+		Entries []struct {
+			LibraryID  string `json:"libraryId"`
+			Version    string `json:"version"`
+			Backfilled bool   `json:"backfilled"`
+		} `json:"entries"`
+	}
+	backfilled := map[string]bool{}
+	if raw, readErr := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", "release-provenance.json")); readErr == nil {
+		if json.Unmarshal(raw, &ledger) == nil {
+			for _, entry := range ledger.Entries {
+				if entry.Backfilled {
+					backfilled[entry.LibraryID+"@"+entry.Version] = true
+				}
+			}
+		}
+	}
 	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
@@ -32,7 +54,18 @@ func ValidateFallbackParity(scope Scope) (Result, error) {
 		byVersion[filepath.Dir(source)] = append(byVersion[filepath.Dir(source)], source)
 	}
 	result := Result{}
+	versionPathRE := regexp.MustCompile(`/components/([^/]+)/versions/([^/]+)/`)
 	for _, versionSources := range byVersion {
+		if len(versionSources) > 0 {
+			versionPath := filepath.ToSlash(versionSources[0])
+			match := versionPathRE.FindStringSubmatch(versionPath)
+			if len(match) == 3 && backfilled["react-component-library:"+match[1]+"@"+match[2]] {
+				versionSources = nil
+			}
+		}
+		if len(versionSources) == 0 {
+			continue
+		}
 		declared := map[string]bool{}
 		contents := map[string][]byte{}
 		for _, source := range versionSources {

@@ -1,10 +1,16 @@
 /** @vrooliComponentSource data-display.data-table */
 import { useQuery } from "@tanstack/react-query";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/Card";
-import { DataTable, type DataTableColumn } from "../components/DataTable";
-import { EmptyState } from "../components/EmptyState";
-import { StatusBadge } from "../components/StatusBadge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@vrooli/react-component-library/Card/1";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { getCatalogCoverage, listCatalogNextWork, type CoverageReport } from "../api/catalog";
 import { CaptureGrid } from "../../../library/components/CaptureGrid/versions/1.0.0/CaptureGrid";
 import { FindingList } from "../../../library/components/FindingList/versions/1.0.7/FindingList";

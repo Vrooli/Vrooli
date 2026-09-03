@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "browser-automation-studio",
-  "input_digest": "sha256:541862921f79a450c9e965cb9ce02f29ec34e0b3dc0d146b839a91d7c393592e",
+  "input_digest": "sha256:3195e4d8bae9f845ab4618ed67dbffd58bda4a6741c5c8185bb444d615281c39",
   "input_files": [
     "schemas/browser-automation-studio/v1/actions/action.proto",
     "schemas/browser-automation-studio/v1/ai/ai.proto",

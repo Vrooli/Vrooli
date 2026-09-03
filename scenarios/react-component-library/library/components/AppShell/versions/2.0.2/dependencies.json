@@ -1,47 +1,55 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:AppShell",
   "version": "2.0.2",
-  "resolvedAt": "2026-09-02T04:22:56Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:BottomNav",
-      "version": "1.5.3",
+      "major": 1,
+      "observed": "1.5.3",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:IconButton",
-      "version": "3.1.5",
+      "major": 3,
+      "observed": "3.1.5",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:NotificationBadge",
-      "version": "1.0.3",
+      "major": 1,
+      "observed": "1.0.3",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:SidebarShell",
-      "version": "2.6.3",
+      "major": 2,
+      "observed": "2.6.3",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:StyleSheet",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:useLocale",
-      "version": "1.1.1",
+      "major": 1,
+      "observed": "1.1.1",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useMediaQuery",
-      "version": "1.1.0",
+      "major": 1,
+      "observed": "1.1.0",
       "rank": 2
     }
   ]

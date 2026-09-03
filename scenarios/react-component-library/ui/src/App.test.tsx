@@ -62,10 +62,10 @@ describe("App composition", () => {
     });
   });
 
-  it("does not retain the removed components route", async () => {
+  it("resolves the components route to the catalog workspace", async () => {
     renderWithProviders(<App />, { routerEntries: ["/components"] });
     await waitFor(() => {
-      expect(screen.getByTestId("not-found-page")).toBeInTheDocument();
+      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
     });
   });
 

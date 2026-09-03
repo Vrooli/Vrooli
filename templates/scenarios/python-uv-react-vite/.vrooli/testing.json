@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
+  "version": "1.0.0",
+  "unit": {
+    "policy_profile": {
+      "version": "2.0.0",
+      "template": {"id": "python-uv-react-vite", "scenario_class": "python-uv-react-vite"},
+      "required_roles": [
+        {"role": "api", "policy_class": "python_service", "match": {"surface_id": "api", "kind": "api", "path": "api", "language": "python"}},
+        {"role": "ui", "policy_class": "react_vite_ui", "match": {"surface_id": "ui", "kind": "ui", "path": "ui", "language": "typescript"}}
+      ],
+      "policy_classes": {
+        "python_service": {"language": "python", "framework": "pytest", "package_manager": "uv", "runner_profile": "default", "test_kind": "unit", "adapter": {"id": "python-pytest", "version": "1.0.0"}, "hermetic": {"network": "allow", "filesystem": "workspace", "restore_environment": true}},
+        "react_vite_ui": {"language": "typescript", "framework": "vitest", "package_manager": "pnpm", "runner_profile": "default", "test_kind": "unit", "adapter": {"id": "react-vitest", "version": "1.0.0"}, "hermetic": {"network": "allow", "filesystem": "workspace", "restore_environment": true}}
+      },
+      "runner_profiles": {"default": {"cpu_weight": 1, "max_workers": 1, "timeout_seconds": 600, "no_output_timeout_seconds": 60, "network": "allow", "filesystem": "workspace"}},
+      "customization": {"mode": "monotonic", "waivers": []}
+    }
+  }
+}

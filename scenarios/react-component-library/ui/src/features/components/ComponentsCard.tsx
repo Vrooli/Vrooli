@@ -3,11 +3,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router-dom";
 
-import { Button } from "../../components/Button";
-import { DataTable, type DataTableColumn } from "../../components/DataTable";
-import { EmptyState } from "../../components/EmptyState";
-import { Input } from "../../components/Input";
-import { StatusBadge } from "../../components/StatusBadge";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

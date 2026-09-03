@@ -2,10 +2,10 @@
   "gate": "console-clean",
   "assetId": "calibration-console-clean",
   "kind": "component",
-  "runner": "static",
+  "runner": "external",
   "requiredFailureCode": "catalog.console_clean",
   "source": "warning.tsx",
   "catalogAsset": "asset.json",
   "mutation": "console-warning",
-  "description": "A persisted story result containing a deliberate React key warning; the deterministic gate must fail on the console evidence contract."
+  "description": "Package-backed browser evidence supplies the console warning calibration."
 }

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 	"react-component-library/internal/librarywalk"
 )
 
@@ -16,7 +17,7 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	var sources []string
-	err := librarywalk.Walk(libraryRoot, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(scope.Context, libraryRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -45,7 +46,7 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 	}
 	sort.Strings(sources)
 	result := Result{Inspected: len(sources)}
-	manifests, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	manifests, _ := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
 	for _, manifestPath := range manifests {
 		raw, readErr := os.ReadFile(manifestPath)
 		if readErr != nil {
@@ -72,17 +73,26 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 		}
 	}
 	for _, path := range sources {
+		retired, retiredErr := isRetiredVersion(path)
+		if retiredErr != nil {
+			return Result{}, retiredErr
+		}
+		if retired {
+			continue
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return Result{}, err
 		}
 		text := string(data)
 		assetID := implementationName(path)
-		for _, match := range versionLivenessImportRE.FindAllStringSubmatchIndex(text, -1) {
-			name := text[match[2]:match[3]]
-			version := text[match[4]:match[5]]
+		for _, specifier := range libspec.ParseAll(text) {
+			if specifier.Selector == "" {
+				continue
+			}
+			name, version := specifier.Name, specifier.Selector
 			if !versionEntryExists(libraryRoot, name, version) {
-				line := lineAt(data, match[0])
+				line := lineAt(data, strings.Index(text, libspec.Prefix+name+"/"+version))
 				result.Findings = append(result.Findings, Finding{
 					Code: "catalog.version_liveness", AssetID: assetID, File: repoRel(root, path), Line: line,
 					Message:     fmt.Sprintf("imports retired or missing library version %s@%s", name, version),

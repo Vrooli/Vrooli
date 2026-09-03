@@ -13,7 +13,10 @@
           "path": "QUICKSTART.md",
           "title": "Quick Start",
           "description": "Set up Vrooli and learn the core command flow",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ]
         },
         {
           "path": "README.md",
@@ -139,6 +142,26 @@
           "description": "Project-level build and validation surfaces"
         },
         {
+          "path": "reference/cli-invokers.md",
+          "title": "CLI Invokers",
+          "description": "Generated registry of every process that builds a vrooli argv, and the ad-hoc callers not yet migrated"
+        },
+        {
+          "path": "reference/agent-sessions.md",
+          "title": "Agent Sessions",
+          "description": "Editor leases, vrooli agent list, advisory claims, and freezing and thawing a session scope"
+        },
+        {
+          "path": "reference/host-pressure.md",
+          "title": "Host Pressure",
+          "description": "The toolchain floor, the agent slice, the one setpoint reader with attribution, the contain-storm authority, and the per-OS evidence tiers"
+        },
+        {
+          "path": "reference/native-service-definitions.md",
+          "title": "Native Service Definitions",
+          "description": "The platform-go service definition contract, per-OS renderers and validators, the PATH table, the core units, and the drop-in writers left for consolidation"
+        },
+        {
           "path": "reference/health-maturity-assessments.md",
           "title": "Health Maturity Assessments",
           "description": "Provider-owned health maturity reports and automation contract"
@@ -162,6 +185,11 @@
           "path": "reference/experience-readiness.md",
           "title": "Experience Readiness Contracts",
           "description": "Authoring, ownership, lifecycle vocabulary, and progressive consumption of scenario experience readiness"
+        },
+        {
+          "path": "reference/node-capability-readiness.md",
+          "title": "Node Capability Readiness",
+          "description": "Contract for probing, transporting, rendering, and configuring machine capabilities"
         },
         {
           "path": "repo-contract.md",
@@ -408,7 +436,19 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "agent-system", "strategy", "team-plans"],
-    "secondary": ["internal"]
+    "primary": [
+      "getting-started",
+      "concepts",
+      "guides",
+      "reference",
+      "operations",
+      "systems",
+      "agent-system",
+      "strategy",
+      "team-plans"
+    ],
+    "secondary": [
+      "internal"
+    ]
   }
 }

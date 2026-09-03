@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "offer-desk",
-  "input_digest": "sha256:a874e69748a23f0d9af4e0ea578cde2302ce8b8c0da6957bb42157a4ad8c7271",
+  "input_digest": "sha256:ff00402617315073a4d412495727d678caebaff871462f414359d767b9e1220c",
   "input_files": [
     "schemas/money-ledger/v1/ledger/ledger.proto",
     "schemas/money-ledger/v1/shared/ledger_types.proto",

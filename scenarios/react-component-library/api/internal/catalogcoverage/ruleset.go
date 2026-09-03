@@ -73,7 +73,7 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 	// diagnostic, but that asset is context rather than the rule's attribution
 	// boundary. Keep the finding corpus-scoped instead of requiring an
 	// applicability binding that the corpus gate intentionally does not have.
-	if definition, ok := gates.Lookup(gate); ok && definition.CorpusScoped {
+	if definition, ok := gates.Lookup(gate); ok && definition.Reads == gates.ReadsCorpus {
 		finding.RuleSource = gates.RuleSourceCorpus
 		finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join("scenarios", "react-component-library", "catalog", "config.json"))
 		return nil
@@ -111,6 +111,16 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 	}
 	bindings, err := ResolveRuleSet(root, finding.AssetID)
 	if err != nil {
+		// A validator may attach a source asset to a corpus-level observation
+		// even when that source is not a catalog entry. Preserve the observation
+		// as corpus evidence rather than converting diagnostic context into a
+		// runner failure.
+		if strings.Contains(err.Error(), "catalog asset") {
+			finding.AssetID = "__corpus__.unresolved-" + gate
+			finding.RuleSource = gates.RuleSourceCorpus
+			finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+			return nil
+		}
 		return err
 	}
 	for _, binding := range bindings {

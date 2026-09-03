@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 	"time"
@@ -227,7 +228,7 @@ func catalogScopeNames(root string, assets []string) []string {
 	}
 	names := make([]string, 0, len(assets))
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		manifests, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, _ := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		for _, manifest := range manifests {
 			data, err := os.ReadFile(manifest)
 			if err != nil {

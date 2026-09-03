@@ -2,7 +2,7 @@
 
 A **connector** is a declarative definition of an *integration type* — how to talk to GitHub, how to talk to Slack, how to talk to a TikTok account, how to call the fal.ai HTTP API. Connectors are reusable across scenarios and operators; they are *not* an authenticated session, just the recipe for creating one.
 
-This page describes the model. The schema and runtime land with the deferred `integration-hub` scenario; this page exists so the shape is settled before then.
+This page describes the connector model. The `integration-hub` runtime now ships the provider-neutral connection service and its first OpenRouter API-key pilot. The broader manifest and driver catalog remains incremental work.
 
 ## Why a separate concept
 
@@ -39,7 +39,7 @@ A connector picks exactly one. If a provider supports multiple (e.g. GitHub supp
 
 ## Sketch of the connector manifest
 
-This shape is **provisional**. It lands as `connector.schema.json` when the integration-hub scenario ships and the first concrete connector is wired. Until then, treat this as the design intent, not a contract.
+This shape remains **provisional** for connector manifests. The stable provider-neutral lifecycle contract is in `common.v1.integrations`; individual manifest fields become contractual as concrete drivers are added.
 
 ```jsonc
 {
@@ -107,7 +107,7 @@ A pay-per-use AI API (fal.ai, OpenAI) is a borderline case. Today `path:resource
 
 ## Capabilities a scenario declares
 
-When a scenario depends on an integration, it declares the requirement in its `service.json`. The proposed shape (deferred until `integration-hub` ships):
+When a scenario depends on an integration, it declares the requirement in its `service.json`. The proposed shape for scenario binding is:
 
 ```jsonc
 "integrations": [
@@ -135,15 +135,15 @@ When a scenario depends on an integration, it declares the requirement in its `s
 
 The connection-binding (which actual `connection_id` satisfies the requirement) lives in `operator-state.json`, not the scenario manifest. See [`connections.md`](connections.md#how-scenarios-bind-to-connections).
 
-## Why this is deferred
+## Remaining connector work
 
-We have zero connectors wired today. Designing the schema speculatively without a concrete first integration would lock in shapes that don't survive contact with reality. Per the discipline in [`../README.md`](../README.md): build for one, generalize after three.
+The first concrete connector is the OpenRouter API-key pilot in `scenarios/integration-hub`. Designing the complete schema before more drivers would lock in shapes that do not survive contact with reality. Per the discipline in [`../README.md`](../README.md): build for one, generalize after three.
 
-The first concrete connector is most likely `fal-api` (paste-string `api_key` pattern, used to ship the AI-UGC video test). The second is most likely `github-oauth` (the simplest OAuth-web case). When those ship, this page becomes the schema-design conversation's starting point; until then, this page is intent-only.
+The next useful drivers are likely `fal-api` (another paste-string API key) and `github-oauth` (OAuth web). Until they ship, this page is a design guide for those extensions rather than a claim that those providers are wired.
 
 ## See also
 
 - [`connections.md`](connections.md) — connection instances, `bound_to`, scratch state
-- [`../architecture.md`](../architecture.md) — open work items (integration-hub is on the deferred-scenarios list)
+- [`../architecture.md`](../architecture.md) — remaining integration work
 - [`../scenarios.md`](../scenarios.md) — the `integrations` field a scenario manifest will declare
 - [`README.md`](README.md) — discipline for adding integration pages

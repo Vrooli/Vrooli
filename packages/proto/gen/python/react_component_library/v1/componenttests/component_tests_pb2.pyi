@@ -68,7 +68,7 @@ class ComponentTestArtifact(_message.Message):
     def __init__(self, kind: _Optional[str] = ..., label: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., reference: _Optional[str] = ..., story_id: _Optional[str] = ...) -> None: ...
 
 class ComponentTestReport(_message.Message):
-    __slots__ = ("id", "root_library_id", "root_version", "include_closure", "created_at", "verdict", "results", "artifacts")
+    __slots__ = ("id", "root_library_id", "root_version", "include_closure", "created_at", "verdict", "results", "artifacts", "source_revision")
     ID_FIELD_NUMBER: _ClassVar[int]
     ROOT_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     ROOT_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -77,6 +77,7 @@ class ComponentTestReport(_message.Message):
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
     id: str
     root_library_id: str
     root_version: str
@@ -85,13 +86,18 @@ class ComponentTestReport(_message.Message):
     verdict: str
     results: _containers.RepeatedCompositeFieldContainer[ComponentTestResult]
     artifacts: _containers.RepeatedCompositeFieldContainer[ComponentTestArtifact]
-    def __init__(self, id: _Optional[str] = ..., root_library_id: _Optional[str] = ..., root_version: _Optional[str] = ..., include_closure: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., verdict: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ComponentTestResult, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[ComponentTestArtifact, _Mapping]]] = ...) -> None: ...
+    source_revision: str
+    def __init__(self, id: _Optional[str] = ..., root_library_id: _Optional[str] = ..., root_version: _Optional[str] = ..., include_closure: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., verdict: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ComponentTestResult, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[ComponentTestArtifact, _Mapping]]] = ..., source_revision: _Optional[str] = ...) -> None: ...
 
 class RunComponentTestResponse(_message.Message):
-    __slots__ = ("report",)
+    __slots__ = ("report", "reused", "source_revision")
     REPORT_FIELD_NUMBER: _ClassVar[int]
+    REUSED_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
     report: ComponentTestReport
-    def __init__(self, report: _Optional[_Union[ComponentTestReport, _Mapping]] = ...) -> None: ...
+    reused: bool
+    source_revision: str
+    def __init__(self, report: _Optional[_Union[ComponentTestReport, _Mapping]] = ..., reused: _Optional[bool] = ..., source_revision: _Optional[str] = ...) -> None: ...
 
 class RerunComponentTestRequest(_message.Message):
     __slots__ = ("report_id",)

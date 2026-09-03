@@ -105,6 +105,21 @@ func TestOutcomeBindingsReferenceDeclaredIntegrationFeatures(t *testing.T) {
 	}
 }
 
+func TestOutcomeBindingsRejectLiveCoverageWithoutSource(t *testing.T) {
+	defs := []capreg.Def{{ID: "swarm-manager", Features: []string{"throughput_stats"}}}
+	metrics := []MetricEntry{{
+		ID:       "unwired",
+		Coverage: CoverageInReach,
+		Source: SourceBinding{
+			IntegrationID: "none",
+			FeatureID:     "throughput_stats",
+		},
+	}}
+	if err := validateOutcomeBindings(defs, metrics); err == nil || !strings.Contains(err.Error(), "has no source") {
+		t.Fatalf("validateOutcomeBindings() error = %v, want no-source coverage error", err)
+	}
+}
+
 func TestIntegrationsConnectServiceUsesGeneratedContract(t *testing.T) {
 	s := httptest.NewServer(NewServer(testRegistry()).Handler())
 	defer s.Close()
@@ -134,6 +149,18 @@ func TestIntegrationsConnectGetIncludesIndependentFeatureState(t *testing.T) {
 	}
 	if len(resp.Msg.GetFeatures()) == 0 || resp.Msg.GetFeatures()[0].GetStatus() != integrationv1.FeatureStatus_FEATURE_STATUS_UNKNOWN {
 		t.Fatalf("feature state = %+v, want independently unknown until a producer feature probe exists", resp.Msg.GetFeatures())
+	}
+}
+
+func TestIntegrationWireActionIsNotEligibleWhileScenarioIsHealthy(t *testing.T) {
+	state := capreg.State{
+		Def:        capreg.Def{ID: "swarm-manager", DependencyKind: capreg.DependencyScenario, DependencySlug: "swarm-manager"},
+		Status:     capreg.StatusAvailable,
+		ActionKind: capreg.ActionKindScenarioStart,
+	}
+	message := messageFromState(state)
+	if message.GetAction() == nil || message.GetAction().GetEligible() || message.GetAction().GetRequiresConfirmation() {
+		t.Fatalf("healthy scenario action policy=%+v, want ineligible without confirmation", message.GetAction())
 	}
 }
 
@@ -195,6 +222,45 @@ func TestIntegrationActionRequiresConfirmationAndCannotMutateBusinessState(t *te
 	s.Handler().ServeHTTP(w, r)
 	if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "integration_not_found") {
 		t.Fatalf("undeclared integration status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestIntegrationActionRejectsHealthyScenarioRecovery(t *testing.T) {
+	setUnavailableUpstreams(t)
+	s := NewServer(testRegistry())
+	s.swarm = staticUpstreamClient{
+		name: "swarm",
+		body: json.RawMessage(`{"status":"ok"}`),
+	}
+	s.integrationRegistry = commandCenterIntegrationRegistry(s)
+	s.actionService.Defs = s.integrationRegistry.Definitions()
+	s.actionService.Runner = integrationActionRunner{}
+
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/integrations/swarm-manager/action", strings.NewReader(`{"action":"scenario_start","confirm":true}`))
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "action_not_allowed") {
+		t.Fatalf("healthy lifecycle action status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestIntegrationsConnectRejectsHealthyScenarioRecovery(t *testing.T) {
+	setUnavailableUpstreams(t)
+	s := NewServer(testRegistry())
+	s.swarm = staticUpstreamClient{name: "swarm", body: json.RawMessage(`{"status":"ok"}`)}
+	s.integrationRegistry = commandCenterIntegrationRegistry(s)
+	s.actionService.Defs = s.integrationRegistry.Definitions()
+	s.actionService.Runner = integrationActionRunner{}
+	server := httptest.NewServer(s.Handler())
+	defer server.Close()
+	client := integrationconnect.NewIntegrationsServiceClient(http.DefaultClient, server.URL)
+	_, err := client.RunAction(context.Background(), connect.NewRequest(&integrationv1.RunIntegrationActionRequest{
+		IntegrationId: "swarm-manager",
+		Action:        integrationv1.ActionKind_ACTION_KIND_SCENARIO_START,
+		Confirmed:     true,
+	}))
+	if err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("healthy Connect lifecycle action error=%v, want permission denied", err)
 	}
 }
 

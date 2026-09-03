@@ -335,6 +335,17 @@ func catalogPaths(dir string) ([]string, error) {
 		return nil, fmt.Errorf("scan catalog assets: %w", err)
 	}
 	paths = append(paths, assets...)
+	// The legacy directory is an archival compatibility surface, not part of
+	// the catalog SSOT. Its historical pointer documents intentionally use a
+	// different schema and must not be mistaken for current asset declarations.
+	filtered := paths[:1]
+	for _, path := range paths[1:] {
+		if filepath.Base(filepath.Dir(path)) == "legacy" {
+			continue
+		}
+		filtered = append(filtered, path)
+	}
+	paths = filtered
 	for _, path := range paths {
 		if _, err := os.Stat(path); err != nil {
 			return nil, fmt.Errorf("catalog input %s: %w", path, err)

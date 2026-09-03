@@ -1,8 +1,8 @@
-import { API_BASE, decodeApiError } from "./client";
+import { API_BASE, boundedFetch, decodeApiError } from "./client";
 
 const procedure = "/vrooli.react_component_library.v1.componenttests.ComponentTestsService";
 async function invoke<T>(method: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${API_BASE}${procedure}/${method}`, {
+  const response = await boundedFetch(`${API_BASE}${procedure}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Connect-Protocol-Version": "1" },
     body: JSON.stringify(body),

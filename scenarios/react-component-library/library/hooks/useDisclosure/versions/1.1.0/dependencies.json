@@ -1,12 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:useDisclosure",
   "version": "1.1.0",
-  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:useControllableState",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 2
     }
   ]

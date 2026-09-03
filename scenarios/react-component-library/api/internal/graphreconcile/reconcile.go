@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -120,6 +121,22 @@ func difference(left, right []string) []string {
 // TypeScript graph extractor for actual imports. Failure to reach that
 // capability is represented in the report rather than guessed around.
 func Reconcile(ctx context.Context, repoRoot string) (Report, error) {
+	return reconcile(ctx, repoRoot, nil)
+}
+
+// ReconcileScoped performs the same reconciliation for only the requested
+// catalog assets. The manifest index remains corpus-wide so dependency names
+// resolve correctly, but the TypeScript graph extractor receives only the
+// selected assets' current and draft sources.
+func ReconcileScoped(ctx context.Context, repoRoot string, assetIDs []string) (Report, error) {
+	allowed := make(map[string]bool, len(assetIDs))
+	for _, assetID := range assetIDs {
+		allowed[strings.TrimPrefix(strings.TrimSpace(assetID), "react-component-library:")] = true
+	}
+	return reconcile(ctx, repoRoot, allowed)
+}
+
+func reconcile(ctx context.Context, repoRoot string, allowed map[string]bool) (Report, error) {
 	catalogDir := filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog")
 	libraryDir := filepath.Join(repoRoot, "scenarios", "react-component-library", "library")
 	assets, err := loadCatalog(catalogDir)
@@ -158,7 +175,16 @@ func Reconcile(ctx context.Context, repoRoot string) (Report, error) {
 			}
 		}
 	}
-	imports, available, cause, err := extractImports(ctx, repoRoot, impls)
+	sourceImpls := impls
+	if len(allowed) > 0 {
+		sourceImpls = make([]implementation, 0, len(impls))
+		for _, impl := range impls {
+			if allowed[impl.CatalogID] {
+				sourceImpls = append(sourceImpls, impl)
+			}
+		}
+	}
+	imports, available, cause, err := extractImports(ctx, repoRoot, sourceImpls, impls)
 	if err != nil {
 		return Report{}, err
 	}
@@ -169,6 +195,18 @@ func Reconcile(ctx context.Context, repoRoot string) (Report, error) {
 				report.Assets[index].Cause = cause
 			}
 		}
+	}
+	if len(allowed) > 0 {
+		filtered := report.Assets[:0]
+		report.Distribution = map[Verdict]int{}
+		for _, asset := range report.Assets {
+			if !allowed[asset.AssetID] {
+				continue
+			}
+			filtered = append(filtered, asset)
+			report.Distribution[asset.Verdict]++
+		}
+		report.Assets = filtered
 	}
 	return report, nil
 }
@@ -351,12 +389,12 @@ func writeGraphProject(uiDir string, files []string) (string, error) {
 	return dir, nil
 }
 
-func extractImports(parent context.Context, repoRoot string, impls []implementation) (map[string][]string, bool, string, error) {
+func extractImports(parent context.Context, repoRoot string, sourceImpls, allImpls []implementation) (map[string][]string, bool, string, error) {
 	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "react-component-library")
 	uiDir := filepath.Join(scenarioDir, "ui")
-	files, err := graphSourceFiles(filepath.Join(scenarioDir, "library"), uiDir, impls)
+	files, err := graphSourceFiles(filepath.Join(scenarioDir, "library"), uiDir, sourceImpls)
 	if err != nil {
 		return nil, false, "", err
 	}
@@ -395,9 +433,10 @@ func extractImports(parent context.Context, repoRoot string, impls []implementat
 		for strings.HasPrefix(nodePath, "../") {
 			nodePath = strings.TrimPrefix(nodePath, "../")
 		}
-		for _, impl := range impls {
+		for _, impl := range allImpls {
 			dir := path.Join("library", impl.Root, impl.Name)
-			if strings.HasPrefix(nodePath, dir+"/") || nodePath == dir {
+			exportDir := path.Join("packages", "react-component-library", "dist", "exports", impl.Name)
+			if strings.HasPrefix(nodePath, dir+"/") || nodePath == dir || strings.HasPrefix(nodePath, exportDir+"/") || nodePath == exportDir {
 				return impl.CatalogID
 			}
 		}
@@ -409,6 +448,34 @@ func extractImports(parent context.Context, repoRoot string, impls []implementat
 		to := assetForPath(nodePath[edge.GetToNodeId()])
 		if from != "" && to != "" && from != to {
 			imports[from] = append(imports[from], to)
+		}
+	}
+	// The graph service may represent package-resolved imports as external
+	// nodes because the generated project contains library sources while the
+	// package export target lives outside that project. Preserve the graph
+	// result, but supplement that boundary with the explicit governed import
+	// specifiers in the same source files; otherwise a real import is silently
+	// discarded and appears as a phantom catalog edge.
+	byName := make(map[string]string, len(allImpls))
+	for _, impl := range allImpls {
+		byName[impl.Name] = impl.CatalogID
+	}
+	importPattern := regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z0-9_-]+)(?:/|["'])`)
+	for _, file := range files {
+		data, readErr := os.ReadFile(filepath.Join(uiDir, filepath.FromSlash(file)))
+		if readErr != nil {
+			return nil, false, "", readErr
+		}
+		from := assetForPath(file)
+		if from == "" {
+			continue
+		}
+		for _, match := range importPattern.FindAllStringSubmatch(string(data), -1) {
+			if len(match) == 2 {
+				if to := byName[match[1]]; to != "" && to != from {
+					imports[from] = append(imports[from], to)
+				}
+			}
 		}
 	}
 	return imports, true, "", nil

@@ -1,6 +1,6 @@
 /** @vrooliComponentSource overlays.inspector-panel */
-import { Button } from "../../components/Button";
-import { StatusBadge } from "../../components/StatusBadge";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

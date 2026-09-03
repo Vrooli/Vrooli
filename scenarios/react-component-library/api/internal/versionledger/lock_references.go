@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 )
@@ -73,7 +74,7 @@ func (r *Repository) lockReferences(ctx context.Context) (map[string][]VersionRe
 	}
 
 	var lockPaths []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
 				return filepath.SkipDir

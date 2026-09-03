@@ -6,14 +6,14 @@
   "inputs": {
     "window": {
       "type": "string",
-      "description": "Optional measures TimeWindow token: this_week, last_7d, last_30d, this_month, last_month, this_quarter. Passed as {token}.",
+      "description": "Optional measures.v1.TimeWindowToken enum name, bound as {token: <value>} on ai-gateway/measures/total only; agent-manager/measures/run-volume takes no window. The ai-gateway CLI's lowercase tokens (this_week, last_7d, ...) are the same values without the TIME_WINDOW_TOKEN_ prefix.",
       "enum": [
-        "this_week",
-        "last_7d",
-        "last_30d",
-        "this_month",
-        "last_month",
-        "this_quarter"
+        "TIME_WINDOW_TOKEN_THIS_WEEK",
+        "TIME_WINDOW_TOKEN_LAST_7D",
+        "TIME_WINDOW_TOKEN_LAST_30D",
+        "TIME_WINDOW_TOKEN_THIS_MONTH",
+        "TIME_WINDOW_TOKEN_LAST_MONTH",
+        "TIME_WINDOW_TOKEN_THIS_QUARTER"
       ]
     }
   },
@@ -46,7 +46,6 @@
         "ok",
         "partial",
         "unavailable",
-        "refused",
         "failed"
       ]
     },
@@ -66,10 +65,16 @@
     },
     "errors": {
       "classes": [
-        "invalid_input",
         "scenario_unreachable",
         "no_grant",
-        "binding_error"
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
       ]
     },
     "evidence": "binding ids read"
@@ -93,7 +98,8 @@
       "requires": [
         "agent-manager",
         "ai-gateway"
-      ]
+      ],
+      "note": "Both reads are guarded per row, so a refused or failed read lowers the status to partial (one) or unavailable (both) and is classified in errors[]; the status is never refused."
     },
     {
       "id": "bad-window",
@@ -108,5 +114,5 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "prompt-manager"
+  "owner_skill": "morning-vision-walk"
 }

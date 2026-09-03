@@ -292,5 +292,12 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			return "", func() {}, err
 		}
 	}
+	if fixture.Mutation == "harness-missing-implementation" {
+		missing := filepath.Join(tmp, "scenarios", "react-component-library", "harnesses", "showcase", "versions", "1.0.0", "Showcase.tsx")
+		if err := os.Remove(missing); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
 	return tmp, cleanup, nil
 }

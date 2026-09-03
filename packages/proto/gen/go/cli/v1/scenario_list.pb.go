@@ -9,6 +9,7 @@ package cliv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -32,8 +33,10 @@ type ScenarioListResponse struct {
 	Scenarios []*Scenario `protobuf:"bytes,3,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
 	// Scenarios skipped due to discovery errors; empty on a clean sweep.
 	DiscoveryFailures []*DiscoveryFailure `protobuf:"bytes,4,rep,name=discovery_failures,json=discoveryFailures,proto3" json:"discovery_failures,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Time at which the control plane completed this inventory projection.
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScenarioListResponse) Reset() {
@@ -90,6 +93,13 @@ func (x *ScenarioListResponse) GetScenarios() []*Scenario {
 func (x *ScenarioListResponse) GetDiscoveryFailures() []*DiscoveryFailure {
 	if x != nil {
 		return x.DiscoveryFailures
+	}
+	return nil
+}
+
+func (x *ScenarioListResponse) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
 	}
 	return nil
 }
@@ -174,7 +184,9 @@ type Scenario struct {
 	// Absolute path to the scenario directory.
 	Path string `protobuf:"bytes,6,opt,name=path,proto3" json:"path,omitempty"`
 	// Allocated ports for a running scenario; empty when not running.
-	Ports         []*ScenarioPort `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	Ports []*ScenarioPort `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	// Current lifecycle health reported by the control plane.
+	HealthStatus  string `protobuf:"bytes,8,opt,name=health_status,json=healthStatus,proto3" json:"health_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,6 +270,13 @@ func (x *Scenario) GetPorts() []*ScenarioPort {
 	return nil
 }
 
+func (x *Scenario) GetHealthStatus() string {
+	if x != nil {
+		return x.HealthStatus
+	}
+	return ""
+}
+
 // ScenarioPort describes one allocated port for a running scenario.
 type ScenarioPort struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -335,16 +354,18 @@ var File_cli_v1_scenario_list_proto protoreflect.FileDescriptor
 
 const file_cli_v1_scenario_list_proto_rawDesc = "" +
 	"\n" +
-	"\x1acli/v1/scenario_list.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\"\xf5\x01\n" +
+	"\x1acli/v1/scenario_list.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb2\x02\n" +
 	"\x14ScenarioListResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12<\n" +
 	"\asummary\x18\x02 \x01(\v2\".vrooli.cli.v1.ScenarioListSummaryR\asummary\x125\n" +
 	"\tscenarios\x18\x03 \x03(\v2\x17.vrooli.cli.v1.ScenarioR\tscenarios\x12N\n" +
-	"\x12discovery_failures\x18\x04 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"v\n" +
+	"\x12discovery_failures\x18\x04 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\x12;\n" +
+	"\vobserved_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"v\n" +
 	"\x13ScenarioListSummary\x12'\n" +
 	"\x0ftotal_scenarios\x18\x01 \x01(\x05R\x0etotalScenarios\x12\x18\n" +
 	"\arunning\x18\x02 \x01(\x05R\arunning\x12\x1c\n" +
-	"\tavailable\x18\x03 \x01(\x05R\tavailable\"\xcd\x01\n" +
+	"\tavailable\x18\x03 \x01(\x05R\tavailable\"\xf2\x01\n" +
 	"\bScenario\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
@@ -352,7 +373,8 @@ const file_cli_v1_scenario_list_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x12\n" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12\x12\n" +
 	"\x04path\x18\x06 \x01(\tR\x04path\x121\n" +
-	"\x05ports\x18\a \x03(\v2\x1b.vrooli.cli.v1.ScenarioPortR\x05ports\"q\n" +
+	"\x05ports\x18\a \x03(\v2\x1b.vrooli.cli.v1.ScenarioPortR\x05ports\x12#\n" +
+	"\rhealth_status\x18\b \x01(\tR\fhealthStatus\"q\n" +
 	"\fScenarioPort\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04step\x18\x02 \x01(\tR\x04step\x12\x12\n" +
@@ -373,22 +395,24 @@ func file_cli_v1_scenario_list_proto_rawDescGZIP() []byte {
 
 var file_cli_v1_scenario_list_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_cli_v1_scenario_list_proto_goTypes = []any{
-	(*ScenarioListResponse)(nil), // 0: vrooli.cli.v1.ScenarioListResponse
-	(*ScenarioListSummary)(nil),  // 1: vrooli.cli.v1.ScenarioListSummary
-	(*Scenario)(nil),             // 2: vrooli.cli.v1.Scenario
-	(*ScenarioPort)(nil),         // 3: vrooli.cli.v1.ScenarioPort
-	(*DiscoveryFailure)(nil),     // 4: vrooli.cli.v1.DiscoveryFailure
+	(*ScenarioListResponse)(nil),  // 0: vrooli.cli.v1.ScenarioListResponse
+	(*ScenarioListSummary)(nil),   // 1: vrooli.cli.v1.ScenarioListSummary
+	(*Scenario)(nil),              // 2: vrooli.cli.v1.Scenario
+	(*ScenarioPort)(nil),          // 3: vrooli.cli.v1.ScenarioPort
+	(*DiscoveryFailure)(nil),      // 4: vrooli.cli.v1.DiscoveryFailure
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_cli_v1_scenario_list_proto_depIdxs = []int32{
 	1, // 0: vrooli.cli.v1.ScenarioListResponse.summary:type_name -> vrooli.cli.v1.ScenarioListSummary
 	2, // 1: vrooli.cli.v1.ScenarioListResponse.scenarios:type_name -> vrooli.cli.v1.Scenario
 	4, // 2: vrooli.cli.v1.ScenarioListResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
-	3, // 3: vrooli.cli.v1.Scenario.ports:type_name -> vrooli.cli.v1.ScenarioPort
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 3: vrooli.cli.v1.ScenarioListResponse.observed_at:type_name -> google.protobuf.Timestamp
+	3, // 4: vrooli.cli.v1.Scenario.ports:type_name -> vrooli.cli.v1.ScenarioPort
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_scenario_list_proto_init() }

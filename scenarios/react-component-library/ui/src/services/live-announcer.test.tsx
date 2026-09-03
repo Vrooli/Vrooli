@@ -1,7 +1,7 @@
 import { act, cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { LiveAnnouncer, useLiveAnnouncer } from "./LiveAnnouncer/versions/1.0.0/LiveAnnouncer";
+import { LiveAnnouncer, useLiveAnnouncer } from "@vrooli/react-component-library/LiveAnnouncer/1";
 import { renderWithProviders } from "../test-utils";
 
 function AnnouncerProbe() {

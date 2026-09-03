@@ -32,6 +32,17 @@ Known issues, tech debt, and deferred work for the git-control-tower scenario.
 - No remaining lint or type-check failures after `pnpm lint` and
   `pnpm type-check` (2026-02-04).
 
+## Engagement overwrite (resolved 2026-09-02)
+
+`baseline start` wrote the engagement manifest unconditionally, so a second
+session starting an engagement for the same scenario and slug silently took
+over the first session's restore point. The control plane's
+`recovery.WriteEngagement` now refuses to overwrite a live (unexpired)
+engagement and names the holder (scenario, slug, mode, created and touched
+times); `baseline start --replace` and `vrooli recovery write --replace` are
+the explicit override. Guard: `TestEngagementStartRefusesLiveEngagement`
+(`internal/app/recovery`).
+
 ## Worktree Domain Follow-ups (2026-05-16)
 
 The worktree domain shipped Tiers 1 + 2 against the WorktreeService /

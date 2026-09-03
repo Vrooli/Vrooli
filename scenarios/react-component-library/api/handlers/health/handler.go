@@ -9,6 +9,7 @@ package health
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"react-component-library/internal/database"
 
@@ -31,6 +32,7 @@ type Deps struct {
 func NewHandler(d Deps) http.HandlerFunc {
 	return apihealth.New(d.Service).
 		Version(d.Version).
+		Timeout(1*time.Second).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
 		}), apihealth.Critical).

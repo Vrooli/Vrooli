@@ -15,9 +15,9 @@ import {
 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
-import { Button } from "../../components/Button";
-import { IconButton } from "../../components/IconButton";
-import { StatusBadge } from "../../components/StatusBadge";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -50,7 +50,7 @@ import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
-import { WorkspaceHeader } from "../../components/WorkspaceHeader";
+import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
 import { useShellNavigation } from "../../components/ShellNavigationContext";
 import {
   createLibraryImportDefinitionProvider,
@@ -342,7 +342,7 @@ export function ComponentEditorImpl({
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
   const [previewKit, setPreviewKit] = useState<PreviewKit>(() =>
-    readPreviewPreference("rcl.preview.kit", ""),
+    readPreviewPreference("rcl.preview.kit", "vrooli-default") || "vrooli-default",
   );
   const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;

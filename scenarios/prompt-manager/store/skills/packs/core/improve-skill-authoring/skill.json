@@ -5,28 +5,30 @@
   "icon": "gauge",
   "id": "improve-skill-authoring",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
-    "meta",
-    "practice"
+    "meta"
   ],
-  "name": "Improve Skill Authoring",
+  "name": "improve-skill-authoring",
   "origin": {
     "kind": "authored"
   },
   "requires": {
-    "scenarios": [
-      "prompt-manager",
-      "program-runtime",
-      "measures-health"
-    ],
     "commands": [
       "prompt-manager skill read",
       "measures-health validate scenario",
       "program-runtime bindings describe",
-      "program-runtime programs submit"
+      "program-runtime sessions create",
+      "program-runtime programs submit",
+      "program-runtime sessions delete"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "program-runtime",
+      "measures-health"
     ]
   },
-  "revision": 1,
+  "revision": 4,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -38,5 +40,5 @@
     "setpoint",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-02T00:00:00Z"
+  "updatedAt": "2026-09-02T23:00:00Z"
 }

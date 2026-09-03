@@ -8,8 +8,33 @@ import {
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
+export const API_TIMEOUT_MS = 5_000;
 
-export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+/** All Connect requests share a bounded lifetime so a dead API becomes an
+ * actionable error state instead of an infinite loading state. */
+export async function boundedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const callerSignal = init.signal;
+  const abort = () => controller.abort();
+  callerSignal?.addEventListener("abort", abort, { once: true });
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted && !callerSignal?.aborted) {
+      throw makeApiError("timeout", "API request exceeded the 5 second deadline", 408);
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", abort);
+  }
+}
+
+export const transport = createScenarioConnectTransport({ baseUrl: API_BASE, fetch: boundedFetch });
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The
@@ -48,7 +73,7 @@ export async function decodeApiError(res: Response): Promise<ApiError> {
 }
 
 export async function uploadFile(path: string, formData: FormData): Promise<Response> {
-  return fetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
+  return boundedFetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
     method: "POST",
     body: formData,
     cache: "no-store",

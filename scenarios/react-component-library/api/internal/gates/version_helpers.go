@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"react-component-library/internal/librarywalk"
+
 	"react-component-library/internal/themes"
 )
 
@@ -23,6 +25,33 @@ func containsString(values []string, value string) bool {
 		}
 	}
 	return false
+}
+
+// isRetiredVersion reports whether a materialized version is no longer part
+// of an asset's live surface. Deprecated and evicted versions remain on disk
+// for reproducibility, but must not make an asset-scoped live validation fail.
+func isRetiredVersion(path string) (bool, error) {
+	versionDir := filepath.Clean(path)
+	if info, err := os.Stat(versionDir); err == nil && !info.IsDir() {
+		versionDir = filepath.Dir(versionDir)
+	}
+	version := filepath.Base(versionDir)
+	if filepath.Base(filepath.Dir(versionDir)) != "versions" {
+		return false, nil
+	}
+	manifestPath := filepath.Join(filepath.Dir(filepath.Dir(versionDir)), "component.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return false, err
+	}
+	var manifest struct {
+		Deprecated []string `json:"deprecatedVersions"`
+		Evicted    []string `json:"evictedVersions"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return false, err
+	}
+	return containsString(manifest.Deprecated, version) || containsString(manifest.Evicted, version), nil
 }
 
 func semverLikeLess(left, right string) bool {
@@ -46,7 +75,7 @@ func semverLikeLess(left, right string) bool {
 func versionSources(versionDir string) []string {
 	var matches []string
 	for _, extension := range []string{"*.tsx", "*.ts"} {
-		found, _ := filepath.Glob(filepath.Join(versionDir, extension))
+		found, _ := librarywalk.Glob(filepath.Join(versionDir, extension))
 		matches = append(matches, found...)
 	}
 	sort.Strings(matches)
@@ -291,7 +320,7 @@ func implementationName(path string) string {
 	if filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path)))) == "support" {
 		assetName := filepath.Base(filepath.Dir(filepath.Dir(path)))
 		for current := filepath.Dir(path); current != filepath.Dir(current); current = filepath.Dir(current) {
-			assetPaths, _ := filepath.Glob(filepath.Join(current, "catalog", "assets", "*", "*.json"))
+			assetPaths, _ := librarywalk.Glob(filepath.Join(current, "catalog", "assets", "*", "*.json"))
 			for _, assetPath := range assetPaths {
 				data, readErr := os.ReadFile(assetPath)
 				if readErr != nil {

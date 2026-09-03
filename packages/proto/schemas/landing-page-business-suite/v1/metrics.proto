@@ -3,6 +3,7 @@ syntax = "proto3";
 package landing_page_business_suite.v1;
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
@@ -72,6 +73,8 @@ message AnalyticsSummary {
   optional string top_cta = 4;
   // Click-through rate for top_cta (clicks / views * 100).
   optional double top_cta_ctr = 5;
+  // Time at which the producer completed this aggregate projection.
+  google.protobuf.Timestamp observed_at = 6;
 }
 
 // GetAnalyticsSummaryRequest requests the aggregate summary for a date window.

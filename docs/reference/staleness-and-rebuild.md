@@ -1,100 +1,47 @@
-# Staleness detection and self-rebuild — `internal/buildinfo`
+# Scenario freshness and rebuilds
 
-`vrooli` and `vrooli-api` self-detect when their compiled binary is older
-than the source tree they live in, and re-exec into a freshly built version.
-This document is the reference for that flow: env vars, on-disk artifacts,
-concurrency contract, and the autoheal-specific opt-out.
+Vrooli uses the manifest freshness engine in `packages/cli-core/cliutil` for
+scenario artifacts. The engine evaluates declared inputs by file content and
+the stat cache; it does not use source-versus-artifact mtime as a freshness
+verdict and it does not expose a stale-check bypass flag.
 
-## Source of truth
+The retired `--no-stale-check` global is tolerated until 2026-12-01: the root
+parser consumes it, prints one warning to stderr, and dispatches the command
+unchanged. The tolerance table lives in `internal/cli/rootcli/rootcli.go`
+(`retiredGlobals`). Processes that spawn `vrooli` must not rely on it; the
+invoker registry test in `internal/cli/rootcli/invokers` fails on any
+registered argv that still carries a retired global.
 
-- `internal/buildinfo/buildinfo.go` — fingerprint computation, `CheckStaleness`, `RebuildAndReexec`.
-- `internal/cli/rootcli/rootcli.go` — wraps `CheckStaleness` + `RebuildAndReexec` for the CLI entry path; surfaces `--no-stale-check`.
+## Freshness contract
 
-## Fingerprint
+An artifact is stale when it is missing, has no manifest, or its manifest no
+longer matches the declared inputs. A missing manifest is therefore a
+one-time build condition. Successful builds stamp only the component that was
+built, allowing API, UI, and other components to rebuild independently.
 
-A SHA-256 over `<rel> <size> <sha256-hex>` lines for every `.go` file under
-the targets returned by `fingerprintTargets()`:
+Input enumeration uses `git ls-files --cached --others --exclude-standard`
+inside a work tree and a `WalkDir` fallback outside one. Git supplies the file
+set only; the verdict remains content-based, so committing a change cannot by
+itself make an artifact fresh or stale.
 
-| Binary | Targets |
-|---|---|
-| `vrooli` | `cmd/vrooli`, `internal` |
-| `vrooli-api` | `cmd/vrooli-api`, `internal` |
+## Lifecycle behavior
 
-The fingerprint is embedded in the binary at build time via
-`-ldflags -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=<hex>`.
+Builder specifications in `internal/lifecycle/components.go` declare inputs,
+skip suffixes, digest keys, closure resolution, outputs, and commands. The
+generic lifecycle evaluator uses those fields for Go, Node, and Python/uv
+components. Fresh components are skipped unless setup is explicitly forced;
+independent stale components may build concurrently within the memory budget.
 
-## Environment variables
+Proto generation is invoked through the direct `protogen` command and receives
+the changed schema scope. `make` is not required on the scenario start path.
 
-| Variable | Purpose |
-|---|---|
-| `VROOLI_SOURCE_ROOT` | Repository root used for fingerprinting. Defaults to module-root discovery, then the installed source pointer or a bounded, Vrooli-identity-checked search below the invoking user's home directory. |
-| `VROOLI_ROOT` | Fallback when `VROOLI_SOURCE_ROOT` is unset. |
-| `VROOLI_FINGERPRINT_PATHS` | Comma-separated relative paths overriding the default target set. |
-| `VROOLI_BUILD_TARGET` | Override `./cmd/<name>` build target used by `RebuildAndReexec`. |
-| `VROOLI_REBUILD_FINGERPRINT` | Set automatically on re-exec; trips the loop guard if the same fingerprint asks for a second rebuild in the same chain. |
-| `VROOLI_FINGERPRINT_DEBUG` | When truthy (anything except empty / `0` / `false` / `no` / `off`), dump a sorted `<rel> <size> <sha256>` line per fingerprint input to stderr. Diagnostic only. |
+## Diagnostics
 
-## On-disk artifacts (next to the executable)
+Use lifecycle logs and component freshness verdicts to identify the content
+cause. The rebuild-ledger evidence folder contains the retained baseline,
+focused regression proofs, and validation commands:
+`docs/architecture/evidence/rebuild-ledger/README.md`.
 
-| File | Purpose |
-|---|---|
-| `<executable>.lock` | flock(2) target serializing concurrent rebuilders. Auto-released on process death. |
-| `<executable>.fp` | Sidecar fingerprint cache; lets sibling processes recognize a freshly rebuilt binary even when their own embedded symbol still reflects the pre-rebuild value. |
-| `<executable>.tmp.<pid>` | Transient build output; `os.Rename`d into place atomically. |
-
-The user-level source pointer at `~/.vrooli/source-root` records the checkout
-used by `make install` and by authenticated prebuilt installers. Resolution is
-sudo-aware, so `sudo vrooli setup` checks the invoking user's Vrooli home
-instead of `/root`. Existing local installs without the pointer can still
-bootstrap when the checkout is below that home directory and has the canonical
-Vrooli module path and CLI entrypoint.
-
-### Sidecar precedence
-
-`CheckStaleness` consults the sidecar first:
-- present **and** matches current source fingerprint **and** `sidecar.mtime ≥ binary.mtime` → fresh.
-- otherwise → fall through to the embedded-fingerprint compare (authoritative).
-
-A developer who runs `make build` (which doesn't touch the sidecar) is
-covered by the mtime check: a newer binary mtime invalidates an older
-sidecar, and the embedded compare drives the result.
-
-## Rebuild concurrency contract
-
-`RebuildAndReexec`:
-
-1. Compute current fingerprint; if it equals `VROOLI_REBUILD_FINGERPRINT`, return the rebuild-loop error.
-2. Acquire `<executable>.lock` via `LOCK_EX` flock. Linux-only.
-3. Re-check: if `Fingerprint` (embedded) already matches current source, skip the build and exec straight into the now-fresh binary.
-4. Run `go build -o <executable>.tmp.<pid> <buildTarget>` with `-ldflags` injecting the new fingerprint, git commit, and build time.
-5. `os.Rename(<tempfile>, <executable>)` — atomic on the same filesystem.
-6. Best-effort write `<executable>.fp` (atomic via temp + rename).
-7. Release flock; `syscall.Exec` re-execs with `VROOLI_REBUILD_FINGERPRINT=<current>`.
-
-Build failure removes the temp file and returns; the lock is released by the deferred close.
-
-## `--no-stale-check`
-
-Every `vrooli` subcommand accepts `--no-stale-check`, which short-circuits
-the staleness check and the rebuild path. Use it for ad-hoc invocations
-where you don't want a stale source tree to trigger a rebuild.
-
-### Autoheal opt-out (always on)
-
-`scenarios/vrooli-autoheal` runs many `vrooli` subprocesses concurrently
-against the user's working tree. To prevent every check from entering the
-rebuild path (and contending on `<executable>` even with the flock),
-`scenarios/vrooli-autoheal/api/internal/checks/executor.go` injects
-`--no-stale-check` for every `vrooli` invocation. The injection is
-idempotent and lives at the single `RealExecutor` seam that all 27+
-autoheal call sites traverse.
-
-## Diagnosing rebuild loops
-
-1. `VROOLI_FINGERPRINT_DEBUG=1 vrooli scenario status <name> 2> /tmp/fp.txt` — dumps the per-file inputs that fed the fingerprint.
-2. Compare two such dumps from different invocations to localize which file actually changed; the fingerprint header line includes the resulting hex.
-3. If the dumps are identical but the binary still reports stale, suspect a stale embedded symbol (no sidecar yet) — manually `make build` to refresh, or rely on the next successful `RebuildAndReexec` to drop a sidecar.
-
-## Tests
-
-- `internal/buildinfo/buildinfo_test.go` — fingerprint determinism, target validation, debug dump on/off, flock serialization, atomic rename, lock release on build failure, sidecar precedence and mtime gating, sidecar write on success.
+For the next investigation, `vrooli scenario timings --since <date>` reports
+the setup and build timing window without reintroducing a second freshness
+implementation.

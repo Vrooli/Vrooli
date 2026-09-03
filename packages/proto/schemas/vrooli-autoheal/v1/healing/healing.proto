@@ -59,6 +59,26 @@ message ReadinessElement {
   string evidence = 6;
 }
 
+// BootRecoveryPrecondition is one named verdict of the boot-recovery
+// readiness check: state is ok, failed or undetermined, always with a reason.
+message BootRecoveryPrecondition {
+  string name = 1;
+  string state = 2;
+  string reason = 3;
+}
+
+// BootRecovery is the typed projection of the system-boot-recovery-readiness
+// check: would the autoheal boot path work if the host rebooted now. Status
+// is the check's status (ok, critical, undetermined) or "unknown" when the
+// check has not run since the API started; remediation is the one repair.
+message BootRecovery {
+  string status = 1;
+  repeated BootRecoveryPrecondition preconditions = 2;
+  google.protobuf.Timestamp evaluated_at = 3;
+  string remediation = 4;
+  string message = 5;
+}
+
 message GetReadinessResponse {
   bool available = 1;
   string unavailable_reason = 2;
@@ -67,4 +87,5 @@ message GetReadinessResponse {
   repeated ReadinessElement elements = 5;
   repeated HealEpisode episodes = 6;
   google.protobuf.Timestamp computed_at = 7;
+  BootRecovery boot_recovery = 8;
 }

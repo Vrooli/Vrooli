@@ -2,10 +2,9 @@ package domains
 
 import (
 	"react-component-library/cli/domains/adoptions"
+	"react-component-library/cli/domains/asset"
 	"react-component-library/cli/domains/catalog"
 	"react-component-library/cli/domains/components"
-	"react-component-library/cli/domains/coverage"
-	"react-component-library/cli/domains/findings"
 	"react-component-library/cli/domains/preview"
 	"react-component-library/cli/domains/versions"
 	"react-component-library/cli/domains/workflows"
@@ -13,17 +12,13 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return []cliapp.CommandGroup{coverage.Commands(), findings.Commands()}
-}
-
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
 // Each domain package's Register(core, manifest) builds its SubcommandGroup
 // from the embedded cli/manifest.json via cliapp.LoadFromManifest.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.SubcommandGroup, error) {
 	registrars := []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		adoptions.Register,
+		asset.Register,
 		components.Register,
 		preview.Register,
 		versions.Register,

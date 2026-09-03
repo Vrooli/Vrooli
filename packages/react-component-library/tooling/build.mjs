@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
 import { packageDependencyPaths as derivePackageDependencyPaths } from "./dependency-paths.mjs";
+import { scanModuleSpecifiers } from "./resolve-imports.mjs";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/tooling$/, "");
 const sourceRoot = authoredRoot;
@@ -17,6 +18,37 @@ const { resolutions: exportResolutions } = await resolveCatalogExports({
   libraryRoot: sourceRoot,
   manifestRoot: authoredRoot,
 });
+
+// The workbench is the first package consumer. Check it before compiling the
+// library so an invalid released subpath is reported with the exact consumer
+// file and specifier that needs repair. Keep this scan ahead of the broad
+// scenario scan in sync-exports: the workbench is the highest-signal client
+// for a shared-library build and must fail the build deterministically.
+const workbenchRoot = join(packageRoot, "..", "..", "scenarios", "react-component-library", "ui", "src");
+const workbenchBrokenImports = [];
+if (existsSync(workbenchRoot)) {
+  for (const [file, specifiers] of scanModuleSpecifiers(workbenchRoot)) {
+    if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file)) continue;
+    for (const specifier of specifiers) {
+      if (!specifier.startsWith("@vrooli/react-component-library/")) continue;
+      const key = `./${specifier.slice("@vrooli/react-component-library/".length)}`;
+      if (!exportResolutions[key]) {
+        workbenchBrokenImports.push({
+          consumer: "scenarios/react-component-library/ui",
+          file: relativePath(join(packageRoot, "..", ".."), file).replaceAll("\\", "/"),
+          specifier,
+        });
+      }
+    }
+  }
+}
+if (workbenchBrokenImports.length > 0) {
+  console.error("react-component-library build failed: workbench consumer imports are not published");
+  for (const finding of workbenchBrokenImports) {
+    console.error(`  ${finding.file}: ${finding.specifier}`);
+  }
+  process.exit(1);
+}
 const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
 const baseConfig = JSON.parse(await readFile(join(packageRoot, "tsconfig.build.json"), "utf8"));
 const packageNodeModules = join(packageRoot, "node_modules");
@@ -273,4 +305,9 @@ await rename(stagingRoot, distRoot);
 await rm(retiredRoot, { recursive: true, force: true });
 await rm(generatedConfigPath, { force: true });
 
-console.log("Built @vrooli/react-component-library with declarations.");
+console.log(JSON.stringify({
+  built: "@vrooli/react-component-library",
+  consumer: "scenarios/react-component-library/ui",
+  workbenchBrokenImports: 0,
+  declarations: true,
+}));

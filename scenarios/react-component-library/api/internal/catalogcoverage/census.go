@@ -1,15 +1,19 @@
 package catalogcoverage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 type ShapeRow struct {
+	Kind  string   `json:"kind"`
 	Shape []string `json:"shape"`
 	Count int      `json:"count"`
 }
@@ -37,20 +41,65 @@ func ShapeCensus(libraryRoot string) ([]ShapeRow, error) {
 		if strings.Contains(filepath.ToSlash(version), "/library/support/") {
 			files = []string{"<Asset>.tsx", "<Asset>.css?", "<Asset>.strings.ts?", "story.tsx", "story.json", "dependencies.json"}
 		}
-		counts[strings.Join(files, "\x00")]++
+		kind := "version"
+		if strings.Contains(filepath.ToSlash(version), "/support/") {
+			kind = "support-version"
+		}
+		counts[kind+"\x01"+strings.Join(files, "\x00")]++
 		return nil
 	}); err != nil {
 		return nil, err
 	}
+	// Support assets predate the governed versions/ layout. Count the two
+	// historical shapes explicitly so they remain visible in the report.
+	supportRoot := filepath.Join(libraryRoot, "support")
+	if assets, readErr := os.ReadDir(supportRoot); readErr == nil {
+		for _, asset := range assets {
+			if !asset.IsDir() {
+				continue
+			}
+			assetRoot := filepath.Join(supportRoot, asset.Name())
+			children, childErr := os.ReadDir(assetRoot)
+			if childErr != nil {
+				continue
+			}
+			for _, child := range children {
+				if child.IsDir() && corpusVersion.MatchString(child.Name()) {
+					entries, entriesErr := os.ReadDir(filepath.Join(assetRoot, child.Name()))
+					if entriesErr == nil {
+						files := make([]string, 0, len(entries))
+						for _, entry := range entries {
+							files = append(files, entry.Name())
+						}
+						sort.Strings(files)
+						counts["support-flat\x01"+strings.Join(files, "\x00")]++
+					}
+					continue
+				}
+				if !child.IsDir() && corpusVersion.MatchString(strings.TrimSuffix(child.Name(), filepath.Ext(child.Name()))) {
+					counts["support-file\x01<Asset>/<version>."+strings.TrimPrefix(filepath.Ext(child.Name()), ".")]++
+				}
+			}
+		}
+	}
 	rows := make([]ShapeRow, 0, len(counts))
 	for shape, count := range counts {
-		files := []string{}
-		if shape != "" {
-			files = strings.Split(shape, "\x00")
+		parts := strings.SplitN(shape, "\x01", 2)
+		kind, shapeValue := parts[0], ""
+		if len(parts) == 2 {
+			shapeValue = parts[1]
 		}
-		rows = append(rows, ShapeRow{Shape: files, Count: count})
+		files := []string{}
+		if shapeValue != "" {
+			files = strings.Split(shapeValue, "\x00")
+		}
+		rows = append(rows, ShapeRow{Kind: kind, Shape: files, Count: count})
 	}
-	sort.Slice(rows, func(i, j int) bool { return strings.Join(rows[i].Shape, "\x00") < strings.Join(rows[j].Shape, "\x00") })
+	sort.Slice(rows, func(i, j int) bool {
+		left := rows[i].Kind + "\x00" + strings.Join(rows[i].Shape, "\x00")
+		right := rows[j].Kind + "\x00" + strings.Join(rows[j].Shape, "\x00")
+		return left < right
+	})
 	return rows, nil
 }
 
@@ -167,14 +216,9 @@ func DuplicationCensus(root string) ([]DuplicationRow, error) {
 }
 
 func walkLiveVersions(libraryRoot string, fn func(string) error) error {
-	return filepath.WalkDir(libraryRoot, func(path string, entry os.DirEntry, err error) error {
+	return librarywalk.WalkTree(nil, libraryRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
-		}
-		if entry.IsDir() && (entry.Name() == ".retired" || entry.Name() == "dist" || entry.Name() == "node_modules") {
-			if path != libraryRoot {
-				return filepath.SkipDir
-			}
 		}
 		if entry.IsDir() && entry.Name() == "versions" {
 			return nil
@@ -188,7 +232,7 @@ func walkLiveVersions(libraryRoot string, fn func(string) error) error {
 
 func findManifest(libraryRoot, name string) (map[string]any, bool) {
 	var result map[string]any
-	_ = filepath.WalkDir(libraryRoot, func(path string, entry os.DirEntry, err error) error {
+	_ = librarywalk.WalkContext(context.Background(), libraryRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil || result != nil {
 			return err
 		}

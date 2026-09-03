@@ -39,6 +39,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		var scenarios scenarioFlags
+		changed := fs.Bool("changed", false, "derive scope from per-scenario generation locks")
 		fs.Var(&scenarios, "scenario", "scenario to regenerate (repeatable)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
@@ -46,6 +47,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		config := protogen.DefaultConfig(repoRoot)
 		config.ProtoRoot = protoRoot
 		config.Scenarios = scenarios
+		config.Changed = *changed
 		config.Logger = stdout
 		generator, err := protogen.New(config)
 		if err != nil {

@@ -3,7 +3,7 @@ import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 
-import { CartesianCharts } from "./CartesianCharts";
+import { CartesianCharts } from "@vrooli/react-component-library/CartesianCharts/1";
 
 describe("CartesianCharts", () => {
   afterEach(() => cleanup());

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 
 import { selectors } from "../../consts/selectors";
@@ -65,10 +65,11 @@ describe("ProgressionPanel", () => {
 
     renderPanel();
 
-    const chart = await screen.findByTestId("cartesian-charts");
-    expect(screen.getByTestId(selectors.versions.progressionPanel)).toBeInTheDocument();
+    const panel = await screen.findByTestId(selectors.versions.progressionPanel);
+    await waitFor(() => expect(panel.querySelector("[data-rcl-chart]")).toBeTruthy());
+    const chart = panel.querySelector("[data-rcl-chart]") as HTMLElement;
     expect(chart).toHaveTextContent("0.9.0");
-    expect(chart).toHaveTextContent("retired");
+    expect(panel).toHaveTextContent("retired");
     expect(within(chart).getByRole("button", { name: /0\.9\.0/ })).toBeInTheDocument();
     expect(within(chart).getByRole("table")).toBeInTheDocument();
     expect(listVersionLedger).toHaveBeenCalledWith("react-component-library:Chart");
@@ -80,7 +81,8 @@ describe("ProgressionPanel", () => {
     );
     renderPanel();
     expect(screen.getByRole("status")).toHaveTextContent("componentDetail.progression.loading");
-    await screen.findByTestId("cartesian-charts");
+    const panel = await screen.findByTestId(selectors.versions.progressionPanel);
+    await waitFor(() => expect(panel.querySelector("[data-rcl-chart]")).toBeTruthy());
   });
 
   it("reports provider failures", async () => {

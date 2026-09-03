@@ -1,4 +1,4 @@
-import { API_BASE, decodeApiError } from "./client";
+import { API_BASE, boundedFetch, decodeApiError } from "./client";
 import { createClient } from "@connectrpc/connect";
 import {
   VersionLifecycleService,
@@ -29,7 +29,7 @@ export interface VersionLedgerRow {
   presence: string;
 }
 export async function listVersionLedger(libraryId: string): Promise<VersionLedgerRow[]> {
-  const response = await fetch(endpoint, {
+  const response = await boundedFetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Connect-Protocol-Version": "1" },
     body: JSON.stringify({ libraryId }),

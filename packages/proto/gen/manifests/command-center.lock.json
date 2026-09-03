@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scenario": "command-center",
+  "input_digest": "sha256:1ddb0c873e91701e295b0e0679aaf1033815d698e42bddf919c9b071bdbf2f93",
+  "input_files": [
+    "schemas/command-center/v1/integrations/integrations.proto",
+    "schemas/common/v1/integrations.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/command-center/v1/integrations/integrations.pb.go": "sha256:ba95b1eff879c5595643b1c09729248afc92a7c1406ea03200d511ad85d88583",
+    "gen/go/command-center/v1/integrations/integrations_v1connect/integrations.connect.go": "sha256:16f8aed9175b674b2a1f934764f7c6b440424958165d39f609094aec10b83f96",
+    "gen/python/command_center/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/command_center/v1/integrations/integrations_pb2.py": "sha256:badd01d6402e61a1e9f6c5cbebb160b6991c381d4d47b7ccff73f1fc5c831846",
+    "gen/python/command_center/v1/integrations/integrations_pb2.pyi": "sha256:c7c9b8b0085df867f67aef0c6df0f4143d448228abef6c018574961f315f8c43",
+    "gen/python/command_center/v1/integrations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/command_center/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/command-center/v1/integrations/integrations_pb.ts": "sha256:5d98e2310f523acbedf1c101a118accb4f7c609df8bc23084146a5c5a7f64860"
+  }
+}

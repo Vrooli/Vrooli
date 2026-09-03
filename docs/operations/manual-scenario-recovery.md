@@ -84,29 +84,18 @@ Identify which failure you have:
 
 ## 2. Stop a scenario the lifecycle can't
 
-Prefer the sanctioned path; only hand-kill if it fails.
+Use the control-plane recovery path so process identity and registry state stay
+consistent:
 
 ```bash
-vrooli scenario stop <name>          # try this first
+vrooli scenario stop <name>
 vrooli cleanup orphans               # SIGTERMs registry-confirmed orphans (inspect with `vrooli orphans` first)
 ```
 
-If a process is still wedged, find and kill it by hand. The process records hold the
-PID and process-group ID:
-
-```bash
-ls ~/.vrooli/processes/scenarios/<name>/        # one <step>.json per running step (e.g. develop.json)
-cat ~/.vrooli/processes/scenarios/<name>/develop.json   # contains "pid" and "pgid"
-
-# Kill the whole process group (negative PGID) — graceful first, then hard:
-kill -TERM -<pgid> ; sleep 3 ; kill -KILL -<pgid> 2>/dev/null
-
-# If you only have a PID and no clean PGID, fall back to:
-pkill -TERM -f 'VROOLI_SCENARIO=<name>' ; sleep 3 ; pkill -KILL -f 'VROOLI_SCENARIO=<name>'
-```
-
-Managed Vrooli processes carry `VROOLI_SCENARIO=<name>` in their environment, which makes
-them identifiable with `ps eww` / `pgrep -f`.
+If the control plane cannot stop a registered process, capture `vrooli scenario
+status <name>` and `vrooli scenario logs <name>`, then report the control-plane
+defect. Do not bypass process ownership with PID- or pattern-based termination;
+that leaves the registry and dependents with unverifiable state.
 
 ---
 

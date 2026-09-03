@@ -103,7 +103,13 @@ func commandCenterIntegrationRegistry(s *Server) *capreg.Registry {
 	} else {
 		checkers["prompt-manager"] = unavailableChecker{"no Prompt Manager transmitter configured"}
 	}
-	return capreg.New(defs, checkers, 5*time.Second)
+	registry := capreg.New(defs, checkers, 5*time.Second)
+	// The integration checkers use the documented operational health surface,
+	// so they are also the bounded liveness tier. Keeping this explicit avoids
+	// the shared registry's intentionally separate full/liveness configuration
+	// turning every dependency into an unevaluated unknown state.
+	registry.SetLivenessCheckers(checkers)
+	return registry
 }
 
 func featureRequirements(ids []string) map[string]capreg.FeatureRequirement {
@@ -148,6 +154,9 @@ func validateOutcomeBindings(defs []capreg.Def, metrics []MetricEntry) error {
 		}
 		seen[metric.ID] = struct{}{}
 		if metric.Source.IntegrationID == "none" {
+			if metric.Coverage != CoverageMissing {
+				return fmt.Errorf("metric %q has no source but coverage is %s", metric.ID, metric.Coverage)
+			}
 			continue
 		}
 		set, ok := features[metric.Source.IntegrationID]
@@ -249,6 +258,12 @@ func (s *Server) handleIntegrationAction(w http.ResponseWriter, r *http.Request)
 				return
 			}
 			if state.ActionKind == capreg.ActionKindScenarioStart || state.ActionKind == capreg.ActionKindScenarioRestart {
+				if !lifecycleActionEligible(state) {
+					writeError(w, 400, "action_not_allowed", "Lifecycle recovery requires an unavailable integration", nil)
+					return
+				}
+			}
+			if lifecycleActionEligible(state) {
 				result, err := s.actionService.Run(r.Context(), capreg.LifecycleActionRequest{IntegrationID: state.ID, ActionKind: state.ActionKind})
 				if err != nil {
 					writeError(w, http.StatusBadRequest, "action_failed", err.Error(), nil)
@@ -262,6 +277,15 @@ func (s *Server) handleIntegrationAction(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	writeError(w, 404, "integration_not_found", "Unknown integration: "+id, nil)
+}
+
+// lifecycleActionEligible keeps the declared action policy separate from its
+// current runtime eligibility. A healthy or unknown scenario must not receive
+// a start/restart command merely because the definition allows that recovery
+// action when the scenario is unavailable.
+func lifecycleActionEligible(state capreg.State) bool {
+	return state.Status == capreg.StatusUnavailable &&
+		(state.ActionKind == capreg.ActionKindScenarioStart || state.ActionKind == capreg.ActionKindScenarioRestart)
 }
 
 func muxVars(r *http.Request, key string) string { return strings.TrimSpace(mux.Vars(r)[key]) }

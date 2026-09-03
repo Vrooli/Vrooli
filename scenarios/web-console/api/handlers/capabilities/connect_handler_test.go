@@ -198,6 +198,29 @@ func TestAdapterRunActionInvalidatesCacheAndReturnsFreshSnapshot(t *testing.T) {
 	t.Fatal("audio-tools missing from refreshed snapshot")
 }
 
+func TestAdapterRejectsLifecycleActionForHealthyCapability(t *testing.T) {
+	checker := &adapterResultChecker{result: internalcaps.CheckResult{
+		Status:     internalcaps.StatusAvailable,
+		Message:    "scenario is healthy",
+		ReasonCode: "scenario_healthy",
+		ActionKind: internalcaps.ActionKindScenarioStart,
+	}}
+	registry := internalcaps.NewRegistry(
+		internalcaps.Known,
+		map[string]internalcaps.Checker{"audio-tools": checker},
+		0,
+	)
+	runner := &adapterCommandRunner{}
+	adapter := &Adapter{Registry: registry, ActionRunner: runner, CLIPath: "vrooli"}
+	_, err := adapter.RunAction(context.Background(), ActionRequest{
+		CapabilityID: "audio-tools",
+		ActionKind:   string(internalcaps.ActionKindScenarioStart),
+	})
+	if err == nil || runner.calls != 0 {
+		t.Fatalf("RunAction error=%v calls=%d, want rejection without lifecycle invocation", err, runner.calls)
+	}
+}
+
 func TestAdapterProjectsBackendOptionsAndSupportsDescribeAndLiveness(t *testing.T) {
 	registry := internalcaps.NewRegistry(
 		[]internalcaps.Def{{ID: "audio", Name: "Audio", Description: "Audio capability", DependencyKind: internalcaps.DependencyScenario, DependencySlug: "audio"}},

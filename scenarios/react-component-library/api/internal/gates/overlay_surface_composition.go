@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"strings"
 )
@@ -16,7 +17,7 @@ func ValidateOverlaySurfaceComposition(scope Scope) (Result, error) {
 		return Result{}, factsErr
 	}
 	result := Result{}
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
 	if err != nil {
 		return Result{}, err
 	}
@@ -83,8 +84,6 @@ var (
 	sharedFocusRE          = regexp.MustCompile(`(?is)[^{}]*:focus-visible[^{}]*\{`)
 	sharedVisuallyHiddenRE = regexp.MustCompile(`(?is)clip-path\s*:\s*inset\s*\(\s*50%`)
 	componentSourceRE      = regexp.MustCompile(`(?m)@vrooliComponentSource\s+([^*\s]+)`)
-	libraryImportRE        = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'";]+)/([^/\s'";]+)`)
-	scenarioRCLPinRE       = regexp.MustCompile(`@vrooli/react-component-library/([^/\s'";]+)/([0-9]+(?:\.[0-9]+){0,2})`)
 )
 
 // ValidateSharedStyleOwnership keeps cross-cutting rules in BaseStyles. An

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strings"
@@ -79,7 +80,7 @@ func TokenCensus(root string) (Census, error) {
 		return Census{}, err
 	}
 
-	manifestPaths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
+	manifestPaths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
 	if err != nil {
 		return Census{}, err
 	}
@@ -221,7 +222,7 @@ func activeAssetDeclarations(assetDir string) (map[string]struct{}, error) {
 }
 
 func readKitProperties(root string) (map[string][]string, error) {
-	metadataPaths, err := filepath.Glob(filepath.Join(root, "templates", "design", "*", "metadata.json"))
+	metadataPaths, err := librarywalk.Glob(filepath.Join(root, "templates", "design", "*", "metadata.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +253,7 @@ func readKitProperties(root string) (map[string][]string, error) {
 }
 
 func readScenarioRamps(root string) ([]ScenarioRampCensus, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "*", "ui", "src", "design-tokens.css"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "*", "ui", "src", "design-tokens.css"))
 	if err != nil {
 		return nil, err
 	}

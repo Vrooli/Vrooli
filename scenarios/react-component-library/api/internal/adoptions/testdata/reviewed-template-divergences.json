@@ -1,7 +1,7 @@
 {
   "_note": "Reviewed template divergence ledger. The current react-vite template contains no vendored RCL component copies, so no divergences are accepted. Add a dated, exact entry only when a real template copy is intentionally kept behind the catalog latest.",
   "reviewedAt": "2026-08-27",
-  "report": "scenarios/react-component-library/docs/reports/2026-07-14-react-vite-template-divergence.md",
+  "report": "/home/matthalloran8/.vrooli/plan-artifacts/react-component-library/reports-2026-09-02/2026-07-14-react-vite-template-divergence.md",
   "scanRoot": "templates/scenarios/react-vite",
   "divergences": []
 }

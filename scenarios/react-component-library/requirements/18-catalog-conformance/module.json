@@ -24,7 +24,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/scripts/catalog-conformance.mjs",
+          "ref": "catalog build --check",
           "phase": "unit",
           "status": "failing",
           "notes": "`pnpm run catalog:check` and `make lint-ui` passed after the catalog conformance scripts/configs were added. A temporary Button type error produced the expected TypeScript failure before removal."

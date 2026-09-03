@@ -18,15 +18,14 @@ describe("Textarea", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
     renderWithProviders(<Textarea data-testid="t" />);
     const el = screen.getByTestId("t");
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-textarea", "true");
   });
 
   it("merges a custom className with the base classes via cn()", () => {
     renderWithProviders(<Textarea data-testid="t" className="custom-extra px-space-md" />);
     const el = screen.getByTestId("t");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-control/);
+    expect(el).toHaveAttribute("data-rcl-textarea", "true");
   });
 
   it("forwards ref to the underlying HTMLTextAreaElement", () => {

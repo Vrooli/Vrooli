@@ -10,6 +10,7 @@ This page covers the operator's runtime choices: which scenarios stay running, w
 | Scenario's recommended auto-restart default | `scenarios/<name>/.vrooli/service.json` | `runtime.auto_restart_default` |
 | Operator's auto-restart override | `.vrooli/operator-state.json` | `scenarios.<name>.auto_restart` |
 | Operator's enabled selection | `.vrooli/operator-state.json` | `scenarios.<name>.enabled`, `resources.<name>.enabled` |
+| Named configuration preset | control-plane configuration document | expands to desired scenario, resource, host, credential, and safeguard selections |
 | Global startup behavior | (deferred — see "open work" below) | — |
 
 ## The runtime block

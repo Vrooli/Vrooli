@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 )
@@ -21,7 +22,7 @@ func ValidateDeclarationCoverage(scope Scope) (Result, error) {
 	}
 	result := Result{}
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}

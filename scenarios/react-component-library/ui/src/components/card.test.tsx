@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./Card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./Card";
 
 describe("Card primitives", () => {
   afterEach(() => cleanup());

@@ -1,8 +1,31 @@
 # Vrooli CLI Commands
 
+`vrooli capacity list` shows the live ledger by default. Use
+`vrooli capacity list --all` when terminal claim history is required.
 This document summarizes the current root CLI surface for the project-level platform.
 
 Use `vrooli help` and subcommand `--help` output as the final authority for exact flags and any newly added commands.
+
+## Prompt-manager skill governance
+
+```bash
+prompt-manager skill import --help
+prompt-manager skill review-import --help
+prompt-manager skill import-staleness --help
+VROOLI_SKILL_PROJECTION_DIRS="$HOME/.claude/skills:$HOME/.codex/skills:$HOME/.config/opencode/skills:$HOME/.gemini/skills:$HOME/.grok/skills" prompt-manager skill topology --json
+```
+
+`skill import` requires a local pinned source directory, immutable commit,
+SPDX license, exact `sha256:` checksum, importer, and skill ID. Imported skills
+land inactive in `packs/vendor` until `review-import` records a verdict from a
+different reviewer. `import-staleness` compares the recorded upstream version
+with a current version supplied by the operator.
+
+`skill topology` reports every indexed skill's pack and whether its generated
+projection is resident in each configured target, including a resident
+metadata-token estimate. It accepts either `--projection-dir` or the
+path-list environment variables `VROOLI_SKILL_PROJECTION_DIR` and
+`VROOLI_SKILL_PROJECTION_DIRS`.
 
 ## Root Commands
 
@@ -25,6 +48,8 @@ vrooli contract
 vrooli package
 vrooli resource
 vrooli scenario
+vrooli supervision-set
+vrooli uninstall
 ```
 
 These root commands are confirmed by the current CLI help surface.
@@ -38,6 +63,31 @@ vrooli status
 
 - `vrooli help` shows the current command tree.
 - `vrooli status` gives a health and status overview.
+
+## Supervision Set
+
+```bash
+vrooli supervision-set
+vrooli supervision-set --kind scenario
+vrooli supervision-set --kind resource --json
+```
+
+`vrooli supervision-set` is the control-plane authority for the live set of
+scenarios and resources that the platform supervises. It computes the answer
+from `.vrooli/operator-state.json` `core.seed` and canonical scenario
+dependency manifests; it does not read a database and does not own another
+configuration file. Each member reports its kind, effective supervision
+intent, and an attribution chain back to the seed that included it.
+
+The JSON contract is `vrooli.cli.v1.SupervisionSetResponse`. `--kind` filters
+the returned member rows to `scenario` or `resource`. The in-process
+`internal/app/supervision.Service.Read` API returns the same typed member model
+for scenario consumers that must not shell out.
+
+`scenario-dependency-analyzer core-set` remains a compatibility presentation
+over the same database-free computation. New consumers should use the
+control-plane command or the in-process API; the compatibility verb does not
+own a separate list.
 
 ## Project Lifecycle
 
@@ -55,6 +105,37 @@ vrooli stop
 - `clean` removes build artifacts or runs the project clean lifecycle
 - `stop` stops all or selected components
 
+### Setup progress and diagnosis
+
+Setup writes an immediate diagnostic progress line before host validation, then
+reports ordered phases and only emits a heartbeat when a phase remains active
+for a meaningful period. The first heartbeat is emitted after 10 seconds and
+subsequent heartbeats every 30 seconds; an operation change is reported
+immediately. Setup uses semantic labels rather than a percentage because
+requirements and safeguards are conditional and often indeterminate.
+
+Human progress is written to the diagnostic stream and is safe for terminals,
+SSH, pipes, redirected files, and CI: it does not require raw terminal mode,
+cursor control, or a full-screen UI. The existing `--result-file` remains the
+terminal JSON contract; progress is not a replacement for that result.
+
+For automation or log ingestion, select newline-delimited structured progress:
+
+```bash
+VROOLI_SETUP_PROGRESS_FORMAT=json vrooli setup --dry-run --resources none --scenarios none
+```
+
+Use `VROOLI_SETUP_PROGRESS_FORMAT=quiet` when a caller wants setup behavior and
+terminal results without human progress. Progress output is best effort and
+never changes setup success or failure. Operation labels are redacted before
+human, structured, or durable publication.
+
+The latest active/terminal setup record is kept in project-scoped Vrooli state.
+`vrooli setup status` includes the last known run and phase when available. A
+running record is called possibly stale only after its age exceeds the stale
+threshold and its recorded host/PID identity cannot be confirmed; an old
+timestamp alone is not treated as proof of failure.
+
 ## Scenario Commands
 
 Inspect the current surface with:
@@ -70,6 +151,7 @@ vrooli scenario list
 vrooli scenario info <name>
 vrooli scenario status <name>
 vrooli scenario validate-env <name>
+vrooli scenario timings [--scenario <name>]
 vrooli scenario start <name>
 vrooli scenario start-all
 vrooli scenario run <name>
@@ -89,10 +171,42 @@ template-manager generate <template> --id <slug> --display-name <name> --descrip
 vrooli scenario completeness <name>
 ```
 
+### Node-axis addresses
+
+Scenario addresses use the grammar `[node/]scenario[@variant]`:
+
+```bash
+vrooli scenario status web-search
+vrooli scenario status web-search@shadow
+vrooli scenario status minimouse/web-search
+vrooli scenario status minimouse/web-search@shadow
+```
+
+The explicit `node/` prefix selects a Bridge node and wins over the global
+`--node <name>` option. An explicit `@variant` wins over the ambient shadow
+selection. With neither a node prefix nor `--node`, resolution stays local;
+there is no environment variable or ambient list that promotes a call to
+another machine. Remote scenario status and other admitted typed calls use
+the node's outbound Bridge channel, not an invented inbound scenario URL.
+
 Notes:
 
 - `run` is an alias of `start`
 - for day-to-day work on one scenario, prefer the scenario-local `make start|test|logs|stop` flow when available
+
+`vrooli scenario timings` reads the retained terminal start-operation records
+and renders count, mean, p50, p90, total, and share for each operation step.
+Without `--scenario`, it includes per-scenario rows and a `fleet` aggregate;
+`--scenario <name>` limits the report to one scenario. The report is a retained
+tail, not an exhaustive history: the runtime currently keeps the newest five
+terminal records per scenario and variant. Use `--json` for the typed timing
+rows (`scenario`, `operation`, `step`, `count`, `mean_ms`, `p50_ms`, `p90_ms`,
+`total_ms`, and `share`).
+
+`vrooli scenario restart <name>` reuses fresh artifacts and therefore skips
+unchanged setup work. Pass `--force` to rebuild unconditionally. The flag is
+also accepted by `scenario start`; it never changes the production artifact
+served by the scenario.
 
 ### Scenario start wait contract (anti-polling recipe)
 
@@ -125,11 +239,26 @@ what makes the start introspectable, attachable, and resumable:
   the second caller takes the start over. Busy errors remain only for true
   conflicts (e.g. a concurrent stop).
 - **Introspection.** `vrooli scenario status <name> --json` includes
-  `start_operation` with the current step, dependency n/m, elapsed, an
-  honest ETA (`eta_known=false` when there is no recorded phase history —
-  never a fabricated number), and `recommended_next_check_seconds`
-  (0 terminal — stop checking; 30 unknown ETA; else remaining clamped to
-  [5, 60]).
+  `start_operation` with the current step, dependency n/m, elapsed,
+  `initiator_pid`, an honest ETA (`eta_known=false` when there is no recorded
+  phase history — never a fabricated number), and
+  `recommended_next_check_seconds` (0 terminal — stop checking; 30 unknown
+  ETA; else remaining clamped to [5, 60]).
+- **Runtime status is not activity.** Mid-start a scenario reports
+  `Status: stopped` — it has not registered processes yet — which reads
+  identically to a scenario nobody is touching. The human `vrooli scenario
+  status <name>` therefore prints a `Lifecycle:` line whenever an operation
+  is in flight, naming the same initiator pid a competing lifecycle call
+  reports as the lock holder:
+
+  ```
+  Status: stopped
+  Lifecycle: start in progress (pid 3941220) — setup step, 4s elapsed
+  ```
+
+  No `Lifecycle:` line means no operation is in flight: a terminal record is
+  history, and a `running` record whose initiator is dead evaluates to
+  `abandoned` rather than being advertised as activity.
 - **Ctrl-C semantics.** Interrupting `wait` detaches (exit 0, re-attach
   guidance on stderr); interrupting the owning `start` records the operation
   `abandoned` so status stays honest.
@@ -152,10 +281,16 @@ Common commands:
 
 ```bash
 vrooli resource list
+vrooli resource census
+vrooli resource cli-sync [--dry-run]
+vrooli resource scaffold --name <name> --driver <archetype>
 vrooli resource info <name>
 vrooli resource status
 vrooli resource validate
 vrooli resource install <name>
+vrooli resource acquisition explain "<name>"
+vrooli resource acquisition prune
+vrooli resource acquisition prune "<name>"
 vrooli resource uninstall <name>
 vrooli resource start <name>
 vrooli resource restart <name>
@@ -173,7 +308,6 @@ vrooli resource restore <name>
 vrooli resource restore-blueprint <name>
 vrooli resource archive
 vrooli resource blueprint
-template-manager resource-template
 vrooli resource schema
 ```
 
@@ -233,6 +367,26 @@ vrooli diagnose-port <port>
 ```
 
 These commands help inspect registry port claims, orphaned processes, diagnostics, and port conflicts.
+
+## Project uninstall
+
+`vrooli uninstall` is the project-level removal command. It is deliberately
+not a prompt-manager runnable action. Use a plan/apply pair and select the
+smallest scope that meets the need:
+
+```bash
+vrooli uninstall --plan --scope agent --confirm-target <hostname>
+vrooli uninstall --apply <plan-id> --confirm-target <hostname> --break-glass-token <token>
+```
+
+The scopes are `agent` (node agent and state), `runtime` (checkout, binaries,
+and supervisor), and `all` (both). Apply discovers nothing: it executes only
+the frozen inventory and refuses if the record, paths, symlink boundaries, or
+disk fingerprints drift. Four independent controls protect a destructive
+apply: the command is `run_eligible: false`, the live hostname must match
+`--confirm-target`, a short-lived per-machine break-glass credential is
+required, and the plan/apply inventory is frozen. Never use a development host
+as the target; inspect the emitted plan before applying it.
 
 Practical guidance:
 

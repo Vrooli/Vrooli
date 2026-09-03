@@ -3,8 +3,8 @@
   "qualityProfile": "ultra",
   "qualityAuto": false,
   "periodMode": "clock",
-  "twoDMode": false,
+  "twoDMode": true,
   "showDiagnostics": false,
   "scale": 1,
-  "updatedAt": "2026-09-03T00:10:58Z"
+  "updatedAt": "2026-09-03T04:11:55Z"
 }

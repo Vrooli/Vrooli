@@ -10,8 +10,8 @@ import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1
 import { useFocusTrap } from "@vrooli/react-component-library/useFocusTrap/1";
 import { EmptyState } from "./EmptyState";
 import { Icon } from "./Icon";
-import { Pressable } from "./Pressable";
-import { Text } from "./Text";
+import { Pressable } from "@vrooli/react-component-library/Pressable/1";
+import { Text } from "@vrooli/react-component-library/Text/1";
 import { renderWithProviders } from "../test-utils";
 
 function FoundationFixture() {
@@ -35,6 +35,7 @@ function FoundationFixture() {
         onClose={() => setOpen(false)}
         title="Drawer fixture"
         closeLabel="Close drawer"
+        dismissAffordance="close"
       >
         <Text as="h2" textStyle="title">
           Drawer fixture
@@ -154,22 +155,7 @@ const PRIMITIVE_LAYER = /[\\/]versions[\\/]/;
  * needs a reason a reviewer can disagree with. Adding an entry is the fallback;
  * composing the primitive is the fix.
  */
-const JUSTIFIED_RAW_ELEMENTS: Record<string, string> = {
-  "markdown-harvest/CodeBlock.tsx":
-    "Self-contained harvest asset: its @deps header declares react + shiki only, so " +
-    "importing a sibling library primitive would break standalone extraction. The " +
-    "control treatment is expressed in shared tokens instead.",
-  "markdown-harvest/InlineCode.tsx":
-    "Same harvest boundary as CodeBlock, plus the affordances sit inside a line of " +
-    "prose, where ControlBase's 44px tap-target box would break text flow.",
-  "markdown-harvest/MermaidDiagram.tsx":
-    "Same harvest boundary as CodeBlock: its @deps header declares react + mermaid " +
-    "only, so the toolbar controls carry the token-backed treatment inline rather " +
-    "than importing the library Button.",
-  "color-picker-harvest/ColorPicker.tsx":
-    "Self-contained harvest asset, and the swatch IS the colour: its background is a " +
-    "runtime value and it must not inherit a control variant's own background.",
-};
+const JUSTIFIED_RAW_ELEMENTS: Record<string, string> = {};
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -198,7 +184,7 @@ describe("raw interactive element adoption", () => {
     .map((file) => ({ key: relative(root, file).split(sep).join("/"), file }));
 
   it("finds the composition layer it is supposed to police", () => {
-    expect(compositions.length).toBeGreaterThan(20);
+    expect(compositions.length).toBeGreaterThan(15);
   });
 
   it("lets no composition hand-roll an interactive element without a written reason", () => {

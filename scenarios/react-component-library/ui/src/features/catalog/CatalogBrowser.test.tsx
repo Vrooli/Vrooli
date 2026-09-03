@@ -7,19 +7,14 @@ import type { CatalogAsset } from "../../api/components";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings.generated";
 
-const { listCatalogAssets, startWorkflow } = vi.hoisted(() => ({
+const { listCatalogAssets } = vi.hoisted(() => ({
   listCatalogAssets: vi.fn(),
-  startWorkflow: vi.fn(),
 }));
 
 vi.mock("../../api/components", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/components")>();
   return { ...actual, listCatalogAssets };
 });
-
-vi.mock("../../api/workflows", () => ({
-  workflowsClient: { startWorkflow },
-}));
 
 import { CatalogBrowser } from "./CatalogBrowser";
 
@@ -46,7 +41,6 @@ describe("CatalogBrowser", () => {
     listCatalogAssets.mockImplementation(({ assetKind }: { assetKind: number }) =>
       Promise.resolve({ components: assetKind === 2 ? [hook] : [component] }),
     );
-    startWorkflow.mockResolvedValue({ workflow: { id: "workflow-1" } });
   });
 
   afterEach(() => {
@@ -104,23 +98,15 @@ describe("CatalogBrowser", () => {
     expect(screen.getByTestId(selectors.catalog.asset).className).toContain("min-h-surface-short");
   });
 
-  it("starts assisted extraction only through the RCL workflow service", async () => {
-    const user = userEvent.setup();
+  it("leaves creation to the workspace header", async () => {
     renderWithProviders(<CatalogBrowser />);
-
-    await user.click(screen.getByRole("button", { name: strings.catalog.addAssisted }));
-    await user.type(screen.getByLabelText(strings.catalog.sourceScenario), "demo-scenario");
-    await user.type(screen.getByLabelText(strings.catalog.sourcePath), "ui/src/Panel.tsx");
-    await user.click(screen.getByRole("button", { name: strings.catalog.assistedStart }));
-
-    await waitFor(() =>
-      expect(startWorkflow).toHaveBeenCalledWith({
-        kind: 1,
-        sourceScenario: "demo-scenario",
-        sourcePath: "ui/src/Panel.tsx",
-        idempotencyKey: "catalog-extract:demo-scenario:ui/src/Panel.tsx",
-      }),
-    );
+    await screen.findByTestId(selectors.catalog.asset);
+    expect(
+      screen.queryByRole("button", { name: strings.catalog.addManual }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: strings.catalog.addAssisted }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the adopted foundation reference surface and its drawer state", async () => {
@@ -137,8 +123,11 @@ describe("CatalogBrowser", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Open drawer" }));
-    expect(screen.getByRole("dialog", { name: "Drawer" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog", { name: "Drawer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Fixture drawer" })).toBeInTheDocument();
+    await user.click(screen.getByTestId("overlays.full-page-drawer.grabber"));
+    expect(screen.getByRole("dialog", { name: "Fixture drawer" })).toHaveAttribute(
+      "data-state",
+      "closed",
+    );
   });
 });

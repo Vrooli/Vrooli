@@ -31,8 +31,25 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("add component_versions presence: %w", err)
 		}
 	}
+	if err := ensureColumn(ctx, db, "component_test_reports", "source_revision", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_component_versions_component_presence ON component_versions(component_id, presence)`); err != nil {
 		return fmt.Errorf("index component_versions presence: %w", err)
+	}
+	return nil
+}
+
+func ensureColumn(ctx context.Context, db *sql.DB, table, column, definition string) error {
+	var count int
+	query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('%s') WHERE name=?", table)
+	if err := db.QueryRowContext(ctx, query, column).Scan(&count); err != nil {
+		return fmt.Errorf("inspect %s %s: %w", table, column, err)
+	}
+	if count == 0 {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition)); err != nil {
+			return fmt.Errorf("add %s %s: %w", table, column, err)
+		}
 	}
 	return nil
 }

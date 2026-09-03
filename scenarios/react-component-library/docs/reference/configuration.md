@@ -159,7 +159,7 @@ the doc viewer) — keep them in sync with the code they describe.
 
 ## Cross-references
 
-- [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes
+- [`asset-update-flow.md`](../guides/asset-update-flow.md) — boot the scenario and update an asset
 - [`api-endpoints.md`](api-endpoints.md) — endpoint reference
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues

@@ -84,6 +84,85 @@ func ScenarioNames(protoRoot string) ([]string, error) {
 	return out, nil
 }
 
+// ChangedScenarios derives generation scope from the committed per-scenario
+// locks. It compares each schema set's input closure digest and toolchain
+// fingerprint; generated output bytes and descriptor publication remain the
+// generator's responsibility. A missing or unreadable lock is conservatively
+// selected for regeneration.
+func ChangedScenarios(opts Options) ([]string, error) {
+	names, err := ScenarioNames(cleanProtoRoot(opts))
+	if err != nil {
+		return nil, err
+	}
+	toolchain, err := ToolchainFingerprint(opts)
+	if err != nil {
+		return nil, err
+	}
+	changedSets := make(map[string]struct{})
+	for _, name := range names {
+		lockRaw, readErr := os.ReadFile(ManifestPath(cleanProtoRoot(opts), name))
+		if readErr != nil {
+			changedSets[name] = struct{}{}
+			continue
+		}
+		var recorded Manifest
+		if json.Unmarshal(lockRaw, &recorded) != nil {
+			changedSets[name] = struct{}{}
+			continue
+		}
+		_, digest, digestErr := InputClosure(opts, name)
+		if digestErr != nil {
+			return nil, digestErr
+		}
+		if digest != recorded.InputDigest || !sameToolchain(recorded.Toolchain, toolchain) {
+			changedSets[name] = struct{}{}
+		}
+	}
+	// A missing lock is a changed input with no recorded closure. Include every
+	// consumer whose closure imports that set, otherwise the leaf is regenerated
+	// while a dependent keeps generated code for the old schema.
+	changed := make(map[string]struct{}, len(changedSets))
+	for name := range changedSets {
+		changed[name] = struct{}{}
+	}
+	for _, scenario := range names {
+		files, _, err := InputClosure(opts, scenario)
+		if err != nil {
+			return nil, err
+		}
+		for changedSet := range changedSets {
+			prefix := filepath.ToSlash(filepath.Join("schemas", changedSet)) + "/"
+			for _, file := range files {
+				if strings.HasPrefix(file, prefix) {
+					changed[scenario] = struct{}{}
+					break
+				}
+			}
+			if _, ok := changed[scenario]; ok {
+				break
+			}
+		}
+	}
+	result := make([]string, 0, len(changed))
+	for name := range changed {
+		result = append(result, name)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+func sameToolchain(a, b Toolchain) bool {
+	if a.Buf != b.Buf || a.BufGenYAMLDigest != b.BufGenYAMLDigest || len(a.Plugins) != len(b.Plugins) {
+		return false
+	}
+	for name, version := range b.Plugins {
+		if a.Plugins[name] != version {
+			return false
+		}
+	}
+	return true
+}
+
 func InputClosure(opts Options, scenario string) ([]string, string, error) {
 	protoRoot := cleanProtoRoot(opts)
 	startRoot := filepath.Join(protoRoot, "schemas", scenario)

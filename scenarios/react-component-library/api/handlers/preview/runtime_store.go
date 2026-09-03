@@ -5,24 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
 const previewRuntimeStoreEnv = "RCL_PREVIEW_RUNTIME_STORE"
 
-var previewRuntimeSurfaceUnsafe = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-
 // previewRuntimeSurfaceName is deliberately deterministic: one governed SDA
 // surface owns one package request, while package.json records the exact
 // version that was resolved by the package manager.
 func previewRuntimeSurfaceName(name, versionRange string) string {
-	key := previewRuntimeSurfaceUnsafe.ReplaceAllString(strings.TrimSpace(name+"-"+versionRange), "-")
-	key = strings.Trim(key, "-")
-	if key == "" {
-		key = "dependency"
-	}
-	return "preview-runtime-" + strings.ToLower(key)
+	return "preview-runtime"
 }
 
 func previewDependencyPopulateCommand(name, versionRange string) string {
@@ -33,7 +25,7 @@ func previewRuntimeStoreRoot(repoRoot string) string {
 	if root := strings.TrimSpace(os.Getenv(previewRuntimeStoreEnv)); root != "" {
 		return root
 	}
-	return filepath.Join(repoRoot, "scenarios", "react-component-library", "tools")
+	return filepath.Join(repoRoot, "scenarios", "react-component-library", "tools", "preview-runtime")
 }
 
 func previewRuntimeSurfaceRoots(repoRoot string) []string {
@@ -41,19 +33,6 @@ func previewRuntimeSurfaceRoots(repoRoot string) []string {
 	var roots []string
 	if info, err := os.Stat(filepath.Join(base, "node_modules")); err == nil && info.IsDir() {
 		roots = append(roots, filepath.Join(base, "node_modules"))
-	}
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return roots
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "preview-runtime-") {
-			continue
-		}
-		nodeModules := filepath.Join(base, entry.Name(), "node_modules")
-		if info, err := os.Stat(nodeModules); err == nil && info.IsDir() {
-			roots = append(roots, nodeModules)
-		}
 	}
 	return roots
 }

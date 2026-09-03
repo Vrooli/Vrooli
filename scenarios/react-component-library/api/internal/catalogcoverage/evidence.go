@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -99,7 +100,7 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 	}
 	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(catalog_gate_evidence)`)
 	if err != nil {
-		s.err = err
+		s.rememberSchemaError(err)
 		return err
 	}
 	defer rows.Close()
@@ -110,33 +111,43 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 		var defaultValue any
 		if scanErr := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); scanErr != nil {
 			_ = rows.Close()
-			s.err = scanErr
+			s.rememberSchemaError(scanErr)
 			return scanErr
 		}
 		columns[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		s.err = err
+		s.rememberSchemaError(err)
 		return err
 	}
 	if err := rows.Close(); err != nil {
-		s.err = err
+		s.rememberSchemaError(err)
 		return err
 	}
 	if !columns["measurement_json"] {
 		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN measurement_json TEXT NOT NULL DEFAULT ''`); err != nil {
-			s.err = err
+			s.rememberSchemaError(err)
 			return err
 		}
 	}
 	if !columns["rule_set_digest"] {
 		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN rule_set_digest TEXT NOT NULL DEFAULT ''`); err != nil {
-			s.err = err
+			s.rememberSchemaError(err)
 			return err
 		}
 	}
 	return nil
+}
+
+// rememberSchemaError caches only stable schema failures. Request-scoped
+// cancellation and transient database errors must not poison the store for
+// every later request after a client disconnects from a gate matrix.
+func (s *EvidenceStore) rememberSchemaError(err error) {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return
+	}
+	s.err = err
 }
 
 // EvidenceFromResult turns a deterministic runner result into independent
@@ -546,65 +557,77 @@ func BuildRevisionIndex(root string) (map[string]string, error) {
 	type manifestRecord struct {
 		path      string
 		data      []byte
-		latest    string
 		libraryID string
 		requires  []string
 	}
 	var manifests []manifestRecord
-	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, globErr := filepath.Glob(filepath.Join(scenarioRoot, "library", kind, "*", "component.json"))
-		if globErr != nil {
-			return nil, globErr
+	paths, globErr := filepath.Glob(filepath.Join(scenarioRoot, "library", "*", "*", "component.json"))
+	if globErr != nil {
+		return nil, globErr
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
 		}
-		sort.Strings(paths)
-		for _, path := range paths {
-			data, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return nil, readErr
+		var manifest struct {
+			CatalogID string `json:"catalogId"`
+			LibraryID string `json:"libraryId"`
+			Latest    string `json:"latest"`
+		}
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		record := manifestRecord{path: path, data: data, libraryID: manifest.LibraryID}
+		// Edges come from the version's generated lock, never from the
+		// manifest's dependencies array. That array is per-component while
+		// immutability is per-version, and it is empty on all 234 manifests
+		// in the live tree — folding on it would silently produce a graph
+		// with no edges at all. The lock is generated from the version's
+		// real imports, so it is the only per-version dependency record
+		// that exists.
+		if lock, lockErr := os.ReadFile(filepath.Join(filepath.Dir(path), "versions", manifest.Latest, "dependencies.json")); lockErr == nil {
+			var doc struct {
+				Dependencies []struct {
+					LibraryID string `json:"libraryId"`
+				} `json:"dependencies"`
 			}
-			var manifest struct {
-				CatalogID string `json:"catalogId"`
-				LibraryID string `json:"libraryId"`
-				Latest    string `json:"latest"`
-			}
-			if json.Unmarshal(data, &manifest) != nil {
-				continue
-			}
-			record := manifestRecord{path: path, data: data, latest: manifest.Latest, libraryID: manifest.LibraryID}
-			// Edges come from the version's generated lock, never from the
-			// manifest's dependencies array. That array is per-component while
-			// immutability is per-version, and it is empty on all 234 manifests
-			// in the live tree — folding on it would silently produce a graph
-			// with no edges at all. The lock is generated from the version's
-			// real imports, so it is the only per-version dependency record
-			// that exists.
-			if lock, lockErr := os.ReadFile(filepath.Join(filepath.Dir(path), "versions", manifest.Latest, "dependencies.json")); lockErr == nil {
-				var doc struct {
-					Dependencies []struct {
-						LibraryID string `json:"libraryId"`
-					} `json:"dependencies"`
-				}
-				if json.Unmarshal(lock, &doc) == nil {
-					for _, dependency := range doc.Dependencies {
-						record.requires = append(record.requires, dependency.LibraryID)
-					}
+			if json.Unmarshal(lock, &doc) == nil {
+				for _, dependency := range doc.Dependencies {
+					record.requires = append(record.requires, dependency.LibraryID)
 				}
 			}
-			if manifest.CatalogID != "" && manifest.LibraryID != "" {
-				catalogByLibrary[manifest.LibraryID] = manifest.CatalogID
-			}
-			manifests = append(manifests, record)
-			if manifest.CatalogID == "" {
+		}
+		if manifest.CatalogID != "" && manifest.LibraryID != "" {
+			catalogByLibrary[manifest.LibraryID] = manifest.CatalogID
+		}
+		manifests = append(manifests, record)
+		if manifest.CatalogID == "" {
+			continue
+		}
+		h, ok := own[manifest.CatalogID]
+		if !ok {
+			continue
+		}
+		h.Write(data)
+		h.Write([]byte{0})
+		// Fold every live version, not only latest. A historical but live
+		// major line can be imported by an adopter, so changing it must
+		// invalidate evidence just as changing latest does.
+		versionDirs, versionGlobErr := filepath.Glob(filepath.Join(filepath.Dir(path), "versions", "*"))
+		if versionGlobErr != nil {
+			return nil, versionGlobErr
+		}
+		sort.Strings(versionDirs)
+		for _, versionDir := range versionDirs {
+			if info, statErr := os.Stat(versionDir); statErr != nil || !info.IsDir() {
 				continue
 			}
-			h, ok := own[manifest.CatalogID]
-			if !ok {
-				continue
-			}
-			h.Write(data)
+			h.Write([]byte(filepath.Base(versionDir)))
 			h.Write([]byte{0})
-			for _, versionPath := range versionSourcePaths(filepath.Join(filepath.Dir(path), "versions", manifest.Latest)) {
-				versionData, versionErr := os.ReadFile(versionPath)
+			for _, versionPath := range versionSourcePaths(versionDir) {
+				versionData, versionErr := revisionFileData(versionPath)
 				if versionErr != nil {
 					return nil, versionErr
 				}
@@ -684,6 +707,123 @@ func CurrentRevision(root, assetID string) (string, error) {
 	return revision, nil
 }
 
+// CurrentRevisionForVersion returns the revision of one materialized version
+// and the dependency revisions selected by that version's lock. It is the
+// identity used by version-pinned component-test reports; the aggregate index
+// above remains the cheap latest-version projection for catalog coverage.
+func CurrentRevisionForVersion(root, libraryID, version string) (string, error) {
+	scenarioRoot := resolveScenarioRoot(root)
+	return versionRevision(scenarioRoot, libraryID, version, map[string]bool{})
+}
+
+func versionRevision(root, libraryID, version string, visiting map[string]bool) (string, error) {
+	key := libraryID + "@" + version
+	if visiting[key] {
+		return "", fmt.Errorf("dependency revision cycle at %s", key)
+	}
+	visiting[key] = true
+	defer delete(visiting, key)
+
+	manifestPaths, err := filepath.Glob(filepath.Join(root, "library", "*", "*", "component.json"))
+	if err != nil {
+		return "", err
+	}
+	var manifestPath string
+	var manifestData []byte
+	var catalogID string
+	for _, candidate := range manifestPaths {
+		data, readErr := os.ReadFile(candidate)
+		if readErr != nil {
+			return "", readErr
+		}
+		var manifest struct {
+			LibraryID string `json:"libraryId"`
+			CatalogID string `json:"catalogId"`
+		}
+		if json.Unmarshal(data, &manifest) == nil && manifest.LibraryID == libraryID {
+			manifestPath, manifestData, catalogID = candidate, data, manifest.CatalogID
+			break
+		}
+	}
+	if manifestPath == "" {
+		return "", fmt.Errorf("library asset %q not found", libraryID)
+	}
+	versionDir := filepath.Join(filepath.Dir(manifestPath), "versions", version)
+	if info, statErr := os.Stat(versionDir); statErr != nil || !info.IsDir() {
+		return "", fmt.Errorf("version %s@%s is not materialized", libraryID, version)
+	}
+	h := sha256.New()
+	if catalogID != "" {
+		parts := strings.SplitN(catalogID, ".", 2)
+		if len(parts) == 2 {
+			declaration := filepath.Join(root, "catalog", "assets", parts[0], parts[1]+".json")
+			if data, readErr := os.ReadFile(declaration); readErr == nil {
+				h.Write(data)
+				h.Write([]byte{0})
+			}
+		}
+	}
+	h.Write(manifestData)
+	h.Write([]byte{0})
+	for _, sourcePath := range versionSourcePaths(versionDir) {
+		data, readErr := revisionFileData(sourcePath)
+		if readErr != nil {
+			return "", readErr
+		}
+		h.Write([]byte(filepath.Base(sourcePath)))
+		h.Write([]byte{0})
+		h.Write(data)
+		h.Write([]byte{0})
+	}
+	lockData, lockErr := os.ReadFile(filepath.Join(versionDir, "dependencies.json"))
+	if lockErr == nil {
+		var lock struct {
+			Dependencies []struct {
+				LibraryID string `json:"libraryId"`
+				Version   string `json:"version"`
+				Major     int    `json:"major"`
+				Observed  string `json:"observed"`
+			} `json:"dependencies"`
+		}
+		if json.Unmarshal(lockData, &lock) == nil {
+			for _, dependency := range lock.Dependencies {
+				observed := dependency.Observed
+				if observed == "" {
+					observed = dependency.Version
+				}
+				if dependency.Major > 0 {
+					observed = resolveMajorVersion(root, dependency.LibraryID, dependency.Major, observed)
+				}
+				child, childErr := versionRevision(root, dependency.LibraryID, observed, visiting)
+				if childErr != nil {
+					return "", childErr
+				}
+				h.Write([]byte(dependency.LibraryID))
+				h.Write([]byte{0})
+				h.Write([]byte(child))
+				h.Write([]byte{0})
+			}
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func resolveMajorVersion(root, libraryID string, major int, fallback string) string {
+	name := strings.TrimPrefix(libraryID, "react-component-library:")
+	paths, _ := filepath.Glob(filepath.Join(root, "library", "*", name, "versions", fmt.Sprintf("%d.*", major)))
+	versions := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			versions = append(versions, filepath.Base(path))
+		}
+	}
+	sort.Strings(versions)
+	if len(versions) == 0 {
+		return fallback
+	}
+	return versions[len(versions)-1]
+}
+
 // resolveScenarioRoot accepts the repository root used by API handlers, the
 // scenario root used by local tools, and the library root used by the
 // component service. Keeping this normalization at the revision boundary
@@ -715,6 +855,27 @@ func versionSourcePaths(versionDir string) []string {
 	}
 	sort.Strings(paths)
 	return paths
+}
+
+// revisionFileData removes generator bookkeeping that is intentionally
+// refreshed on every catalog build. The lock's dependency choices remain in
+// the digest; only resolvedAt is non-semantic and must not invalidate test
+// evidence or cache entries by itself.
+func revisionFileData(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil || filepath.Base(path) != "dependencies.json" {
+		return data, err
+	}
+	var lock map[string]any
+	if json.Unmarshal(data, &lock) != nil {
+		return data, nil
+	}
+	delete(lock, "resolvedAt")
+	canonical, marshalErr := json.Marshal(lock)
+	if marshalErr != nil {
+		return data, nil
+	}
+	return canonical, nil
 }
 
 // MergedEvidence combines fresh persisted browser outcomes with cheap,

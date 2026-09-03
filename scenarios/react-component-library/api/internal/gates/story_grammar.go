@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
+	"strings"
 
 	"react-component-library/internal/components"
 )
@@ -21,12 +23,25 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 			renderable[asset.Asset.ID] = true
 		}
 	}
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{Inspected: len(paths)}
+	result.Inspected = 0
 	for _, path := range paths {
+		assetID := implementationName(path)
+		if !scopeReportsAsset(scope, assetID) {
+			continue
+		}
+		retired, err := isRetiredVersion(path)
+		if err != nil {
+			return Result{}, err
+		}
+		if retired {
+			continue
+		}
+		result.Inspected++
 		raw, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return Result{}, readErr
@@ -45,7 +60,6 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 		if contract == nil {
 			continue
 		}
-		assetID := implementationName(path)
 		if !renderable[assetID] {
 			continue
 		}
@@ -87,6 +101,28 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "story-grammar"), nil
+}
+
+func scopeReportsAsset(scope Scope, assetID string) bool {
+	if len(scope.Assets) == 0 {
+		return true
+	}
+	candidate := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(assetID), "react-component-library:"))
+	candidateShort := candidate
+	if index := strings.LastIndex(candidateShort, "."); index >= 0 {
+		candidateShort = candidateShort[index+1:]
+	}
+	for _, allowed := range scope.Assets {
+		allowed = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(allowed), "react-component-library:"))
+		allowedShort := allowed
+		if index := strings.LastIndex(allowedShort, "."); index >= 0 {
+			allowedShort = allowedShort[index+1:]
+		}
+		if allowed == candidate || allowedShort == candidate || allowed == candidateShort || allowedShort == candidateShort {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateStoryDistinctness rejects exact duplicate frames and the old

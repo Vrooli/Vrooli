@@ -14,22 +14,10 @@ const GroupName = "versions"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"VersionsService.ListVersions":                 h.list,
-		"VersionsService.GetVersion":                   h.show,
-		"VersionsService.DiffVersions":                 h.diff,
-		"VersionLifecycleService.ListRetireCandidates": h.retireCandidates,
-		"VersionLifecycleService.PlanCleanup":          h.planCleanup,
-		"VersionLifecycleService.CleanupVersions":      h.cleanupVersions,
-		"VersionLifecycleService.CleanupDraft":         h.cleanupDraft,
-		"VersionLifecycleService.ListVersionLedger":    h.progression,
-		"VersionLifecycleService.DeprecateVersion":     func(ctx cliapp.RunContext) error { return h.transition(ctx, "deprecate") },
-		"VersionLifecycleService.ArchiveVersion":       func(ctx cliapp.RunContext) error { return h.transition(ctx, "archive") },
-		"VersionLifecycleService.RetireVersion":        func(ctx cliapp.RunContext) error { return h.transition(ctx, "retire") },
-		"VersionLifecycleService.MaterializeVersion":   h.materialize,
-		"VersionLifecycleService.ReconcilePresence":    h.reconcilePresence,
-		"VersionLifecycleService.ExportArchive":        h.exportArchive,
-		"VersionLifecycleService.ImportArchive":        h.importArchive,
-		"VersionLifecycleService.Doctor":               h.doctor,
+		"VersionsService.ListVersions":   h.list,
+		"VersionsService.GetVersion":     h.show,
+		"VersionsService.DiffVersions":   h.diff,
+		"VersionLifecycleService.Doctor": h.doctor,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -95,4 +95,4 @@ version through the draft lifecycle. `RCL_ACCEPT_RELEASE_MIGRATION=1` is
 reserved for changing the release shape or generated ledger; it must never be
 used to rewrite the content of an existing released version.
 
-The investigation that established this ownership model is retained at `docs/reports/2026-08-31-the-reconciliation-tax.html`.
+The investigation that established this ownership model is retained in the external plan-artifact archive at `/home/matthalloran8/.vrooli/plan-artifacts/react-component-library/reports-2026-09-02/2026-08-31-the-reconciliation-tax.html`.

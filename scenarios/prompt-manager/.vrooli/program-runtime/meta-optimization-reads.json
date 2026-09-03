@@ -4,12 +4,20 @@
   "version": "1",
   "purpose": "Read the Guide-side meta-optimization sensors in one handle: governed share, unresolved names, discovery gaps, skill usage, and meta-optimization-manager focus next; each row unavailable on its own failure.",
   "inputs": {
-    "window_seconds": { "type": "integer", "default": 604800, "description": "Window for the governed-share reading." },
-    "focus_limit": { "type": "integer", "default": 3, "description": "Rows read from focus next, 1 to 10." }
+    "window_seconds": {
+      "type": "integer",
+      "default": 604800,
+      "description": "Window for the governed-share reading."
+    },
+    "focus_limit": {
+      "type": "integer",
+      "default": 3,
+      "description": "Rows read from focus next, 1 to 10."
+    }
   },
   "assumptions": [
     "program-runtime, prompt-manager, and meta-optimization-manager are running",
-    "the skill-usage binding returns 500 (proto field projected unknown) as of 2026-09-02; that row reads unavailable until fixed",
+    "the skill-usage binding returns 500 on the unknown proto field `projected` as of 2026-09-02; that row reads unreliable:proto_drift_skill_usage (class binding_error) until fixed",
     "an unavailable row is unknown, never zero"
   ],
   "invariants": [
@@ -18,29 +26,105 @@
     "the envelope is printed exactly once, on every path"
   ],
   "bindings": [
-    { "id": "program-runtime/programs/governance-share", "effect": "read" },
-    { "id": "program-runtime/programs/mine-unresolved", "effect": "read" },
-    { "id": "prompt-manager/discovery-gaps/discovery-gaps", "effect": "read" },
-    { "id": "prompt-manager/skill-usage/skill-usage", "effect": "read", "optional": true },
-    { "id": "meta-optimization-manager/focus/next", "effect": "read", "optional": true }
+    {
+      "id": "program-runtime/programs/governance-share",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/programs/mine-unresolved",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/discovery-gaps/discovery-gaps",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/skill-usage/skill-usage",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "meta-optimization-manager/focus/next",
+      "effect": "read",
+      "optional": true
+    }
   ],
-  "verbs": ["gather"],
+  "verbs": [
+    "gather"
+  ],
   "outputs": {
-    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
-    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
     "signals": {
-      "rows": "list of {row, reading, unavailable, reason}: governance-share, unresolved-names, discovery-gaps, skill-usage, focus-next",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}: governance-share, unresolved-names, discovery-gaps, skill-usage, focus-next; target and in_band are null (pure reads); reason is scenario_unreachable or unreliable:<class>",
       "readable": "count of rows read",
       "unavailable": "count of rows whose binding failed"
     },
-    "errors": { "classes": ["invalid_input", "scenario_unreachable", "no_grant", "binding_error"] },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
     "evidence": "sensor command names, one per row"
   },
-  "budget": { "wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 5 },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
   "fixtures": [
-    { "id": "live", "inputs": {}, "expect": { "status": ["ok", "partial"] }, "requires": ["program-runtime", "prompt-manager", "meta-optimization-manager"] },
-    { "id": "bad-window", "inputs": { "window_seconds": 1 }, "expect": { "status": ["failed"] } }
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime",
+        "prompt-manager",
+        "meta-optimization-manager"
+      ],
+      "note": "ok is the status this board should produce; partial is accepted only for the skill-usage row (unreliable:proto_drift_skill_usage) until the binding is repaired. A refused read is recorded on its row and in errors[]; the status never becomes refused because every read is guarded per row."
+    },
+    {
+      "id": "bad-window",
+      "inputs": {
+        "window_seconds": 1
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
   ],
   "rung": "S3",
-  "owner_skill": "prompt-manager"
+  "owner_skill": "agent-system-audit"
 }

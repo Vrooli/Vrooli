@@ -15,9 +15,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"WorkflowsService.StartWorkflow":         h.start,
 		"WorkflowsService.ListWorkflows":         h.list,
 		"WorkflowsService.GetWorkflow":           h.get,
-		"WorkflowsService.RefreshWorkflow":       h.refresh,
-		"WorkflowsService.StopWorkflow":          h.stop,
-		"WorkflowsService.RetryWorkflow":         h.retry,
 		"WorkflowsService.GetPromotionReadiness": h.promotionReadiness,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)

@@ -88,7 +88,7 @@ function lockDependency(specifier, assets, libraryRoot) {
   } catch (error) {
     throw new Error(`${specifier}: ${error.message}`);
   }
-  return { libraryId: String(asset.manifest.libraryId), version, rank: asset.rank };
+  return { libraryId: String(asset.manifest.libraryId), major: Number(version.split(".")[0]), observed: version, rank: asset.rank };
 }
 
 export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = new Date().toISOString(), check = false } = {}) {
@@ -111,8 +111,8 @@ export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = n
       const versionRoot = join(root, asset.kind, name, "versions", version);
       const imports = await resolveVersionImports({ entryFile: join(root, entry.source), versionRoot, specifiersByFile });
       const dependencies = imports.map((specifier) => lockDependency(specifier, assets, root)).filter(Boolean);
-      const unique = [...new Map(dependencies.map((dependency) => [`${dependency.libraryId}@${dependency.version}`, dependency])).values()]
-        .sort((left, right) => left.libraryId.localeCompare(right.libraryId) || compareVersions(left.version, right.version));
+      const unique = [...new Map(dependencies.map((dependency) => [`${dependency.libraryId}@${dependency.major}`, dependency])).values()]
+        .sort((left, right) => left.libraryId.localeCompare(right.libraryId) || left.major - right.major);
       const lockPath = join(versionRoot, "dependencies.json");
       let lockResolvedAt = resolvedAt;
       if (existsSync(lockPath)) {
@@ -121,7 +121,7 @@ export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = n
           lockResolvedAt = existing.resolvedAt;
         }
       }
-      const lock = { schemaVersion: 1, libraryId: String(asset.manifest.libraryId), version, resolvedAt: lockResolvedAt, dependencies: unique };
+      const lock = { schemaVersion: 2, libraryId: String(asset.manifest.libraryId), version, resolvedAt: lockResolvedAt, dependencies: unique };
       pendingWrites.push({ path: lockPath, content: `${JSON.stringify(lock, null, 2)}\n` });
     }
   }

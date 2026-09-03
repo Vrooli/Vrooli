@@ -1,4 +1,7 @@
+import datetime
+
 from google.protobuf import struct_pb2 as _struct_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -58,18 +61,20 @@ class VariantStats(_message.Message):
     def __init__(self, variant_id: _Optional[int] = ..., variant_slug: _Optional[str] = ..., variant_name: _Optional[str] = ..., views: _Optional[int] = ..., cta_clicks: _Optional[int] = ..., conversions: _Optional[int] = ..., downloads: _Optional[int] = ..., conversion_rate: _Optional[float] = ..., trend: _Optional[float] = ..., avg_scroll_depth: _Optional[float] = ...) -> None: ...
 
 class AnalyticsSummary(_message.Message):
-    __slots__ = ("total_visitors", "total_downloads", "variant_stats", "top_cta", "top_cta_ctr")
+    __slots__ = ("total_visitors", "total_downloads", "variant_stats", "top_cta", "top_cta_ctr", "observed_at")
     TOTAL_VISITORS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_DOWNLOADS_FIELD_NUMBER: _ClassVar[int]
     VARIANT_STATS_FIELD_NUMBER: _ClassVar[int]
     TOP_CTA_FIELD_NUMBER: _ClassVar[int]
     TOP_CTA_CTR_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     total_visitors: int
     total_downloads: int
     variant_stats: _containers.RepeatedCompositeFieldContainer[VariantStats]
     top_cta: str
     top_cta_ctr: float
-    def __init__(self, total_visitors: _Optional[int] = ..., total_downloads: _Optional[int] = ..., variant_stats: _Optional[_Iterable[_Union[VariantStats, _Mapping]]] = ..., top_cta: _Optional[str] = ..., top_cta_ctr: _Optional[float] = ...) -> None: ...
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, total_visitors: _Optional[int] = ..., total_downloads: _Optional[int] = ..., variant_stats: _Optional[_Iterable[_Union[VariantStats, _Mapping]]] = ..., top_cta: _Optional[str] = ..., top_cta_ctr: _Optional[float] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetAnalyticsSummaryRequest(_message.Message):
     __slots__ = ("start_date", "end_date")

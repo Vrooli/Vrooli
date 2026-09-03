@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "search-hub",
-  "input_digest": "sha256:8be104806008d353860037e7b400894dd88bdde055d1936f03d27cb6f8484cd0",
+  "input_digest": "sha256:1e8c715a36dbe46455fc2a1f10c1494a4d941d9bab0f2d546382594441713a17",
   "input_files": [
     "schemas/common/v1/attestation.proto",
     "schemas/common/v1/confidence.proto",

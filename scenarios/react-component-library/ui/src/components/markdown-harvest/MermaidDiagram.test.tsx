@@ -8,7 +8,7 @@ vi.mock("mermaid", () => ({
   },
 }));
 
-import { MermaidDiagram } from "./MermaidDiagram";
+import { MermaidDiagram } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 import { renderWithProviders } from "../../test-utils";
 
 describe("MermaidDiagram", () => {
@@ -31,6 +31,7 @@ describe("MermaidDiagram", () => {
 
   it("renders safely when no external open action is provided", async () => {
     renderWithProviders(<MermaidDiagram code="graph TD; A-->B" />);
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
     await waitFor(() => expect(screen.getByText("graph TD; A-->B")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
   });

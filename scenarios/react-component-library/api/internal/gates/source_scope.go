@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 )
@@ -34,10 +35,20 @@ func countCatalogSources(scope Scope) int {
 // active catalog surface consistently with indexing, coverage, and the type
 // gate rather than double-counting retired implementations.
 func activeLibrarySources(scope Scope) ([]string, error) {
+	if scope.Set.Files != nil {
+		sources := make([]string, 0, len(scope.Set.Files))
+		for _, path := range scope.Set.Files {
+			if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+				sources = append(sources, path)
+			}
+		}
+		sort.Strings(sources)
+		return sources, nil
+	}
 	root := scope.Root
 	var sources []string
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +73,7 @@ func activeLibrarySources(scope Scope) ([]string, error) {
 					continue
 				}
 				for _, extension := range []string{"*.ts", "*.tsx"} {
-					matches, err := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, extension))
+					matches, err := librarywalk.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, extension))
 					if err != nil {
 						return nil, err
 					}
@@ -85,7 +96,7 @@ func activeLibrarySources(scope Scope) ([]string, error) {
 	// manifest-backed path above.
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		for _, extension := range []string{"*.ts", "*.tsx"} {
-			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
+			matches, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
 			if err != nil {
 				return nil, err
 			}
@@ -158,7 +169,7 @@ type implementationSourceEntry struct {
 func implementationSources(root, catalogID string) ([]implementationSourceEntry, error) {
 	paths := make([]string, 0)
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		matches, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}

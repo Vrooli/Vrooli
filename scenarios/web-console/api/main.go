@@ -93,6 +93,7 @@ type Server struct {
 	snippets              intsnippets.Store
 	hookAuthToken         string
 	credentialClient      credentialclient.Client
+	integrationHubURL     string
 	subscriptionResolver  *credentialclient.ConsumerSessionResolver
 	entitlements          *entitlementclient.Client
 	codexTailer           *CodexTailer
@@ -282,8 +283,15 @@ func NewServer(db *database.RoutedDB) *Server {
 		sessions.StartReattachWatchdog()
 	}()
 
+	integrationHubURL := strings.TrimSpace(os.Getenv("INTEGRATION_HUB_URL"))
+	if integrationHubURL == "" {
+		if resolved, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "integration-hub"); resolveErr == nil {
+			integrationHubURL = resolved
+		}
+	}
 	srv := &Server{
 		roots:             roots,
+		integrationHubURL: integrationHubURL,
 		db:                db,
 		router:            mux.NewRouter(),
 		resolveConsoleURL: discovery.ResolveExternalURL,

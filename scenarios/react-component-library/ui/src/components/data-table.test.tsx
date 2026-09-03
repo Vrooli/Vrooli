@@ -3,7 +3,11 @@ import { cleanup, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 
-import { DataTable, type DataTableColumn, type DataTableFilter } from "./DataTable";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableFilter,
+} from "./DataTable";
 
 interface Row {
   id: string;

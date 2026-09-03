@@ -2,7 +2,14 @@
 
 A **connection** is one authenticated instance of a connector — one operator's actual signed-in session for one integration. Where a connector defines *how* to talk to GitHub, a connection is *this operator's specific GitHub token, with these scopes, refreshed last Tuesday*.
 
-This page describes the connection model. Connections are owned by the deferred `integration-hub` scenario; this page settles the shape so the scenario knows what to build.
+This page describes the connection model. Connections are owned by the `integration-hub` scenario. The current implementation is a metadata-only OpenRouter pilot; the provider-neutral lifecycle is deliberately broader than the first connector.
+
+The provider-neutral transport contract is defined in
+`packages/proto/schemas/common/v1/integrations.proto` as
+`common.v1.integrations.ConnectionService`. It provides list/get plus
+create, probe, refresh, bind, unbind, revoke, and delete operations. The
+service is the lifecycle seam. Consumers must use the advertised actions and
+must not infer support for an operation that a connection does not expose.
 
 ## What a connection is
 
@@ -13,7 +20,7 @@ bound_to:       null                    # not yet attached to a scenario
 scopes_granted: ["repo:read", "issues:write"]
 created_at:     2026-04-29T16:30:00Z
 last_probed:    2026-04-29T16:31:14Z   # last successful health probe
-status:         healthy                 # healthy | needs_refresh | revoked | unknown
+status:         connected              # connected | checking | needs_attention | disconnected | expired | insufficient_scope | provider_unavailable | revoked | offline | unknown
 ```
 
 Credential values live in the canonical credential authority under a backend-neutral identity; the metadata above lives in integration-hub's state. The authority may use the operating system key service or encrypted portable storage.
@@ -90,7 +97,7 @@ Scenarios never touch the authority store directly. The integration-hub CLI is t
 
 ## Lifecycle operations
 
-Once `integration-hub` ships, these are the operations on a connection. The CLI surface is sketched here as the contract; the actual flag shapes get refined when the scenario is built.
+These are the operations on a connection. The CLI is a thin owner-facing surface over the same generated service; connector-specific auth flows remain outside consumer scenarios.
 
 ```bash
 # Create — runs the connector's auth flow and stores the result.
@@ -116,6 +123,9 @@ integration-hub unbind fal-scratch-2026-04-29 --from video-studio
 
 # Revoke — call provider's revoke endpoint and delete from the credential authority.
 integration-hub revoke github-default
+
+# Delete — permanently remove the connection metadata after revocation.
+integration-hub delete github-default
 ```
 
 All of these run through the connector's Go handler, so per-provider quirks are handled in one place.
@@ -148,21 +158,17 @@ A scenario could in principle store its own tokens. But:
 
 These are the same reasons every integration-platform product converges on a hub-and-spoke shape. We're not inventing; we're matching the well-trodden pattern.
 
-## Why this is deferred
+## Current scope and remaining work
 
-The `integration-hub` scenario doesn't exist yet. Building it is a non-trivial chunk of work (probably 2–4 weeks of scenario development when scoped) and is on the [open work items](../architecture.md#open-work-items) list for that reason. Until then:
+The `integration-hub` scenario now owns the pilot lifecycle. It persists only connection metadata and keeps credential values in the canonical authority. The current connector set is intentionally small, so:
 
 - API-key credentials for resources use manifest `credentials.descriptors` and
   the control-plane credential authority. See [`../secrets.md`](../secrets.md).
-- Loose / scratch keys for ad-hoc testing have no integration binding surface
-  until integration-hub ships; delay that setup rather than inventing an
-  unmanaged file, environment variable, or provider-specific secret path.
-
-When integration-hub ships, scratch keys created during the gap migrate by being recreated as unbound connections. There is no automatic migration path; operator runs `integration-hub create` once per scratch key.
+- OAuth/device-flow drivers, connector manifests, onboarding binding, and multi-instance scenario consumption remain future slices.
 
 ## See also
 
 - [`connectors.md`](connectors.md) — connector definitions, the type-side of the model
 - [`../secrets.md`](../secrets.md) — paste-string secrets attached to resources (the existing pattern)
-- [`../architecture.md`](../architecture.md) — source-of-truth tables; `integration-hub` is on the deferred-scenarios list
+- [`../architecture.md`](../architecture.md) — source-of-truth tables and remaining integration work
 - [`../scenarios.md`](../scenarios.md) — the `integrations` field a scenario manifest declares

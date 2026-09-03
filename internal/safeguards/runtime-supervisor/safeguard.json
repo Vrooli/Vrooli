@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "runtime_supervisor",
+  "description": "Render, validate, install and verify the runtime supervisor's native user unit so every setup run converges it and the readiness phase re-inspects it.",
+  "handler": "runtime_supervisor",
+  "platforms": ["linux", "macos"],
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard writes only the invoking user's native scheduler unit and the supervisor log directory under the user's Vrooli home; it needs no privilege."
+  },
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.config/systemd/user/vrooli-runtime-supervisor.service"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "restore_absent"
+}

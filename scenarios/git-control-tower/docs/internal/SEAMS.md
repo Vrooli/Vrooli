@@ -331,3 +331,14 @@ When adding new behavior, verify:
 - **EvidenceService** (`handlers/evidence/`) is the sole GCT boundary over typed Test Genie run evidence. Its `RunsClient` seam wraps durable start, canonical run snapshots, captured descriptors, and typed artifact catalogs. Tests filter captured descriptor metadata; Screenshots and Workflows filter open artifact kinds across all producer phases. Binary bytes stream through `GET /repo/test-runs/{runId}/artifacts/{artifactId}?scenario=...`; GCT never accepts or exposes a relative artifact path. `phase_agnostic_guard_test.go` rejects a fixed Test Genie phase registry or producer-phase comparisons in this boundary.
 - SQLite persistence tests use `api/internal/testutil/db`.
 - UI tests use the shared setup and React Query/fetch/viewport helpers.
+
+## Integration presentation seam
+
+`SettingsTabIntegrations` maps repository-scoped HTTPS credentials and SSH
+metadata into the shared `IntegrationCard` while retaining repository and
+remote configuration in their dedicated settings surfaces. Credential actions
+remain repository-scoped and use the existing hooks; unsupported connection
+lifecycle operations are not invented by the UI. Runtime capability health is
+rendered separately, so repository credential state cannot be mistaken for a
+local dependency state. `SettingsModal.test.tsx` and `hooks-settings.test.tsx`
+cover the shared composition and credential mutation paths.

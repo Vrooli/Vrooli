@@ -1,12 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:Text",
   "version": "1.1.2",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     }
   ]

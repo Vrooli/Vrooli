@@ -1,10 +1,31 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class FindingScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FINDING_SCOPE_UNSPECIFIED: _ClassVar[FindingScope]
+    FINDING_SCOPE_ASSET: _ClassVar[FindingScope]
+    FINDING_SCOPE_CORPUS: _ClassVar[FindingScope]
+
+class FindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FINDING_SEVERITY_UNSPECIFIED: _ClassVar[FindingSeverity]
+    FINDING_SEVERITY_BLOCKING: _ClassVar[FindingSeverity]
+    FINDING_SEVERITY_WARNING: _ClassVar[FindingSeverity]
+    FINDING_SEVERITY_INFO: _ClassVar[FindingSeverity]
+FINDING_SCOPE_UNSPECIFIED: FindingScope
+FINDING_SCOPE_ASSET: FindingScope
+FINDING_SCOPE_CORPUS: FindingScope
+FINDING_SEVERITY_UNSPECIFIED: FindingSeverity
+FINDING_SEVERITY_BLOCKING: FindingSeverity
+FINDING_SEVERITY_WARNING: FindingSeverity
+FINDING_SEVERITY_INFO: FindingSeverity
 
 class AssetNode(_message.Message):
     __slots__ = ("asset_id", "name", "kind", "rung", "rung_name", "domain", "domain_order")
@@ -441,7 +462,7 @@ class RunGateRequest(_message.Message):
     def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ..., asset_id: _Optional[str] = ..., include_advisory: _Optional[bool] = ...) -> None: ...
 
 class GateFinding(_message.Message):
-    __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref", "rule_source", "rule_declared_in")
+    __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref", "rule_source", "rule_declared_in", "catalog_id", "library_id", "scope", "blocking", "owner", "severity_class")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -452,6 +473,12 @@ class GateFinding(_message.Message):
     DOCS_REF_FIELD_NUMBER: _ClassVar[int]
     RULE_SOURCE_FIELD_NUMBER: _ClassVar[int]
     RULE_DECLARED_IN_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_CLASS_FIELD_NUMBER: _ClassVar[int]
     code: str
     message: str
     asset_id: str
@@ -462,7 +489,13 @@ class GateFinding(_message.Message):
     docs_ref: str
     rule_source: str
     rule_declared_in: str
-    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ..., rule_source: _Optional[str] = ..., rule_declared_in: _Optional[str] = ...) -> None: ...
+    catalog_id: str
+    library_id: str
+    scope: FindingScope
+    blocking: bool
+    owner: str
+    severity_class: FindingSeverity
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ..., rule_source: _Optional[str] = ..., rule_declared_in: _Optional[str] = ..., catalog_id: _Optional[str] = ..., library_id: _Optional[str] = ..., scope: _Optional[_Union[FindingScope, str]] = ..., blocking: _Optional[bool] = ..., owner: _Optional[str] = ..., severity_class: _Optional[_Union[FindingSeverity, str]] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
     __slots__ = ("gate", "findings", "inspected_files", "runner_errors", "evidence_rows_written", "calibration", "non_discriminating", "surface_verdict_counts", "composition_scores", "composition_median", "bespoke_escape_count", "composition_escapes")
@@ -505,6 +538,44 @@ class RunGateResponse(_message.Message):
     bespoke_escape_count: int
     composition_escapes: _containers.RepeatedCompositeFieldContainer[CompositionEscape]
     def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ..., runner_errors: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., evidence_rows_written: _Optional[int] = ..., calibration: _Optional[_Iterable[_Union[CalibrationResult, _Mapping]]] = ..., non_discriminating: _Optional[bool] = ..., surface_verdict_counts: _Optional[_Mapping[str, int]] = ..., composition_scores: _Optional[_Mapping[str, float]] = ..., composition_median: _Optional[float] = ..., bespoke_escape_count: _Optional[int] = ..., composition_escapes: _Optional[_Iterable[_Union[CompositionEscape, _Mapping]]] = ...) -> None: ...
+
+class AssetCheckStage(_message.Message):
+    __slots__ = ("name", "status", "seconds", "detail")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SECONDS_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    status: str
+    seconds: float
+    detail: str
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., seconds: _Optional[float] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class CheckAssetRequest(_message.Message):
+    __slots__ = ("asset_id", "version", "run_tests")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    RUN_TESTS_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    version: str
+    run_tests: bool
+    def __init__(self, asset_id: _Optional[str] = ..., version: _Optional[str] = ..., run_tests: _Optional[bool] = ...) -> None: ...
+
+class CheckAssetResponse(_message.Message):
+    __slots__ = ("asset_id", "verdict", "stages", "findings", "reused_report_id", "source_revision")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    STAGES_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    REUSED_REPORT_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    verdict: str
+    stages: _containers.RepeatedCompositeFieldContainer[AssetCheckStage]
+    findings: _containers.RepeatedCompositeFieldContainer[GateFinding]
+    reused_report_id: str
+    source_revision: str
+    def __init__(self, asset_id: _Optional[str] = ..., verdict: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[AssetCheckStage, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., reused_report_id: _Optional[str] = ..., source_revision: _Optional[str] = ...) -> None: ...
 
 class CompositionEscape(_message.Message):
     __slots__ = ("asset_id", "reason")

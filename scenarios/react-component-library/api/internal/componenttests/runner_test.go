@@ -201,4 +201,7 @@ func TestReportIDDropsClockMetadata(t *testing.T) {
 	later.CreatedAt = base.CreatedAt.Add(time.Hour)
 
 	require.Equal(t, reportID(base), reportID(later))
+	changed := base
+	changed.SourceRevision = "different-folded-revision"
+	require.NotEqual(t, reportID(base), reportID(changed), "a changed folded revision must launch a new evidence run")
 }

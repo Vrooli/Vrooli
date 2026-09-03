@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "template-manager",
-  "input_digest": "sha256:1cbb0c409c0543e5275b80183001076f1b7c2793a138466bc2d27ff0df86bb78",
+  "input_digest": "sha256:75e415d26754ef3501fbf61765b0461a952014527ae5577714a684437c0514e2",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/template-manager/v1/debt/debt.proto",

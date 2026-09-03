@@ -1635,3 +1635,20 @@ To find every overlay and its choice:
 ```
 grep -rlE "<(ResponsiveDialog|FullPageDrawer|BottomSheet|DrawerShell)\b" ui/src/components --include=*.tsx
 ```
+
+## Integration and commercial-context seams
+
+`IntegrationsPanel` composes three independent domains. `useCapabilities` and
+the capability action endpoint own runtime dependency health and lifecycle
+actions. `/api/v1/integrations/connections` projects only declared,
+metadata-only credential connections. `/api/v1/commercial-context` is an
+optional authenticated projection from Landing Page Business Suite and never
+participates in capability authorization.
+
+The connection query is rendered independently from runtime loading and error
+states. Commercial content is filtered by placement, server eligibility,
+expiration, and dismissal windows before presentation. Credential values are
+write-only and are never placed in response JSON, browser storage, URLs, or
+component state. The focused contract tests live in
+`ui/src/__tests__/integrations-panel.test.tsx` and
+`ui/src/api/__tests__/commercial-context.test.ts`.

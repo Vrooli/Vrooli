@@ -42,7 +42,6 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
 		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {

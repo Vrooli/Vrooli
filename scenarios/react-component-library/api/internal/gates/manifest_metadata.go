@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strings"
 )
 
@@ -21,11 +22,14 @@ func ValidateManifestMetadata(scope Scope) (Result, error) {
 		catalogDescriptions[asset.Asset.ID] = strings.TrimSpace(asset.Asset.Description)
 	}
 	for _, kind := range []string{"components"} {
-		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}
 		for _, manifest := range paths {
+			if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(manifest)) {
+				continue
+			}
 			data, err := os.ReadFile(manifest)
 			if err != nil {
 				return Result{}, err

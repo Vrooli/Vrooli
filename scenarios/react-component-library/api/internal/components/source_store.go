@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -509,8 +510,6 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	return sourcePath, nil
 }
 
-var libraryPackageSpecifier = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
-
 type LibraryPackageSpecifier struct {
 	Name             string
 	RequestedVersion string
@@ -556,7 +555,9 @@ func SelectActivePackageVersion(versions []string, requested string) (string, bo
 
 type frozenDependency struct {
 	LibraryID string `json:"libraryId"`
-	Version   string `json:"version"`
+	Version   string `json:"version,omitempty"`
+	Major     int    `json:"major"`
+	Observed  string `json:"observed"`
 	Rank      int    `json:"rank"`
 }
 
@@ -575,20 +576,33 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 			continue
 		}
 		var resolveErr error
-		files[i].Content = libraryPackageSpecifier.ReplaceAllStringFunc(files[i].Content, func(specifier string) string {
+		files[i].Content = libspec.Rewrite(files[i].Content, func(parsed libspec.Specifier) string {
 			if resolveErr != nil {
-				return specifier
+				return ""
 			}
-			match := libraryPackageSpecifier.FindStringSubmatch(specifier)
-			dependency, err := s.resolveSourceDependency(match[1], match[2])
+			dependency, err := s.resolveSourceDependency(parsed.Name, parsed.Selector)
 			if err != nil {
-				resolveErr = fmt.Errorf("freeze %s in %s: %w", specifier, files[i].Path, err)
-				return specifier
+				resolveErr = fmt.Errorf("freeze %s in %s: %w", libspec.Prefix+parsed.Name, files[i].Path, err)
+				return ""
 			}
-			dependencies[dependency.LibraryID+"@"+dependency.Version] = dependency
+			version := dependency.Observed
+			if version == "" {
+				version = dependency.Version
+			}
+			dependency.Version = version
+			dependency.Major = 0
+			if parts := strings.Split(version, "."); len(parts) > 0 {
+				dependency.Major, _ = strconv.Atoi(parts[0])
+			}
+			dependency.Observed = version
+			dependencies[dependency.LibraryID+"@"+version] = dependency
 			// Published source floats within the dependency's major line. The
 			// generated lock above remains the exact reproducibility record.
-			return "@vrooli/react-component-library/" + match[1] + "/" + strings.Split(dependency.Version, ".")[0]
+			major := dependency.Major
+			if major == 0 {
+				major, _ = strconv.Atoi(strings.Split(dependency.Version, ".")[0])
+			}
+			return libspec.Prefix + parsed.Name + "/" + strconv.Itoa(major)
 		})
 		if resolveErr != nil {
 			return nil, resolveErr
@@ -596,6 +610,10 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 	}
 	ordered := make([]frozenDependency, 0, len(dependencies))
 	for _, dependency := range dependencies {
+		// v2 records the imported major and the observed resolution. The
+		// exact version field is accepted only as a v1 read compatibility alias
+		// and must not be emitted by newly published locks.
+		dependency.Version = ""
 		ordered = append(ordered, dependency)
 	}
 	sort.Slice(ordered, func(i, j int) bool {
@@ -604,7 +622,7 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 		}
 		return ordered[i].LibraryID < ordered[j].LibraryID
 	})
-	lock, err := json.MarshalIndent(frozenDependencyLock{SchemaVersion: 1, LibraryID: c.LibraryID, Version: version, ResolvedAt: time.Now().UTC().Format(time.RFC3339), Dependencies: ordered}, "", "  ")
+	lock, err := json.MarshalIndent(frozenDependencyLock{SchemaVersion: 2, LibraryID: c.LibraryID, Version: version, ResolvedAt: time.Now().UTC().Format(time.RFC3339), Dependencies: ordered}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode frozen dependency lock: %w", err)
 	}

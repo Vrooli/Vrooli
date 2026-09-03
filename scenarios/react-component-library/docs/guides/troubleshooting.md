@@ -247,7 +247,7 @@ Add to [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) if:
 
 ## Cross-references
 
-- [`../QUICKSTART.md`](../QUICKSTART.md) — first-touch setup
+- [`asset-update-flow.md`](asset-update-flow.md) — first-touch setup and edit loop
 - [`../reference/configuration.md`](../reference/configuration.md) — env vars and config precedence
 - [`../reference/cli-commands.md`](../reference/cli-commands.md) — CLI command reference
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test patterns and coverage gates

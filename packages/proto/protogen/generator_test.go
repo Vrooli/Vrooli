@@ -467,6 +467,22 @@ func TestBufCommandArgsUseExtendedBoundedTimeout(t *testing.T) {
 	}
 }
 
+func TestGenerateArgsScopesChangedSets(t *testing.T) {
+	got := generateArgs([]string{"leaf", "dependent"}, "/tmp/stage", true)
+	want := []string{"generate", "--timeout", "15m0s", "--output", "/tmp/stage", "--path", "schemas/leaf", "--path", "schemas/dependent"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scoped generate args = %#v, want %#v", got, want)
+	}
+}
+
+func TestGenerateArgsFullRunHasNoPaths(t *testing.T) {
+	got := generateArgs([]string{"leaf"}, "/tmp/stage", false)
+	want := []string{"generate", "--timeout", "15m0s", "--output", "/tmp/stage"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("full generate args = %#v, want %#v", got, want)
+	}
+}
+
 func argumentAfter(args []string, flag string) string {
 	for i := 0; i+1 < len(args); i++ {
 		if args[i] == flag {

@@ -70,3 +70,43 @@ Rollback is immediate and non-destructive: set the workload policy to
 `--opt-out`, or set `--enabled=false` while retaining its declaration. This
 prevents future automatic lifecycle starts without stopping a healthy running
 workload. If host pressure evidence is degraded, recovery is already fail-closed.
+
+## Agent-spawn recovery boundary
+
+Agent-spawn recovery is owned by the control plane's `internal/recovery` broker.
+Autoheal and Prompt Manager submit a scenario, reason, and requester; they do
+not implement a private spawn ladder. The broker tries governed attachment,
+fresh agent run, and native runner execution in order, then records operator
+escalation when the budget is exhausted. Every attempt persists the reached
+tier, remaining per-scenario budget, and outcome.
+
+The broker derives child environments through the envkit `DelegatedAgent`
+boundary. A run identity token is therefore not ambient process state: it is
+kept only for an explicitly delegated agent child and is removed from foreign
+scenario and resource boundaries.
+
+## Functional health
+
+An API may be live and return HTTP 200 from `/health` while its primary work
+is unavailable. Such services expose a `functional` object with `healthy` and
+an operator-facing `reason`. A false functional value changes an otherwise
+healthy response to `degraded`; services that omit the object retain their
+existing health semantics. Scenario status consumes this existing health
+value, so functional refusal is visible to lifecycle and autoheal callers.
+
+## The supervisor unit and boot recovery
+
+The supervisor runs from a native user unit
+(`vrooli-runtime-supervisor.service`, `com.vrooli.runtime-supervisor`) rendered
+from `platformgo.RuntimeSupervisorDefinition`, the same
+[service definition seam](native-service-definitions.md) as the autoheal loop
+and the emergency watchdog. The `runtime_supervisor` safeguard converges it on
+every `vrooli setup` and re-inspects it in the readiness phase, recording the
+native validator's verdict and the unit's `NRestarts` and `Result` as evidence.
+`vrooli runtime supervisor install --user` calls the same converge path.
+
+At start the supervisor retires any predecessor session whose PID is dead
+before it claims its own, and under the native unit it takes over a live peer
+rather than exiting. Until 2026-09-02 a dead predecessor's unexpired lease made
+the unit exit 1 and restart every five seconds until the lease lapsed, with the
+reason visible only in `~/.vrooli/logs/runtime-supervisor.log`.

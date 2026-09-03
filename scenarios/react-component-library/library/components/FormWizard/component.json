@@ -1,6 +1,8 @@
 {
   "catalogId": "forms.form-wizard",
-  "deprecatedVersions": [],
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -8,6 +10,6 @@
     "1.0.1",
     "1.0.0"
   ],
-  "latest": "1.1.0",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:FormWizard"
 }

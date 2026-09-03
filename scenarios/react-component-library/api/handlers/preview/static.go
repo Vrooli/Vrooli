@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strconv"
 	"strings"
 	"sync"
@@ -746,7 +747,7 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStory) string {
 	replacements := map[string]string{
 		"__COMPONENT_MODULE_URL__":     jsString("data:text/javascript;base64," + base64Encode(b.JS)),
-		"__STORY_HARNESS_MODULE_URL__": jsString("data:text/javascript;base64," + base64Encode(b.HarnessJS+"\n"+b.CompositionHarnessJS)),
+		"__STORY_HARNESS_MODULE_URL__": jsString(storyHarnessModuleURL(b.HarnessJS, b.CompositionHarnessJS)),
 		"__FRAME_MODULE_URL__":         jsString("data:text/javascript;base64," + base64Encode(b.FrameJS)),
 		"__STORY_NAME__":               jsString(ex.Name),
 		"__STORY_VERSION__":            jsString(ex.Version),
@@ -775,6 +776,30 @@ func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStor
 		script = strings.ReplaceAll(script, placeholder, replacement)
 	}
 	return script
+}
+
+// storyHarnessModuleURL exposes the independently bundled story and composition
+// harnesses through one module without merging their top-level declarations.
+// Separately bundled esbuild outputs commonly declare helpers such as jsx; raw
+// concatenation would redeclare those helpers in the same module scope.
+func storyHarnessModuleURL(storyJS, compositionJS string) string {
+	modules := make([]string, 0, 2)
+	for _, source := range []string{storyJS, compositionJS} {
+		if strings.TrimSpace(source) == "" {
+			continue
+		}
+		modules = append(modules, jsString("data:text/javascript;base64,"+base64Encode(source)))
+	}
+	if len(modules) == 0 {
+		return "data:text/javascript;base64," + base64Encode("")
+	}
+	var source strings.Builder
+	for _, moduleURL := range modules {
+		source.WriteString("export * from ")
+		source.WriteString(moduleURL)
+		source.WriteString(";\n")
+	}
+	return "data:text/javascript;base64," + base64Encode(source.String())
 }
 
 func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
@@ -1137,7 +1162,7 @@ func previewConsumerCSS(repoRoot, consumer string) (string, error) {
 		css.WriteByte('\n')
 	}
 	var newestSource int64
-	err = filepath.Walk(filepath.Join(uiRoot, "src"), func(path string, info os.FileInfo, walkErr error) error {
+	err = librarywalk.WalkInfo(context.Background(), filepath.Join(uiRoot, "src"), func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

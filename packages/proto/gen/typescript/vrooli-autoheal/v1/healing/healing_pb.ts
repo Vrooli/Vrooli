@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-autoheal/v1/healing/healing.proto.
  */
 export const file_vrooli_autoheal_v1_healing_healing: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYXV0b2hlYWwvdjEvaGVhbGluZy9oZWFsaW5nLnByb3RvEiF2cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcixgEKC0hlYWxPdXRjb21lEhAKCGNoZWNrX2lkGAEgASgJEhEKCWFjdGlvbl9pZBgCIAEoCRI7CgdvdXRjb21lGAMgASgOMioudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLk91dGNvbWUSDwoHbWVzc2FnZRgEIAEoCRIvCgtvYnNlcnZlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBiABKAMihAIKC0hlYWxFcGlzb2RlEgoKAmlkGAEgASgJEhAKCGNoZWNrX2lkGAIgASgJEg8KB3RyaWdnZXIYAyABKAkSOwoHb3V0Y29tZRgEIAEoDjIqLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5PdXRjb21lEhAKCGF0dGVtcHRzGAUgASgFEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNZXZpZGVuY2VfanNvbhgIIAEoCSIrChNMaXN0T3V0Y29tZXNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBSJYChRMaXN0T3V0Y29tZXNSZXNwb25zZRJACghvdXRjb21lcxgBIAMoCzIuLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5IZWFsT3V0Y29tZSI1ChJHZXRFcGlzb2Rlc1JlcXVlc3QSEAoIY2hlY2tfaWQYASABKAkSDQoFbGltaXQYAiABKAUiVwoTR2V0RXBpc29kZXNSZXNwb25zZRJACghlcGlzb2RlcxgBIAMoCzIuLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5IZWFsRXBpc29kZSI0ChFHZXRIaXN0b3J5UmVxdWVzdBIQCghjaGVja19pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJWChJHZXRIaXN0b3J5UmVzcG9uc2USQAoIb3V0Y29tZXMYASADKAsyLi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuSGVhbE91dGNvbWUiJAoTR2V0UmVhZGluZXNzUmVxdWVzdBINCgVsaW1pdBgBIAEoBSKZAQoQUmVhZGluZXNzRWxlbWVudBIQCghjaGVja19pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSLAoIcmVhZHlfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmxhdGVuY3lfbXMYBCABKAMSDwoHc3RhcnRlchgFIAEoCRIQCghldmlkZW5jZRgGIAEoCSLIAgoUR2V0UmVhZGluZXNzUmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgCIAEoCRIPCgdib290X2lkGAMgASgJEjYKEnByb2Nlc3Nfc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASRQoIZWxlbWVudHMYBSADKAsyMy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuUmVhZGluZXNzRWxlbWVudBJACghlcGlzb2RlcxgGIAMoCzIuLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5IZWFsRXBpc29kZRIvCgtjb21wdXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqeQoHT3V0Y29tZRIXChNPVVRDT01FX1VOU1BFQ0lGSUVEEAASFQoRT1VUQ09NRV9TVUNDRUVERUQQARISCg5PVVRDT01FX0ZBSUxFRBACEhUKEU9VVENPTUVfVElNRURfT1VUEAMSEwoPT1VUQ09NRV9TS0lQUEVEEAQyiwQKDkhlYWxpbmdTZXJ2aWNlEn8KDExpc3RPdXRjb21lcxI2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5MaXN0T3V0Y29tZXNSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkxpc3RPdXRjb21lc1Jlc3BvbnNlEnwKC0dldEVwaXNvZGVzEjUudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkdldEVwaXNvZGVzUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5HZXRFcGlzb2Rlc1Jlc3BvbnNlEnkKCkdldEhpc3RvcnkSNC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuR2V0SGlzdG9yeVJlcXVlc3QaNS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuR2V0SGlzdG9yeVJlc3BvbnNlEn8KDEdldFJlYWRpbmVzcxI2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5HZXRSZWFkaW5lc3NSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkdldFJlYWRpbmVzc1Jlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWF1dG9oZWFsL3YxL2hlYWxpbmc7aGVhbGluZ192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Cih2cm9vbGktYXV0b2hlYWwvdjEvaGVhbGluZy9oZWFsaW5nLnByb3RvEiF2cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcixgEKC0hlYWxPdXRjb21lEhAKCGNoZWNrX2lkGAEgASgJEhEKCWFjdGlvbl9pZBgCIAEoCRI7CgdvdXRjb21lGAMgASgOMioudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLk91dGNvbWUSDwoHbWVzc2FnZRgEIAEoCRIvCgtvYnNlcnZlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBiABKAMihAIKC0hlYWxFcGlzb2RlEgoKAmlkGAEgASgJEhAKCGNoZWNrX2lkGAIgASgJEg8KB3RyaWdnZXIYAyABKAkSOwoHb3V0Y29tZRgEIAEoDjIqLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5PdXRjb21lEhAKCGF0dGVtcHRzGAUgASgFEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNZXZpZGVuY2VfanNvbhgIIAEoCSIrChNMaXN0T3V0Y29tZXNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBSJYChRMaXN0T3V0Y29tZXNSZXNwb25zZRJACghvdXRjb21lcxgBIAMoCzIuLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5IZWFsT3V0Y29tZSI1ChJHZXRFcGlzb2Rlc1JlcXVlc3QSEAoIY2hlY2tfaWQYASABKAkSDQoFbGltaXQYAiABKAUiVwoTR2V0RXBpc29kZXNSZXNwb25zZRJACghlcGlzb2RlcxgBIAMoCzIuLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5IZWFsRXBpc29kZSI0ChFHZXRIaXN0b3J5UmVxdWVzdBIQCghjaGVja19pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJWChJHZXRIaXN0b3J5UmVzcG9uc2USQAoIb3V0Y29tZXMYASADKAsyLi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuSGVhbE91dGNvbWUiJAoTR2V0UmVhZGluZXNzUmVxdWVzdBINCgVsaW1pdBgBIAEoBSKZAQoQUmVhZGluZXNzRWxlbWVudBIQCghjaGVja19pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSLAoIcmVhZHlfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmxhdGVuY3lfbXMYBCABKAMSDwoHc3RhcnRlchgFIAEoCRIQCghldmlkZW5jZRgGIAEoCSJHChhCb290UmVjb3ZlcnlQcmVjb25kaXRpb24SDAoEbmFtZRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIOCgZyZWFzb24YAyABKAkiygEKDEJvb3RSZWNvdmVyeRIOCgZzdGF0dXMYASABKAkSUgoNcHJlY29uZGl0aW9ucxgCIAMoCzI7LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5Cb290UmVjb3ZlcnlQcmVjb25kaXRpb24SMAoMZXZhbHVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtyZW1lZGlhdGlvbhgEIAEoCRIPCgdtZXNzYWdlGAUgASgJIpADChRHZXRSZWFkaW5lc3NSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSGgoSdW5hdmFpbGFibGVfcmVhc29uGAIgASgJEg8KB2Jvb3RfaWQYAyABKAkSNgoScHJvY2Vzc19zdGFydGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCghlbGVtZW50cxgFIAMoCzIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5SZWFkaW5lc3NFbGVtZW50EkAKCGVwaXNvZGVzGAYgAygLMi4udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkhlYWxFcGlzb2RlEi8KC2NvbXB1dGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJGCg1ib290X3JlY292ZXJ5GAggASgLMi8udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkJvb3RSZWNvdmVyeSp5CgdPdXRjb21lEhcKE09VVENPTUVfVU5TUEVDSUZJRUQQABIVChFPVVRDT01FX1NVQ0NFRURFRBABEhIKDk9VVENPTUVfRkFJTEVEEAISFQoRT1VUQ09NRV9USU1FRF9PVVQQAxITCg9PVVRDT01FX1NLSVBQRUQQBDKLBAoOSGVhbGluZ1NlcnZpY2USfwoMTGlzdE91dGNvbWVzEjYudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkxpc3RPdXRjb21lc1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuTGlzdE91dGNvbWVzUmVzcG9uc2USfAoLR2V0RXBpc29kZXMSNS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuR2V0RXBpc29kZXNSZXF1ZXN0GjYudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkdldEVwaXNvZGVzUmVzcG9uc2USeQoKR2V0SGlzdG9yeRI0LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5HZXRIaXN0b3J5UmVxdWVzdBo1LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuaGVhbGluZy5HZXRIaXN0b3J5UmVzcG9uc2USfwoMR2V0UmVhZGluZXNzEjYudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5oZWFsaW5nLkdldFJlYWRpbmVzc1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmhlYWxpbmcuR2V0UmVhZGluZXNzUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYXV0b2hlYWwvdjEvaGVhbGluZztoZWFsaW5nX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.healing.HealOutcome
@@ -280,6 +280,78 @@ export const ReadinessElementSchema: GenMessage<ReadinessElement> = /*@__PURE__*
   messageDesc(file_vrooli_autoheal_v1_healing_healing, 9);
 
 /**
+ * BootRecoveryPrecondition is one named verdict of the boot-recovery
+ * readiness check: state is ok, failed or undetermined, always with a reason.
+ *
+ * @generated from message vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition
+ */
+export type BootRecoveryPrecondition = Message<"vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition.
+ * Use `create(BootRecoveryPreconditionSchema)` to create a new message.
+ */
+export const BootRecoveryPreconditionSchema: GenMessage<BootRecoveryPrecondition> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_healing_healing, 10);
+
+/**
+ * BootRecovery is the typed projection of the system-boot-recovery-readiness
+ * check: would the autoheal boot path work if the host rebooted now. Status
+ * is the check's status (ok, critical, undetermined) or "unknown" when the
+ * check has not run since the API started; remediation is the one repair.
+ *
+ * @generated from message vrooli.vrooli_autoheal.v1.healing.BootRecovery
+ */
+export type BootRecovery = Message<"vrooli.vrooli_autoheal.v1.healing.BootRecovery"> & {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_autoheal.v1.healing.BootRecoveryPrecondition preconditions = 2;
+   */
+  preconditions: BootRecoveryPrecondition[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp evaluated_at = 3;
+   */
+  evaluatedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string remediation = 4;
+   */
+  remediation: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.healing.BootRecovery.
+ * Use `create(BootRecoverySchema)` to create a new message.
+ */
+export const BootRecoverySchema: GenMessage<BootRecovery> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_healing_healing, 11);
+
+/**
  * @generated from message vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
  */
 export type GetReadinessResponse = Message<"vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse"> & {
@@ -317,6 +389,11 @@ export type GetReadinessResponse = Message<"vrooli.vrooli_autoheal.v1.healing.Ge
    * @generated from field: google.protobuf.Timestamp computed_at = 7;
    */
   computedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: vrooli.vrooli_autoheal.v1.healing.BootRecovery boot_recovery = 8;
+   */
+  bootRecovery?: BootRecovery | undefined;
 };
 
 /**
@@ -324,7 +401,7 @@ export type GetReadinessResponse = Message<"vrooli.vrooli_autoheal.v1.healing.Ge
  * Use `create(GetReadinessResponseSchema)` to create a new message.
  */
 export const GetReadinessResponseSchema: GenMessage<GetReadinessResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_autoheal_v1_healing_healing, 10);
+  messageDesc(file_vrooli_autoheal_v1_healing_healing, 12);
 
 /**
  * @generated from enum vrooli.vrooli_autoheal.v1.healing.Outcome

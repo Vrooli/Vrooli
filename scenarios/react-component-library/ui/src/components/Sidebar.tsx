@@ -5,7 +5,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "../i18n";
 import { BarChart3, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
-import { IconButton } from "./IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2";
 import { AppNavigation } from "@vrooli/react-component-library/AppNavigation/1";
 import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
 

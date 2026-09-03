@@ -7,6 +7,7 @@
  */
 export const appRoutes = {
   catalog: "/",
+  components: "/components",
   assetCatalog: "/catalog",
   asset: "/assets/:id",
   preview: "/assets/:id/preview",
@@ -20,6 +21,7 @@ export type AssetInfoTab =
   | "overview"
   | "files"
   | "versions"
+  | "tests"
   | "experience"
   | "relationships";
 export type AssetRouteState = {
@@ -34,6 +36,7 @@ const assetTabs = new Set<AssetInfoTab>([
   "preview",
   "files",
   "versions",
+  "tests",
   "experience",
   "relationships",
 ]);

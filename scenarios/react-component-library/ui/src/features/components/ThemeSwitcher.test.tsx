@@ -92,7 +92,8 @@ describe("ThemeSwitcher", () => {
     renderWithProviders(<Harness />);
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
     const panel = screen.getByTestId(selectors.components.themeSwitcher.appearancePanel);
-    expect(panel.parentElement).toBe(document.body);
+    expect(panel.closest("body")).toBe(document.body);
+    expect(panel).toHaveAttribute("data-rcl-popover-content");
     expect(panel).toHaveClass("fixed");
   });
 });

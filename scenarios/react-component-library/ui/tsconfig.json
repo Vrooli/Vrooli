@@ -53,6 +53,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@vrooli/react-component-library/*": [
+        "../../../packages/react-component-library/dist/exports/*"
+      ],
       "clsx": ["./node_modules/clsx/clsx.d.mts"],
       "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"],
       "react": ["./node_modules/@types/react/index.d.ts"],

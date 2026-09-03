@@ -34,13 +34,41 @@ Dependency Analyzer:
 ```bash
 scenario-dependency-analyzer deps reconcile --all
 scenario-dependency-analyzer deps reconcile --scenario <name> --apply
+scenario-dependency-analyzer deps vendor --module packages/proto --preserve googleapis,protovalidate --apply
 ```
 
 Do not hand-edit the approved dependency registry or run a raw package manager.
+The `deps vendor` gateway is the repository-owned path for regenerating a
+committed Go `vendor/` tree; it requires an explicit `--apply`, runs with
+`GOWORK=off`, preserves explicitly named non-Go vendor inputs, and reports the
+tool output as evidence.
+
+The repository cross-compile gate sets `GOWORK=off` deliberately. A workspace
+can hide a module's missing local replacement; the gate must compile each
+module against its own `go.mod` so dependency drift remains visible.
 Scenario UIs remain isolated projects and shared package adoption remains
 explicit through their package manifests and local dependency declarations.
 
+The React Component Library is an example of this contract. Its private
+package lives at `packages/react-component-library`, is marked
+`scenario_adoptable`, and exposes versioned component, hook, foundation, and
+selector subpaths. Consumers must link it through Scenario Dependency
+Analyzer and the library's `adoptions link` workflow; do not hand-edit a
+scenario's dependency or copy package source into `ui/src`. Ejection is the
+explicit, reason-bearing exception and is recorded as `mode=ejected`.
+
+Packages that own a shared resource environment seam may declare resource
+names in `package.adoption.owns_resource_environment`. The field is keyed by
+canonical resource name, not individual environment variables; validators
+derive the variable surface from the resource manifest.
+
 ## Shared TypeScript packages
+
+The governed package set includes `react-component-library` at
+`packages/react-component-library`. Its manifest is scenario-adoptable with
+`adoption_modes: ["file_dependency"]`; consumers use version-pinned package
+subpaths through `adoptions link`, and `adoptions eject --reason` is the only
+source-materializing exception.
 
 Scenario setup provisions every governed `file:` dependency under `packages/`
 before `install-ui-deps`. Each TypeScript package's build lifecycle first

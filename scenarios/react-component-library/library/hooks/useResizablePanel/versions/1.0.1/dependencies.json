@@ -1,22 +1,25 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:useResizablePanel",
   "version": "1.0.1",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:useDirection",
-      "version": "2.1.3",
+      "major": 2,
+      "observed": "2.1.3",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useDrag",
-      "version": "1.1.0",
+      "major": 1,
+      "observed": "1.1.0",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useElementRect",
-      "version": "2.0.0",
+      "major": 2,
+      "observed": "2.0.0",
       "rank": 2
     }
   ]

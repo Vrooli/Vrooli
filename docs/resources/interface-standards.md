@@ -1,5 +1,22 @@
 # Resource Interface Standards
 
+### Managed-service companions
+
+A managed-service companion is launched with the supervised resource PID in
+`--parent-pid`; it must not infer ownership from the short-lived control-plane
+process or from `os.Getppid()`. The companion exits when that resource process
+exits. Crash attempts are retained in the companion state directory separately
+from the reap-able `.pid` file, so status inspection cannot erase crash-loop
+evidence.
+
+Companion declarations support `required: true`. A down required companion
+makes the resource unhealthy. An optional companion remains visible in status
+but does not change the resource health verdict. Whisper's activity edge is
+required because it owns the canonical client port 8090.
+
+An acceleration claim of `resource_kind: vram` is valid only when the resource
+declares a non-CPU accelerator backend. CPU-only resources must not reserve
+video memory they cannot use.
 This page describes the current expectations for resource-facing platform surfaces.
 
 ## Current Truth
@@ -17,6 +34,13 @@ At the platform level, a well-behaved resource should have:
 - manifest-backed configuration where implemented
 - status and validation behavior
 - lifecycle behavior that is consistent with the control plane
+
+Shared React components also expose a restyle seam. A reusable component must
+accept an optional `className`, merge it with the published `twMerge`-semantic
+helper so consumer utilities win conflicts, and forward the result to its
+outermost rendered element. Consumers should link the governed package and
+compose this seam at the call site; copying the component is reserved for a
+reasoned ejection when the public contract is insufficient.
 
 ## Useful Commands
 
@@ -67,13 +91,42 @@ engine fallback) must:
 Silent mode switches are the most expensive failure class in fleet history:
 they keep health green while quality or correctness quietly collapses.
 
-## GPU and Capacity
+## Acceleration and Capacity
 
-A `gpu` block without a `capacity` block hides the resource from the capacity
-broker's VRAM planning. Declare both, or record the deliberate decision to
-keep the broker out. The fleet lint in
-`internal/resources/manifest/runtime_pinning_realmanifest_test.go` enforces
-this with an explicit exception list.
+A resource that runs work on an accelerator declares it once, in the
+`acceleration` block. There is no separate `gpu` block, no `requirements.gpu`,
+and no top-level `capacity` block: those three surfaces gave two contradictory
+answers to "does this resource use the GPU", and the control plane rejects any
+manifest that still carries one.
+
+```json
+"acceleration": {
+  "backends": ["cuda", "cpu"],
+  "require": "preferred",
+  "cuda": { "min_compute": "8.9", "env": { "MY_DEVICE": "cuda" } },
+  "cpu":  { "env": { "MY_DEVICE": "cpu" } },
+  "claim": { "resource_kind": "vram", "...": "..." }
+}
+```
+
+The claim lives *inside* the block, so a resource cannot reserve VRAM without
+declaring the backend it needs it on — which is what used to hide a resource
+from the broker's planning. A `vram` claim must carry `yield_when_idle` and a
+`profile` whose last step equals `floor_bytes`; without them the broker can
+never ask the resource to step down, and the reservation is a number nobody can
+act on.
+
+Every resource answers the broker with the same verb:
+
+```
+<resource-cli> capacity degrade --to <label>
+```
+
+What a rung means is the resource's own business. How the broker asks is not.
+
+`internal/accel` owns the rest: which backends the host can reach, which one a
+resource is given, and which one it actually landed on. No resource carries a
+private host probe, and no resource is trusted about its own placement.
 
 ## Startup Timeouts
 

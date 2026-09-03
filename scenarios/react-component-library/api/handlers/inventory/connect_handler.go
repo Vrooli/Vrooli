@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strings"
@@ -184,7 +185,7 @@ func walkTSX(dir string) ([]string, error) {
 		return nil, nil
 	}
 	var out []string
-	err = filepath.Walk(dir, func(path string, fi os.FileInfo, walkErr error) error {
+	err = librarywalk.WalkInfo(context.Background(), dir, func(path string, fi os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

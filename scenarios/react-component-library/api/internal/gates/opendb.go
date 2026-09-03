@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/storage"
+	"react-component-library/internal/gatedb"
 )
 
 // openGateDB opens a gate's SQLite database at an explicit path.
@@ -20,16 +20,7 @@ import (
 //
 // The connection pool is capped at one because SQLite serializes writes.
 func openGateDB(ctx context.Context, path string) (*database.RoutedDB, error) {
-	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
-	if err != nil {
-		return nil, err
-	}
-	return database.Open(ctx, database.Config{
-		Driver:       database.DriverSQLite,
-		DSN:          dsn,
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-	})
+	return gatedb.Open(ctx, path)
 }
 
 // removeGateDB deletes a throwaway gate database AND its write-ahead sidecars.

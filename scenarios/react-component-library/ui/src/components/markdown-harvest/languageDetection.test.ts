@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { languageLabel, normalizeCodeLanguage, remarkProsePaths } from "./languageDetection";
+import { languageLabel, normalizeCodeLanguage, remarkProsePaths } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 
 describe("markdown language detection", () => {
   it("normalizes aliases and malformed language values", () => {

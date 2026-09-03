@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "money-ledger",
-  "input_digest": "sha256:d37e57d90a3263d2e466f6a47c283bc30973322dbc6e876946369fa1675e418e",
+  "input_digest": "sha256:fc78a8a93c3a7fdcbd32ed3fa25372e488f91c37aa705232f1f356b6df67bd54",
   "input_files": [
     "schemas/money-ledger/v1/capabilities/capabilities.proto",
     "schemas/money-ledger/v1/ingest/ingest.proto",

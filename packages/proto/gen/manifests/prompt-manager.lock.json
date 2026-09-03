@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "prompt-manager",
-  "input_digest": "sha256:bea2535f5e5e6f7bf4e419d5aec0383cb0cc057bd096bce3082e658cd5f60a03",
+  "input_digest": "sha256:19936c4663d50aa55d3b51b6b1fe0e848154dc57844d0d926edb6dc803701cdc",
   "input_files": [
     "schemas/prompt-manager/v1/actions/actions.proto",
     "schemas/prompt-manager/v1/agents/agents.proto",
@@ -19,8 +19,7 @@
     "schemas/prompt-manager/v1/templates/templates.proto",
     "schemas/prompt-manager/v1/testing/testing.proto",
     "schemas/prompt-manager/v1/topics/topics.proto",
-    "schemas/prompt-manager/v1/worldscale/worldscale.proto",
-    "schemas/prompt-manager/v1/worldseats/worldseats.proto"
+    "schemas/prompt-manager/v1/world/world.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",
@@ -65,10 +64,8 @@
     "gen/go/prompt-manager/v1/testing/testing_v1connect/testing.connect.go": "sha256:9c675e3a096cd6a45ae83549eb143efb9755b5e9ffc797124f5a4fc95a4db2df",
     "gen/go/prompt-manager/v1/topics/topics.pb.go": "sha256:3e2c1e3bcca58a216fa285f4cbe3976df045c3d3d6da24b1ebd58400b94810e1",
     "gen/go/prompt-manager/v1/topics/topics_v1connect/topics.connect.go": "sha256:591586bb8f9c7b4281dd90cc67f25134535b80930873c0a41d190e113ddbc810",
-    "gen/go/prompt-manager/v1/worldscale/worldscale.pb.go": "sha256:eb8af04c738d72cc3f27d7975955a38befa98b02ad00d91f8842df6c3e0ad282",
-    "gen/go/prompt-manager/v1/worldscale/worldscale_v1connect/worldscale.connect.go": "sha256:3de8c21b34d220cb28f660e045969edb2d09be8ea17c858b0ac5ce72615408cd",
-    "gen/go/prompt-manager/v1/worldseats/worldseats.pb.go": "sha256:24c4fe93df8048e01287d4bb2a0922b226187e09dcca090c1b4be1ebe1d9de63",
-    "gen/go/prompt-manager/v1/worldseats/worldseats_v1connect/worldseats.connect.go": "sha256:3c62a0052d3e14d1c2746b6ee2db5112e40a5329f32fb7d2e697e335c90228d1",
+    "gen/go/prompt-manager/v1/world/world.pb.go": "sha256:9faffa1aad70d24fba7f367e321668f72b2b09daa47dc8e9b62aef2efb4fd22f",
+    "gen/go/prompt-manager/v1/world/world_v1connect/world.connect.go": "sha256:098ed0c23fcc87f6c3e4ff4bad44a5b114d77b4bea3113cbfc27431e3be7fe9b",
     "gen/python/prompt_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prompt_manager/v1/actions/actions_pb2.py": "sha256:605a33754036ea50f8e992f4a07224d79c158d07d12b98fe650bfc061d9385f2",
     "gen/python/prompt_manager/v1/actions/actions_pb2.pyi": "sha256:a9455292e05d8e46724e07906953afd1c0408383f6c9b9f26a13d5494ae0bb57",
@@ -119,12 +116,9 @@
     "gen/python/prompt_manager/v1/topics/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prompt_manager/v1/topics/topics_pb2.py": "sha256:e8d69aa40f9bad328f3434777dcac2fa6ed804aca6a7365a9379a120a552f084",
     "gen/python/prompt_manager/v1/topics/topics_pb2.pyi": "sha256:a9192a9778ab04163bda7164864afcee4a4d5d551fbd150d114d92a252096cb0",
-    "gen/python/prompt_manager/v1/worldscale/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/prompt_manager/v1/worldscale/worldscale_pb2.py": "sha256:28a037675ac9ee8c7dbb3d3cf48d94ba1267f1a205c74ad4ef948ef1aa31f027",
-    "gen/python/prompt_manager/v1/worldscale/worldscale_pb2.pyi": "sha256:2805277c0bd79bbba0469f25d2dab4f88391d6c447ec6c06fd70052b7b2555d9",
-    "gen/python/prompt_manager/v1/worldseats/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/prompt_manager/v1/worldseats/worldseats_pb2.py": "sha256:28a2fb28b6ea1503481c5cff665e8c4089b8463642c2fa7a795356cde09fa3a3",
-    "gen/python/prompt_manager/v1/worldseats/worldseats_pb2.pyi": "sha256:80dfe14782d57a0a10ccfe30f7562c46f5da403b540516a2e35fd198bcf0d59e",
+    "gen/python/prompt_manager/v1/world/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/prompt_manager/v1/world/world_pb2.py": "sha256:95bb7c2058d549e97f2f012166dead1bafe8ebfdae38a4a1d5bc15e687d0cc87",
+    "gen/python/prompt_manager/v1/world/world_pb2.pyi": "sha256:094139be045bf87e9f34d94fac71480c45d3c573e93b627f4880142137fd5e83",
     "gen/typescript/prompt-manager/v1/actions/actions_pb.ts": "sha256:de2efe556de86d058b4821fc581001fca36c484646dfcc3e328dc6cac579b619",
     "gen/typescript/prompt-manager/v1/agents/agents_pb.ts": "sha256:d61e36b55d38f3d2795e88f45e25dc8b67fa00db419c77aff0b3ac444c883c24",
     "gen/typescript/prompt-manager/v1/aisearch/aisearch_pb.ts": "sha256:03191641b9f9618a758cc84a032d2473b1d8cc49193a553c8b67d009b94bb50c",
@@ -141,7 +135,6 @@
     "gen/typescript/prompt-manager/v1/templates/templates_pb.ts": "sha256:629b16abb95a20fc0276ec1e7a1b97a41b063b8d449cb87265d66e5cb172be2d",
     "gen/typescript/prompt-manager/v1/testing/testing_pb.ts": "sha256:6715d5d9f57aae942c25f8d457dc7747a1c34d3168000ac29ca36400bb2b2d3e",
     "gen/typescript/prompt-manager/v1/topics/topics_pb.ts": "sha256:a61611b10d42df047499c3257e8ae9b2e9dee86044a9a9ea40456b159a04a30e",
-    "gen/typescript/prompt-manager/v1/worldscale/worldscale_pb.ts": "sha256:3d385bc7555382d67b59c24c86d339944b4058a7f6adcbc19731d860c4544b6d",
-    "gen/typescript/prompt-manager/v1/worldseats/worldseats_pb.ts": "sha256:df5b22956e76f1994dda72639d8a723f942bb6ce7b2200b03f49e38f710dceaa"
+    "gen/typescript/prompt-manager/v1/world/world_pb.ts": "sha256:add0492e4a8953143d83b2d11dfa25066ba316ed31eee67a227a0d768d216f70"
   }
 }

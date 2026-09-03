@@ -58,7 +58,7 @@ func ValidateConsumerPins(scope Scope) (Result, error) {
 			add("stale-major", fmt.Sprintf("latest is %s", manifest.Latest), "Migrate every named consumer to the current supported major, then use a major-scoped import.")
 		}
 		emits := false
-		if err := librarywalk.Walk(versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if err := librarywalk.WalkContext(scope.Context, versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil || emits || entry.IsDir() {
 				return walkErr
 			}

@@ -33,12 +33,13 @@ describe("BottomNav", () => {
     );
 
     expect(screen.getByTestId("bottom-nav")).toHaveAttribute("aria-label", "Primary");
-    expect(screen.getByTestId("bottom-nav").className).toContain("pb-safe");
-    expect(screen.getByTestId("bottom-nav").className).toContain("pl-safe");
-    expect(screen.getByTestId("bottom-nav").className).toContain("pr-safe");
+    expect(screen.getByTestId("bottom-nav")).toHaveAttribute(
+      "data-rcl-bottom-nav-safe-area",
+      "floor",
+    );
     expect(screen.getByTestId("dash")).toHaveAttribute("href", "/");
     expect(screen.getByTestId("components")).toHaveAttribute("aria-current", "page");
-    expect(screen.getByTestId("components").className).toContain("text-app-primary");
+    expect(screen.getByTestId("components")).toHaveAttribute("data-active", "true");
   });
 
   it("routes selection through onItemSelect", async () => {

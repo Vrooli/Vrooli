@@ -1,4 +1,7 @@
 :root {
+  --text-heading-sm: 600 16px / 22px var(--font-sans);
+  --text-heading-sm-size: 16px;
+  --text-heading-sm-line: 22px;
   /* Compatibility aliases for standalone catalog components. New source
      should prefer the canonical --color/--dur names below, but released
      assets may be adopted into older Vrooli shells. Keeping this bridge in

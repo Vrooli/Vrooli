@@ -104,6 +104,148 @@ A scenario may include:
 
 Some scenarios are user-facing products. Others are meta-scenarios that improve the platform itself.
 
+### Web Console terminal device and size-lease boundary
+
+Web Console keeps terminal size authority per WebSocket connection while using a
+browser-local device id to group that device's connections. A reconnect from the
+same device can reclaim the session's size lease after the prior socket fails a
+liveness probe; the superseded socket is then closed by the server. Device labels
+and device classes are recognition-only metadata and never authorize an action.
+The live device roster is a projection of session connections exposed by
+`DeviceService` and refreshed through the existing lifecycle event stream.
+
+## Supervision Authority
+
+Vrooli computes one supervision set; consumers do not maintain private core
+lists. The operator grants the root authority in
+`.vrooli/operator-state.json` at `core.seed`. The control plane starts with
+those scenario seeds and follows enabled scenario and resource dependency
+edges whose effective supervision intent is `must_start` or `try_start`.
+`ignore` edges do not enter the closure. The computed result is an output, not
+a second stored declaration.
+
+Run the authority directly:
+
+```bash
+vrooli supervision-set
+vrooli supervision-set --kind resource --json
+```
+
+Each returned member includes an attribution chain ordered from that member
+back to the seed that granted its inclusion. Each link names the declaring
+scenario, the dependency kind, the effective intent, and the manifest source;
+the final link is `core.seed`. This makes “why is qdrant supervised?” a query,
+not a source-code investigation. `scenario-dependency-analyzer core-set` is a
+compatibility presentation of the same computation.
+
+### Supervision-intent precedence
+
+Dependency manifests still carry the legacy `enabled`, `required`, and
+`startup_policy` fields. The scenario parser derives exactly one intent using
+this table:
+
+| Declaration | Effective intent | Required acknowledgement |
+|---|---|---|
+| `enabled: false` | `ignore` | none; disabled wins over retained metadata |
+| enabled, `required: true`, policy absent or `must_start` | `must_start` | none |
+| enabled, `required: true`, `startup_policy: try_start` | `must_start` | `supervision_precedence: required` |
+| enabled, `required: false`, policy absent or `try_start` | `try_start` | none |
+| enabled, `required: false`, `startup_policy: must_start` | `must_start` | `supervision_precedence: startup_policy` |
+| enabled, `required: false`, `startup_policy: ignore` | `ignore` | none |
+| enabled, `required: true`, `startup_policy: ignore` | invalid | rejected by manifest validation |
+
+The conservative default for an enabled optional edge is `try_start`: silent
+capability loss is harder to observe than the cost of an attempted start. Run
+`vrooli scenario validate` to enforce the table and the explicit precedence
+markers.
+
+### Ownership records outrank ancestry
+
+Process ancestry is evidence about how a process was launched, not authority
+over who owns it. A live managed-resource record, resource companion record,
+or scenario process record is an ownership record. When its PID and process
+start time match the host process, maintenance classifies that process as
+tracked even if its parent has exited or belongs to another process tree. A
+record for a dead or reused PID grants no protection. If the host cannot supply
+the start-time evidence needed for that check, the classifier reports the
+unsupported condition instead of guessing.
+
+This principle prevents `vrooli cleanup orphans` from killing a valid daemon
+because ancestry made it look detached. Inspect the computed result before any
+cleanup:
+
+```bash
+vrooli orphans --json
+```
+
+### Boot recovery
+
+The processes that restart everything else (the autoheal loop, the runtime
+supervisor, the emergency watchdog) run from native units rendered from one
+typed definition, `platformgo.ServiceDefinition`, validated by the native
+manager before they are enabled, and converged by a host safeguard on every
+`vrooli setup`. Their argv comes from the `cliinvoke` catalog and carries no
+global flags; a retired global is tolerated with a warning for a grace period
+and every registered invoker's argv is parsed through the real root parser in
+a test. `vrooli setup status --json --phase readiness` re-inspects the three
+units while the host is healthy, so a render the manager would refuse is seen
+before the next boot rather than after it. See
+[native service definitions](../reference/native-service-definitions.md) and
+[CLI invokers](../reference/cli-invokers.md).
+
+### Autoheal consumption and safety interlock
+
+Autoheal reloads `vrooli supervision-set --json` at startup and every 30
+seconds. `must_start` produces a critical target check; `try_start` produces a
+warning-level target check. The autoheal operator config may add targets, but
+it cannot remove or disable a canonical member. A source failure retains the
+in-memory last-known-good non-empty set and degrades the
+`vrooli-supervision-set-source` check. Startup fails closed when no good set
+has ever loaded.
+
+Correct ownership classification prevents one false orphan path, but it cannot
+make independently scheduled checks atomic. The heal interlock therefore
+guards the action boundary separately. After a successful start-like action,
+it refuses a dangerous action from a different check against the same target
+for 30 seconds. The same check may verify or repair its own lifecycle. The
+refusal is returned as typed action evidence and follows the normal durable
+action-log path. This second guard contains cross-check races even if a future
+classifier or check regresses.
+
+Automatic recovery is bounded. After the configured consecutive-failure limit
+(three by default), the check is suspended and autoheal raises a durable
+incident. Health observation continues, but recovery actions stop until an
+operator fixes the cause and runs `vrooli-autoheal check resume <check-id>`.
+`vrooli-autoheal check suspended` shows the active suspension and its retained
+attempt history.
+
+### Outage record
+
+For a supervised member, the first explicit unavailable observation opens one
+`outage_records` interval. Repeated unavailable observations keep that interval
+open. The next explicit available observation closes it. A degraded resource
+that is still serving counts as available, and an unreadable supervision
+source fabricates neither an opening nor a closing observation.
+
+One typed query returns the two windowed aggregates required to answer both
+“how long?” and “how often?”:
+
+```bash
+vrooli-autoheal measure outages --member-id resource-qdrant --window-hours 24
+```
+
+The CLI JSON response includes `totalUnavailableSeconds` and
+`distinctOutageCount`; it also reports `openOutageCount`. Protobuf source uses
+the corresponding snake-case field names. Zero-valued fields may be omitted by
+protobuf JSON. An open interval
+is measured through the query window end without being mutated. The intervals
+and aggregates are stored in autoheal's bounded SQLite ledger and survive an
+API restart.
+
+The investigation that established this model, including the oscillation
+timeline, rival authorities, attempt counts, and rejected fixes, is preserved
+as [AI resource fleet supervision origin evidence](../reports/ai-resource-fleet-supervision-readout-2026-08-28.html).
+
 ## Dependency & Isolation Model
 
 Scenarios are isolated at the dependency layer so that upgrading one scenario never forces a migration in another, and so a scenario can in principle be built with any language, framework, or package manager — the platform contract is **process-level** (`.vrooli/service.json`, Makefile lifecycle targets, health endpoints), not package-level.
@@ -126,6 +268,31 @@ Shared Vrooli packages are consumed **by source path**, not by published version
 This means every scenario builds against HEAD of `packages/*`. A breaking change there propagates fleet-wide at the next build/install — the opposite of the third-party isolation above. **This is an accepted tradeoff, not an oversight**: source coupling is what makes the compounding loop cheap (one improvement to a shared package is instantly available to every scenario, with no release ceremony), and the fleet is small enough that conformance discipline is cheaper than version management. The guards are additive-evolution discipline on shared package APIs (see the API surface manifest & conformance work) and buf breaking-change checks on the shared proto contracts.
 
 **Revisit trigger:** if fleet-wide breakage from shared-package changes starts costing more than release ceremony would (recurring multi-scenario build breaks of the kind conformance checks don't catch), move `packages/*` to versioned releases that scenarios pin and upgrade deliberately.
+
+### React component restyling
+
+Library components expose a stable consumer styling seam:
+
+- `className` is merged with the component default through `cn` from `ClassMerge`.
+- The consumer ref reaches the outermost host element through `forwardRef` (or the documented imperative-ref seam for components that expose a command handle).
+- Token and variant declarations live in a co-located stylesheet and are selected by `data-*` attributes. A component does not use a static inline style object for token values, because inline declarations defeat a consumer stylesheet override.
+- `style` remains the native `CSSProperties` escape hatch for consumer-owned or computed values such as measured dimensions, positions, and transforms. Components do not invent a token-specific `style` type or overload the standard DOM prop.
+
+`ValidateRestyleContract` enforces these rules against the active catalog sources. The package build copies version-local CSS into `dist`, so the contract applies equally to linked adopters and package consumers.
+
+### React component automation selectors
+
+Every exported library component emits a root `data-testid` equal to its
+catalog id. Additional selectors use the same dotted namespace, for example
+`navigation.sidebar.close`. Adopter registries are generated from those
+values and expose semantic fields such as `root`, `close`, and
+`resizeHandle`; positional names such as `id2` are not a stable contract.
+
+The BAS flows and cases consume the adopter selector registry, so a selector
+rename is complete only when the registry, its generated manifest, and the
+owning flow references are regenerated together. `selector-coverage` checks
+the library source, while `selectors-adopted` checks that linked scenarios
+carry the generated registry and semantic naming convention.
 
 ## Meta-Systems
 
@@ -173,3 +340,10 @@ They should not duplicate:
 - scenario-specific design docs
 - resource-specific implementation detail
 - active implementation plans, unless clearly marked as plans
+# Asset-first catalog validation
+
+The React Component Library gate loop is asset-first: it resolves each asset's
+universal, kind, and asset-level rules, then invokes registered runners with a
+scoped asset set. Corpus-scoped graph rules run once. Evidence is reusable only
+when the asset revision and resolved rule-set digest both match, and findings
+carry the rule source and declaring file for traceability.

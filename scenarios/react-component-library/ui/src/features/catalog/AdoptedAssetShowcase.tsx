@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { Button } from "../../components/Button";
-import { EmptyState } from "../../components/EmptyState";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { Icon } from "@vrooli/react-component-library/Icon/1";
 import { Pressable } from "@vrooli/react-component-library/Pressable/1";

@@ -55,7 +55,7 @@ func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
 	require.Contains(t, string(source), "@vrooli/react-component-library/Stack/1")
 	lock, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "dependencies.json"))
 	require.NoError(t, err)
-	require.JSONEq(t, `{"schemaVersion":1,"libraryId":"react-component-library:Panel","version":"1.0.1","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[{"libraryId":"react-component-library:Stack","version":"1.0.0","rank":4}]}`, string(lock))
+	require.JSONEq(t, `{"schemaVersion":2,"libraryId":"react-component-library:Panel","version":"1.0.1","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[{"libraryId":"react-component-library:Stack","major":1,"observed":"1.0.0","rank":4}]}`, string(lock))
 	ledger, err := os.ReadFile(filepath.Join(root, "released-version-hashes.json"))
 	require.NoError(t, err)
 	require.Contains(t, string(ledger), "components/Panel/versions/1.0.1/Panel.tsx")
@@ -121,7 +121,7 @@ func TestInitializeComponentCreatesDependencyLockBeforeIndexing(t *testing.T) {
 
 	lock, err := os.ReadFile(filepath.Join(root, "components", "ViewportEnvironment", "versions", "1.0.0", "dependencies.json"))
 	require.NoError(t, err)
-	require.JSONEq(t, `{"schemaVersion":1,"libraryId":"react-component-library:ViewportEnvironment","version":"1.0.0","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[]}`, string(lock))
+	require.JSONEq(t, `{"schemaVersion":2,"libraryId":"react-component-library:ViewportEnvironment","version":"1.0.0","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[]}`, string(lock))
 	require.Equal(t, "1.0.0", created.Component.LatestVersion)
 }
 

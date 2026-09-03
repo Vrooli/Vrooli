@@ -12,8 +12,8 @@ import {
   type Ref,
 } from "react";
 
-import { Button } from "../../components/Button";
-import { IconButton } from "../../components/IconButton";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { API_BASE } from "../../api/client";

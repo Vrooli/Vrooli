@@ -49,7 +49,7 @@ func TestEnsureBuiltinsSeeded_PopulatesWhenEmpty(t *testing.T) {
 }
 
 func TestBuiltinThemes_EmitOnlyConsumedTailwindContractTokens(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "ui", "tailwind.theme.json"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "ui", "src", "theme", "tailwind.theme.json"))
 	require.NoError(t, err)
 	var contract struct {
 		Colors       map[string]string `json:"colors"`

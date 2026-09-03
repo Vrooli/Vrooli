@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:HealthIndicator",
   "version": "1.0.0",
   "resolvedAt": "2026-08-27T18:29:27.181Z",

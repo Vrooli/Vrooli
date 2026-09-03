@@ -37,14 +37,30 @@ def fail(status, klass, detail, where):
 
 
 def classify_transport(exc):
+    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
     if isinstance(exc, (NameError, AttributeError)):
-        raise  # a kernel-bound name is missing: never disguise it as a binding error
-    text = str(exc).lower()
-    if "unreachable" in text or "bridge" in text or "scenario_not_running" in text:
-        return "unavailable", "scenario_unreachable"
+        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
+    text = str(exc)
+    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
+                   "no running runtime ports", "connection refused"):
+        if needle in text:
+            return ("unavailable", "scenario_unreachable")
     if "requires an explicit grant" in text:
-        return "refused", "no_grant"
-    return "failed", "binding_error"
+        return ("refused", "no_grant")
+    if "not run eligible" in text or "run_eligible" in text:
+        return ("refused", "not_run_eligible")
+    if "inference spend" in text:
+        return ("refused", "inference_spend_exceeded")
+    if "delegated run spend" in text:
+        return ("refused", "delegated_run_spend_exceeded")
+    if "no determinable primary response field" in text or "rows must be one of" in text:
+        return ("failed", "ambiguous_response")
+    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
+        if needle in text:
+            return ("failed", "invalid_input")
+    if "deadline" in text:
+        return ("failed", "deadline_exceeded")
+    return ("failed", "binding_error")
 
 
 def row(name, reading, unavailable=False, reason=None, sensor=None, target=None, in_band=None):
@@ -88,7 +104,14 @@ def step_classify():  # CLASSIFY · bounded readings per row
         sensor = SENSORS[name][0]
         if isinstance(h, Exception):
             status, klass = classify_transport(h)
-            row(name, None, unavailable=True, reason=f"{klass}: {str(h)[:120]}", sensor=sensor)
+            envelope["errors"].append({"class": klass, "detail": str(h)[:240], "where": f"collect:{name}"})
+            if name == "skill-usage" and klass == "binding_error":
+                reason = "unreliable:proto_drift_skill_usage"  # 500 on unknown proto field `projected` (2026-09-02)
+            elif klass == "scenario_unreachable":
+                reason = "scenario_unreachable"
+            else:
+                reason = f"unreliable:{klass}"
+            row(name, None, unavailable=True, reason=reason, sensor=sensor)
             continue
         if name == "governance-share":
             m = h.meta()

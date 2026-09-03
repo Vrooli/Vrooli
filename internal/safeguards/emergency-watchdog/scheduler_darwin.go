@@ -7,12 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
+	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
-
-	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
 const launchAgentLabel = "com.vrooli.emergency-watchdog"
@@ -26,7 +25,11 @@ func nativePending(goos string, p paths) []string {
 		return []string{"unsupported scheduler"}
 	}
 	var pending []string
-	if !hostreqkit.FileContentMatches(p.LaunchAgent, launchAgentContent(p.Binary, p.Home)) {
+	artifact, err := renderedArtifact("darwin", p)
+	if err != nil {
+		return []string{"render launchd agent: " + err.Error()}
+	}
+	if !hostreqkit.FileContentMatches(p.LaunchAgent, artifact.Primary().Content) {
 		pending = append(pending, p.LaunchAgent+" missing or stale")
 	}
 	if _, err := hostreqkit.CombinedOutputFn("launchctl", "print", launchdTarget()); err != nil {
@@ -60,11 +63,23 @@ func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostre
 		status.Notes = append(status.Notes, "the invoking user's GUI launchd domain is unavailable; this user LaunchAgent is not applicable to the current SSH/headless session")
 		return status, nil
 	}
+	artifact, err := renderedArtifact("darwin", p)
+	if err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		return status, err
+	}
+	verdict := platformgo.ValidateArtifact(artifact, platformgo.ScopeUser)
+	recordVerdict(&status, verdict)
+	if verdict.Rejected() {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "plutil rejected the rendered LaunchAgent; nothing was installed: "+verdict.Output)
+		return status, nil
+	}
 	if err := os.MkdirAll(filepath.Dir(p.LaunchAgent), tuning.PermDir); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		return status, err
 	}
-	if err := os.WriteFile(p.LaunchAgent, []byte(launchAgentContent(p.Binary, p.Home)), tuning.PermFile); err != nil {
+	if err := os.WriteFile(p.LaunchAgent, []byte(artifact.Primary().Content), tuning.PermFile); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		return status, err
 	}
@@ -93,18 +108,3 @@ func launchdDomain() string {
 	return fmt.Sprintf("user/%d", uid)
 }
 func launchdTarget() string { return launchdDomain() + "/" + launchAgentLabel }
-func launchAgentContent(executable, home string) string {
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>Label</key><string>%s</string>
-<key>ProgramArguments</key><array><string>%s</string><string>--report-only</string></array>
-<key>EnvironmentVariables</key><dict><key>HOME</key><string>%s</string></dict>
-<key>RunAtLoad</key><true/><key>StartInterval</key><integer>300</integer>
-</dict></plist>
-`, launchAgentLabel, xmlEscape(executable), xmlEscape(home))
-}
-
-func xmlEscape(v string) string {
-	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;").Replace(v)
-}

@@ -1,17 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:Slider",
   "version": "1.1.2",
-  "resolvedAt": "2026-08-31T15:00:23Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:StyleSheet",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 1
     }
   ]

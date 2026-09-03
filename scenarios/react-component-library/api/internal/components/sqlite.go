@@ -1167,7 +1167,11 @@ func dependenciesFromFiles(files []ComponentVersionFile) ([]AssetDependency, boo
 		}
 		dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
 		for _, dependency := range lock.Dependencies {
-			dependencies = append(dependencies, AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: strings.TrimSpace(dependency.Version)})
+			version := strings.TrimSpace(dependency.Observed)
+			if version == "" {
+				version = strings.TrimSpace(dependency.Version)
+			}
+			dependencies = append(dependencies, AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: version})
 		}
 		return dependencies, true, nil
 	}

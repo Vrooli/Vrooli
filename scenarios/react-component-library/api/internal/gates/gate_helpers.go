@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"strings"
 )
 
 func fixtureStoryContracts(root string) ([]fixtureStoryContract, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +185,14 @@ func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetD
 		return Result{}, err
 	}
 	result := Result{}
+	selected := make(map[string]bool, len(scope.Assets))
+	for _, assetID := range scope.Assets {
+		selected[assetID] = true
+	}
 	for _, asset := range assets {
+		if !scope.IsFullCorpus() && !selected[asset.Asset.ID] {
+			continue
+		}
 		versions, err := implementationSources(root, asset.Asset.ID)
 		if err != nil {
 			return Result{}, err
@@ -241,7 +249,7 @@ func UnmeasuredGate(root string) (Result, error) {
 	result := Result{}
 	kinds := []string{"foundations", "hooks", "services", "primitives", "components"}
 	for _, kind := range kinds {
-		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}

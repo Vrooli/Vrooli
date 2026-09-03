@@ -29,7 +29,7 @@ func pruneLibraryOverlay(root string) error {
 func linkScenarioOverlay(root, tmp string) error {
 	realScenario := filepath.Join(root, "scenarios", "react-component-library")
 	tmpScenario := filepath.Join(tmp, "scenarios", "react-component-library")
-	for _, path := range []string{"ui", "catalog/config.json", "catalog/weights.json", "catalog/version-shape.json", "templates", "data"} {
+	for _, path := range []string{"ui", "catalog/config.json", "catalog/weights.json", "catalog/version-shape.json", "templates", "harnesses", "data"} {
 		source := filepath.Join(realScenario, path)
 		if _, err := os.Stat(source); err != nil {
 			if os.IsNotExist(err) {
@@ -43,6 +43,12 @@ func linkScenarioOverlay(root, tmp string) error {
 		}
 		if path == "ui" {
 			if err := copyUIOverlay(source, dest); err != nil {
+				return err
+			}
+			continue
+		}
+		if path == "harnesses" {
+			if err := copyDirectoryFiles(source, dest); err != nil {
 				return err
 			}
 			continue

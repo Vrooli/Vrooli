@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/account.proto.
  */
 export const file_landing_page_business_suite_v1_account: GenFile = /*@__PURE__*/
-  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvYWNjb3VudC5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIhoKGEdldE15U3Vic2NyaXB0aW9uUmVxdWVzdCIVChNHZXRNeUNyZWRpdHNSZXF1ZXN0IqgBChRHZXRNeUNyZWRpdHNSZXNwb25zZRJNCgdiYWxhbmNlGAEgASgLMjwudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuQ3JlZGl0c0JhbGFuY2USHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAIgASgJEiIKGmRpc3BsYXlfY3JlZGl0c19tdWx0aXBsaWVyGAMgASgBIhgKFkdldEVudGl0bGVtZW50c1JlcXVlc3QipAIKF0dldEVudGl0bGVtZW50c1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIRCglwbGFuX3RpZXIYAiABKAkSEAoIcHJpY2VfaWQYAyABKAkSEAoIZmVhdHVyZXMYBCADKAkSTQoHY3JlZGl0cxgFIAEoCzI8LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkNyZWRpdHNCYWxhbmNlElYKDHN1YnNjcmlwdGlvbhgGIAEoCzJALnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLlN1YnNjcmlwdGlvblN0YXR1cxIbChNiaWxsaW5nX2N5Y2xlX3N0YXJ0GAcgASgFMqoDCg5BY2NvdW50U2VydmljZRKXAQoRR2V0TXlTdWJzY3JpcHRpb24SOC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0TXlTdWJzY3JpcHRpb25SZXF1ZXN0GkgudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuVmVyaWZ5U3Vic2NyaXB0aW9uUmVzcG9uc2USeQoMR2V0TXlDcmVkaXRzEjMubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldE15Q3JlZGl0c1JlcXVlc3QaNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0TXlDcmVkaXRzUmVzcG9uc2USggEKD0dldEVudGl0bGVtZW50cxI2LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRFbnRpdGxlbWVudHNSZXF1ZXN0GjcubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldEVudGl0bGVtZW50c1Jlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_landing_page_business_suite_v1_shared_commerce]);
+  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvYWNjb3VudC5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIhoKGEdldE15U3Vic2NyaXB0aW9uUmVxdWVzdCIVChNHZXRNeUNyZWRpdHNSZXF1ZXN0IqgBChRHZXRNeUNyZWRpdHNSZXNwb25zZRJNCgdiYWxhbmNlGAEgASgLMjwudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuQ3JlZGl0c0JhbGFuY2USHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAIgASgJEiIKGmRpc3BsYXlfY3JlZGl0c19tdWx0aXBsaWVyGAMgASgBIhgKFkdldEVudGl0bGVtZW50c1JlcXVlc3QipAIKF0dldEVudGl0bGVtZW50c1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIRCglwbGFuX3RpZXIYAiABKAkSEAoIcHJpY2VfaWQYAyABKAkSEAoIZmVhdHVyZXMYBCADKAkSTQoHY3JlZGl0cxgFIAEoCzI8LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkNyZWRpdHNCYWxhbmNlElYKDHN1YnNjcmlwdGlvbhgGIAEoCzJALnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLlN1YnNjcmlwdGlvblN0YXR1cxIbChNiaWxsaW5nX2N5Y2xlX3N0YXJ0GAcgASgFIkQKGENvbW1lcmNpYWxDb250ZXh0UmVxdWVzdBIRCglwbGFjZW1lbnQYASABKAkSFQoNY2FwYWJpbGl0eV9pZBgCIAEoCSKPAQoWQ29tbWVyY2lhbEFjY291bnRGYWN0cxIbChNzdWJzY3JpcHRpb25fc3RhdHVzGAEgASgJEhEKCXBsYW5fdGllchgCIAEoCRIWCg5jcmVkaXRfYmFsYW5jZRgDIAEoAxIXCg9lbnRpdGxlbWVudF9pZHMYBCADKAkSFAoMZXZhbHVhdGVkX2F0GAUgASgJIvABChFDb21tZXJjaWFsQ29udGVudBISCgpjb250ZW50X2lkGAEgASgJEhEKCXBsYWNlbWVudBgCIAEoCRINCgV0aXRsZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghwcmlvcml0eRgFIAEoCRIQCghlbGlnaWJsZRgGIAEoCBIRCgljdGFfbGFiZWwYByABKAkSFwoPY3RhX2Rlc3RpbmF0aW9uGAggASgJEhIKCmV4cGlyZXNfYXQYCSABKAkSEwoLZGlzbWlzc2libGUYCiABKAgSFwoPZGlzbWlzc2VkX3VudGlsGAsgASgJIuMBChlDb21tZXJjaWFsQ29udGV4dFJlc3BvbnNlEkcKB2FjY291bnQYASABKAsyNi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQ29tbWVyY2lhbEFjY291bnRGYWN0cxJCCgdjb250ZW50GAIgAygLMjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkNvbW1lcmNpYWxDb250ZW50EhQKDGdlbmVyYXRlZF9hdBgDIAEoCRITCgtzdGFsZV9hZnRlchgEIAEoCRIOCgZzb3VyY2UYBSABKAkyuAQKDkFjY291bnRTZXJ2aWNlEpcBChFHZXRNeVN1YnNjcmlwdGlvbhI4LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRNeVN1YnNjcmlwdGlvblJlcXVlc3QaSC52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5WZXJpZnlTdWJzY3JpcHRpb25SZXNwb25zZRJ5CgxHZXRNeUNyZWRpdHMSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0TXlDcmVkaXRzUmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRNeUNyZWRpdHNSZXNwb25zZRKCAQoPR2V0RW50aXRsZW1lbnRzEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldEVudGl0bGVtZW50c1JlcXVlc3QaNy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0RW50aXRsZW1lbnRzUmVzcG9uc2USiwEKFEdldENvbW1lcmNpYWxDb250ZXh0EjgubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkNvbW1lcmNpYWxDb250ZXh0UmVxdWVzdBo5LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5Db21tZXJjaWFsQ29udGV4dFJlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_landing_page_business_suite_v1_shared_commerce]);
 
 /**
  * GetMySubscriptionRequest asks for the caller's cached subscription status.
@@ -163,6 +163,174 @@ export const GetEntitlementsResponseSchema: GenMessage<GetEntitlementsResponse> 
   messageDesc(file_landing_page_business_suite_v1_account, 4);
 
 /**
+ * CommercialContext contains account facts and presentation-only content.
+ * Facts are authoritative for display and diagnostics; access decisions stay
+ * in the trusted operation owner. Offers and recommendations can be cached,
+ * but cannot grant entitlements.
+ *
+ * @generated from message landing_page_business_suite.v1.CommercialContextRequest
+ */
+export type CommercialContextRequest = Message<"landing_page_business_suite.v1.CommercialContextRequest"> & {
+  /**
+   * @generated from field: string placement = 1;
+   */
+  placement: string;
+
+  /**
+   * @generated from field: string capability_id = 2;
+   */
+  capabilityId: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.CommercialContextRequest.
+ * Use `create(CommercialContextRequestSchema)` to create a new message.
+ */
+export const CommercialContextRequestSchema: GenMessage<CommercialContextRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_account, 5);
+
+/**
+ * @generated from message landing_page_business_suite.v1.CommercialAccountFacts
+ */
+export type CommercialAccountFacts = Message<"landing_page_business_suite.v1.CommercialAccountFacts"> & {
+  /**
+   * @generated from field: string subscription_status = 1;
+   */
+  subscriptionStatus: string;
+
+  /**
+   * @generated from field: string plan_tier = 2;
+   */
+  planTier: string;
+
+  /**
+   * @generated from field: int64 credit_balance = 3;
+   */
+  creditBalance: bigint;
+
+  /**
+   * @generated from field: repeated string entitlement_ids = 4;
+   */
+  entitlementIds: string[];
+
+  /**
+   * @generated from field: string evaluated_at = 5;
+   */
+  evaluatedAt: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.CommercialAccountFacts.
+ * Use `create(CommercialAccountFactsSchema)` to create a new message.
+ */
+export const CommercialAccountFactsSchema: GenMessage<CommercialAccountFacts> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_account, 6);
+
+/**
+ * @generated from message landing_page_business_suite.v1.CommercialContent
+ */
+export type CommercialContent = Message<"landing_page_business_suite.v1.CommercialContent"> & {
+  /**
+   * @generated from field: string content_id = 1;
+   */
+  contentId: string;
+
+  /**
+   * @generated from field: string placement = 2;
+   */
+  placement: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string priority = 5;
+   */
+  priority: string;
+
+  /**
+   * @generated from field: bool eligible = 6;
+   */
+  eligible: boolean;
+
+  /**
+   * @generated from field: string cta_label = 7;
+   */
+  ctaLabel: string;
+
+  /**
+   * @generated from field: string cta_destination = 8;
+   */
+  ctaDestination: string;
+
+  /**
+   * @generated from field: string expires_at = 9;
+   */
+  expiresAt: string;
+
+  /**
+   * @generated from field: bool dismissible = 10;
+   */
+  dismissible: boolean;
+
+  /**
+   * @generated from field: string dismissed_until = 11;
+   */
+  dismissedUntil: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.CommercialContent.
+ * Use `create(CommercialContentSchema)` to create a new message.
+ */
+export const CommercialContentSchema: GenMessage<CommercialContent> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_account, 7);
+
+/**
+ * @generated from message landing_page_business_suite.v1.CommercialContextResponse
+ */
+export type CommercialContextResponse = Message<"landing_page_business_suite.v1.CommercialContextResponse"> & {
+  /**
+   * @generated from field: landing_page_business_suite.v1.CommercialAccountFacts account = 1;
+   */
+  account?: CommercialAccountFacts | undefined;
+
+  /**
+   * @generated from field: repeated landing_page_business_suite.v1.CommercialContent content = 2;
+   */
+  content: CommercialContent[];
+
+  /**
+   * @generated from field: string generated_at = 3;
+   */
+  generatedAt: string;
+
+  /**
+   * @generated from field: string stale_after = 4;
+   */
+  staleAfter: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.CommercialContextResponse.
+ * Use `create(CommercialContextResponseSchema)` to create a new message.
+ */
+export const CommercialContextResponseSchema: GenMessage<CommercialContextResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_account, 8);
+
+/**
  * AccountService exposes per-user subscription, credit, and entitlement views.
  *
  * @generated from service landing_page_business_suite.v1.AccountService
@@ -197,6 +365,14 @@ export const AccountService: GenService<{
     methodKind: "unary";
     input: typeof GetEntitlementsRequestSchema;
     output: typeof GetEntitlementsResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AccountService.GetCommercialContext
+   */
+  getCommercialContext: {
+    methodKind: "unary";
+    input: typeof CommercialContextRequestSchema;
+    output: typeof CommercialContextResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_landing_page_business_suite_v1_account, 0);

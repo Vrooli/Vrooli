@@ -22,7 +22,7 @@ func ValidateFieldOwnership(scope Scope) (Result, error) {
 	}
 	var paths []string
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		matches, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		if err != nil {
 			return Result{}, err
 		}
@@ -62,7 +62,7 @@ func ValidateFieldOwnership(scope Scope) (Result, error) {
 		if _, statErr := os.Stat(versionRoot); os.IsNotExist(statErr) {
 			continue
 		}
-		_ = librarywalk.Walk(versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		_ = librarywalk.WalkContext(scope.Context, versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil || entry.IsDir() || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx")) {
 				return walkErr
 			}

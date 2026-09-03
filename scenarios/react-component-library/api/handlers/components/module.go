@@ -133,18 +133,56 @@ func BuildService(db *sql.DB, clk schedule.Clock, sourceRoot string) (components
 // versioned with normal repo changes.
 func defaultSourceRoot() (string, error) {
 	if path := strings.TrimSpace(os.Getenv("COMPONENT_SOURCE_ROOT")); path != "" {
-		return path, nil
+		return resolveConfiguredSourceRoot(path), nil
+	}
+	if scenarioPath := strings.TrimSpace(os.Getenv("SCENARIO_PATH")); scenarioPath != "" {
+		candidate := filepath.Join(scenarioPath, "library")
+		if _, err := os.Stat(filepath.Join(candidate, "components")); err == nil {
+			return candidate, nil
+		}
 	}
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", fmt.Errorf("resolve components source root: runtime caller unavailable")
 	}
 	path := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "library"))
+	path = existingSourceRoot(path)
 	err := os.MkdirAll(filepath.Join(path, "components"), 0o755)
 	if err != nil {
 		return "", fmt.Errorf("create components root: %w", err)
 	}
 	return path, nil
+}
+
+func resolveConfiguredSourceRoot(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if scenarioPath := strings.TrimSpace(os.Getenv("SCENARIO_PATH")); scenarioPath != "" {
+		candidate := filepath.Join(scenarioPath, path)
+		if _, err := os.Stat(filepath.Join(candidate, "components")); err == nil {
+			return candidate
+		}
+	}
+	return existingSourceRoot(path)
+}
+
+func existingSourceRoot(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	for _, candidate := range []string{path, filepath.Join("..", path), filepath.Join("..", "..", path)} {
+		if _, err := os.Stat(filepath.Join(candidate, "components")); err == nil {
+			if absolute, absErr := filepath.Abs(candidate); absErr == nil {
+				return absolute
+			}
+			return filepath.Clean(candidate)
+		}
+	}
+	if absolute, err := filepath.Abs(filepath.Join("..", path)); err == nil {
+		return absolute
+	}
+	return path
 }
 
 // Endpoints is the machine-readable description of the components

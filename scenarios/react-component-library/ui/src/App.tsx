@@ -73,6 +73,14 @@ export default function App() {
           }
         />
         <Route
+          path={appRoutes.components}
+          element={
+            <Page>
+              <CatalogBrowser surfaceId="catalog-results" />
+            </Page>
+          }
+        />
+        <Route
           path={appRoutes.assetCatalog}
           element={
             <Page>

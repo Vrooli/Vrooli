@@ -25,7 +25,7 @@ They are not the commercial monetization tiers described in
 | Bundled private | The desktop supervisor starts a verified resource artifact selected by the immutable bundle plan. |
 | External-server / thin-client | The desktop shell calls a configured Tier 1 scenario API; it does not directly own or expose the server's resources. |
 | Shared resource | A consented broker lease to an already-running Tier 1 resource. The broker authorizes use; the desktop supervisor does not control its lifecycle. |
-| Tier 2 peer | Another desktop runtime. The existing resolver seam is only a provider candidate; it is not a completed peer protocol. |
+| Tier 2 peer | Another desktop runtime addressed through the authenticated `vrooli-bridge` relay. The relay route is implemented for bounded, scoped scenario calls; the full peer capability remains evidence-gated. |
 
 ## Capability matrix
 
@@ -36,7 +36,7 @@ They are not the commercial monetization tiers described in
 | Tier 2 → Tier 1 thin-client | desktop scenario API → configured Tier 1 API | route class, response identity, no direct resource endpoint | route and result chapters | Supported as a deployment mode; communication journey remains environment-dependent |
 | Tier 2 → Tier 1 shared resource | consented broker → scoped lease → resource operation | provider identity, lease expiry, readiness, broker has no lifecycle mutation | provider/lease/result chapters | Provider selection, fallback, and redacted observation implemented; requires a live broker fixture for release evidence |
 | Private fallback | shared provider unavailable → verified private artifact | fallback decision, private digest, readiness, no expired credential reuse | fallback chapter and failure reason | Implemented and tested |
-| Tier 2 → Tier 2 peer | peer discovery/auth/request/authority | authenticated versioned protocol, scoped authority, cancellation, loss isolation | both-side request/response evidence | Unsupported / not claimable. `tier2-desktop-peer` is not itself a protocol. |
+| Tier 2 → Tier 2 peer | `[node/]scenario[@variant]` → `vrooli-bridge` relay → node-local scenario transport | authenticated versioned protocol, scoped authority, cancellation, loss isolation | both-side request/response evidence | Relay route implemented for bounded scenario calls; the ten-item peer bar below remains required before a full peer capability is claimable. |
 
 Unsupported and unavailable are terminal evidence states, not degraded passes.
 An unavailable environment must include the missing capability and next action.
@@ -122,10 +122,30 @@ configuration, or secret values.
 
 ## Peer status
 
-No Tier 2 peer evidence may be marked pass until discovery/identity,
-authentication, capability negotiation, scoped authority, retry/timeout,
-cancellation, replay protection, failure isolation, and shutdown are specified
-and implemented. Until then, the capability is explicitly unsupported.
+The intended route is the node-axis resolver over `vrooli-bridge`: a caller
+addresses `[node/]scenario[@variant]`, Bridge admits the typed command against
+the node's scopes, and the node-agent executes it through the node's own local
+transport. The control plane never dials a scenario port on the peer.
+
+The bounded relay path is implemented and exercised by the Bridge suite and a
+live minimouse status call. That is not, by itself, a full Tier 2 peer claim.
+Before peer capability evidence can be marked pass, the route must meet this
+ten-item bar with both-side evidence:
+
+1. discovery;
+2. identity;
+3. authentication;
+4. capability negotiation;
+5. scoped authority;
+6. retry and timeout;
+7. cancellation;
+8. replay protection;
+9. failure isolation; and
+10. shutdown.
+
+Until that bar is met, the capability disposition remains evidence-gated rather
+than a release-ready peer claim. `tier2-desktop-peer` is a precedence rank in
+the shared-provider selector, not a transport implementation.
 
 ## Shared-spine extraction evidence
 

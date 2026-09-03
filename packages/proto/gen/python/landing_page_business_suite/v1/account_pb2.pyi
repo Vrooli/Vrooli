@@ -46,3 +46,65 @@ class GetEntitlementsResponse(_message.Message):
     subscription: _commerce_pb2.SubscriptionStatus
     billing_cycle_start: int
     def __init__(self, status: _Optional[str] = ..., plan_tier: _Optional[str] = ..., price_id: _Optional[str] = ..., features: _Optional[_Iterable[str]] = ..., credits: _Optional[_Union[_commerce_pb2.CreditsBalance, _Mapping]] = ..., subscription: _Optional[_Union[_commerce_pb2.SubscriptionStatus, _Mapping]] = ..., billing_cycle_start: _Optional[int] = ...) -> None: ...
+
+class CommercialContextRequest(_message.Message):
+    __slots__ = ("placement", "capability_id")
+    PLACEMENT_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    placement: str
+    capability_id: str
+    def __init__(self, placement: _Optional[str] = ..., capability_id: _Optional[str] = ...) -> None: ...
+
+class CommercialAccountFacts(_message.Message):
+    __slots__ = ("subscription_status", "plan_tier", "credit_balance", "entitlement_ids", "evaluated_at")
+    SUBSCRIPTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_TIER_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_BALANCE_FIELD_NUMBER: _ClassVar[int]
+    ENTITLEMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    EVALUATED_AT_FIELD_NUMBER: _ClassVar[int]
+    subscription_status: str
+    plan_tier: str
+    credit_balance: int
+    entitlement_ids: _containers.RepeatedScalarFieldContainer[str]
+    evaluated_at: str
+    def __init__(self, subscription_status: _Optional[str] = ..., plan_tier: _Optional[str] = ..., credit_balance: _Optional[int] = ..., entitlement_ids: _Optional[_Iterable[str]] = ..., evaluated_at: _Optional[str] = ...) -> None: ...
+
+class CommercialContent(_message.Message):
+    __slots__ = ("content_id", "placement", "title", "description", "priority", "eligible", "cta_label", "cta_destination", "expires_at", "dismissible", "dismissed_until")
+    CONTENT_ID_FIELD_NUMBER: _ClassVar[int]
+    PLACEMENT_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    CTA_LABEL_FIELD_NUMBER: _ClassVar[int]
+    CTA_DESTINATION_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    DISMISSIBLE_FIELD_NUMBER: _ClassVar[int]
+    DISMISSED_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    content_id: str
+    placement: str
+    title: str
+    description: str
+    priority: str
+    eligible: bool
+    cta_label: str
+    cta_destination: str
+    expires_at: str
+    dismissible: bool
+    dismissed_until: str
+    def __init__(self, content_id: _Optional[str] = ..., placement: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[str] = ..., eligible: _Optional[bool] = ..., cta_label: _Optional[str] = ..., cta_destination: _Optional[str] = ..., expires_at: _Optional[str] = ..., dismissible: _Optional[bool] = ..., dismissed_until: _Optional[str] = ...) -> None: ...
+
+class CommercialContextResponse(_message.Message):
+    __slots__ = ("account", "content", "generated_at", "stale_after", "source")
+    ACCOUNT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STALE_AFTER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    account: CommercialAccountFacts
+    content: _containers.RepeatedCompositeFieldContainer[CommercialContent]
+    generated_at: str
+    stale_after: str
+    source: str
+    def __init__(self, account: _Optional[_Union[CommercialAccountFacts, _Mapping]] = ..., content: _Optional[_Iterable[_Union[CommercialContent, _Mapping]]] = ..., generated_at: _Optional[str] = ..., stale_after: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...

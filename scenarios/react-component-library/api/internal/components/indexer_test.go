@@ -30,6 +30,7 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 		Dependencies []struct {
 			LibraryID string `json:"libraryId"`
 			Version   string `json:"version"`
+			Observed  string `json:"observed"`
 		} `json:"dependencies"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &lock))
@@ -37,7 +38,8 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 	require.Contains(t, lock.Dependencies, struct {
 		LibraryID string `json:"libraryId"`
 		Version   string `json:"version"`
-	}{LibraryID: "react-component-library:BottomSheet", Version: "1.2.10"})
+		Observed  string `json:"observed"`
+	}{LibraryID: "react-component-library:BottomSheet", Observed: "1.2.10"})
 }
 
 const buttonTSX = `/**

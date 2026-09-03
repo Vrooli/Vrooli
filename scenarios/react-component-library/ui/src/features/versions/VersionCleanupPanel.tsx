@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { Button } from "../../components/Button";
-import { Dialog } from "../../components/Dialog";
-import { Input } from "../../components/Input";
-import { StatusBadge } from "../../components/StatusBadge";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { versionLifecycleClient, type CleanupItem } from "../../api/versionLedger";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";

@@ -1,5 +1,272 @@
 # Storage retention budgets
 
+## Pressure recovery
+
+Storage Manager separates scheduled retention from pressure recovery. Use the
+server-owned recovery controller when free space is low:
+
+```bash
+storage-manager recovery run --trigger manual --partition / --json
+storage-manager recovery wait --run-id <run-id> --json
+storage-manager recovery history --json
+storage-manager storage retention --json
+storage-manager storage writers --top 10 --json
+storage-manager storage infra-health --json
+```
+
+Recovery acts in rung order and stops at its free-space target or authority
+boundary. `safe` and proven `regenerable` roots are autonomous. An owner entry
+is autonomous only when it is regenerable and declares an age or byte budget.
+Conditional providers require a host-local standing approval. Read the
+[recovery controller](../../scenarios/storage-manager/docs/concepts/RECOVERY-CONTROLLER.md),
+[recovery ladder](../../scenarios/storage-manager/docs/concepts/RECOVERY-LADDER.md),
+and [root specification](../../scenarios/storage-manager/docs/reference/root-spec.md)
+before changing a declaration.
+
+## Capacity-ledger retention
+
+Capacity claims expose canonical UTC `created_at` and `updated_at` values in
+`vrooli capacity list --json` and in the human table. For terminal claims,
+`updated_at` is the terminal transition time used by the GC sweep; active
+claims use it as the last mutation timestamp. The default terminal retention
+window remains 24 hours until a measured churn sample justifies changing it.
+Operators should compare the observed terminal-row rate with the projected
+24-hour steady-state count before changing that policy.
+
+The 2026-08-28 ledger measurement covered `2026-08-27T08:44:19Z` through
+`2026-08-28T09:01:31Z`: 12,744 rows were present, including 12,103
+`test-genie` rows and 641 resource rows; 12,743 rows were terminal. The observed
+24-hour churn is therefore approximately 12,103 rows, predicting a steady-state
+row count of about 12,103 under the current one-day window (the measured total
+is 12,744 because the sample spans slightly more than one day and includes
+resource churn). This retires the earlier under-500 target as unreachable while
+the test harness creates one terminal claim per check. The capacity sweep is
+covered by `internal/maintenance` tests and removes terminal rows older than
+the configured window; reducing the window would not solve the avoidable
+test-genie claim creation.
+
+## Generated artifact placement contract
+
+Generated artifacts are owner-managed runtime data, not source-tree residents.
+Scenario code MUST NOT contain a filesystem path segment that names the
+physical artifact location. It MUST request a typed storage class and construct
+logical names through the shared authority instead.
+
+The repository-wide authority is `packages/artifactpaths`. Its
+`ScenarioRoot`, `PhaseCacheRoot`, and `ScenarioPath` helpers resolve Test Genie
+run evidence and caches through `packages/api-core/storage`. The storage class
+vocabulary (`config`, `data`, `cache`, `logs`, `state`, and `test_runs`) is
+declared by `.vrooli/repo-contract.json`; scenario `storage.entries` and
+`retention.budgets` declarations state ownership and policy without repeating
+physical directories.
+
+The rule has two enforcement layers:
+
+- `.ast-grep/rules/no-artifact-path-literal.yml` rejects artifact-location
+  literals in production code.
+- Storage Manager reads owner and cleanup-provider declarations, then either
+  prunes a declared runtime-home class or delegates Estimate, Preview, and
+  Apply to the owner. It never walks another scenario's private storage.
+
+A relocation therefore changes the repository contract, not scenario code.
+Tests may inject an explicit root, but production constructors MUST fail rather
+than fall back to a source-tree directory when storage resolution fails.
+
+### The one source-tree exception: `/scratch`
+
+Storage Manager reaps exactly one path inside the repository checkout, and only
+this one: the repo-root `/scratch` directory, through its `agent-scratch`
+provider (`hostpaths.ScratchRoots`).
+
+`/scratch` sits at the repository root deliberately. It is the fallback an agent
+finds when it runs `ls`, needs somewhere to put temporary work, and has not been
+given a better location — the safety net for models that do not reliably follow
+the placement rules above. Moving it out of the checkout would remove the
+property that makes it work.
+
+It is a bounded exception, not a softening of the rule:
+
+- **It is gitignored** (`/scratch/` in `.gitignore`), so nothing tracked can be
+  destroyed by reaping it. Anything worth keeping must be promoted to a real
+  home before it is committed; that promotion is the point at which it stops
+  being scratch.
+- **It is declared** in `.vrooli/repo-contract.json` under `scratch`, so the
+  reaped path is a contract surface rather than a literal someone hardcoded.
+- **It is disposable by construction.** Every other rule here separates
+  generated artifacts from source; `/scratch` contains no source by definition,
+  which is why reaping it does not violate the separation the rule protects.
+- **It stays off by default.** The provider ships `ProviderModeDisabled` with
+  operator approval, on a 7-day `MinAge` (3 days under `balanced`, 1 under
+  `aggressive`), and treats each top-level entry as a unit so a capture is never
+  half-deleted.
+
+No other checkout path may be added to a cleanup provider on this precedent. A
+second one would mean the placement contract above is not being followed, and
+the fix is to route the writer through a storage class — not to widen this
+exception.
+
+The rationale, measurements, and rejected alternatives are preserved in the
+[artifact retention and storage authority design record](../architecture/artifact-retention-and-storage-authority.html)
+(`/home/matthalloran8/Vrooli/docs/architecture/artifact-retention-and-storage-authority.html`).
+
+## Control-plane runtime-home contract
+
+The shared `.vrooli/repo-contract.json` is authoritative for control-plane
+runtime-home classes. `bin`, `cache`, `logs`, `metrics`, `processes`, `build`,
+`test_runs`, and `artifacts` are regenerable and may be previewed or reclaimed
+by Storage Manager only when their contract retention policy permits it.
+`plans`, `state`, `config`, `data`, `runtime_db`, `secrets`, `secrets_enc`, and
+`backups` are protected and have no cleanup provider.
+
+Retention precedence is conservative: the repository contract supplies the
+default, an active profile may narrow it, an operator override may narrow it
+again, and an owner-specific policy may narrow it further. No lower layer may
+make a protected entry deletable, shorten its minimum age, or raise its byte
+ceiling. Missing policy means `cleanup: never`; malformed policy rejects the
+contract instead of broadening cleanup.
+
+`protect_active` protects process and Test Genie lease markers (including lock,
+socket, `.active`, `.lease`, `.running`, and in-progress markers) during both
+preview and apply. `keep_count` is an additional floor: the newest entries are
+retained even when age and byte limits would otherwise select them. These rules
+are independent of `regenerable`: regeneration permits cleanup only when the
+contract also grants cleanup authority.
+
+### Runtime-home cleanup sequence
+
+```mermaid
+sequenceDiagram
+    participant O as Operator
+    participant S as Storage Manager
+    participant C as repo-contract
+    participant F as Filesystem
+    participant B as Privilege broker
+    O->>S: preview/apply cleanup
+    S->>C: load class, owner, retention, protection
+    C-->>S: bounded candidate set
+    S->>F: attempt removal as invoking user
+    alt permission denied
+        S->>B: audited ownership repair(class, expected identity)
+        B-->>S: typed repair evidence
+        S->>F: retry the same idempotent cleanup once
+    end
+    S-->>O: result, counters, warnings, audit record
+```
+
+Storage Manager never broadens a contract policy. It refuses protected or
+undeclared entries, protects active lease markers, attempts the removal first,
+and requests at most one bounded broker repair before retrying the same
+candidate. A missing broker, unsupported ownership operation, partial repair,
+or failed retry is returned as typed evidence; it is not converted into a
+shell or `sudo` fallback. The cleanup result exposes repair and retry counters
+so operators can distinguish ordinary reclamation from ownership drift.
+
+## Growth and policy control
+
+Storage Manager reconciles the persisted cleanup policy with the complete
+provider registry whenever it loads a profiled policy. Missing provider IDs are
+added with the active profile defaults, existing entries are preserved exactly,
+and the policy version changes only when the row changes. The audit event
+`policy.reconciled` names every provider added. An operator can still disable a
+provider deliberately; reconciliation does not re-enable it.
+
+`storage-manager storage growth --window 24h` reads persisted census samples and
+fits each owner/entry with ordinary least squares. Each row reports bytes per
+hour, sample count, R², confidence, current bytes, and either a time-to-ceiling
+projection or `unbounded`. Device time-to-full requires at least six snapshots;
+owner trends require at least three. The command does not scan the filesystem.
+
+`GET /api/v1/storage/budget-health` sums every declared `max_bytes` ceiling and
+compares the reservation with the latest device capacity. It reports `healthy`
+below the warning fraction, `warning` above the warning fraction, and
+`unreasonable` when the declarations exceed physical capacity. Age-only budgets
+are excluded from this byte reservation because they do not reserve a fixed
+amount of space. The same report is included in
+`GET /api/v1/retention/owners`, and an unreasonable aggregate adds a validation
+finding instead of silently accepting an impossible reservation.
+
+Every storage entry must state `regenerable`. An omitted value is a schema
+error, not an implicit `false`. A regenerable entry without `max_age` or
+`max_bytes` produces `RETENTION_CEILING_UNBOUNDED`; a ceiling with no workload
+headroom produces `CEILING_NOT_BINDING`. A measured value cannot be a ceiling:
+it is already satisfied by the measurement it copied and therefore cannot
+detect excess.
+
+Owner-delegated cleanup uses three owner-controlled endpoints:
+`GET /api/v1/cleanup/estimate`, `POST /api/v1/cleanup/preview`, and
+`POST /api/v1/cleanup/apply`. Preview returns protected items explicitly;
+apply requires the preview, approval mode, and an idempotency key. A provider
+reports whether its client is unavailable, its owner is unreachable, or its
+owner does not implement the contract. It never silently converts those cases
+to a zero-byte success.
+
+### Owner automatic cleanup policy
+
+Browser Automation Studio and web-console also run a delayed, owner-local
+automatic sweep. The sweep uses an age floor, an optional oldest-first byte cap
+per sweep, and an optional keep-newest count. It never removes a live or
+protected item. The owner endpoint remains available for a larger,
+preview-first operator run.
+
+The controls are environment variables so an installation can choose its own
+retention without changing code:
+
+| Owner | Enable | Age floor | Byte cap per sweep | Keep newest | Interval |
+|---|---|---|---|---|---|
+| browser-automation-studio | `BAS_OWNER_RETENTION_ENABLED` | `BAS_OWNER_RETENTION_MAX_AGE` | `BAS_OWNER_RETENTION_MAX_BYTES` | `BAS_OWNER_RETENTION_KEEP_COUNT` | `BAS_OWNER_RETENTION_INTERVAL` |
+| web-console | `WC_OWNER_RETENTION_ENABLED` | `WC_OWNER_RETENTION_MAX_AGE` | `WC_OWNER_RETENTION_MAX_BYTES` | `WC_OWNER_RETENTION_KEEP_COUNT` | `WC_OWNER_RETENTION_INTERVAL` |
+
+Defaults are enabled, 7 days for browser evidence, 30 days for web-console
+archives, no byte cap, no keep-count override, and a 15-minute interval. A
+zero byte cap means “no per-sweep cap”; it does not mean “delete everything”.
+The HTTP query accepts either raw bytes or binary units such as `1GiB` for
+`max_bytes`.
+The declared `storage.entries` age budget remains the repository-level
+governance contract and should be changed alongside the runtime setting.
+
+```mermaid
+sequenceDiagram
+    participant P as Pressure reporter
+    participant M as Storage Manager
+    participant O as Owner scenario
+    participant Q as Scenario QA
+    P->>M: warning pressure
+    M->>M: fit growth and select fastest unbounded owner
+    M->>Q: file one rate-limited growth bug per owner per day
+    M->>M: plan and apply safe-tier providers
+    M->>O: estimate, preview, apply, verify when policy permits
+    O-->>M: protected-aware result and audit evidence
+    M-->>P: action, providers, and bug reference
+```
+
+### Filesystem writer review
+
+```mermaid
+flowchart LR
+    W[Filesystem mutation] --> A{Reviewed owned-write seam?}
+    A -->|yes| P[Portable root, explicit mode, atomic replace]
+    A -->|no| D[AST finding: direct writer]
+    D --> M{Mode and path proven?}
+    M -->|no| G[Mode/path advisory finding]
+    M -->|yes| R[Bounded, owner-reviewed exception]
+    P --> V[Storage Manager validation]
+    R --> V
+    G --> V
+```
+
+Intentional exceptions are reviewed by owner, scope, reason, and removal
+trigger. The validator does not silently suppress direct writers; an exception
+must be represented as a bounded record and remains visible in the report.
+
+Ownership repair is a separate compatibility operation. Setup records it in
+the project-scoped `migrations.json` ledger and skips the broad migration only
+after a durable `complete` record. `vrooli doctor` reports diagnostics without
+mutation; `vrooli doctor --repair-file-permissions` is the explicit bounded
+repair path. Repair is lstat-based, contained under the contract root, does not
+follow symlinks, and records post-repair verification. A missing privilege
+broker or unsupported platform is reported as unavailable; there is no sudo
+fallback.
+
 A scenario, resource, tool, or safeguard declares how much history it may keep,
 and the framework enforces it. Declaring `"pruner": "builtin"` needs no Go code
 at all.

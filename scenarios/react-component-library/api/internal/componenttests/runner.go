@@ -72,6 +72,7 @@ type Report struct {
 	RootLibraryID   string     `json:"rootLibraryId"`
 	RootVersion     string     `json:"rootVersion"`
 	IncludeClosure  bool       `json:"includeClosure"`
+	SourceRevision  string     `json:"sourceRevision,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	Verdict         Verdict    `json:"verdict"`
 	Results         []Result   `json:"results"`
@@ -155,6 +156,7 @@ type Runner struct {
 	Stories  StoryReader
 	Executor StoryExecutor
 	Now      func() time.Time
+	Revision func(context.Context, string, string) (string, error)
 }
 
 // Run performs the deterministic, safe pre-harness stages. Browser and React
@@ -186,6 +188,13 @@ func (r Runner) Run(ctx context.Context, request Request) (Report, error) {
 	// the same identity regardless of which public identifier started the run.
 	root := closure[len(closure)-1].Asset
 	report := Report{RootComponentID: root.ID, RootLibraryID: root.LibraryID, RootVersion: request.Version, IncludeClosure: request.IncludeClosure, CreatedAt: now}
+	if r.Revision != nil {
+		revision, revisionErr := r.Revision(ctx, root.CatalogID, request.Version)
+		if revisionErr != nil {
+			return Report{}, fmt.Errorf("compute source revision for %s@%s: %w", root.LibraryID, request.Version, revisionErr)
+		}
+		report.SourceRevision = revision
+	}
 	report.ID = reportID(report)
 	for _, resolved := range closure {
 		asset, version := resolved.Asset, resolved.Version
@@ -346,6 +355,6 @@ func reportID(report Report) string {
 	// CreatedAt is evidence metadata, not report identity. Including the clock
 	// made a repeated validation of the same immutable closure look like a new
 	// report and prevented durable reuse on an unchanged run.
-	sum := sha256.Sum256([]byte(strings.Join([]string{report.RootLibraryID, report.RootVersion, fmt.Sprintf("%t", report.IncludeClosure)}, "\x00")))
+	sum := sha256.Sum256([]byte(strings.Join([]string{report.RootLibraryID, report.RootVersion, fmt.Sprintf("%t", report.IncludeClosure), report.SourceRevision}, "\x00")))
 	return "ctr_" + hex.EncodeToString(sum[:8])
 }

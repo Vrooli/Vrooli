@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -18,7 +17,6 @@ import (
 )
 
 var (
-	previewStoreSurfaceUnsafe   = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	runPreviewDependencyInstall = func(ctx context.Context, repoRoot, packageName, versionRange, surface string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, "scenario-dependency-analyzer", "deps", "install", "npm/"+packageName+"@"+versionRange,
 			"--scenario", "react-component-library", "--surface", "tools/"+surface, "--apply", "--json")
@@ -77,12 +75,7 @@ func (h *handlers) populateStore(ctx cliapp.RunContext) error {
 }
 
 func previewStoreSurfaceName(name, versionRange string) string {
-	key := previewStoreSurfaceUnsafe.ReplaceAllString(strings.TrimSpace(name+"-"+versionRange), "-")
-	key = strings.Trim(key, "-")
-	if key == "" {
-		key = "dependency"
-	}
-	return "preview-runtime-" + strings.ToLower(key)
+	return "preview-runtime"
 }
 
 func ensurePreviewStoreSurface(repoRoot, surface string, declaration previewStoreDeclaration) error {
@@ -90,19 +83,25 @@ func ensurePreviewStoreSurface(repoRoot, surface string, declaration previewStor
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create governed preview surface %s: %w", surface, err)
 	}
-	manifest := map[string]any{
-		"name":    "@vrooli/preview-" + surface,
-		"private": true,
-		"dependencies": map[string]string{
-			declaration.Name: declaration.Range,
-		},
+	manifestPath := filepath.Join(dir, "package.json")
+	manifest := map[string]any{"name": "@vrooli/preview-runtime", "private": true, "dependencies": map[string]any{}}
+	if raw, readErr := os.ReadFile(manifestPath); readErr == nil {
+		if unmarshalErr := json.Unmarshal(raw, &manifest); unmarshalErr != nil {
+			return fmt.Errorf("read governed preview surface manifest: %w", unmarshalErr)
+		}
 	}
+	dependencies, ok := manifest["dependencies"].(map[string]any)
+	if !ok {
+		dependencies = map[string]any{}
+		manifest["dependencies"] = dependencies
+	}
+	dependencies[declaration.Name] = declaration.Range
 	raw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode preview surface manifest: %w", err)
 	}
 	raw = append(raw, '\n')
-	if err := os.WriteFile(filepath.Join(dir, "package.json"), raw, 0o644); err != nil {
+	if err := os.WriteFile(manifestPath, raw, 0o644); err != nil {
 		return fmt.Errorf("write governed preview surface manifest: %w", err)
 	}
 	lockPath := filepath.Join(dir, "pnpm-lock.yaml")

@@ -25,6 +25,9 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
 - [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md) for provider-owned health maturity reports and the human-output-first contract
 - [reference/machine-readable-references.md](reference/machine-readable-references.md) for `[CODE:]` / `[DOC:]` traceability references and marked inline references such as `path:...` and `topic:...`
+- [concepts/REACH-AND-CONFIGURATION.md](concepts/REACH-AND-CONFIGURATION.md) for target-aware reach and the desired/applied configuration model
+- [reference/port-resolution.md](reference/port-resolution.md) for the peer-record, registry, and CLI port-resolution ladder
+- [reference/storage-retention.md](reference/storage-retention.md) for generated-artifact placement, storage classes, retention budgets, and owner-delegated cleanup
 
 ## How docs/ is organized: three pillars
 
@@ -57,6 +60,8 @@ Everything else (`guides/`, `reference/`, `operations/`, `deployment/`, `scenari
 - [deployment/README.md](deployment/README.md) for deployment tiers and maturity
 - [scenarios/README.md](scenarios/README.md) for the scenario ecosystem
 - [resources/README.md](resources/README.md) for the resource ecosystem
+- [resources/authoring-a-resource.md](resources/authoring-a-resource.md) for authoring and validating a resource
+- [resources/deployment-contract.md](resources/deployment-contract.md) for bundle and first-run deployment boundaries
 - [strategy/README.md](strategy/README.md) for project framing, decisions, risks, and roadmap
 - [monetization/README.md](monetization/README.md) for the revenue / bundle / SKU canon
 - [scenario-to-plugin/docs/](../scenarios/scenario-to-plugin/docs/) for the external Agent Plugin publishing pipeline, including the publication doctrine, build guide, and security posture.

@@ -15,7 +15,7 @@ func TestSharedRampNamesMatchAcrossDesignKitsAndLibraryTheme(t *testing.T) {
 		filepath.Join(root, "templates/design/vrooli-default/adapters/react-vite-tailwind/tailwind.theme.json"),
 		filepath.Join(root, "templates/design/vrooli-command-display/adapters/react-vite-tailwind/tailwind.theme.json"),
 		filepath.Join(root, "templates/design/vrooli-conversion-landing/adapters/react-vite-tailwind/tailwind.theme.json"),
-		filepath.Join(root, "scenarios/react-component-library/ui/tailwind.theme.json"),
+		filepath.Join(root, "scenarios/react-component-library/ui/src/theme/tailwind.theme.json"),
 	}
 	want := map[string][]string{
 		"spacing":                  {"space-3xs", "space-2xs", "space-xs", "space-sm", "space-md", "space-lg", "space-xl", "space-2xl"},

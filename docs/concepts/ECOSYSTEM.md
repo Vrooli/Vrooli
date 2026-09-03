@@ -34,6 +34,12 @@ graph LR
 
 ## Axis 1 — Functional role
 
+Scenario manifests may declare the controlled `service.class` vocabulary:
+`meta`, `interface-enabler`, `external-integration`, or `product`. This role is
+separate from the Offer Desk deliverable class (`MARKETED`/`ENABLING`) and from
+meter class A/B; the former describes schedule membership and the latter
+describes who pays for usage.
+
 What a scenario *does for the ecosystem*, ordered by **multiplicative effect** (how much building it raises the system's own capability ceiling). These are descriptive, not bureaucratic — scenarios routinely span rows.
 
 | Role | Multiplier | What it does | Examples |
@@ -55,7 +61,7 @@ An **interface is any boundary crossing between Vrooli and the world (or the ope
 | **Conversational / agentic** | you ask `agent-inbox` | an agent prompts you (`morning-vision-walk`) | `cli-health`, `ui-health` (command + widget discovery), declared widgets & tools |
 | **Voice** | you speak | it speaks; future phone calls | `audio-tools` (local + BYOK; monetized via LPBS) |
 | **Programmatic** | CLI / REST / Connect | scenarios calling scenarios | — |
-| **Embodied / embedded** | — | Slack / GitHub / Minecraft / IoT agents — "Vrooli comes to you" | future connector scenarios |
+| **Embodied / embedded** | `switchboard` | In-app, Telegram, Slack, and iMessage agent reach — "Vrooli comes to you" | Switchboard descriptor registry and adapter catalogue |
 | **Operator steering** | accepted decisions | agents present work for approval | `prompt-manager` teams, `morning-vision-walk` |
 
 A scenario can sit in any **role** (Axis 1) while touching one or more **interfaces** (Axis 2). The two axes are orthogonal: `audio-tools` is an *interface enabler* (role) that powers the *voice* interface; a nutrition app is a *product* (role) that ships a *direct UI* and could later add *conversational* and *voice*.

@@ -169,6 +169,22 @@ func TestScopeSelectsOnlyRequestedAssets(t *testing.T) {
 	}
 }
 
+func TestVersionLivenessIgnoresRetiredMaterializedVersions(t *testing.T) {
+	root := t.TempDir()
+	assetRoot := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
+	for _, version := range []string{"1.0.0", "2.0.0"} {
+		versionRoot := filepath.Join(assetRoot, "versions", version)
+		require.NoError(t, os.MkdirAll(versionRoot, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(versionRoot, "Fixture.tsx"), []byte(`import "../../../Other/versions/1.0.0/Other"; export const Fixture = () => null;`), 0o600))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(assetRoot, "component.json"), []byte(`{"catalogId":"calibration.fixture","libraryId":"react-component-library:Fixture","latest":"2.0.0","deprecatedVersions":["1.0.0"]}`), 0o600))
+
+	result, err := ValidateVersionLiveness(Scope{Root: root})
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Contains(t, result.Findings[0].File, "versions/2.0.0/Fixture.tsx")
+}
+
 func TestStoryDistinctnessRejectsOneSpecimenForManyFrames(t *testing.T) {
 	root := t.TempDir()
 	storyDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture", "versions", "1.0.0")
@@ -389,7 +405,7 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateReleasedVersionImmutable(Scope{Root: root})
+	result, err := ValidateReleasedVersionImmutable(Scope{Context: context.Background(), Root: root, DB: db.Primary()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -959,6 +975,24 @@ func TestNormalizeResultPreservesCorpusPseudoAssets(t *testing.T) {
 	if len(result.Findings) != 1 || len(result.RunnerError) != 0 {
 		t.Fatalf("corpus finding normalization = %+v, want one finding and no runner errors", result)
 	}
+	if result.Findings[0].Scope != FindingScopeCorpus || result.Findings[0].Severity != FindingSeverityWarning {
+		t.Fatalf("corpus finding attribution = %+v, want corpus/warning", result.Findings[0])
+	}
+}
+
+func TestNormalizeResultAssignsTypedAssetAttribution(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "components")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "dialog.json"), []byte(`{"asset":{"id":"react-component-library:Dialog"}}`), 0o644))
+	result := NormalizeResult(root, Result{Findings: []Finding{{Code: "catalog.example", AssetID: "react-component-library:Dialog", File: "library/components/Dialog/component.json"}}})
+	require.Len(t, result.Findings, 1)
+	require.Empty(t, result.RunnerError)
+	require.Equal(t, FindingScopeAsset, result.Findings[0].Scope)
+	require.Equal(t, FindingSeverityBlocking, result.Findings[0].Severity)
+	require.Equal(t, "react-component-library:Dialog", result.Findings[0].CatalogID)
+	require.Equal(t, "react-component-library:Dialog", result.Findings[0].LibraryID)
+	require.Equal(t, "library/components/Dialog/component.json", result.Findings[0].Owner)
 }
 
 func TestFixtureGateRejectsDataSourceWithoutTypeArgument(t *testing.T) {

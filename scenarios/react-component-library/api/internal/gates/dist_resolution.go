@@ -54,11 +54,12 @@ func ValidateDistResolution(scope Scope) (Result, error) {
 		return Result{}, err
 	}
 	sort.Strings(files)
-	result := Result{Inspected: len(files)}
+	result := Result{}
 	for _, path := range files {
 		if len(scope.Assets) > 0 && !distPathMatchesAsset(path, scope.Assets) {
 			continue
 		}
+		result.Inspected++
 		contents, err := os.ReadFile(path)
 		if err != nil {
 			return Result{}, err

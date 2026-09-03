@@ -1,32 +1,37 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:Chart",
   "version": "1.0.10",
-  "resolvedAt": "2026-09-01T19:13:42Z",
+  "resolvedAt": "2026-09-03T02:41:18.431Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:AsyncBoundary",
-      "version": "1.0.7",
+      "major": 1,
+      "observed": "1.0.8",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:StyleSheet",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:useElementRect",
-      "version": "2.0.0",
+      "major": 2,
+      "observed": "2.0.0",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useLocale",
-      "version": "1.1.1",
+      "major": 1,
+      "observed": "1.1.1",
       "rank": 2
     }
   ]

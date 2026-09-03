@@ -5,15 +5,14 @@
  * Scoped to the preferences this scenario can persist today: theme
  * (light/dark/system) and UI locale. Theme is persisted via the
  * ThemeProvider's localStorage cache; locale via the i18n side-effect
- * `setLocale`. Server-backed preferences (density, font scale, etc.)
- * are a future addition — when added, layer in a `lib/preferences`
- * module and a server-side store.
+ * `setLocale`. Only preferences that are currently persisted by the
+ * workbench belong on this page.
  */
 import { useState } from "react";
 import { NumberField } from "@vrooli/react-component-library/NumberField/1";
 import { type Theme } from "../components/theme/theme-context";
 import { useTheme } from "../components/theme/useTheme";
-import { Select } from "../components/Select";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import {
   SUPPORTED_LOCALES,
   getCurrentLocale,
@@ -52,12 +51,6 @@ export function SettingsPage() {
         >
           {t("settings.language", { defaultValue: "Language" })}
         </a>
-        <span
-          className="block cursor-not-allowed rounded-control px-space-2xs py-space-2xs text-sm text-app-muted-foreground"
-          aria-disabled="true"
-        >
-          {t("settings.workspaceFuture", { defaultValue: "Workspace (future)" })}
-        </span>
       </nav>
       <div className="flex flex-col gap-space-md">
         <Section id="appearance" title={t("settings.appearance", { defaultValue: "Appearance" })}>
@@ -73,11 +66,6 @@ export function SettingsPage() {
               onChange={(v) => setTheme(v as Theme)}
             />
           </Field>
-          <p className="text-xs text-app-muted-foreground">
-            {t("settings.densityFuture", {
-              defaultValue: "Density will appear here when it is a real preference.",
-            })}
-          </p>
           <Field label="Preview text size">
             <NumberField
               value={fontScale}

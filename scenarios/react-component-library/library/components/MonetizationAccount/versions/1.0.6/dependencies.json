@@ -1,12 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:MonetizationAccount",
   "version": "1.0.6",
-  "resolvedAt": "2026-08-31T05:18:52Z",
+  "resolvedAt": "2026-09-02T22:34:49.684Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     }
   ]

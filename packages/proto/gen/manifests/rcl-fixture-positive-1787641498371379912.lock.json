@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "rcl-fixture-positive-1787641498371379912",
-  "input_digest": "sha256:f6e3a442a7fc0a88f78cb8ccab42b77e939cfcf42c0467ea1d70888294c4ef3b",
+  "input_digest": "sha256:bb7e2995fec7d0f7074fc4681c00493b767d24432bcb77f2c88e6710d8753500",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/rcl-fixture-positive-1787641498371379912/v1/notes/attachments.proto",

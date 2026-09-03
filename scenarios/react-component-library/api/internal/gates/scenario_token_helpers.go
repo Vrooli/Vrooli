@@ -52,7 +52,7 @@ func unresolvedScenarioImportFinding(root, scenario string, specifier components
 }
 
 func readGateLibraryAssets(root string) (map[string]gateLibraryAsset, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "component.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "component.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -186,18 +186,23 @@ func collectGateVersionTokens(assets map[string]gateLibraryAsset, asset gateLibr
 		Dependencies []struct {
 			LibraryID string `json:"libraryId"`
 			Version   string `json:"version"`
+			Observed  string `json:"observed"`
 		} `json:"dependencies"`
 	}
 	if err := json.Unmarshal(lockRaw, &lock); err != nil {
 		return fmt.Errorf("decode %s dependencies: %w", key, err)
 	}
 	for _, dependency := range lock.Dependencies {
+		version := dependency.Observed
+		if version == "" {
+			version = dependency.Version
+		}
 		name := strings.TrimPrefix(dependency.LibraryID, "react-component-library:")
 		child, exists := assets[name]
 		if !exists {
 			return fmt.Errorf("%s depends on unknown library asset %s", key, dependency.LibraryID)
 		}
-		if err := collectGateVersionTokens(assets, child, dependency.Version, reference, required, seen); err != nil {
+		if err := collectGateVersionTokens(assets, child, version, reference, required, seen); err != nil {
 			return err
 		}
 	}

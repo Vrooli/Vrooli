@@ -1,7 +1,7 @@
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
-import { VoiceInputButton } from "../components/VoiceInputButton";
+import { VoiceInputButton } from "@vrooli/react-component-library/VoiceInputButton/4";
 import { renderWithProviders } from "../test-utils";
 
 describe("VoiceInputButton", () => {

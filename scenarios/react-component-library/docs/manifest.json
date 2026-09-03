@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "title": "React Component Library Documentation",
   "description": "Documentation contract for the React Component Library asset and adoption workflows",
-  "defaultDocument": "START-HERE.md",
+  "defaultDocument": "guides/asset-update-flow.md",
   "contract": {
     "kind": "scenario-docs",
     "template": "react-vite",
@@ -36,6 +36,25 @@
       "extensionPolicy": "Add only entrypoint-level documents here. Task-specific procedures belong in guides; durable architecture or product concepts belong in concepts.",
       "documents": [
         {
+          "path": "guides/asset-update-flow.md",
+          "docType": "guide",
+          "title": "Asset Update Flow",
+          "aliases": ["edit-loop", "asset-check"],
+          "description": "The governed one-asset edit, validation, and publication loop",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["asset-edit-loop", "one-asset-verdict"],
+          "maturity": "active",
+          "requiredBy": ["oriented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Asset update flow",
+              "1. Declare intent",
+              "4. Validate only the changed asset"
+            ]
+          }
+        },
+        {
           "path": "../README.md",
           "docType": "readme",
           "title": "README",
@@ -47,25 +66,12 @@
           "requiredBy": ["generated"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["The asset loop", "Always and never", "Further reading"],
+            "requiredHeadings": [
+              "The asset loop",
+              "Always and never",
+              "Further reading"
+            ],
             "forbiddenPlaceholders": ["[TODO]", "[Summarize]"]
-          }
-        },
-        {
-          "path": "START-HERE.md",
-          "docType": "start-here",
-          "title": "Start Here",
-          "aliases": ["start", "orientation", "onboarding"],
-          "description": "Orientation for a person or agent joining the library",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["orientation", "first-implementation-session"],
-          "maturity": "active",
-          "requiredBy": ["generated", "oriented"],
-          "completion": "required",
-          "ownerSkills": ["scenario-generation"],
-          "validation": {
-            "requiredHeadings": ["First session", "Update an asset", "Validate and troubleshoot"],
-            "forbiddenPlaceholders": ["[TODO]"]
           }
         },
         {
@@ -133,28 +139,6 @@
               "Intent",
               "Feedback & State",
               "Request Lifecycle"
-            ],
-            "forbiddenPlaceholders": ["[TODO]"]
-          }
-        },
-        {
-          "path": "QUICKSTART.md",
-          "docType": "quickstart",
-          "title": "Quickstart",
-          "aliases": ["quick-start", "run-local"],
-          "description": "Clone-to-running in five minutes",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["local-runbook", "first-run"],
-          "maturity": "active",
-          "requiredBy": ["generated"],
-          "completion": "required",
-          "validation": {
-            "requiredHeadings": [
-              "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": ["[TODO]"]
           }
@@ -274,12 +258,43 @@
           "aliases": ["ownership", "generator", "authored-surfaces"],
           "description": "Ownership model for authored asset intent, version source, and generated projections",
           "audience": ["developers", "agents", "designers"],
-          "canonicalFor": ["asset-ownership", "derived-artifacts", "generator-boundary"],
+          "canonicalFor": [
+            "asset-ownership",
+            "derived-artifacts",
+            "generator-boundary"
+          ],
           "maturity": "active",
           "requiredBy": ["implemented", "validated"],
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Current and target ownership", "Decisions"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
+          "path": "concepts/one-asset-one-verdict.md",
+          "docType": "concept",
+          "title": "One Asset, One Verdict",
+          "aliases": ["asset-verdict", "edit-loop", "validation-loop"],
+          "description": "The governed asset edit, scoped validation, evidence reuse, and aggregate verdict model",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["one-asset-verdict", "asset-validation-loop"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "conditional",
+          "condition": "Required while the one-asset validation and publication workflow is in active use.",
+          "ownerSkills": ["scenario-work-ladder"],
+          "validation": {
+            "requiredHeadings": [
+              "Purpose",
+              "Why the setup has this shape",
+              "Reads and reports",
+              "Revision authority and jobs",
+              "Evidence snapshot",
+              "Current DoD status",
+              "Follow-ups",
+              "Cross-references"
+            ],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

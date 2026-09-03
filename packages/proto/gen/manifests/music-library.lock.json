@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "music-library",
-  "input_digest": "sha256:09c9840db0f86f3af54ca491958542dbb4449f254f05da5c2a8727e178a56646",
+  "input_digest": "sha256:e8f8fe20dc64fceea677b790581219fd4a0aa95b690b0b9dd528af9fa7d1bf45",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/music-library/v1/notes/attachments.proto",

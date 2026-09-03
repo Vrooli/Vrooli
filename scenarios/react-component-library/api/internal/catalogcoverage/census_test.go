@@ -27,6 +27,20 @@ func TestShapeCensusCountsOnlyLiveVersionFileSets(t *testing.T) {
 	require.ElementsMatch(t, []int{1, 1}, counts)
 }
 
+func TestShapeCensusReportsLegacySupportLayouts(t *testing.T) {
+	root := t.TempDir()
+	flat := filepath.Join(root, "support", "code-block", "0.3.4")
+	file := filepath.Join(root, "support", "inline-code", "0.3.5.tsx")
+	require.NoError(t, os.MkdirAll(flat, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(flat, "useCodeCopy.ts"), nil, 0o644))
+	require.NoError(t, os.WriteFile(file, nil, 0o644))
+	rows, err := ShapeCensus(root)
+	require.NoError(t, err)
+	require.Contains(t, rows, ShapeRow{Kind: "support-flat", Shape: []string{"useCodeCopy.ts"}, Count: 1})
+	require.Contains(t, rows, ShapeRow{Kind: "support-file", Shape: []string{"<Asset>/<version>.tsx"}, Count: 1})
+}
+
 func TestDuplicationCensusReportsOwnedMetadataDrift(t *testing.T) {
 	root := t.TempDir()
 	catalog := filepath.Join(root, "scenarios/react-component-library/catalog/assets/controls")

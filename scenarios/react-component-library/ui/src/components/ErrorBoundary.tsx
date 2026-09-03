@@ -1,6 +1,6 @@
 /** @vrooliComponentSource feedback.error-state */
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "./Button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

@@ -372,4 +372,8 @@ back to a shell call or a direct provider call.
 - [Delegation](../construction/delegation.md)
 - [Failure recovery](../construction/failure-recovery.md)
 
-Runnable versions of these live in [`../examples/`](../examples/).
+Runnable versions of these are the scenario-owned programs in
+[`../../.vrooli/program-runtime/`](../../.vrooli/program-runtime/), each with a
+contract beside it (`program-contracts.md`): `fleet-fanout`, `concurrent-fanout`,
+`typed-inference`, `batch-inference`, `delegated-run`, `failure-triage`,
+`handle-shaping`, `registry-sweep`.

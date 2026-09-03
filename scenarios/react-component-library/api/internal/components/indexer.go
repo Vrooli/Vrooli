@@ -502,8 +502,15 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				continue
 			}
 			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") || strings.HasSuffix(f.Name(), ".css") {
-				sourceFiles = append(sourceFiles, f)
+				 sourceFiles = append(sourceFiles, f)
 			}
+		}
+		// Evicted versions may retain an empty placeholder directory after
+		// their source has moved to cold storage. It is not materialized source
+		// and must not invalidate the live manifest; materialized evicted
+		// versions still proceed through the normal reconciliation path above.
+		if _, declaredEvicted := evicted[version]; declaredEvicted && len(sourceFiles) == 0 {
+			continue
 		}
 		entryName := strings.TrimSpace(mf.Entry)
 		if entryName != "" && (filepath.Base(entryName) != entryName || !validEntryExtension(entryName, assetKind)) {
@@ -781,6 +788,8 @@ type versionDependencyLock struct {
 	Dependencies  []struct {
 		LibraryID string `json:"libraryId"`
 		Version   string `json:"version"`
+		Major     int    `json:"major"`
+		Observed  string `json:"observed"`
 		Rank      int    `json:"rank"`
 	} `json:"dependencies"`
 }
@@ -798,13 +807,21 @@ func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version st
 	if err := json.Unmarshal(raw, &lock); err != nil {
 		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies.json", Reason: err.Error()}
 	}
-	if lock.SchemaVersion != 1 || strings.TrimSpace(lock.LibraryID) != libraryID || strings.TrimSpace(lock.Version) != version || strings.TrimSpace(lock.ResolvedAt) == "" {
+	if (lock.SchemaVersion != 1 && lock.SchemaVersion != 2) || strings.TrimSpace(lock.LibraryID) != libraryID || strings.TrimSpace(lock.Version) != version || strings.TrimSpace(lock.ResolvedAt) == "" {
 		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "identity", Reason: "schemaVersion, libraryId, version and resolvedAt must match the owning version"}
 	}
 	seen := map[string]struct{}{}
 	dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
 	for _, rawDependency := range lock.Dependencies {
-		dependency := AssetDependency{LibraryID: strings.TrimSpace(rawDependency.LibraryID), Version: strings.TrimSpace(rawDependency.Version)}
+		observed := strings.TrimSpace(rawDependency.Observed)
+		if observed == "" {
+			observed = strings.TrimSpace(rawDependency.Version)
+		}
+		major := rawDependency.Major
+		if major == 0 && observed != "" {
+			_, _ = fmt.Sscanf(observed, "%d.", &major)
+		}
+		dependency := AssetDependency{LibraryID: strings.TrimSpace(rawDependency.LibraryID), Version: observed}
 		if dependency.LibraryID == "" || dependency.Version == "" || rawDependency.Rank < 1 || rawDependency.Rank > 6 {
 			return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies", Reason: "each dependency requires libraryId, version and rank 1-6"}
 		}

@@ -1,42 +1,49 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:Popover",
   "version": "1.2.6",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:Portal",
-      "version": "1.1.2",
+      "major": 1,
+      "observed": "1.1.2",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:Presence",
-      "version": "1.0.2",
+      "major": 1,
+      "observed": "1.0.2",
       "rank": 3
     },
     {
       "libraryId": "react-component-library:Surface",
-      "version": "1.0.1",
+      "major": 1,
+      "observed": "1.0.1",
       "rank": 3
     },
     {
       "libraryId": "react-component-library:useControllableState",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useOutsideInteraction",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 2
     },
     {
       "libraryId": "react-component-library:useOverlaySurface",
-      "version": "1.3.12",
+      "major": 1,
+      "observed": "1.3.12",
       "rank": 4
     }
   ]

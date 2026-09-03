@@ -1,8 +1,0 @@
-Consumer stability evidence (post version-model migration)
-===========================================================
-
-offer-desk: PASS — make build
-web-console: PASS — make build
-git-control-tower: PASS — make build (TypeScript check and Vite build)
-
-No consumer source files were changed by these builds.

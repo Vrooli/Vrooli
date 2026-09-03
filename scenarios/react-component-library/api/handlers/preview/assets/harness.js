@@ -274,7 +274,11 @@ const setHarnessState = (state) => {
     surface.dataset.experienceState = state;
     if (status) surface.dataset.rclStoryStatus = status;
   }
-  const boundary = surfaces.find((surface) => surface !== harnessRoot);
+  // Standalone stories render directly into the host root and have no nested
+  // preview sheet. BAS waits on the same semantic marker for both routes, so
+  // use the root as the fallback capture boundary instead of silently
+  // omitting readiness from every standalone story.
+  const boundary = surfaces.find((surface) => surface !== harnessRoot) || harnessRoot;
   if (boundary) {
     let readiness = boundary.querySelector("[data-preview-readiness-marker]");
     if (!readiness) {

@@ -102,7 +102,7 @@ The registry at `harnesses/manifest.json` is the source of
 truth for family applicability. Every family declares its supported subject
 kinds, required capability signals, and allowed configuration keys. A family
 is not valid because its TypeScript file compiles: it must pass
-`pnpm preview:harness:check`, which verifies the immutable registration,
+the governed catalog composition gate, which verifies the immutable registration,
 implementation path, injected-foundation usage, forbidden production imports,
 and forbidden network or persistent-storage side effects.
 

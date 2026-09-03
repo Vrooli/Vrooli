@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-to-desktop",
-  "input_digest": "sha256:a1170b734de2c157c71558970e6b6b6b3355fd9ff1c1320196e78570be609336",
+  "input_digest": "sha256:a965a86168c12a69e4077652781773ecb7d236549a36f184924bfde70116fe26",
   "input_files": [
     "schemas/scenario-to-desktop/v1/domain/build.proto",
     "schemas/scenario-to-desktop/v1/domain/config.proto",

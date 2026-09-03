@@ -289,6 +289,15 @@ func TestInspectNotApplicableWithoutFlatSyslog(t *testing.T) {
 	}
 }
 
+func TestInspectNotApplicableOnNonLinux(t *testing.T) {
+	host := linuxHost()
+	host.OS = string(hostreqspec.PlatformDarwin)
+	status := newTestHandler().Inspect(host, linuxReq())
+	if status.SupportClass != hostreqkit.SupportNotApplicable || status.ExecutionState != hostreqkit.ExecutionNotApplicable {
+		t.Fatalf("non-Linux host = class %q state %q, want not applicable", status.SupportClass, status.ExecutionState)
+	}
+}
+
 func TestApplyBoundsTheHostAndTruncatesTheFlood(t *testing.T) {
 	f := newFixture(t)
 	f.files[stanzaPath] = distroStanza

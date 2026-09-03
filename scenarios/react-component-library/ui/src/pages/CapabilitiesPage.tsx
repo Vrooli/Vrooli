@@ -1,9 +1,15 @@
 /** @vrooliComponentSource react-component-library:StatusBadge */
 import { useQuery } from "@tanstack/react-query";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/Card";
-import { EmptyState } from "../components/EmptyState";
-import { StatusBadge } from "../components/StatusBadge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@vrooli/react-component-library/Card/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { describeCapabilities } from "../api/catalog";
 
 export function CapabilitiesPage() {

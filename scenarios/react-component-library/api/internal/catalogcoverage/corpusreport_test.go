@@ -32,7 +32,33 @@ func TestBuildCorpusReportEmitsAllPlanInvariants(t *testing.T) {
 		require.NotEmpty(t, invariant.Unit)
 		ids[invariant.ID] = true
 	}
-	for _, id := range []string{"I7", "I8", "I9", "I12", "I13", "I18", "I20", "I21", "I22", "I23", "I25", "I26"} {
+	for _, id := range []string{"I7", "I8", "I9", "I12", "I13", "I18", "I21", "I22", "I23", "I25", "I26"} {
 		require.True(t, ids[id], "missing invariant %s", id)
+	}
+	require.False(t, ids["I20"], "removed tautological invariant must not return")
+}
+
+func TestNoInvariantIsTautological(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios/react-component-library/library"), 0o755))
+	report, err := BuildCorpusReport(root)
+	require.NoError(t, err)
+	for _, invariant := range report.Invariants {
+		require.NotEqual(t, "I20", invariant.ID, "experience-authority count was a boolean disguised as an invariant")
+	}
+}
+
+func TestUnavailableLiveMeasurementsAreExplicitFailures(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios/react-component-library/library"), 0o755))
+	report, err := BuildCorpusReport(root)
+	require.NoError(t, err)
+	byID := make(map[string]CorpusInvariant, len(report.Invariants))
+	for _, invariant := range report.Invariants {
+		byID[invariant.ID] = invariant
+		require.GreaterOrEqual(t, invariant.Value, 0.0, "invariant %s must not use a negative sentinel", invariant.ID)
+	}
+	for _, id := range []string{"I7", "I8", "I9", "I13"} {
+		require.Equal(t, "failed_measurement", byID[id].Status, "invariant %s must explain unavailable probes", id)
 	}
 }

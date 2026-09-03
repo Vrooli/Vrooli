@@ -8,7 +8,7 @@ vi.mock("shiki", () => ({
   }),
 }));
 
-import { CodeBlock } from "./CodeBlock";
+import { CodeBlock } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 import { renderWithProviders } from "../../test-utils";
 
 describe("CodeBlock", () => {

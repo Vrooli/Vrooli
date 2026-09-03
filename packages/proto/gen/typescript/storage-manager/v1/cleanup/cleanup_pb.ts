@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file storage-manager/v1/cleanup/cleanup.proto.
  */
 export const file_storage_manager_v1_cleanup_cleanup: GenFile = /*@__PURE__*/
-  fileDesc("CihzdG9yYWdlLW1hbmFnZXIvdjEvY2xlYW51cC9jbGVhbnVwLnByb3RvEiF2cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAiFgoUTGlzdFByb3ZpZGVyc1JlcXVlc3QiVwoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEj4KCXByb3ZpZGVycxgBIAMoCzIrLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5Qcm92aWRlciLqAQoIUHJvdmlkZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhYKDm93bmVyX3NjZW5hcmlvGAQgASgJEhMKC3NhZmV0eV90aWVyGAUgASgJEhQKDGRlZmF1bHRfbW9kZRgGIAEoCRIYChBkZWZhdWx0X2FwcHJvdmFsGAcgASgJEhsKE3N1cHBvcnRlZF9wbGF0Zm9ybXMYCCADKAkSGwoTcmVxdWlyZWRfcHJpdmlsZWdlcxgJIAMoCRIcChRpcnJldmVyc2libGVfZWZmZWN0cxgKIAMoCSISChBHZXRQb2xpY3lSZXF1ZXN0Ik4KEUdldFBvbGljeVJlc3BvbnNlEjkKBnBvbGljeRgBIAEoCzIpLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5Qb2xpY3kiKgoXU2V0UG9saWN5UHJvZmlsZVJlcXVlc3QSDwoHcHJvZmlsZRgBIAEoCSJVChhTZXRQb2xpY3lQcm9maWxlUmVzcG9uc2USOQoGcG9saWN5GAEgASgLMikudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlBvbGljeSKgAQoGUG9saWN5Eg8KB3ZlcnNpb24YASABKAkSDwoHcHJvZmlsZRgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJECglwcm92aWRlcnMYBCADKAsyMS52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJvdmlkZXJQb2xpY3kieQoOUHJvdmlkZXJQb2xpY3kSEwoLcHJvdmlkZXJfaWQYASABKAkSDwoHZW5hYmxlZBgCIAEoCBIXCg9taW5fYWdlX3NlY29uZHMYAyABKAMSEQoJbWF4X2J5dGVzGAQgASgDEhUKDWFwcHJvdmFsX21vZGUYBSABKAkiEwoRQ3JlYXRlUGxhblJlcXVlc3QiSwoSQ3JlYXRlUGxhblJlc3BvbnNlEjUKBHBsYW4YASABKAsyJy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUGxhbiLiAgoEUGxhbhIKCgJpZBgBIAEoCRIWCg5wb2xpY3lfdmVyc2lvbhgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgt0b3RhbF9ieXRlcxgEIAEoAxITCgt0b3RhbF9pdGVtcxgFIAEoBRJCCglwcm92aWRlcnMYBiADKAsyLy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJvdmlkZXJQbGFuEhEKCWNlbnN1c19pZBgHIAEoCRIVCg1jZW5zdXNfc3RhdHVzGAggASgJEjUKEWNlbnN1c19zdGFydGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI3ChNjZW5zdXNfY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLqAQoMUHJvdmlkZXJQbGFuEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhgKEHByb3ZpZGVyX3ZlcnNpb24YAiABKAkSFwoPZXN0aW1hdGVkX2J5dGVzGAMgASgDEhIKCml0ZW1fY291bnQYBCABKAUSFgoOYmxvY2tlZF9yZWFzb24YBSABKAkSPQoFaXRlbXMYBiADKAsyLi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJldmlld0l0ZW0SEAoId2FybmluZ3MYByADKAkSFQoNYXBwcm92YWxfbW9kZRgIIAEoCSJwCgtQcmV2aWV3SXRlbRIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg0KBWJ5dGVzGAQgASgDEg4KBmFjdGlvbhgFIAEoCRITCgtzYWZldHlfdGllchgGIAEoCSKDAQoQQXBwbHlQbGFuUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhYKDnBvbGljeV92ZXJzaW9uGAIgASgJEhUKDWFwcHJvdmFsX21vZGUYAyABKAkSFgoOYXBwcm92YWxfdG9rZW4YBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJIrABChFBcHBseVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgCIAEoCRIXCg9hbHJlYWR5X2FwcGxpZWQYAyABKAgSFwoPcmVjbGFpbWVkX2J5dGVzGAQgASgDEj8KB3Jlc3VsdHMYBSADKAsyLi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuQXBwbHlSZXN1bHQiiwEKC0FwcGx5UmVzdWx0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEg8KB2FwcGxpZWQYAiABKAgSFAoMYWxyZWFkeV9kb25lGAMgASgIEhcKD3JlY2xhaW1lZF9ieXRlcxgEIAEoAxIVCg1za2lwcGVkX2l0ZW1zGAUgAygJEhAKCHdhcm5pbmdzGAYgAygJIhIKEExpc3RBdWRpdFJlcXVlc3QiUgoRTGlzdEF1ZGl0UmVzcG9uc2USPQoGZXZlbnRzGAEgAygLMi0udnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkF1ZGl0RXZlbnQisgEKCkF1ZGl0RXZlbnQSCgoCaWQYASABKAkSKAoEdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEdHlwZRgDIAEoCRIPCgdwbGFuX2lkGAQgASgJEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgGIAEoCRIPCgdtZXNzYWdlGAcgASgJEhAKCHJlZGFjdGVkGAggASgIIrEBChVSZXBvcnRQcmVzc3VyZVJlcXVlc3QSFwoPc291cmNlX3NjZW5hcmlvGAEgASgJEhEKCXBhcnRpdGlvbhgCIAEoCRIUCgx1c2VkX3BlcmNlbnQYAyABKAESPQoEYmFuZBgEIAEoDjIvLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5QcmVzc3VyZUJhbmQSFwoPYXZhaWxhYmxlX2J5dGVzGAUgASgDIt0CChZSZXBvcnRQcmVzc3VyZVJlc3BvbnNlEj0KBGJhbmQYASABKA4yLy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJlc3N1cmVCYW5kEkEKBmFjdGlvbhgCIAEoDjIxLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5QcmVzc3VyZUFjdGlvbhIPCgdwbGFuX2lkGAMgASgJEhcKD2VzdGltYXRlZF9ieXRlcxgEIAEoAxIXCg9yZWNsYWltZWRfYnl0ZXMYBSABKAMSGQoRcHJvdmlkZXJzX2FwcGxpZWQYBiADKAkSGgoScHJvdmlkZXJzX3dpdGhoZWxkGAcgAygJEg4KBnJlYXNvbhgIIAEoCRIgChhhdXRvbm9tb3VzX2FwcGx5X2VuYWJsZWQYCSABKAgSFQoNYnVnX3JlZmVyZW5jZRgKIAEoCSp8CgxQcmVzc3VyZUJhbmQSHQoZUFJFU1NVUkVfQkFORF9VTlNQRUNJRklFRBAAEhkKFVBSRVNTVVJFX0JBTkRfV0FSTklORxABEhYKElBSRVNTVVJFX0JBTkRfSElHSBACEhoKFlBSRVNTVVJFX0JBTkRfQ1JJVElDQUwQAyrNAQoOUHJlc3N1cmVBY3Rpb24SHwobUFJFU1NVUkVfQUNUSU9OX1VOU1BFQ0lGSUVEEAASHAoYUFJFU1NVUkVfQUNUSU9OX09CU0VSVkVEEAESHQoZUFJFU1NVUkVfQUNUSU9OX1BSRVZJRVdFRBACEhsKF1BSRVNTVVJFX0FDVElPTl9BUFBMSUVEEAMSIAocUFJFU1NVUkVfQUNUSU9OX0RFRFVQTElDQVRFRBAEEh4KGlBSRVNTVVJFX0FDVElPTl9TVVBQUkVTU0VEEAUyjgcKDkNsZWFudXBTZXJ2aWNlEoIBCg1MaXN0UHJvdmlkZXJzEjcudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkxpc3RQcm92aWRlcnNSZXF1ZXN0GjgudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkxpc3RQcm92aWRlcnNSZXNwb25zZRJ2CglHZXRQb2xpY3kSMy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuR2V0UG9saWN5UmVxdWVzdBo0LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5HZXRQb2xpY3lSZXNwb25zZRKLAQoQU2V0UG9saWN5UHJvZmlsZRI6LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5TZXRQb2xpY3lQcm9maWxlUmVxdWVzdBo7LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5TZXRQb2xpY3lQcm9maWxlUmVzcG9uc2USeQoKQ3JlYXRlUGxhbhI0LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5DcmVhdGVQbGFuUmVxdWVzdBo1LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5DcmVhdGVQbGFuUmVzcG9uc2USdgoJQXBwbHlQbGFuEjMudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkFwcGx5UGxhblJlcXVlc3QaNC52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuQXBwbHlQbGFuUmVzcG9uc2USdgoJTGlzdEF1ZGl0EjMudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkxpc3RBdWRpdFJlcXVlc3QaNC52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuTGlzdEF1ZGl0UmVzcG9uc2UShQEKDlJlcG9ydFByZXNzdXJlEjgudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlJlcG9ydFByZXNzdXJlUmVxdWVzdBo5LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5SZXBvcnRQcmVzc3VyZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3RvcmFnZS1tYW5hZ2VyL3YxL2NsZWFudXA7Y2xlYW51cF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CihzdG9yYWdlLW1hbmFnZXIvdjEvY2xlYW51cC9jbGVhbnVwLnByb3RvEiF2cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAiFgoUTGlzdFByb3ZpZGVyc1JlcXVlc3QiVwoVTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEj4KCXByb3ZpZGVycxgBIAMoCzIrLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5Qcm92aWRlciLqAQoIUHJvdmlkZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEhYKDm93bmVyX3NjZW5hcmlvGAQgASgJEhMKC3NhZmV0eV90aWVyGAUgASgJEhQKDGRlZmF1bHRfbW9kZRgGIAEoCRIYChBkZWZhdWx0X2FwcHJvdmFsGAcgASgJEhsKE3N1cHBvcnRlZF9wbGF0Zm9ybXMYCCADKAkSGwoTcmVxdWlyZWRfcHJpdmlsZWdlcxgJIAMoCRIcChRpcnJldmVyc2libGVfZWZmZWN0cxgKIAMoCSISChBHZXRQb2xpY3lSZXF1ZXN0Ik4KEUdldFBvbGljeVJlc3BvbnNlEjkKBnBvbGljeRgBIAEoCzIpLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5Qb2xpY3kiKgoXU2V0UG9saWN5UHJvZmlsZVJlcXVlc3QSDwoHcHJvZmlsZRgBIAEoCSJVChhTZXRQb2xpY3lQcm9maWxlUmVzcG9uc2USOQoGcG9saWN5GAEgASgLMikudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlBvbGljeSKgAQoGUG9saWN5Eg8KB3ZlcnNpb24YASABKAkSDwoHcHJvZmlsZRgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJECglwcm92aWRlcnMYBCADKAsyMS52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJvdmlkZXJQb2xpY3kieQoOUHJvdmlkZXJQb2xpY3kSEwoLcHJvdmlkZXJfaWQYASABKAkSDwoHZW5hYmxlZBgCIAEoCBIXCg9taW5fYWdlX3NlY29uZHMYAyABKAMSEQoJbWF4X2J5dGVzGAQgASgDEhUKDWFwcHJvdmFsX21vZGUYBSABKAkiEwoRQ3JlYXRlUGxhblJlcXVlc3QiSwoSQ3JlYXRlUGxhblJlc3BvbnNlEjUKBHBsYW4YASABKAsyJy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUGxhbiLiAgoEUGxhbhIKCgJpZBgBIAEoCRIWCg5wb2xpY3lfdmVyc2lvbhgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgt0b3RhbF9ieXRlcxgEIAEoAxITCgt0b3RhbF9pdGVtcxgFIAEoBRJCCglwcm92aWRlcnMYBiADKAsyLy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJvdmlkZXJQbGFuEhEKCWNlbnN1c19pZBgHIAEoCRIVCg1jZW5zdXNfc3RhdHVzGAggASgJEjUKEWNlbnN1c19zdGFydGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI3ChNjZW5zdXNfY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLqAQoMUHJvdmlkZXJQbGFuEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhgKEHByb3ZpZGVyX3ZlcnNpb24YAiABKAkSFwoPZXN0aW1hdGVkX2J5dGVzGAMgASgDEhIKCml0ZW1fY291bnQYBCABKAUSFgoOYmxvY2tlZF9yZWFzb24YBSABKAkSPQoFaXRlbXMYBiADKAsyLi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJldmlld0l0ZW0SEAoId2FybmluZ3MYByADKAkSFQoNYXBwcm92YWxfbW9kZRgIIAEoCSJwCgtQcmV2aWV3SXRlbRIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg0KBWJ5dGVzGAQgASgDEg4KBmFjdGlvbhgFIAEoCRITCgtzYWZldHlfdGllchgGIAEoCSKDAQoQQXBwbHlQbGFuUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhYKDnBvbGljeV92ZXJzaW9uGAIgASgJEhUKDWFwcHJvdmFsX21vZGUYAyABKAkSFgoOYXBwcm92YWxfdG9rZW4YBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJIrABChFBcHBseVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgCIAEoCRIXCg9hbHJlYWR5X2FwcGxpZWQYAyABKAgSFwoPcmVjbGFpbWVkX2J5dGVzGAQgASgDEj8KB3Jlc3VsdHMYBSADKAsyLi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuQXBwbHlSZXN1bHQiiwEKC0FwcGx5UmVzdWx0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEg8KB2FwcGxpZWQYAiABKAgSFAoMYWxyZWFkeV9kb25lGAMgASgIEhcKD3JlY2xhaW1lZF9ieXRlcxgEIAEoAxIVCg1za2lwcGVkX2l0ZW1zGAUgAygJEhAKCHdhcm5pbmdzGAYgAygJIhIKEExpc3RBdWRpdFJlcXVlc3QiUgoRTGlzdEF1ZGl0UmVzcG9uc2USPQoGZXZlbnRzGAEgAygLMi0udnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkF1ZGl0RXZlbnQisgEKCkF1ZGl0RXZlbnQSCgoCaWQYASABKAkSKAoEdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEdHlwZRgDIAEoCRIPCgdwbGFuX2lkGAQgASgJEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgGIAEoCRIPCgdtZXNzYWdlGAcgASgJEhAKCHJlZGFjdGVkGAggASgIImAKCUhvdFdyaXRlchIMCgRyb290GAEgASgJEhYKDmJ5dGVzX3Blcl9ob3VyGAIgASgDEhYKDndpbmRvd19zZWNvbmRzGAMgASgDEhUKDWN1cnJlbnRfYnl0ZXMYBCABKAMi2wIKFVJlcG9ydFByZXNzdXJlUmVxdWVzdBIXCg9zb3VyY2Vfc2NlbmFyaW8YASABKAkSEQoJcGFydGl0aW9uGAIgASgJEhQKDHVzZWRfcGVyY2VudBgDIAEoARI9CgRiYW5kGAQgASgOMi8udnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlByZXNzdXJlQmFuZBIXCg9hdmFpbGFibGVfYnl0ZXMYBSABKAMSIAoYZmlsbF9yYXRlX2J5dGVzX3Blcl9ob3VyGAYgASgDEkEKC2hvdF93cml0ZXJzGAcgAygLMiwudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkhvdFdyaXRlchJDCgd0cmlnZ2VyGAggASgOMjIudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlByZXNzdXJlVHJpZ2dlciLtAgoWUmVwb3J0UHJlc3N1cmVSZXNwb25zZRI9CgRiYW5kGAEgASgOMi8udnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlByZXNzdXJlQmFuZBJBCgZhY3Rpb24YAiABKA4yMS52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUHJlc3N1cmVBY3Rpb24SDwoHcGxhbl9pZBgDIAEoCRIXCg9lc3RpbWF0ZWRfYnl0ZXMYBCABKAMSFwoPcmVjbGFpbWVkX2J5dGVzGAUgASgDEhkKEXByb3ZpZGVyc19hcHBsaWVkGAYgAygJEhoKEnByb3ZpZGVyc193aXRoaGVsZBgHIAMoCRIOCgZyZWFzb24YCCABKAkSIAoYYXV0b25vbW91c19hcHBseV9lbmFibGVkGAkgASgIEhUKDWJ1Z19yZWZlcmVuY2UYCiABKAkSDgoGcnVuX2lkGAsgASgJIskBChJSZWNvdmVyeVJ1blJlcXVlc3QSQwoHdHJpZ2dlchgBIAEoDjIyLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5QcmVzc3VyZVRyaWdnZXISEQoJcGFydGl0aW9uGAIgASgJEhQKDHVzZWRfcGVyY2VudBgDIAEoARIXCg9hdmFpbGFibGVfYnl0ZXMYBCABKAMSDwoHZHJ5X3J1bhgFIAEoCBIbChN0YXJnZXRfZnJlZV9wZXJjZW50GAYgASgBIiUKE1JlY292ZXJ5V2FpdFJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIicKFlJlY292ZXJ5SGlzdG9yeVJlcXVlc3QSDQoFbGltaXQYASABKAUi0gIKE1JlY292ZXJ5UnVuUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgd0cmlnZ2VyGAMgASgJEhEKCXBhcnRpdGlvbhgEIAEoCRIOCgZhY3Rpb24YBSABKAkSFwoPZXN0aW1hdGVkX2J5dGVzGAYgASgDEhcKD3JlY2xhaW1lZF9ieXRlcxgHIAEoAxIPCgdwbGFuX2lkGAggASgJEg4KBnJlYXNvbhgJIAEoCRIuCgpzdGFydGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEXRhcmdldF9mcmVlX2J5dGVzGAwgASgDEhcKD3N0b3BwZWRfYmVjYXVzZRgNIAEoCSJfChdSZWNvdmVyeUhpc3RvcnlSZXNwb25zZRJECgRydW5zGAEgAygLMjYudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlJlY292ZXJ5UnVuUmVzcG9uc2UqtQEKClNhZmV0eVRpZXISGwoXU0FGRVRZX1RJRVJfVU5TUEVDSUZJRUQQABIUChBTQUZFVFlfVElFUl9TQUZFEAESGwoXU0FGRVRZX1RJRVJfUkVHRU5FUkFCTEUQBRIfChtTQUZFVFlfVElFUl9TQUZFX1dJVEhfT1dORVIQAhIbChdTQUZFVFlfVElFUl9DT05ESVRJT05BTBADEhkKFVNBRkVUWV9USUVSX0ZPUkJJRERFThAEKnwKDFByZXNzdXJlQmFuZBIdChlQUkVTU1VSRV9CQU5EX1VOU1BFQ0lGSUVEEAASGQoVUFJFU1NVUkVfQkFORF9XQVJOSU5HEAESFgoSUFJFU1NVUkVfQkFORF9ISUdIEAISGgoWUFJFU1NVUkVfQkFORF9DUklUSUNBTBADKqIBCg9QcmVzc3VyZVRyaWdnZXISIAocUFJFU1NVUkVfVFJJR0dFUl9VTlNQRUNJRklFRBAAEhkKFVBSRVNTVVJFX1RSSUdHRVJfQkFORBABEhoKFlBSRVNTVVJFX1RSSUdHRVJfRkxPT1IQAhIZChVQUkVTU1VSRV9UUklHR0VSX1JBVEUQAxIbChdQUkVTU1VSRV9UUklHR0VSX01BTlVBTBAEKs0BCg5QcmVzc3VyZUFjdGlvbhIfChtQUkVTU1VSRV9BQ1RJT05fVU5TUEVDSUZJRUQQABIcChhQUkVTU1VSRV9BQ1RJT05fT0JTRVJWRUQQARIdChlQUkVTU1VSRV9BQ1RJT05fUFJFVklFV0VEEAISGwoXUFJFU1NVUkVfQUNUSU9OX0FQUExJRUQQAxIgChxQUkVTU1VSRV9BQ1RJT05fREVEVVBMSUNBVEVEEAQSHgoaUFJFU1NVUkVfQUNUSU9OX1NVUFBSRVNTRUQQBTKWCgoOQ2xlYW51cFNlcnZpY2USggEKDUxpc3RQcm92aWRlcnMSNy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuTGlzdFByb3ZpZGVyc1JlcXVlc3QaOC52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlEnYKCUdldFBvbGljeRIzLnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5HZXRQb2xpY3lSZXF1ZXN0GjQudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkdldFBvbGljeVJlc3BvbnNlEosBChBTZXRQb2xpY3lQcm9maWxlEjoudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlNldFBvbGljeVByb2ZpbGVSZXF1ZXN0GjsudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlNldFBvbGljeVByb2ZpbGVSZXNwb25zZRJ5CgpDcmVhdGVQbGFuEjQudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkNyZWF0ZVBsYW5SZXF1ZXN0GjUudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLkNyZWF0ZVBsYW5SZXNwb25zZRJ2CglBcHBseVBsYW4SMy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuQXBwbHlQbGFuUmVxdWVzdBo0LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5BcHBseVBsYW5SZXNwb25zZRJ2CglMaXN0QXVkaXQSMy52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuTGlzdEF1ZGl0UmVxdWVzdBo0LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5MaXN0QXVkaXRSZXNwb25zZRKFAQoOUmVwb3J0UHJlc3N1cmUSOC52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUmVwb3J0UHJlc3N1cmVSZXF1ZXN0GjkudnJvb2xpLmNsZWFudXBfbWFuYWdlci52MS5jbGVhbnVwLlJlcG9ydFByZXNzdXJlUmVzcG9uc2USfgoNU3RhcnRSZWNvdmVyeRI1LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5SZWNvdmVyeVJ1blJlcXVlc3QaNi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUmVjb3ZlcnlSdW5SZXNwb25zZRJ+CgxXYWl0UmVjb3ZlcnkSNi52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUmVjb3ZlcnlXYWl0UmVxdWVzdBo2LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5SZWNvdmVyeVJ1blJlc3BvbnNlEoUBCgxMaXN0UmVjb3ZlcnkSOS52cm9vbGkuY2xlYW51cF9tYW5hZ2VyLnYxLmNsZWFudXAuUmVjb3ZlcnlIaXN0b3J5UmVxdWVzdBo6LnZyb29saS5jbGVhbnVwX21hbmFnZXIudjEuY2xlYW51cC5SZWNvdmVyeUhpc3RvcnlSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N0b3JhZ2UtbWFuYWdlci92MS9jbGVhbnVwO2NsZWFudXBfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
@@ -624,6 +624,38 @@ export const AuditEventSchema: GenMessage<AuditEvent> = /*@__PURE__*/
   messageDesc(file_storage_manager_v1_cleanup_cleanup, 19);
 
 /**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.HotWriter
+ */
+export type HotWriter = Message<"vrooli.cleanup_manager.v1.cleanup.HotWriter"> & {
+  /**
+   * @generated from field: string root = 1;
+   */
+  root: string;
+
+  /**
+   * @generated from field: int64 bytes_per_hour = 2;
+   */
+  bytesPerHour: bigint;
+
+  /**
+   * @generated from field: int64 window_seconds = 3;
+   */
+  windowSeconds: bigint;
+
+  /**
+   * @generated from field: int64 current_bytes = 4;
+   */
+  currentBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.HotWriter.
+ * Use `create(HotWriterSchema)` to create a new message.
+ */
+export const HotWriterSchema: GenMessage<HotWriter> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 20);
+
+/**
  * @generated from message vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
  */
 export type ReportPressureRequest = Message<"vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest"> & {
@@ -659,6 +691,21 @@ export type ReportPressureRequest = Message<"vrooli.cleanup_manager.v1.cleanup.R
    * @generated from field: int64 available_bytes = 5;
    */
   availableBytes: bigint;
+
+  /**
+   * @generated from field: int64 fill_rate_bytes_per_hour = 6;
+   */
+  fillRateBytesPerHour: bigint;
+
+  /**
+   * @generated from field: repeated vrooli.cleanup_manager.v1.cleanup.HotWriter hot_writers = 7;
+   */
+  hotWriters: HotWriter[];
+
+  /**
+   * @generated from field: vrooli.cleanup_manager.v1.cleanup.PressureTrigger trigger = 8;
+   */
+  trigger: PressureTrigger;
 };
 
 /**
@@ -666,7 +713,7 @@ export type ReportPressureRequest = Message<"vrooli.cleanup_manager.v1.cleanup.R
  * Use `create(ReportPressureRequestSchema)` to create a new message.
  */
 export const ReportPressureRequestSchema: GenMessage<ReportPressureRequest> = /*@__PURE__*/
-  messageDesc(file_storage_manager_v1_cleanup_cleanup, 20);
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 21);
 
 /**
  * @generated from message vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
@@ -736,6 +783,11 @@ export type ReportPressureResponse = Message<"vrooli.cleanup_manager.v1.cleanup.
    * @generated from field: string bug_reference = 10;
    */
   bugReference: string;
+
+  /**
+   * @generated from field: string run_id = 11;
+   */
+  runId: string;
 };
 
 /**
@@ -743,7 +795,226 @@ export type ReportPressureResponse = Message<"vrooli.cleanup_manager.v1.cleanup.
  * Use `create(ReportPressureResponseSchema)` to create a new message.
  */
 export const ReportPressureResponseSchema: GenMessage<ReportPressureResponse> = /*@__PURE__*/
-  messageDesc(file_storage_manager_v1_cleanup_cleanup, 21);
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 22);
+
+/**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
+ */
+export type RecoveryRunRequest = Message<"vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest"> & {
+  /**
+   * @generated from field: vrooli.cleanup_manager.v1.cleanup.PressureTrigger trigger = 1;
+   */
+  trigger: PressureTrigger;
+
+  /**
+   * @generated from field: string partition = 2;
+   */
+  partition: string;
+
+  /**
+   * @generated from field: double used_percent = 3;
+   */
+  usedPercent: number;
+
+  /**
+   * @generated from field: int64 available_bytes = 4;
+   */
+  availableBytes: bigint;
+
+  /**
+   * @generated from field: bool dry_run = 5;
+   */
+  dryRun: boolean;
+
+  /**
+   * Requested free-space percentage. Zero keeps the server default.
+   *
+   * @generated from field: double target_free_percent = 6;
+   */
+  targetFreePercent: number;
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest.
+ * Use `create(RecoveryRunRequestSchema)` to create a new message.
+ */
+export const RecoveryRunRequestSchema: GenMessage<RecoveryRunRequest> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 23);
+
+/**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
+ */
+export type RecoveryWaitRequest = Message<"vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest.
+ * Use `create(RecoveryWaitRequestSchema)` to create a new message.
+ */
+export const RecoveryWaitRequestSchema: GenMessage<RecoveryWaitRequest> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 24);
+
+/**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
+ */
+export type RecoveryHistoryRequest = Message<"vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest.
+ * Use `create(RecoveryHistoryRequestSchema)` to create a new message.
+ */
+export const RecoveryHistoryRequestSchema: GenMessage<RecoveryHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 25);
+
+/**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+ */
+export type RecoveryRunResponse = Message<"vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string trigger = 3;
+   */
+  trigger: string;
+
+  /**
+   * @generated from field: string partition = 4;
+   */
+  partition: string;
+
+  /**
+   * @generated from field: string action = 5;
+   */
+  action: string;
+
+  /**
+   * @generated from field: int64 estimated_bytes = 6;
+   */
+  estimatedBytes: bigint;
+
+  /**
+   * @generated from field: int64 reclaimed_bytes = 7;
+   */
+  reclaimedBytes: bigint;
+
+  /**
+   * @generated from field: string plan_id = 8;
+   */
+  planId: string;
+
+  /**
+   * @generated from field: string reason = 9;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 10;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp completed_at = 11;
+   */
+  completedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int64 target_free_bytes = 12;
+   */
+  targetFreeBytes: bigint;
+
+  /**
+   * @generated from field: string stopped_because = 13;
+   */
+  stoppedBecause: string;
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.
+ * Use `create(RecoveryRunResponseSchema)` to create a new message.
+ */
+export const RecoveryRunResponseSchema: GenMessage<RecoveryRunResponse> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 26);
+
+/**
+ * @generated from message vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
+ */
+export type RecoveryHistoryResponse = Message<"vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse runs = 1;
+   */
+  runs: RecoveryRunResponse[];
+};
+
+/**
+ * Describes the message vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse.
+ * Use `create(RecoveryHistoryResponseSchema)` to create a new message.
+ */
+export const RecoveryHistoryResponseSchema: GenMessage<RecoveryHistoryResponse> = /*@__PURE__*/
+  messageDesc(file_storage_manager_v1_cleanup_cleanup, 27);
+
+/**
+ * SafetyTier is the authority boundary used by autonomous recovery. A
+ * regenerable provider must be derived, recreated by its tool, contained to
+ * its exact root, and free of live leases. Provider.safety_tier remains a
+ * string for wire compatibility with older clients; this enum is the
+ * canonical vocabulary for new clients.
+ *
+ * @generated from enum vrooli.cleanup_manager.v1.cleanup.SafetyTier
+ */
+export enum SafetyTier {
+  /**
+   * @generated from enum value: SAFETY_TIER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SAFETY_TIER_SAFE = 1;
+   */
+  SAFE = 1,
+
+  /**
+   * @generated from enum value: SAFETY_TIER_REGENERABLE = 5;
+   */
+  REGENERABLE = 5,
+
+  /**
+   * @generated from enum value: SAFETY_TIER_SAFE_WITH_OWNER = 2;
+   */
+  SAFE_WITH_OWNER = 2,
+
+  /**
+   * @generated from enum value: SAFETY_TIER_CONDITIONAL = 3;
+   */
+  CONDITIONAL = 3,
+
+  /**
+   * @generated from enum value: SAFETY_TIER_FORBIDDEN = 4;
+   */
+  FORBIDDEN = 4,
+}
+
+/**
+ * Describes the enum vrooli.cleanup_manager.v1.cleanup.SafetyTier.
+ */
+export const SafetyTierSchema: GenEnum<SafetyTier> = /*@__PURE__*/
+  enumDesc(file_storage_manager_v1_cleanup_cleanup, 0);
 
 /**
  * PressureBand is how severe the reporting safeguard judged the pressure to be.
@@ -761,21 +1032,21 @@ export enum PressureBand {
   UNSPECIFIED = 0,
 
   /**
-   * Record the observation. No remediation.
+   * Record the observation and file a growth signal. No autonomous recovery.
    *
    * @generated from enum value: PRESSURE_BAND_WARNING = 1;
    */
   WARNING = 1,
 
   /**
-   * Run estimate and preview. Persist the result. Delete nothing.
+   * Start a recovery run through the autonomous ladder.
    *
    * @generated from enum value: PRESSURE_BAND_HIGH = 2;
    */
   HIGH = 2,
 
   /**
-   * Apply safe-tier providers with no operator present.
+   * Start a recovery run through the autonomous ladder at critical pressure.
    *
    * @generated from enum value: PRESSURE_BAND_CRITICAL = 3;
    */
@@ -786,7 +1057,43 @@ export enum PressureBand {
  * Describes the enum vrooli.cleanup_manager.v1.cleanup.PressureBand.
  */
 export const PressureBandSchema: GenEnum<PressureBand> = /*@__PURE__*/
-  enumDesc(file_storage_manager_v1_cleanup_cleanup, 0);
+  enumDesc(file_storage_manager_v1_cleanup_cleanup, 1);
+
+/**
+ * @generated from enum vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+ */
+export enum PressureTrigger {
+  /**
+   * @generated from enum value: PRESSURE_TRIGGER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PRESSURE_TRIGGER_BAND = 1;
+   */
+  BAND = 1,
+
+  /**
+   * @generated from enum value: PRESSURE_TRIGGER_FLOOR = 2;
+   */
+  FLOOR = 2,
+
+  /**
+   * @generated from enum value: PRESSURE_TRIGGER_RATE = 3;
+   */
+  RATE = 3,
+
+  /**
+   * @generated from enum value: PRESSURE_TRIGGER_MANUAL = 4;
+   */
+  MANUAL = 4,
+}
+
+/**
+ * Describes the enum vrooli.cleanup_manager.v1.cleanup.PressureTrigger.
+ */
+export const PressureTriggerSchema: GenEnum<PressureTrigger> = /*@__PURE__*/
+  enumDesc(file_storage_manager_v1_cleanup_cleanup, 2);
 
 /**
  * PressureAction is what storage-manager actually did about the report.
@@ -839,7 +1146,7 @@ export enum PressureAction {
  * Describes the enum vrooli.cleanup_manager.v1.cleanup.PressureAction.
  */
 export const PressureActionSchema: GenEnum<PressureAction> = /*@__PURE__*/
-  enumDesc(file_storage_manager_v1_cleanup_cleanup, 1);
+  enumDesc(file_storage_manager_v1_cleanup_cleanup, 3);
 
 /**
  * CleanupService exposes preview-first cleanup orchestration.
@@ -911,6 +1218,33 @@ export const CleanupService: GenService<{
     methodKind: "unary";
     input: typeof ReportPressureRequestSchema;
     output: typeof ReportPressureResponseSchema;
+  },
+  /**
+   * Recovery runs are server-owned: callers receive an id immediately and
+   * wait or inspect status through the typed ledger.
+   *
+   * @generated from rpc vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery
+   */
+  startRecovery: {
+    methodKind: "unary";
+    input: typeof RecoveryRunRequestSchema;
+    output: typeof RecoveryRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery
+   */
+  waitRecovery: {
+    methodKind: "unary";
+    input: typeof RecoveryWaitRequestSchema;
+    output: typeof RecoveryRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery
+   */
+  listRecovery: {
+    methodKind: "unary";
+    input: typeof RecoveryHistoryRequestSchema;
+    output: typeof RecoveryHistoryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_storage_manager_v1_cleanup_cleanup, 0);

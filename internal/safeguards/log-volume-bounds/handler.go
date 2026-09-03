@@ -453,9 +453,9 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 	if host.OS != string(hostreqspec.PlatformLinux) {
-		status.SupportClass = hostreqkit.SupportUnsupported
-		status.ExecutionState = hostreqkit.ExecutionUnsupported
-		status.Notes = append(status.Notes, "flat-file log bounds are only implemented for Linux rsyslog + logrotate")
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
+		status.Notes = append(status.Notes, "not applicable: macOS unified logs/newsyslog or Windows event logs provide their own bounded log store; Linux flat-file rsyslog bounds do not apply")
 		return status
 	}
 	if !host.SupportsSystemd {

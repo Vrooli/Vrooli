@@ -6,13 +6,15 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { DiscoveryFailure } from "./common_pb";
 import { file_cli_v1_common } from "./common_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file cli/v1/scenario_list.proto.
  */
 export const file_cli_v1_scenario_list: GenFile = /*@__PURE__*/
-  fileDesc("ChpjbGkvdjEvc2NlbmFyaW9fbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSLFAQoUU2NlbmFyaW9MaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIzCgdzdW1tYXJ5GAIgASgLMiIudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpc3RTdW1tYXJ5EioKCXNjZW5hcmlvcxgDIAMoCzIXLnZyb29saS5jbGkudjEuU2NlbmFyaW8SOwoSZGlzY292ZXJ5X2ZhaWx1cmVzGAQgAygLMh8udnJvb2xpLmNsaS52MS5EaXNjb3ZlcnlGYWlsdXJlIlIKE1NjZW5hcmlvTGlzdFN1bW1hcnkSFwoPdG90YWxfc2NlbmFyaW9zGAEgASgFEg8KB3J1bm5pbmcYAiABKAUSEQoJYXZhaWxhYmxlGAMgASgFIpYBCghTY2VuYXJpbxIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJEgwKBHRhZ3MYBSADKAkSDAoEcGF0aBgGIAEoCRIqCgVwb3J0cxgHIAMoCzIbLnZyb29saS5jbGkudjEuU2NlbmFyaW9Qb3J0IlAKDFNjZW5hcmlvUG9ydBILCgNrZXkYASABKAkSDAoEc3RlcBgCIAEoCRIMCgRwb3J0GAMgASgFEhcKD2xpc3RlbmVyX3N0YXR1cxgEIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_common]);
+  fileDesc("ChpjbGkvdjEvc2NlbmFyaW9fbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSL2AQoUU2NlbmFyaW9MaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIzCgdzdW1tYXJ5GAIgASgLMiIudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpc3RTdW1tYXJ5EioKCXNjZW5hcmlvcxgDIAMoCzIXLnZyb29saS5jbGkudjEuU2NlbmFyaW8SOwoSZGlzY292ZXJ5X2ZhaWx1cmVzGAQgAygLMh8udnJvb2xpLmNsaS52MS5EaXNjb3ZlcnlGYWlsdXJlEi8KC29ic2VydmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJSChNTY2VuYXJpb0xpc3RTdW1tYXJ5EhcKD3RvdGFsX3NjZW5hcmlvcxgBIAEoBRIPCgdydW5uaW5nGAIgASgFEhEKCWF2YWlsYWJsZRgDIAEoBSKtAQoIU2NlbmFyaW8SDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIMCgR0YWdzGAUgAygJEgwKBHBhdGgYBiABKAkSKgoFcG9ydHMYByADKAsyGy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUG9ydBIVCg1oZWFsdGhfc3RhdHVzGAggASgJIlAKDFNjZW5hcmlvUG9ydBILCgNrZXkYASABKAkSDAoEc3RlcBgCIAEoCRIMCgRwb3J0GAMgASgFEhcKD2xpc3RlbmVyX3N0YXR1cxgEIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_common, file_google_protobuf_timestamp]);
 
 /**
  * ScenarioListResponse is the top-level envelope of `vrooli scenario list --json`.
@@ -47,6 +49,13 @@ export type ScenarioListResponse = Message<"vrooli.cli.v1.ScenarioListResponse">
    * @generated from field: repeated vrooli.cli.v1.DiscoveryFailure discovery_failures = 4;
    */
   discoveryFailures: DiscoveryFailure[];
+
+  /**
+   * Time at which the control plane completed this inventory projection.
+   *
+   * @generated from field: google.protobuf.Timestamp observed_at = 5;
+   */
+  observedAt?: Timestamp | undefined;
 };
 
 /**
@@ -145,6 +154,13 @@ export type Scenario = Message<"vrooli.cli.v1.Scenario"> & {
    * @generated from field: repeated vrooli.cli.v1.ScenarioPort ports = 7;
    */
   ports: ScenarioPort[];
+
+  /**
+   * Current lifecycle health reported by the control plane.
+   *
+   * @generated from field: string health_status = 8;
+   */
+  healthStatus: string;
 };
 
 /**

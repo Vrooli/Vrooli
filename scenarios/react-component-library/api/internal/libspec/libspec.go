@@ -4,50 +4,41 @@
 package libspec
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
+
+	sharedlibspec "github.com/vrooli/vrooli/packages/react-component-library/libspec"
+	"react-component-library/internal/librarywalk"
 )
 
-const Prefix = "@vrooli/react-component-library/"
-
-var (
-	grammar = regexp.MustCompile(`^@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+|\d+\.\d+\.\d+))?$`)
-	release = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
-)
+const Prefix = sharedlibspec.Prefix
 
 type (
-	Specifier struct{ Name, Selector string }
+	Specifier = sharedlibspec.Specifier
 	Scope     struct{ Assets map[string]bool }
 )
 
+// Rewrite visits each canonical library specifier in source and replaces it
+// with the callback result. Parsing remains owned by this package; callers
+// provide only the policy-specific replacement.
+func Rewrite(source string, replace func(Specifier) string) string {
+	return sharedlibspec.Rewrite(source, replace)
+}
+
 func Parse(value string) (Specifier, bool, error) {
-	match := grammar.FindStringSubmatch(strings.TrimSpace(value))
-	if match == nil {
-		return Specifier{}, false, nil
-	}
-	return Specifier{Name: match[1], Selector: match[2]}, true, nil
+	return sharedlibspec.Parse(value)
 }
 
 func ParseAll(source string) []Specifier {
-	result := []Specifier{}
-	seen := map[Specifier]bool{}
-	for _, token := range strings.FieldsFunc(source, func(r rune) bool { return strings.ContainsRune("\"'` \t\r\n,;(){}", r) }) {
-		if spec, ok, _ := Parse(token); ok && !seen[spec] {
-			seen[spec] = true
-			result = append(result, spec)
-		}
-	}
-	return result
+	return sharedlibspec.ParseAll(source)
 }
 
-func IsRelease(value string) bool { return release.MatchString(value) }
+func IsRelease(value string) bool { return sharedlibspec.IsRelease(value) }
 
 func Walk(root string, scope Scope, visit func(path string) error) error {
-	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	return librarywalk.WalkTree(nil, root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -79,8 +70,5 @@ func Sorted(values []Specifier) []Specifier {
 }
 
 func Validate(value string) error {
-	if _, ok, _ := Parse(value); !ok {
-		return fmt.Errorf("invalid library specifier %q", value)
-	}
-	return nil
+	return sharedlibspec.Validate(value)
 }

@@ -3,8 +3,8 @@ import { Eye, Palette } from "lucide-react";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "../../components/Button";
-import { Select } from "../../components/Select";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

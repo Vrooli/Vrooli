@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1722,7 +1723,7 @@ func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string
 		}
 		return nil, err
 	}
-	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -1775,7 +1776,7 @@ func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario 
 		}
 		return nil, err
 	}
-	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -1880,7 +1881,7 @@ func (r *FSScenarioFileReader) walkScenarioSources() ([]scannedSource, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
@@ -2081,7 +2082,7 @@ func (r *FSScenarioFileReader) FindImportSites(_ context.Context, scenario, adop
 	}
 	base := filepath.Join(r.root, scenario)
 	sites := make([]string, 0)
-	err = filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+	err = librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -2140,7 +2141,7 @@ func (r *FSScenarioFileReader) RewriteImportSites(ctx context.Context, scenario,
 		// only the row's current exact version, so a repeated governed Link
 		// repairs stale package imports as well.
 		oldModulePattern := regexp.MustCompile(`(["'])` + regexp.QuoteMeta(modulePrefix) + `[^"']+(["'])`)
-		err := filepath.Walk(base, func(path string, info os.FileInfo, walkErr error) error {
+		err := librarywalk.WalkInfo(context.Background(), base, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}

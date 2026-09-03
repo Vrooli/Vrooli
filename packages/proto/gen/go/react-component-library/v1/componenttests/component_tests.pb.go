@@ -344,6 +344,7 @@ type ComponentTestReport struct {
 	Verdict        string                   `protobuf:"bytes,6,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	Results        []*ComponentTestResult   `protobuf:"bytes,7,rep,name=results,proto3" json:"results,omitempty"`
 	Artifacts      []*ComponentTestArtifact `protobuf:"bytes,8,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	SourceRevision string                   `protobuf:"bytes,9,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -434,11 +435,20 @@ func (x *ComponentTestReport) GetArtifacts() []*ComponentTestArtifact {
 	return nil
 }
 
+func (x *ComponentTestReport) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
+}
+
 type RunComponentTestResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Report        *ComponentTestReport   `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Report         *ComponentTestReport   `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
+	Reused         bool                   `protobuf:"varint,2,opt,name=reused,proto3" json:"reused,omitempty"`
+	SourceRevision string                 `protobuf:"bytes,3,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RunComponentTestResponse) Reset() {
@@ -476,6 +486,20 @@ func (x *RunComponentTestResponse) GetReport() *ComponentTestReport {
 		return x.Report
 	}
 	return nil
+}
+
+func (x *RunComponentTestResponse) GetReused() bool {
+	if x != nil {
+		return x.Reused
+	}
+	return false
+}
+
+func (x *RunComponentTestResponse) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
 }
 
 type RerunComponentTestRequest struct {
@@ -961,7 +985,7 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\x10asset_library_id\x18\x03 \x01(\tR\x0eassetLibraryId\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1c\n" +
 	"\treference\x18\x05 \x01(\tR\treference\x12\x19\n" +
-	"\bstory_id\x18\x06 \x01(\tR\astoryId\"\xb6\x03\n" +
+	"\bstory_id\x18\x06 \x01(\tR\astoryId\"\xdf\x03\n" +
 	"\x13ComponentTestReport\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0froot_library_id\x18\x02 \x01(\tR\rrootLibraryId\x12!\n" +
@@ -971,9 +995,12 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
 	"\averdict\x18\x06 \x01(\tR\averdict\x12_\n" +
 	"\aresults\x18\a \x03(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestResultR\aresults\x12e\n" +
-	"\tartifacts\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestArtifactR\tartifacts\"y\n" +
+	"\tartifacts\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestArtifactR\tartifacts\x12'\n" +
+	"\x0fsource_revision\x18\t \x01(\tR\x0esourceRevision\"\xba\x01\n" +
 	"\x18RunComponentTestResponse\x12]\n" +
-	"\x06report\x18\x01 \x01(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\x06report\"8\n" +
+	"\x06report\x18\x01 \x01(\v2E.vrooli.react_component_library.v1.componenttests.ComponentTestReportR\x06report\x12\x16\n" +
+	"\x06reused\x18\x02 \x01(\bR\x06reused\x12'\n" +
+	"\x0fsource_revision\x18\x03 \x01(\tR\x0esourceRevision\"8\n" +
 	"\x19RerunComponentTestRequest\x12\x1b\n" +
 	"\treport_id\x18\x01 \x01(\tR\breportId\"{\n" +
 	"\x1aRerunComponentTestResponse\x12]\n" +

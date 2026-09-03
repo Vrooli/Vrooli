@@ -1,5 +1,16 @@
 # Host Safeguards
 
+## Log-volume bounds and disk watchdog
+
+`log_volume_bounds` limits the host log store and reports a platform verdict.
+On Linux it configures the supported rotation and rate-limit controls. On
+macOS and Windows the current handler reports `unsupported` because native
+log-store controls are not implemented yet.
+
+The emergency watchdog is installed and managed as a Go binary. It checks the
+configured free-space floor and reports pressure through the typed storage
+client. It does not shell the `vrooli` CLI.
+
 Safeguards are idempotent host-state modifications Vrooli applies to make the host suitable for running its workload — kernel parameters, DNS configuration, firewall rules, NAT protections, TCP tuning, clock synchronization. They differ from host tools in that they *change the host's state* rather than just installing a binary, so they are explicitly opt-in with a risk indicator.
 
 ## What lives where
@@ -8,11 +19,46 @@ Safeguards are idempotent host-state modifications Vrooli applies to make the ho
 |---|---|---|
 | What the safeguard does, what it modifies, how to verify | `internal/safeguards/<name>/safeguard.json` | top-level manifest |
 | Risk indicator | `internal/safeguards/<name>/safeguard.json` | `risk` (`low` / `medium` / `high`) |
+| Capability invariants | `internal/safeguards/<name>/safeguard.json` | `invariants[]`, each with its own applicability and evaluation kind |
 | Go handler that implements `Inspect` and `Apply` | `internal/safeguards/<name>/*.go` (registered in `internal/runtime/registry.go`) | `customSafeguardHandlers` map |
 | Top-level project requirements | `.vrooli/service.json` | `hostSafeguards[]` (each entry: `hostRequirement`) |
 | Per-scenario requirements | `scenarios/<name>/.vrooli/service.json` | `hostSafeguards[]` |
 | Per-resource requirements | `resources/<name>/resource.json` | `hostSafeguards[]` |
 | Operator opt-in | `.vrooli/operator-state.json` | `host_safeguards.<name>.opted_in` |
+
+## Repository-owned user cron
+
+User cron is host automation, so the control plane owns its declaration and
+audit. Add every Vrooli-owned entry to the root `.vrooli/service.json` under
+`hostCron`. Do not add a repository path directly to `crontab` without this
+declaration.
+
+```json
+"hostCron": [
+  {
+    "name": "example-maintenance",
+    "schedule": "15 3 * * *",
+    "target": "tools/example-maintenance"
+  }
+]
+```
+
+`target` is a repository-relative path. It must exist, remain inside the
+repository, and appear in the installed command with the declared schedule.
+After adding or changing a declaration, install the corresponding user-cron
+line through the host's normal `crontab` interface, then run:
+
+```bash
+vrooli host cron audit
+vrooli host cron audit --json
+```
+
+The read-only audit reports a declared target that does not exist, a declared
+entry that is not installed, and an installed entry that points inside the
+repository without a matching declaration. On a platform without the
+`crontab` command, it reports `unsupported`; it does not treat missing host
+support as a clean audit. The command never installs, removes, or executes a
+cron entry.
 
 ## How safeguards are discovered
 
@@ -45,10 +91,63 @@ deployment profile. A safeguard normally has `privilege: elevated` and
 shipped inside a Tier 2 desktop application. Its desktop profile explains that
 unsupported status to the operator.
 
+## Platform status tokens
+
+`platform_status` records the implementation state for each host operating
+system. Use the tokens as follows:
+
+- `not_implemented` means the capability may apply to the operating system,
+  but its provider is not written yet. Count this token as portability debt.
+- `not_applicable` means the capability cannot apply to the operating system
+  or its host mechanism does not exist there. Treat this token as closed work.
+
+Do not use `unsupported` for a case that is genuinely not applicable. To see
+the remaining portability debt, run:
+
+```bash
+vrooli host safeguard portability-backlog
+vrooli host safeguard portability-backlog --json
+```
+
 This is intentionally separate from `risk`. `privilege` is the machine gate
 that tells Vrooli whether elevated setup is needed. `risk` is the human-facing
 impact label that helps an operator decide whether to opt into a host-state
 change. Neither field substitutes for the other.
+
+## Capability invariants
+
+An invariant is an OS-neutral statement about a capability's coupled host
+state, declared beside the safeguard that owns the capability. The shared
+shape is defined once in `.vrooli/schemas/common.schema.json` and referenced
+by `safeguard.schema.json`; there is no second invariant registry. The control
+plane aggregates declared sites and reports both `invariants_declared` and
+`invariants_evaluated`, including every registered site that could not be
+walked. A missing evaluation is coverage evidence, not a zero-invariant pass.
+
+Invariant providers return ordered verdicts: `satisfied_structurally`,
+`satisfied`, `undetermined`, `not_applicable`, `not_implemented`, or `failed`.
+`undetermined` is not a failure and must retain its reason; callers must not
+coerce it into a boolean. Provider-specific package-manager derivation stays
+behind the provider seam, while the declaration names only the coupled
+capability and invariant kind.
+
+The NVIDIA safeguard is the reference implementation. It declares the
+running-kernel module-loadability invariant and the coupled-update atomicity
+invariant, and owns the apt policy file under `storage.entries`.
+
+## Safeguard operation risk classes
+
+Handlers classify operations independently from the manifest's human-facing
+`risk` label:
+
+| Operation class | Meaning | Consent gate |
+|---|---|---|
+| `restore_absent` | Restore a missing capability without replacing a live member | operator consent |
+| `reload_live` | Replace or reload a live capability member | operator consent + maintenance window |
+| `boot_critical` | Change boot/initramfs/kernel state | operator consent + maintenance window and reboot verification |
+
+The setup renderer reports the exact resumable command for a maintenance
+window and the reboot-and-verify sequence for a reboot-required result.
 
 ## The `risk` field
 
@@ -148,6 +247,77 @@ onboarding operator-state flow; that policy remains login-scoped and does not
 enable lingering. Setup status reports service enablement separately from
 verified boot protection. An unavailable scheduler bus is reported as
 incomplete/degraded with the exact `vrooli setup` recovery command.
+
+## Runtime supervisor unit
+
+`runtime_supervisor` is a required project safeguard. Every `vrooli setup` run
+renders the supervisor's unit from the shared `platformgo.ServiceDefinition`,
+asks the native manager whether it would load it (`systemd-analyze --user
+verify`, `plutil -lint`), installs it as the invoking user, enables it,
+restarts it when the content changed, and then re-inspects to prove it active.
+`vrooli runtime supervisor install --user` calls the same `Converge` function,
+so the CLI cannot render a unit setup would later call stale. Before 2026-09-02
+the supervisor unit was rendered once by the install command and never looked
+at again; a unit rendered on 2026-08-18 crash-looped 495 times after a reboot
+because its argv no longer parsed.
+
+Inspect reports the unit not-applied when its content differs from the render
+(the note names both `ExecStart` lines), when it is not enabled and active, or
+when the validator rejects the render. The status carries evidence a
+readiness consumer reads back from `vrooli setup status --json --phase
+readiness`: `validator_verdict` (accepted, unavailable, or rejected, with the
+validator's output), `unit_state` (`ActiveState`, `UnitFileState`, `NRestarts`,
+`Result`), and the executable the unit names.
+
+## Agent session containment
+
+`agent_session_containment` is a required, user-privilege project safeguard.
+It renders `vrooli-agents.slice` from platform-go's slice definition, asks
+`systemd-analyze --user verify` whether the user manager would load it,
+installs it under `~/.config/systemd/user/` as the invoking user, reloads and
+starts it, then reads the LIVE slice back (`ActiveState`, `ControlGroup`, and
+the cgroup's `memory.max`, `pids.max`, `cpu.weight`) before it claims applied.
+A slice that is written but not loaded, or loaded with other values, is
+not-applied; a probe that cannot reach the user manager is `undetermined`
+(evidence `probe: undetermined`), never ok. The coding-agent launcher and the
+web console start every session in a scope under the slice through
+platform-go's `ContainedCommand` / `ContainSelf`, so a build storm is the
+slice's problem and not the host's.
+
+| Config key | Default | Meaning |
+| --- | --- | --- |
+| `cpu_weight` | 50 | systemd `CPUWeight=` of the slice; 100 is neutral, the supervisors keep 400 |
+| `memory_high_percent` | 50 | `MemoryHigh=` as a percentage of physical memory (throttling) |
+| `memory_max_percent` | 60 | `MemoryMax=` as a percentage of physical memory (the kernel kills inside the slice before the host swaps); never below `memory_high_percent` |
+| `tasks_max` | 4096 | `TasksMax=` of the slice; a fork storm stops here |
+
+The operator changes them with `vrooli-onboarding host set-config`; a value
+outside its bounds keeps the default so a typo never removes the ceiling.
+The defaults are the 2026-09-02 plan's D3 decision and have not been
+ratified by the operator.
+
+Ownership boundary: `remote_session_protection` owns the SYSTEM manager's
+units (the desktop reservation in `user-<uid>.slice.d` and `workload.slice`,
+Docker's parent) and needs `sudo vrooli setup`. This safeguard owns the USER
+manager's `vrooli-agents.slice` and needs no privilege. Neither writes the
+other's paths, and the agent slice sits under the desktop reservation.
+
+Evidence tier: Linux is host-verified (systemd 255, cgroup v2). macOS and
+Windows have no slice; the launcher applies the same ceilings per session
+(an rlimit shim on macOS, a Job Object with quotas on Windows) and those
+tiers are fixture-verified only, which the manifest's `platform_status`
+says.
+
+## The readiness phase
+
+A safeguard whose manifest entry declares `"when": ["setup", "readiness"]` is
+re-inspected, never applied, by `vrooli setup status --json --phase readiness`.
+The three boot-path safeguards (`autoheal_watchdog`, `runtime_supervisor`,
+`emergency_watchdog`) declare it. Each one runs its rendered unit through the
+native validator during Inspect and records the verdict in `evidence`, so a
+render that systemd would refuse is visible while the host is healthy instead
+of at the next boot. An unavailable validator is recorded as a note: unproven
+is not accepted.
 
 Record `host_safeguards.login_keyring_unlock.opted_in=true` through the
 onboarding operator-state `apply` command, then run setup from a session that
@@ -293,12 +463,12 @@ as healthy; `revoked` is reported as `gpu-degraded` (or an unhealthy resource).
 Inspect the six GPU resources with:
 
 ```text
-vrooli resource status ollama --json --no-stale-check
-vrooli resource status kokoro --json --no-stale-check
-vrooli resource status whisper --json --no-stale-check
-vrooli resource status reranker --json --no-stale-check
-vrooli resource status kyutai-stt --json --no-stale-check
-vrooli resource status speaker-verification --json --no-stale-check
+vrooli resource status ollama --json
+vrooli resource status kokoro --json
+vrooli resource status whisper --json
+vrooli resource status reranker --json
+vrooli resource status kyutai-stt --json
+vrooli resource status speaker-verification --json
 ```
 
 The `resource-gpu-access` autoheal check distinguishes critical revoked access

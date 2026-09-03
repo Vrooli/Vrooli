@@ -44,3 +44,20 @@ workflow results. Unavailable Events is reported as degraded or unavailable;
 the absence of a receipt never means the agent action failed. Swarm Manager
 uses verified, exact run ownership and canonical Plan Manager state for durable
 links; it does not retain an independent receipt/evidence ledger.
+
+## Incident notification ownership
+
+Incident lifecycle events are a separate fact stream carried through the same
+event envelope. `vrooli-autoheal` publishes transition facts only: incident
+identity, source check, severity, status, and remediation facts when an
+operator decision is required. It does not publish recipients, channel names,
+sensitivity labels, or human notification copy. Re-sighting an unchanged open
+incident does not publish another lifecycle transition.
+
+`notification-hub` owns the consumer-side renderer, severity-to-sensitivity
+mapping, recipient selection, channel routing, and durable delivery evidence.
+The approval-request event is rendered into a blocking ask with server-owned
+`approve`/`reject` answers. Autoheal verifies the durable answer through the
+notification-hub wait surface and binds the one-time authorization to the
+incident fingerprint and remediation candidate before executing a generated
+artifact. A caller-supplied approval boolean is not an authorization.

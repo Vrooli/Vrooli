@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"react-component-library/internal/libspec"
 )
 
 func ValidateSpecifierShape(scope Scope) (Result, error) {
@@ -28,7 +30,7 @@ func ValidateSpecifierShape(scope Scope) (Result, error) {
 	}
 	result := Result{}
 	versionRE := regexp.MustCompile(`/versions/([^/]+)/`)
-	for _, path := range librarySourceFiles(filepath.Join(root, "library")) {
+	for _, path := range librarySourceFiles(filepath.Join(root, "library"), scope) {
 		match := versionRE.FindStringSubmatch(filepath.ToSlash(path))
 		if len(match) != 2 {
 			continue
@@ -43,12 +45,9 @@ func ValidateSpecifierShape(scope Scope) (Result, error) {
 		}
 		result.Inspected++
 		assetID := implementationName(path)
-		for _, occurrence := range libraryPackageSpecifierGateRE.FindAllStringSubmatchIndex(string(raw), -1) {
-			name := string(raw[occurrence[2]:occurrence[3]])
-			requested := ""
-			if occurrence[4] >= 0 {
-				requested = string(raw[occurrence[4]:occurrence[5]])
-			}
+		for _, specifier := range libspec.ParseAll(string(raw)) {
+			name := specifier.Name
+			requested := specifier.Selector
 			if provenance["react-component-library:"+name+"@"+version] {
 				continue
 			}
@@ -59,10 +58,15 @@ func ValidateSpecifierShape(scope Scope) (Result, error) {
 			if requested != "" && !strings.Contains(requested, ".") {
 				continue
 			}
-			result.Findings = append(result.Findings, Finding{Code: code, AssetID: assetID, File: repoRel(scope.Root, path), Line: lineAt(raw, occurrence[0]), Message: fmt.Sprintf("intra-library import must use a major line, found %s", string(raw[occurrence[0]:occurrence[1]])), Remediation: replacement, DocsRef: "docs/guides/asset-update-flow.md"})
+			result.Findings = append(result.Findings, Finding{Code: code, AssetID: assetID, File: repoRel(scope.Root, path), Message: fmt.Sprintf("intra-library import must use a major line, found %s", libspec.Prefix+name+selectorSuffix(requested)), Remediation: replacement, DocsRef: "docs/guides/asset-update-flow.md"})
 		}
 	}
 	return nonEmpty(result, "specifier-shape"), nil
 }
 
-var libraryPackageSpecifierGateRE = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
+func selectorSuffix(selector string) string {
+	if selector == "" {
+		return ""
+	}
+	return "/" + selector
+}

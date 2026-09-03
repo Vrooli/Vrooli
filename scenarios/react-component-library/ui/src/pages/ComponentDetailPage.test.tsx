@@ -95,6 +95,16 @@ vi.mock("../api/adoptions", async (importOriginal) => {
   };
 });
 
+vi.mock("../api/componentTests", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/componentTests")>();
+  return {
+    ...actual,
+    listComponentTestReports: vi.fn().mockResolvedValue([]),
+    getComponentTestReport: vi.fn(),
+    runComponentTest: vi.fn(),
+  };
+});
+
 import { ComponentDetailPage } from "./ComponentDetailPage";
 import { componentsClient, getCatalogAsset, getComponentExperience } from "../api/components";
 
@@ -132,7 +142,8 @@ describe("ComponentDetailPage", () => {
       expect(screen.getByTestId("component-detail-page")).toBeInTheDocument();
     });
     expect(screen.getByRole("tab", { name: "components.editor.files" })).toBeInTheDocument();
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    expect(screen.getAllByRole("tab")).toHaveLength(7);
+    expect(screen.getByRole("tab", { name: "componentDetail.info.tests" })).toBeInTheDocument();
     expect(screen.queryByTestId("monaco-stub")).not.toBeInTheDocument();
   });
 
@@ -161,6 +172,20 @@ describe("ComponentDetailPage", () => {
       screen.getByRole("link", { name: "componentDetail.experience.openCapture" }),
     ).toHaveAttribute("href", "https://example.test/capture");
     expect(getComponentExperience).toHaveBeenCalledWith("cmp-42");
+  });
+
+  it("exposes the durable test evidence panel from the Test tab", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/cmp-42"] },
+    );
+
+    await user.click(await screen.findByRole("tab", { name: "componentDetail.info.tests" }));
+    expect(await screen.findByTestId("component-test-panel")).toBeInTheDocument();
+    expect(screen.getByText("No component test evidence yet")).toBeInTheDocument();
   });
 
   it("renders a missing-id message when the route has no component id", () => {

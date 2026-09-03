@@ -1,6 +1,7 @@
 {
-  "catalogId": "react-component-library:EntitlementStore",
+  "catalogId": null,
   "deprecatedVersions": [],
   "latest": "1.0.0",
-  "libraryId": "react-component-library:EntitlementStore"
+  "libraryId": "react-component-library:EntitlementStore",
+  "supplemental": true
 }

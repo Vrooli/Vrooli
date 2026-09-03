@@ -26,8 +26,8 @@ This contract is the implementation contract. The status table below distinguish
 | Signed entitlement lease | Live: RS256 lease, `kid`, `not_after`, JWKS verification |
 | User-authenticated batch usage endpoint | Live |
 | Local-capacity usage outbox | Live through `packages/monetization-go`; BAS and web-console use scenario storage adapters |
-| `.vrooli/monetization.json` manifest + `monetization-conformance` phase | Live for BAS and web-console; schema version 2 requires `bundle_key` and `app_key` |
-| Non-Stripe (Apple / Google) subscription sources | Live behind the LPBS `ReceiptValidator` seam; mobile platform SDK calls remain shell-owned |
+| `.vrooli/monetization.json` manifest + `monetization-conformance` phase | Live for BAS and LPBS declarations; both currently pass the phase. web-console is being completed separately |
+| Non-Stripe (Apple / Google) subscription sources | LPBS validator seams are registered; mobile platform SDK receipt submission remains unimplemented |
 
 Planned items are tracked in the monetization foundation plan; run `plan-manager plans list` to find it.
 
@@ -56,6 +56,11 @@ Does this capability have a real marginal cost per use
 > **Do not paywall core/free capability.** Per monetization `STRATEGY.md` principle 1, the subscription buys convenience and integrated API routing — not access to open-source code. If you find yourself gating something a self-hoster could already run with their own keys, the framing is wrong. BYOK (bring-your-own-key) must remain a valid path: a metered feature falls back to the user's own provider key with no credit charge.
 
 ## Decision 2 — which meter class?
+
+Meter class A/B is an enforcement vocabulary, not the ecosystem role declared
+by `service.class`. The generated registry at
+`packages/monetization-go/meter-inventory.json` is the shared limit-key source
+for Offer Desk streams; planning must defer to those runtime declarations.
 
 Every metered capability is one of two classes. **The class decides where enforcement runs**, and getting it wrong is the difference between a meter that holds and a meter that is decorative.
 

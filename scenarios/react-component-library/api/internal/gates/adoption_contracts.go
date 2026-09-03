@@ -1,32 +1,37 @@
 package gates
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/vrooli/api-core/database"
+	"react-component-library/internal/librarywalk"
 )
 
 func validateEvidenceFreshness(scope Scope) (Result, error) {
 	root := scope.Root
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err
 	}
-	result := Result{Inspected: len(paths)}
-	db, err := openEvidenceDatabase(root)
-	if err != nil {
-		return result, nil
-	}
+	result := Result{}
+	db := scope.DB
 	if db == nil {
 		return result, nil
 	}
-	defer db.Close()
 	for _, storyPath := range paths {
+		if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(storyPath)) {
+			continue
+		}
+		retired, retiredErr := isRetiredVersion(storyPath)
+		if retiredErr != nil {
+			return Result{}, retiredErr
+		}
+		if retired {
+			continue
+		}
+		result.Inspected++
 		versionDir := filepath.Dir(storyPath)
 		version := filepath.Base(versionDir)
 		componentDir := filepath.Dir(filepath.Dir(versionDir))
@@ -41,8 +46,17 @@ func validateEvidenceFreshness(scope Scope) (Result, error) {
 		if json.Unmarshal(manifest, &metadata) != nil || metadata.LibraryID == "" {
 			continue
 		}
-		var created string
-		queryErr := db.QueryRowContext(context.Background(), `SELECT created_at FROM component_test_reports WHERE root_library_id = ? AND root_version = ? ORDER BY created_at DESC LIMIT 1`, metadata.LibraryID, version).Scan(&created)
+		if scope.Revision == nil {
+			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "asset revision authority is unavailable"))
+			continue
+		}
+		currentRevision, revisionErr := scope.Revision(metadata.LibraryID, version)
+		if revisionErr != nil {
+			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "asset revision is unavailable"))
+			continue
+		}
+		var sourceRevision string
+		queryErr := db.QueryRowContext(scope.Context, `SELECT source_revision FROM component_test_reports WHERE root_library_id = ? AND root_version = ? ORDER BY created_at DESC LIMIT 1`, metadata.LibraryID, version).Scan(&sourceRevision)
 		if queryErr == sql.ErrNoRows {
 			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "no component test report exists for this version"))
 			continue
@@ -53,35 +67,11 @@ func validateEvidenceFreshness(scope Scope) (Result, error) {
 			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "component test report table is unavailable"))
 			continue
 		}
-		createdAt, parseErr := time.Parse(time.RFC3339Nano, created)
-		contractInfo, statErr := os.Stat(storyPath)
-		if parseErr != nil || statErr != nil || !createdAt.After(contractInfo.ModTime()) {
-			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "newest component test evidence is older than story.json"))
+		if sourceRevision == "" || sourceRevision != currentRevision {
+			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "component test evidence is older than the asset's revision"))
 		}
 	}
 	return nonEmpty(result, "evidence-freshness"), nil
-}
-
-func openEvidenceDatabase(root string) (*database.RoutedDB, error) {
-	paths := []string{
-		filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db"),
-		filepath.Join(os.Getenv("HOME"), ".vrooli", "data", "vrooli", "react-component-library", "react-component-library.db"),
-	}
-	for _, path := range paths {
-		if _, err := os.Stat(path); err != nil {
-			continue
-		}
-		db, err := openGateDB(context.Background(), path)
-		if err != nil {
-			continue
-		}
-		var present int
-		if err := db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'component_test_reports'`).Scan(&present); err == nil && present > 0 {
-			return db, nil
-		}
-		db.Close()
-	}
-	return nil, nil
 }
 
 func freshnessFinding(root, path, reason string) Finding {

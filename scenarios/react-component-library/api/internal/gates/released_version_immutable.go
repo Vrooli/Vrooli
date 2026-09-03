@@ -1,22 +1,11 @@
 package gates
 
-import (
-	"context"
-	"path/filepath"
-)
-
 func ValidateReleasedVersionImmutable(scope Scope) (Result, error) {
 	root := scope.Root
 	if scope.DB != nil {
-		return validateReleasedVersionImmutableWithDB(root, scope.DB)
+		return validateReleasedVersionImmutableWithDB(scope.Context, root, scope.DB)
 	}
-	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
-	db, err := openGateDB(context.Background(), dbPath)
-	if err != nil {
-		return validateReleasedVersionHashLedger(root)
-	}
-	defer db.Close()
-	return validateReleasedVersionImmutableWithDB(root, db)
+	return validateReleasedVersionHashLedger(root)
 }
 
 // ValidateVersionMirrorIntegrity reports an evicted version whose durable

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "deployment-manager",
-  "input_digest": "sha256:faecf1a14183e249309b48893a3d636f77a7167c1a61ae979715596a24679350",
+  "input_digest": "sha256:a7b66c00ab63042165b0d36b2e71dc0583a9b4daddc7dd806abd43a7e1195fb2",
   "input_files": [
     "schemas/common/v1/evidence.proto",
     "schemas/common/v1/types.proto",

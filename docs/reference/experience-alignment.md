@@ -203,6 +203,7 @@ CI failure.
 | `experience.floor_safe_area_tap_targets` | inherited mobile floor → interactive targets avoid unsafe device-edge zones | 1 | det | error | active |
 | `experience.floor_single_line_chrome` | inherited page floor → chrome labels remain single-line at captured viewports | 1 | det | error | active |
 | `experience.floor_tap_target_size` | inherited mobile floor → visible controls provide comfortable touch targets | 1 | det | error | active |
+| `experience.oracle_case_uncovered` | regression-oracle cases retain representative machine-checkable claims | 0 | det | error | active |
 | `experience.importance_mismatch` | declared communication priorities ↔ learned importance ranking | 2 | learned-det | warning | **deferred** (seam only, P2) |
 | `experience.glance_judge_mismatch` | page ↔ its communication intent (VLM judge) | 3 | heuristic | warning | **deferred** (seam only, P2) |
 

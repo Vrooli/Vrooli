@@ -61,6 +61,45 @@ message GetEntitlementsResponse {
   int32 billing_cycle_start = 7;
 }
 
+// CommercialContext contains account facts and presentation-only content.
+// Facts are authoritative for display and diagnostics; access decisions stay
+// in the trusted operation owner. Offers and recommendations can be cached,
+// but cannot grant entitlements.
+message CommercialContextRequest {
+  string placement = 1;
+  string capability_id = 2;
+}
+
+message CommercialAccountFacts {
+  string subscription_status = 1;
+  string plan_tier = 2;
+  int64 credit_balance = 3;
+  repeated string entitlement_ids = 4;
+  string evaluated_at = 5;
+}
+
+message CommercialContent {
+  string content_id = 1;
+  string placement = 2;
+  string title = 3;
+  string description = 4;
+  string priority = 5;
+  bool eligible = 6;
+  string cta_label = 7;
+  string cta_destination = 8;
+  string expires_at = 9;
+  bool dismissible = 10;
+  string dismissed_until = 11;
+}
+
+message CommercialContextResponse {
+  CommercialAccountFacts account = 1;
+  repeated CommercialContent content = 2;
+  string generated_at = 3;
+  string stale_after = 4;
+  string source = 5;
+}
+
 // AccountService exposes per-user subscription, credit, and entitlement views.
 service AccountService {
   // Returns the caller's cached subscription status.
@@ -69,4 +108,5 @@ service AccountService {
   rpc GetMyCredits(GetMyCreditsRequest) returns (GetMyCreditsResponse);
   // Returns the caller's computed entitlements (status, tier, features, credits).
   rpc GetEntitlements(GetEntitlementsRequest) returns (GetEntitlementsResponse);
+  rpc GetCommercialContext(CommercialContextRequest) returns (CommercialContextResponse);
 }

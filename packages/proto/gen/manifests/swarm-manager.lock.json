@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "swarm-manager",
-  "input_digest": "sha256:653b5bd5d1028331d3932664301ae7e3f78a8bb75baa8828f3a59d10c9f9f550",
+  "input_digest": "sha256:82833660f738d3973d151dd44ee440753f3ed078236dc7f2e2ec6f77e39e5a05",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/swarm-manager/v1/api/agent_activity.proto",
@@ -42,6 +42,7 @@
     "schemas/swarm-manager/v1/shared/goal.proto",
     "schemas/swarm-manager/v1/shared/health.proto",
     "schemas/swarm-manager/v1/shared/plan_ref.proto",
+    "schemas/swarm-manager/v1/stats/stats.proto",
     "vendor/protovalidate/buf/validate/validate.proto"
   ],
   "toolchain": {
@@ -102,6 +103,8 @@
     "gen/go/swarm-manager/v1/shared/goal.pb.go": "sha256:9c12349f2f86266631f8c24400d249d67304437627149c73923eb212440bebdf",
     "gen/go/swarm-manager/v1/shared/health.pb.go": "sha256:b689912d0851f7495c9c80d8cc16d8945e7210fbbb38bad990aee86a5b965887",
     "gen/go/swarm-manager/v1/shared/plan_ref.pb.go": "sha256:9378eda01bca6ce2b240ac9bb113c77addfa5d92b4a7b93f1bc3653338bf8906",
+    "gen/go/swarm-manager/v1/stats/stats.pb.go": "sha256:6f58cdd72a005e17efa38b230869590c5af8a3068dab83fffdbfc82a99ed118a",
+    "gen/go/swarm-manager/v1/stats/stats_v1connect/stats.connect.go": "sha256:a6e0bd043f6165285a2047975a5f6bb6addf65b0a578c529f92b6e96995be0bf",
     "gen/python/swarm_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/swarm_manager/v1/api/agent_activity_pb2.py": "sha256:9c1e0f5e017d796d0e6ddc4bae92f790255f00fee93521bc2e0f99e5d2584e85",
     "gen/python/swarm_manager/v1/api/agent_activity_pb2.pyi": "sha256:e9b0ec896ab1082541cafe47a694dd39a799c39fee7c417b10c5428b69eb40c1",
@@ -188,6 +191,9 @@
     "gen/python/swarm_manager/v1/shared/plan_ref_pb2.py": "sha256:1ecc5e6b27c571825ee3df115b7152d7e87581fdcd91d80fcb4ee600375d31ae",
     "gen/python/swarm_manager/v1/shared/plan_ref_pb2.pyi": "sha256:b889a5ac885b2be0bca75d2969eeef0981ffaf20b6217c51a946b36ae45ed1b2",
     "gen/python/swarm_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/swarm_manager/v1/stats/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/swarm_manager/v1/stats/stats_pb2.py": "sha256:59d139887bcb83221f317ac88dfe91df468b881a4eb8f62700dd48c5cf7e081e",
+    "gen/python/swarm_manager/v1/stats/stats_pb2.pyi": "sha256:65f586b13661cffac94ec5da4ac56383ebd9b0edaf33ee5bdbf08f9447d1a720",
     "gen/typescript/swarm-manager/v1/api/agent_activity_pb.ts": "sha256:8b52386f03f34af0a53647df331f7d49c901d8af568b9131cb0e5aa12bf5bdce",
     "gen/typescript/swarm-manager/v1/api/agent_manager_pb.ts": "sha256:cb636bc03f068f1c47e421ad365cab1c45fad393abe66e083b3e121f8a5061b4",
     "gen/typescript/swarm-manager/v1/api/agent_session_pb.ts": "sha256:d6d5e4cd2653596c222f4137f61ed7968bcf7ee9f7d4a2b26d3b6c03c8056361",
@@ -225,6 +231,7 @@
     "gen/typescript/swarm-manager/v1/shared/backlog_pb.ts": "sha256:614caa73fd9f04088540662ac18e2b7cdf68a397d28bfb8934f747ff54db13c3",
     "gen/typescript/swarm-manager/v1/shared/goal_pb.ts": "sha256:7c8c2b36dddd0ef7afa37ff6d694e79f1363860e44d9588faeffb99a3abd2bab",
     "gen/typescript/swarm-manager/v1/shared/health_pb.ts": "sha256:0bd17c157200e66b95ccdb58278ee1e15bec5f2fe396787233017c47c2f77e26",
-    "gen/typescript/swarm-manager/v1/shared/plan_ref_pb.ts": "sha256:3f8a53cc3f3bdac18ae1367d8e867ca9a18450d78941f45053bdad140efb2d8b"
+    "gen/typescript/swarm-manager/v1/shared/plan_ref_pb.ts": "sha256:3f8a53cc3f3bdac18ae1367d8e867ca9a18450d78941f45053bdad140efb2d8b",
+    "gen/typescript/swarm-manager/v1/stats/stats_pb.ts": "sha256:f2946d2f260c476bf9106f0316c3f58796c381db5eeda311e6710bae56d65289"
   }
 }

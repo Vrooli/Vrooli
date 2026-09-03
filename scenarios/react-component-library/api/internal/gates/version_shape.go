@@ -2,6 +2,7 @@ package gates
 
 import (
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 
@@ -15,19 +16,30 @@ func ValidateVersionShape(scope Scope) (Result, error) {
 	root := scope.Root
 	var dirs []string
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*"))
+		matches, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*"))
 		if err != nil {
 			return Result{}, err
 		}
 		dirs = append(dirs, matches...)
 	}
 	sort.Strings(dirs)
-	result := Result{Inspected: len(dirs)}
+	result := Result{}
 	catalogIDs := catalogAssetIDs(root)
 	for _, dir := range dirs {
 		if strings.HasSuffix(dir, ".retired") {
 			continue
 		}
+		retired, err := isRetiredVersion(dir)
+		if err != nil {
+			return Result{}, err
+		}
+		if retired {
+			continue
+		}
+		if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(dir)) {
+			continue
+		}
+		result.Inspected++
 		assetName := filepath.Base(filepath.Dir(filepath.Dir(dir)))
 		problems, err := components.ValidateVersionShape(root, dir, assetName, false)
 		if err != nil {

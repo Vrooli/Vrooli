@@ -63,6 +63,11 @@ func (s integrationsConnectService) RunAction(ctx context.Context, req *connect.
 				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("action is not eligible"))
 			}
 			if state.ActionKind == capabilityregistry.ActionKindScenarioStart || state.ActionKind == capabilityregistry.ActionKindScenarioRestart {
+				if !lifecycleActionEligible(state) {
+					return nil, connect.NewError(connect.CodePermissionDenied, errors.New("lifecycle recovery requires an unavailable integration"))
+				}
+			}
+			if lifecycleActionEligible(state) {
 				result, err := s.server.actionService.Run(ctx, capabilityregistry.LifecycleActionRequest{IntegrationID: state.ID, ActionKind: state.ActionKind})
 				if err != nil {
 					return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -106,7 +111,19 @@ func messageFromState(state capabilityregistry.State) *commonv1.Integration {
 		requirement := state.FeatureRequirements[id]
 		features = append(features, &commonv1.Feature{Id: id, ContractVersion: requirement.ContractVersion, ExpectedUnit: requirement.ExpectedUnit})
 	}
-	return &commonv1.Integration{Id: state.ID, Origin: state.Origin, Name: state.Name, Description: state.Description, DependencyKind: dependencyKind(state.DependencyKind), DependencySlug: state.DependencySlug, Criticality: criticality(state.ResolvedCriticality()), Platform: platformVerdict(state.Platform), Enabled: state.Enabled, Required: state.Required, StartupPolicy: state.StartupPolicy, Features: features, Lifecycle: &commonv1.LifecycleState{Status: lifecycleStatus(state.Status), ReasonCode: state.ReasonCode, Message: state.Message, CheckedAt: state.CheckedAt}, Action: &commonv1.ActionPolicy{Kind: actionKind(state.ActionKind), Label: state.ActionLabel, Eligible: state.ActionKind != "", RequiresConfirmation: state.ActionKind != "", OwnerGuidance: state.OperatorCommand}}
+	eligible := stateActionEligible(state)
+	return &commonv1.Integration{Id: state.ID, Origin: state.Origin, Name: state.Name, Description: state.Description, DependencyKind: dependencyKind(state.DependencyKind), DependencySlug: state.DependencySlug, Criticality: criticality(state.ResolvedCriticality()), Platform: platformVerdict(state.Platform), Enabled: state.Enabled, Required: state.Required, StartupPolicy: state.StartupPolicy, Features: features, Lifecycle: &commonv1.LifecycleState{Status: lifecycleStatus(state.Status), ReasonCode: state.ReasonCode, Message: state.Message, CheckedAt: state.CheckedAt}, Action: &commonv1.ActionPolicy{Kind: actionKind(state.ActionKind), Label: state.ActionLabel, Eligible: eligible, RequiresConfirmation: eligible, OwnerGuidance: state.OperatorCommand}}
+}
+
+func stateActionEligible(state capabilityregistry.State) bool {
+	switch state.ActionKind {
+	case capabilityregistry.ActionKindScenarioStart, capabilityregistry.ActionKindScenarioRestart:
+		return lifecycleActionEligible(state)
+	case capabilityregistry.ActionKindOwnerGuidance, capabilityregistry.ActionKindOperatorCommand:
+		return true
+	default:
+		return false
+	}
 }
 
 func criticality(v capabilityregistry.Criticality) commonv1.Criticality {

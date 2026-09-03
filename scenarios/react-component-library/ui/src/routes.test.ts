@@ -13,6 +13,7 @@ describe("workspace route contract", () => {
   it("owns the route patterns used by the application shell", () => {
     expect(appRoutes).toEqual({
       catalog: "/",
+      components: "/components",
       assetCatalog: "/catalog",
       asset: "/assets/:id",
       coverage: "/coverage",
@@ -38,7 +39,7 @@ describe("workspace route contract", () => {
   });
 
   it("normalizes tab state and keeps removed legacy tabs out of the workspace", () => {
-    expect(assetInfoTab(new URLSearchParams("tab=tests"))).toBe("preview");
+    expect(assetInfoTab(new URLSearchParams("tab=tests"))).toBe("tests");
     expect(assetInfoTab(new URLSearchParams("tab=unknown"))).toBe("preview");
     expect(assetSearchForTab("overview", "ctr_1")).toBe("?tab=tests&testReport=ctr_1");
     expect(assetSearchForTab("versions", "ctr_1")).toBe("?tab=versions");

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"strconv"
 	"strings"
@@ -991,7 +992,7 @@ func (s *service) resolveAuthoredManifestComponent(componentID string) (Componen
 
 	root := s.source.Root()
 	var found *Component
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

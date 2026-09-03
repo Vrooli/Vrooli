@@ -1,6 +1,6 @@
 /** @vrooliComponentSource feedback.status-badge */
 import type { ComponentExperience, ComponentExperienceEvidence } from "../../api/components";
-import { StatusBadge } from "../../components/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

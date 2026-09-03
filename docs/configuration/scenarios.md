@@ -17,6 +17,18 @@ Scenarios are the user-facing capability layer. An operator selects which scenar
 
 For the resolution order between manifest defaults and operator overrides, see [`architecture.md`](architecture.md#resolution-order).
 
+## Runtime policy is separate from lifecycle configuration
+
+`service.json` is the declarative lifecycle and dependency contract. It does
+not hold mutable application policy. `.vrooli/operator-state.json` records
+which scenarios the operator selected and how the installation should run
+them. A running scenario owns its live runtime settings in its API-backed
+configuration store (and exposes the corresponding schema, CLI, and UI
+surfaces). For example, notification-hub persists event patterns, templates,
+and severity-to-sensitivity mapping in its own SQLite store. Updating those
+settings changes behavior without rewriting `service.json`, changing operator
+selection, or restarting the scenario.
+
 ## System-required vs user-application
 
 Two classes of scenario, distinguished by `service.system_required`:

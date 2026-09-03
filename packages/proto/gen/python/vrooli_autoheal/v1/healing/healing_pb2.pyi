@@ -121,8 +121,32 @@ class ReadinessElement(_message.Message):
     evidence: str
     def __init__(self, check_id: _Optional[str] = ..., status: _Optional[str] = ..., ready_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., latency_ms: _Optional[int] = ..., starter: _Optional[str] = ..., evidence: _Optional[str] = ...) -> None: ...
 
+class BootRecoveryPrecondition(_message.Message):
+    __slots__ = ("name", "state", "reason")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    state: str
+    reason: str
+    def __init__(self, name: _Optional[str] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class BootRecovery(_message.Message):
+    __slots__ = ("status", "preconditions", "evaluated_at", "remediation", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PRECONDITIONS_FIELD_NUMBER: _ClassVar[int]
+    EVALUATED_AT_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    preconditions: _containers.RepeatedCompositeFieldContainer[BootRecoveryPrecondition]
+    evaluated_at: _timestamp_pb2.Timestamp
+    remediation: str
+    message: str
+    def __init__(self, status: _Optional[str] = ..., preconditions: _Optional[_Iterable[_Union[BootRecoveryPrecondition, _Mapping]]] = ..., evaluated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., remediation: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
 class GetReadinessResponse(_message.Message):
-    __slots__ = ("available", "unavailable_reason", "boot_id", "process_started_at", "elements", "episodes", "computed_at")
+    __slots__ = ("available", "unavailable_reason", "boot_id", "process_started_at", "elements", "episodes", "computed_at", "boot_recovery")
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
     BOOT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -130,6 +154,7 @@ class GetReadinessResponse(_message.Message):
     ELEMENTS_FIELD_NUMBER: _ClassVar[int]
     EPISODES_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    BOOT_RECOVERY_FIELD_NUMBER: _ClassVar[int]
     available: bool
     unavailable_reason: str
     boot_id: str
@@ -137,4 +162,5 @@ class GetReadinessResponse(_message.Message):
     elements: _containers.RepeatedCompositeFieldContainer[ReadinessElement]
     episodes: _containers.RepeatedCompositeFieldContainer[HealEpisode]
     computed_at: _timestamp_pb2.Timestamp
-    def __init__(self, available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., boot_id: _Optional[str] = ..., process_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elements: _Optional[_Iterable[_Union[ReadinessElement, _Mapping]]] = ..., episodes: _Optional[_Iterable[_Union[HealEpisode, _Mapping]]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    boot_recovery: BootRecovery
+    def __init__(self, available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., boot_id: _Optional[str] = ..., process_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elements: _Optional[_Iterable[_Union[ReadinessElement, _Mapping]]] = ..., episodes: _Optional[_Iterable[_Union[HealEpisode, _Mapping]]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., boot_recovery: _Optional[_Union[BootRecovery, _Mapping]] = ...) -> None: ...

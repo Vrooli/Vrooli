@@ -24,9 +24,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	sharedlibspec "github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
-
-var migrationLibrarySpecifier = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
 
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
 // Connect-Go client, mirroring the cli/domains/notes/ shape.
@@ -58,7 +57,22 @@ func (h *handlers) testRun(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
 		return fmt.Errorf("server returned no component test report")
 	}
-	return renderTestReport(ctx, resp.Msg.Report, "Component test completed.")
+	label := "Component test completed."
+	if resp.Msg.Reused {
+		label = fmt.Sprintf("Component test reused revision %s since report %s.", shortRevision(resp.Msg.SourceRevision), resp.Msg.Report.Id)
+	}
+	return renderTestReport(ctx, resp.Msg.Report, label)
+}
+
+func shortRevision(revision string) string {
+	revision = strings.TrimSpace(revision)
+	if len(revision) > 8 {
+		return revision[:8]
+	}
+	if revision == "" {
+		return "unknown"
+	}
+	return revision
 }
 
 func (h *handlers) testShow(ctx cliapp.RunContext) error {
@@ -818,16 +832,12 @@ func (h *handlers) normalizeDraftLibrarySpecifiers(component *componentsv1.Compo
 		if err != nil {
 			return fmt.Errorf("read dependent draft file %s: %w", path, err)
 		}
-		normalized := migrationLibrarySpecifier.ReplaceAllStringFunc(string(body), func(specifier string) string {
-			match := migrationLibrarySpecifier.FindStringSubmatch(specifier)
-			if len(match) != 3 {
-				return specifier
-			}
-			active := latest["react-component-library:"+match[1]]
+		normalized := sharedlibspec.Rewrite(string(body), func(specifier sharedlibspec.Specifier) string {
+			active := latest["react-component-library:"+specifier.Name]
 			if active == "" {
-				return specifier
+				return ""
 			}
-			return "@vrooli/react-component-library/" + match[1] + "/" + strings.Split(active, ".")[0]
+			return sharedlibspec.Prefix + specifier.Name + "/" + strings.Split(active, ".")[0]
 		})
 		if normalized == string(body) {
 			continue

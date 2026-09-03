@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "measures",
-  "input_digest": "sha256:1be8ea2a08fdde87af96e4b3d70b35ffebe7b7834c3357c741d554c777de638a",
+  "input_digest": "sha256:0761064884f1d36990547408936be7841714e78d6f871fefa6d63d3f64aae8fb",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "vendor/protovalidate/buf/validate/validate.proto"

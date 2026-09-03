@@ -73,6 +73,37 @@ func TestHandleDashboard_QualifiesTypedSwarmEnvelope(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardNeverMarksCachedObservationValid(t *testing.T) {
+	s := NewServer(testRegistry())
+	s.swarm = staticUpstreamClient{
+		name: "swarm",
+		body: json.RawMessage(fmt.Sprintf(`{"observed_at":%q,"throughput":{"completed_last_7_days":11}}`, time.Now().UTC().Add(-5*time.Second).Format(time.RFC3339))),
+	}
+
+	request := func() dashboardResponse {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboards/mission-control", nil)
+		rr := httptest.NewRecorder()
+		s.router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		var body dashboardResponse
+		if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return body
+	}
+
+	first := request()
+	if first.Metrics[0].Trust != TrustValid {
+		t.Fatalf("first reading=%+v, want VALID", first.Metrics[0])
+	}
+	second := request()
+	if second.Metrics[0].Trust != TrustCached {
+		t.Fatalf("cached reading=%+v, want CACHED", second.Metrics[0])
+	}
+}
+
 func TestHandleDashboardRejectsProducerContractAndUnitMismatch(t *testing.T) {
 	tests := []struct {
 		name string
@@ -126,6 +157,25 @@ func TestHandleDashboardRejectsMalformedAndImplausibleObservationsAsUntrusted(t 
 				t.Fatalf("metric=%+v, want UNTRUSTED reason containing %q", body.Metrics[0], tc.want)
 			}
 		})
+	}
+}
+
+func TestHandleDashboardRejectsFutureProducerObservationAsUntrusted(t *testing.T) {
+	s := NewServer(testRegistry())
+	s.swarm = staticUpstreamClient{
+		name: "swarm",
+		body: json.RawMessage(fmt.Sprintf(`{"observed_at":%q,"throughput":{"completed_last_7_days":11}}`, time.Now().UTC().Add(time.Minute).Format(time.RFC3339))),
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboards/mission-control", nil)
+	rr := httptest.NewRecorder()
+	s.router.ServeHTTP(rr, req)
+
+	var body dashboardResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Metrics[0].Trust != TrustUntrusted || body.Metrics[0].TrustReason != "producer observation time is in the future" {
+		t.Fatalf("future observation=%+v, want UNTRUSTED future-time reason", body.Metrics[0])
 	}
 }
 
@@ -226,11 +276,32 @@ func TestHandleR3FStats_InvalidBody(t *testing.T) {
 }
 
 func TestHealth_Endpoint(t *testing.T) {
+	setUnavailableUpstreams(t)
 	s := NewServer(testRegistry())
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+	var response struct {
+		Status       string                    `json:"status"`
+		Readiness    bool                      `json:"readiness"`
+		Dependencies map[string]map[string]any `json:"dependencies"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if response.Status != "degraded" || !response.Readiness {
+		t.Fatalf("health status=%q readiness=%t, want optional dependency degradation", response.Status, response.Readiness)
+	}
+	for _, id := range []string{"vrooli-core", "swarm-manager", "landing-page-business-suite", "prompt-manager"} {
+		dependency, ok := response.Dependencies[id]
+		if !ok {
+			t.Fatalf("health dependencies missing %q: %+v", id, response.Dependencies)
+		}
+		if connected, ok := dependency["connected"].(bool); !ok || connected {
+			t.Fatalf("health dependency %q = %+v, want disconnected", id, dependency)
+		}
 	}
 }

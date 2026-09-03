@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useCodeCopy } from "./useCodeCopy";
+import { useCodeCopy } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 
 describe("useCodeCopy", () => {
   afterEach(() => vi.restoreAllMocks());

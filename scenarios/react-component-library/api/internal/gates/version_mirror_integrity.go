@@ -1,7 +1,6 @@
 package gates
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 )
@@ -10,7 +9,7 @@ func ValidateVersionMirrorIntegrity(scope Scope) (Result, error) {
 	if scope.DB == nil {
 		return Result{RunnerError: []Finding{{Code: "catalog.version_mirror_missing", AssetID: "", Message: "version ledger database is unavailable", Remediation: "Run versions doctor and restore the ledger connection."}}}, nil
 	}
-	rows, err := scope.DB.QueryContext(context.Background(), `SELECT v.source_path, c.library_id, v.version, v.id FROM component_versions v JOIN components c ON c.id=v.component_id WHERE lower(COALESCE(v.presence,''))='evicted' AND lower(v.status)<>'retired'`)
+	rows, err := scope.DB.QueryContext(scope.Context, `SELECT v.source_path, c.library_id, v.version, v.id FROM component_versions v JOIN components c ON c.id=v.component_id WHERE lower(COALESCE(v.presence,''))='evicted' AND lower(v.status)<>'retired'`)
 	if err != nil {
 		return Result{}, err
 	}
@@ -26,7 +25,7 @@ func ValidateVersionMirrorIntegrity(scope Scope) (Result, error) {
 		}
 		result.Inspected++
 		var count int
-		if err := scope.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_version_files WHERE version_id=?`, id).Scan(&count); err != nil {
+		if err := scope.DB.QueryRowContext(scope.Context, `SELECT COUNT(*) FROM component_version_files WHERE version_id=?`, id).Scan(&count); err != nil {
 			return Result{}, err
 		}
 		if count == 0 {

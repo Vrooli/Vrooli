@@ -38,6 +38,12 @@ on:
 permissions:
   contents: read
 
+# Toolchain floor: every Go build and test in CI runs at the same bounded
+# width the control plane applies on a host (internal/tuning BuildWidth).
+env:
+  GOFLAGS: -p=4
+  GOMAXPROCS: "8"
+
 jobs:
   ui:
     name: UI tests

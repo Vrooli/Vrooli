@@ -132,7 +132,6 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `outcome-strategist` | _(none — proactive; reads Swarm Manager work)_ | `outcome-target-record/*` | — |
 | `portfolio-manager` | _(none — proactive; reads Swarm Manager work)_ | `initiative-portfolio-record/*` | — |
 | `vision-walk-prep` | _(none — proactive; reads Swarm Manager work)_ | `vision-walk-record/*`, plus produces into other teams' inboxes (see below) | writes `research-inbox/*` → marketing-crew, `opportunity-inbox/*` → monetization, `validation-inbox/*` → monetization |
-| `workshop-decision-prep` | _(none — proactive; reads Swarm Manager work)_ | `workshop-decision-prep/*` | — |
 
 **Observations (draft):**
 - `vision-walk-prep` is the canonical example of a **synthesis pipeline** member: it consumes Swarm Manager work state from other teams and produces (a) its own `vision-walk-record/*` artifact for the operator, and (b) seeded entries directly into other teams' inboxes for those teams to drain after the walk. The seeded-inbox edges are declared structurally on each receiving member's `intake[].source_team = "director-swarm"`; a human-readable inputs registry that would catalog this producer as a first-class flow is workshop-pending (see `README.md` § Mental Model).

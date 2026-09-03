@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strings"
@@ -118,7 +119,7 @@ func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][
 				unreadable = append(unreadable, UnreadableVersion{LibraryID: owner.libraryID, Version: owner.version, Reason: "evicted version has no file mirror rows"})
 				continue
 			}
-		} else if err := filepath.WalkDir(owner.directory, func(path string, entry os.DirEntry, walkErr error) error {
+		} else if err := librarywalk.WalkContext(context.Background(), owner.directory, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				if os.IsNotExist(walkErr) {
 					return filepath.SkipDir
@@ -214,7 +215,7 @@ func (r *Repository) experienceStoryReferences(byVersion map[string][]VersionRef
 		}
 		return fmt.Errorf("inspect experience registry root: %w", err)
 	}
-	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	return librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -276,7 +277,7 @@ func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionRef
 		}
 		return fmt.Errorf("inspect workbench source root: %w", err)
 	}
-	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	return librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

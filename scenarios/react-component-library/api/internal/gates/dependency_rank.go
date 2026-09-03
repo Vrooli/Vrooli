@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateDependencyRank(scope Scope) (Result, error) {
@@ -16,7 +17,7 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		kind string
 	}
 	byLibraryID := map[string]assetRank{}
-	manifests, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	manifests, _ := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
 	for _, manifestPath := range manifests {
 		raw, err := os.ReadFile(manifestPath)
 		if err != nil {
@@ -31,9 +32,12 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		kind := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
 		byLibraryID[manifest.LibraryID] = assetRank{rank: rankByKind[kind], kind: kind}
 	}
-	locks, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "versions", "*", "dependencies.json"))
-	result := Result{Inspected: len(locks)}
+	locks, _ := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "versions", "*", "dependencies.json"))
+	result := Result{}
 	for _, lockPath := range locks {
+		if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(lockPath)) {
+			continue
+		}
 		raw, err := os.ReadFile(lockPath)
 		if err != nil {
 			return Result{}, err
@@ -44,6 +48,7 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 			Dependencies []struct {
 				LibraryID string `json:"libraryId"`
 				Version   string `json:"version"`
+				Observed  string `json:"observed"`
 			} `json:"dependencies"`
 		}
 		if err := json.Unmarshal(raw, &lock); err != nil {
@@ -54,6 +59,9 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 			continue
 		}
 		for _, dependency := range lock.Dependencies {
+			if dependency.Observed != "" {
+				dependency.Version = dependency.Observed
+			}
 			target, known := byLibraryID[dependency.LibraryID]
 			if !known {
 				continue

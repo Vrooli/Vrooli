@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "ai-gateway",
-  "input_digest": "sha256:7535cffeef642197f2f3c4b6c677be8f4ad0842db56cabcac4bec9d790e6a501",
+  "input_digest": "sha256:5b0aaef08fae3744868d5e444c03e9a4ab95515e5d9485eb7cff4a0ed11a11ef",
   "input_files": [
     "schemas/ai-gateway/v1/conformance/conformance.proto",
     "schemas/ai-gateway/v1/gateway/gateway.proto",

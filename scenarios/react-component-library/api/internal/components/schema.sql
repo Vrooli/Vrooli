@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS component_test_reports (
   root_library_id TEXT NOT NULL,
   root_version TEXT NOT NULL,
   include_closure INTEGER NOT NULL,
+  source_revision TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   verdict TEXT NOT NULL,
   results_json TEXT NOT NULL

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:useViewportEnvironment",
   "version": "1.0.3",
   "resolvedAt": "2026-08-29T03:39:57Z",

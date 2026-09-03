@@ -3,6 +3,8 @@ package gates
 import (
 	"fmt"
 	"os"
+
+	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
 
 func ValidateDeprecatedImports(scope Scope) (Result, error) {
@@ -21,11 +23,12 @@ func ValidateDeprecatedImports(scope Scope) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		for _, match := range libraryImportRE.FindAllStringSubmatch(string(data), -1) {
-			if len(match) < 3 || !contains(deprecated[match[1]], match[2]) {
+		for _, specifier := range libspec.ParseAll(string(data)) {
+			if specifier.Selector == "" || !contains(deprecated[specifier.Name], specifier.Selector) {
 				continue
 			}
-			result.Findings = append(result.Findings, Finding{Code: "catalog.deprecated-import", AssetID: implementationName(path), File: repoRel(root, path), Line: lineOf(data, match[0]), Message: fmt.Sprintf("imports deprecated %s@%s", match[1], match[2]), Remediation: fmt.Sprintf("Import %s at its non-deprecated published version instead of pinning %s.", match[1], match[1]+"/"+match[2]), DocsRef: "docs/concepts/ARCHITECTURE.md#version-lifecycle"})
+			importPath := libspec.Prefix + specifier.Name + "/" + specifier.Selector
+			result.Findings = append(result.Findings, Finding{Code: "catalog.deprecated-import", AssetID: implementationName(path), File: repoRel(root, path), Line: lineOf(data, importPath), Message: fmt.Sprintf("imports deprecated %s@%s", specifier.Name, specifier.Selector), Remediation: fmt.Sprintf("Import %s at its non-deprecated published version instead of pinning %s.", specifier.Name, importPath), DocsRef: "docs/concepts/ARCHITECTURE.md#version-lifecycle"})
 		}
 	}
 	return nonEmpty(result, "deprecated-import"), nil

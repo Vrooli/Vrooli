@@ -559,7 +559,8 @@ message BatchingSettingsProto {
   int32 flow_control_byte_limit = 7;
 
   // The behavior to take when the flow control limit is exceeded.
-  FlowControlLimitExceededBehaviorProto flow_control_limit_exceeded_behavior = 8;
+  FlowControlLimitExceededBehaviorProto flow_control_limit_exceeded_behavior =
+      8;
 }
 
 // The behavior to take when the flow control limit is exceeded.

@@ -164,6 +164,27 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 	primaryDB := db.Primary()
+	// Catalog gates and evidence capture are jobs, not serving-path work. Give
+	// them an independent read-mostly pool so a cancelled or long-running gate
+	// cannot occupy the connection used by the workbench and domain RPCs.
+	jobDB, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 2,
+		MaxIdleConns: 2,
+	})
+	if err != nil {
+		log.Fatalf("job database connection failed: %v", err)
+	}
+	healthDB, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("health database connection failed: %v", err)
+	}
 
 	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
@@ -234,6 +255,21 @@ func main() {
 	// the on-disk @deps headers.
 	depsSvc := depsH.BuildService(primaryDB, depsInternal.NewFSPackageJSONReader(scenariosRoot))
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
+	// The registry is source-backed, so a fresh process must reconcile it before
+	// handlers that resolve catalog ids (component tests, previews, and
+	// adoptions) serve requests. Keep this on the same indexer and observer seam
+	// as the explicit IndexComponents RPC; otherwise a persistent database can
+	// silently remain stale after a checkout or a process restart.
+	startupIndexer := componentsInternal.NewIndexer(componentsRepo, sourceRoot, nil)
+	startupIndexer.SetUpsertObserver(depsObserver)
+	if indexResult, indexErr := startupIndexer.Run(context.Background()); indexErr != nil {
+		log.Printf("startup component index failed: %v", indexErr)
+	} else if len(indexResult.Errors) > 0 {
+		log.Printf("startup component index completed with %d errors (%d indexed, %d deleted)", len(indexResult.Errors), indexResult.Indexed, indexResult.Deleted)
+		for _, indexErr := range indexResult.Errors {
+			log.Printf("startup component index error: %v", indexErr)
+		}
+	}
 	previewSvc := previewH.BuildServiceAtRoot(componentsSvc, depsSvc, filepath.Dir(scenariosRoot))
 	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
 	catalogEvidence := catalogcoverageInternal.NewEvidenceStore(primaryDB)
@@ -271,9 +307,9 @@ func main() {
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc), componentsH.WithPresenceReconciler(presenceReconciler)),
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
-		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), primaryDB, componentsSvc, componentTestsH.NewBASCaptureExecutor()),
+		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), jobDB.Primary(), componentsSvc, componentTestsH.NewBASCaptureExecutor()),
 		depsH.ModuleFromService(depsSvc, log.Default()),
-		healthH.Module(primaryDB, "react-component-library-api", "1.0.0"),
+		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
 		themesH.ModuleFromService(themesSvc, log.Default()),
@@ -293,7 +329,11 @@ func main() {
 		// plus a bounded transport margin so a complete aggregate result is not
 		// truncated into an opaque unexpected EOF.
 		WriteTimeout: 12 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			_ = healthDB.Close()
+			_ = jobDB.Close()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

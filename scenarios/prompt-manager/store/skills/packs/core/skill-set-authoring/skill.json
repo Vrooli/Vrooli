@@ -5,30 +5,35 @@
   "icon": "layers",
   "id": "skill-set-authoring",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta"
   ],
-  "name": "Skill Set Authoring",
+  "name": "skill-set-authoring",
   "origin": {
     "kind": "authored"
   },
   "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "prompt-manager skill list",
+      "measures-health validate scenario",
+      "business-health matrix show",
+      "program-runtime bindings condition",
+      "program-runtime library search",
+      "program-runtime programs submit",
+      "swarm-manager backlog create",
+      "cli-health search query",
+      "vrooli scenario status",
+      "vrooli-memory journal note"
+    ],
     "scenarios": [
       "prompt-manager",
       "measures-health",
       "program-runtime"
-    ],
-    "commands": [
-      "prompt-manager skill",
-      "prompt-manager skill read",
-      "prompt-manager skill list",
-      "measures-health validate scenario",
-      "program-runtime bindings list",
-      "program-runtime bindings describe",
-      "vrooli scenario list"
     ]
   },
-  "revision": 1,
+  "revision": 4,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -39,5 +44,5 @@
     "self-improvement",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-02T00:00:00Z"
+  "updatedAt": "2026-09-02T23:00:00Z"
 }

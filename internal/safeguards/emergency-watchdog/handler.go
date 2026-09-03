@@ -9,8 +9,9 @@
 // been hand-created and hard-coded one operator's repository path, so no other
 // host had it and `vrooli setup` could not reason about it. This safeguard
 // makes setup the owner, which is the whole point of the setup contract. The
-// legacy script renderer remains only for compatibility tests; new installs
-// schedule the binary directly.
+// shell script is gone (2026-09-02): the Go binary in cmd/vrooli-watchdog
+// senses, writes ~/.vrooli/state/emergency-watchdog/last-report.json, and
+// owns the unit-restart escalation the script used to carry.
 //
 // It runs as the invoking user, not root. The units it watches are systemd
 // *user* units, and everything it writes lives under the user's own home, so
@@ -27,15 +28,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	setpointpkg "github.com/vrooli/vrooli/internal/setpoint"
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	"github.com/vrooli/vrooli/internal/config"
-
+	platformgo "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -88,7 +89,6 @@ func intFromConfig(value any) (int, bool) {
 type paths struct {
 	Home        string
 	Binary      string
-	Script      string
 	ServiceUnit string
 	TimerUnit   string
 	LaunchAgent string
@@ -102,7 +102,6 @@ func resolvePaths(home string) paths {
 	return paths{
 		Home:        home,
 		Binary:      filepath.Join(home, repocontractmeta.ProjectConfigDir, "libexec", binaryName),
-		Script:      filepath.Join(home, repocontractmeta.ProjectConfigDir, "libexec", "emergency-watchdog.sh"),
 		ServiceUnit: filepath.Join(home, ".config", "systemd", "user", serviceName),
 		TimerUnit:   filepath.Join(home, ".config", "systemd", "user", timerName),
 		LaunchAgent: filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.emergency-watchdog.plist"),
@@ -130,8 +129,48 @@ var homeDir = func() (string, error) {
 
 var resolveWatchdogRootFn = repocontract.ResolveRepoRoot
 
+// watchdogSourceInputs are the source trees whose content decides what the
+// watchdog reports. Their fingerprint is stamped into the binary at build
+// time and compared on every inspection, so a watchdog built before an
+// attribution or setpoint change is "stale", not "present". Extend the list
+// when the watchdog gains a dependency whose behavior it surfaces.
+var watchdogSourceInputs = []string{
+	"cmd/vrooli-watchdog",
+	"internal/hostpressure",
+	"internal/setpoint",
+	"internal/workloadowner",
+	"internal/hostinventory",
+	"packages/platform-go",
+}
+
+const watchdogVersionPrefix = "managed:"
+
+// expectedWatchdogVersion is the version string a binary built from this
+// checkout carries.
+func expectedWatchdogVersion(root string) (string, error) {
+	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, watchdogSourceInputs...)
+	if err != nil {
+		return "", fmt.Errorf("fingerprint watchdog sources: %w", err)
+	}
+	return watchdogVersionPrefix + fingerprint, nil
+}
+
+// installedWatchdogVersion asks the installed binary for its stamp; "" when
+// it cannot answer, which pendingState treats as stale.
+var installedWatchdogVersion = func(binary string) string {
+	out, err := hostreqkit.CombinedOutputFn(binary, "--version")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 var buildWatchdogFn = func(root, output string) error {
-	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=managed", "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
+	version, err := expectedWatchdogVersion(root)
+	if err != nil {
+		return err
+	}
+	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=" + version, "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("build watchdog: %w", err)
 	}
 	return nil
@@ -188,6 +227,9 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 	pending := pendingState(p, resolved)
+	if artifact, err := renderedArtifact("linux", p); err == nil {
+		recordVerdict(&status, platformgo.ValidateArtifact(artifact, platformgo.ScopeUser))
+	}
 	if len(pending) == 0 {
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
@@ -204,11 +246,21 @@ func pendingState(p paths, s settings) []string {
 	_ = s // thresholds are enforced by the standalone watchdog/setpoint.
 	if _, err := os.Stat(p.Binary); err != nil {
 		pending = append(pending, p.Binary+" missing")
+	} else if root, err := resolveWatchdogRootFn(); err == nil && strings.TrimSpace(root) != "" {
+		if want, err := expectedWatchdogVersion(root); err == nil {
+			if got := installedWatchdogVersion(p.Binary); got != want {
+				pending = append(pending, fmt.Sprintf("%s stale (built %q, source %q)", p.Binary, got, want))
+			}
+		}
 	}
-	if !hostreqkit.FileContentMatches(p.ServiceUnit, serviceContent(p)) {
+	service, timer, err := renderedSystemdUnits(p)
+	if err != nil {
+		return append(pending, "render systemd units: "+err.Error())
+	}
+	if !hostreqkit.FileContentMatches(p.ServiceUnit, service) {
 		pending = append(pending, p.ServiceUnit+" missing or stale")
 	}
-	if !hostreqkit.FileContentMatches(p.TimerUnit, timerContent()) {
+	if !hostreqkit.FileContentMatches(p.TimerUnit, timer) {
 		pending = append(pending, p.TimerUnit+" missing or stale")
 	}
 	if !timerEnabled() {
@@ -262,6 +314,24 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return applyNative(host.OS, p, status, opts)
 	}
 
+	// Render once, ask systemd whether it would load the result, and only
+	// then touch the unit directory: a rejected render must never replace a
+	// working unit.
+	artifact, err := renderedArtifact("linux", p)
+	if err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "render systemd units: "+err.Error())
+		return status, nil
+	}
+	verdict := platformgo.ValidateArtifact(artifact, platformgo.ScopeUser)
+	recordVerdict(&status, verdict)
+	if verdict.Rejected() {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "systemd rejected the rendered emergency watchdog units; nothing was installed: "+verdict.Output)
+		return status, nil
+	}
+	service, _ := artifact.File(serviceName)
+	timer, _ := artifact.File(timerName)
 	// Everything below writes inside the user's own home, so it uses ordinary
 	// file operations. Routing these through the privileged installer would
 	// leave root-owned files in a user directory.
@@ -270,8 +340,8 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		path    string
 		content string
 	}{
-		{"systemd service", p.ServiceUnit, serviceContent(p)},
-		{"systemd timer", p.TimerUnit, timerContent()},
+		{"systemd service", p.ServiceUnit, service.Content},
+		{"systemd timer", p.TimerUnit, timer.Content},
 	}
 	for _, w := range writes {
 		if err := installUserFile(w.path, w.content, opts); err != nil {
@@ -299,26 +369,61 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
-func serviceContent(p paths) string {
+// definition builds the watchdog's one ServiceDefinition for a target. The
+// same argv renders on every platform; the interval comes from tuning so an
+// operator override reaches the native scheduler too.
+func definition(target string, p paths) (platformgo.ServiceDefinition, error) {
 	setpoint := ""
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		setpoint = filepath.Join(root, repocontractmeta.ScenarioDir, "infrastructure-manager", "setpoint", "reliability-setpoint.json")
+	if root, err := resolveWatchdogRootFn(); err == nil && strings.TrimSpace(root) != "" {
+		setpoint = filepath.Join(root, filepath.FromSlash(setpointpkg.RelativePath))
 	}
-	setpointEnv := ""
-	if setpoint != "" {
-		setpointEnv = "Environment=VROOLI_SETPOINT_PATH=" + setpoint + "\n"
-	}
-	return `[Unit]
-Description=Vrooli emergency watchdog (portable host-pressure binary)
-Documentation=internal/safeguards/emergency-watchdog/handler.go
-After=default.target
+	return platformgo.EmergencyWatchdogDefinition(target, platformgo.EmergencyWatchdogOptions{
+		Home:         p.Home,
+		Binary:       p.Binary,
+		SetpointPath: setpoint,
+		Interval:     tuning.EmergencyWatchdogInterval(),
+		Username:     hostreqkit.InvokingUser(),
+	})
+}
 
-[Service]
-Type=oneshot
-Environment=HOME=` + p.Home + `
-` + setpointEnv + `
-ExecStart=` + p.Binary + ` --report-only
-`
+// renderedArtifact renders the watchdog units for a target.
+func renderedArtifact(target string, p paths) (platformgo.RenderedArtifact, error) {
+	d, err := definition(target, p)
+	if err != nil {
+		return platformgo.RenderedArtifact{}, err
+	}
+	return platformgo.RenderDefinition(d, target)
+}
+
+// renderedSystemdUnits returns the service and timer bodies the Linux
+// install writes, so Inspect compares against exactly what Apply installs.
+func renderedSystemdUnits(p paths) (string, string, error) {
+	artifact, err := renderedArtifact("linux", p)
+	if err != nil {
+		return "", "", err
+	}
+	service, ok := artifact.File(serviceName)
+	if !ok {
+		return "", "", fmt.Errorf("rendered artifact lacks %s", serviceName)
+	}
+	timer, ok := artifact.File(timerName)
+	if !ok {
+		return "", "", fmt.Errorf("rendered artifact lacks %s", timerName)
+	}
+	return service.Content, timer.Content, nil
+}
+
+// recordVerdict stores the native validator's answer as evidence so the
+// readiness inspection can read it back, and notes an unavailable
+// validator: unproven is not accepted.
+func recordVerdict(status *hostreqkit.ItemStatus, verdict platformgo.Verdict) {
+	if status.Evidence == nil {
+		status.Evidence = map[string]any{}
+	}
+	status.Evidence["validator_verdict"] = verdict
+	if verdict.State == platformgo.VerdictUnavailable {
+		status.Notes = append(status.Notes, "native validator unavailable; rendered units are unproven: "+verdict.Output)
+	}
 }
 
 func buildAndInstallWatchdog(p paths) error {
@@ -349,210 +454,4 @@ func buildAndInstallWatchdog(p paths) error {
 
 func installUserFile(path, content string, opts hostreqkit.EnsureOptions) error {
 	return hostreqkit.InstallUserFile(path, content, opts)
-}
-
-func timerContent() string {
-	return `[Unit]
-Description=Vrooli emergency watchdog timer (5-minute cadence)
-
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-`
-}
-
-// scriptContent renders the watchdog.
-//
-// The disk and unit-liveness logic is carried over from the script this
-// safeguard replaces, including the properties that were learned the hard way:
-// df's Available column rather than Free (the superuser reserve made a full
-// filesystem look comfortable), logging that can never fail the script, and a
-// self-bounding log so the watchdog cannot become the disk-pressure source it
-// exists to catch.
-//
-// The saturation brake is new.
-func scriptContent(s settings) string {
-	return `#!/bin/sh
-# Managed by Vrooli -- do not edit manually.
-# See internal/safeguards/emergency-watchdog/handler.go for rationale.
-#
-# Pure-POSIX last-line-of-defense. Runs every 5 minutes from a systemd user
-# timer and checks three things:
-#
-#   1. Free disk        — the condition that took the host down on 2026-07-31.
-#   2. Host saturation  — the condition that took it down on 2026-08-19.
-#   3. Unit liveness    — the runtime supervisor and the autoheal loop.
-#
-# It has no Go dependency: if everything Vrooli builds is broken this script
-# still runs, which is the entire point.
-
-set -eu
-
-STATE_DIR="${HOME}/.vrooli/state"
-LOG_FILE="${HOME}/.vrooli/logs/emergency-watchdog.log"
-LAST_FAIL_FILE="${STATE_DIR}/emergency-watchdog.last-fail"
-LAST_DISK_FILE="${STATE_DIR}/emergency-watchdog.last-disk"
-
-THRESHOLD_SECONDS="${EMERGENCY_WATCHDOG_THRESHOLD:-` + strconv.Itoa(s.UnitThreshold) + `}"
-DISK_FLOOR_MB="${EMERGENCY_WATCHDOG_DISK_FLOOR_MB:-` + strconv.Itoa(s.DiskFloorMB) + `}"
-DISK_THRESHOLD_SECONDS="${EMERGENCY_WATCHDOG_DISK_THRESHOLD:-120}"
-WATCH_MOUNT="${EMERGENCY_WATCHDOG_MOUNT:-/}"
-LOG_MAX_BYTES="${EMERGENCY_WATCHDOG_LOG_MAX_BYTES:-1048576}"
-
-UNITS="vrooli-runtime-supervisor.service vrooli-autoheal.service"
-
-mkdir -p "$STATE_DIR" "$(dirname "$LOG_FILE")" 2>/dev/null || true
-
-# rotate_log keeps the log bounded. A watchdog that grows its own log without
-# limit is a slow version of the problem it exists to catch.
-rotate_log() {
-  [ -f "$LOG_FILE" ] || return 0
-  size=$( ( wc -c <"$LOG_FILE" ) 2>/dev/null || echo 0 )
-  [ "$size" -gt "$LOG_MAX_BYTES" ] 2>/dev/null || return 0
-  ( tail -c $((LOG_MAX_BYTES / 2)) "$LOG_FILE" >"${LOG_FILE}.tmp" ) 2>/dev/null &&
-    mv "${LOG_FILE}.tmp" "$LOG_FILE" 2>/dev/null
-  return 0
-}
-
-# log never fails the script. A failed write here once exited non-zero and took
-# the watchdog down with the disk — the one moment it most needed to keep
-# running. The subshell matters: when the redirection itself fails, the shell
-# reports it on stderr regardless of any redirection inside the command, and
-# under systemd that stderr becomes journal writes.
-log() {
-  ( printf '%s %s\n' "$(date -Iseconds)" "$*" >>"$LOG_FILE" ) 2>/dev/null || true
-  return 0
-}
-
-is_active() { systemctl --user is-active --quiet "$1"; }
-now() { date +%s; }
-
-# available_mb reads df's Available column, not Free. Free includes the
-# superuser reserve, which on the 2026-07-31 incident host was 93 GB — enough to
-# keep every threshold looking comfortable while the filesystem was unwritable
-# for the supervisor.
-available_mb() {
-  df -PBM "$WATCH_MOUNT" 2>/dev/null | awk 'NR==2 {gsub(/M/,"",$4); print $4; found=1} END {if (!found) print ""}'
-}
-
-read_state() {
-  [ -f "$1" ] || return 0
-  value="$(cat "$1" 2>/dev/null || true)"
-  [ -n "$value" ] && [ "$value" -gt 0 ] 2>/dev/null && printf '%s' "$value"
-  return 0
-}
-
-# request_cleanup asks storage-manager to reclaim safe-tier space. It shells out
-# to the CLI rather than linking anything: this script must keep working when
-# the Go toolchain is broken. A missing CLI is logged and skipped, never fatal.
-request_cleanup() {
-  band="$1"
-  used_percent="$2"
-  if ! command -v storage-manager >/dev/null 2>&1; then
-    log "storage-manager CLI not on PATH; cannot request reclamation"
-    return 0
-  fi
-  if ( storage-manager cleanup report-pressure \
-    --partition "$WATCH_MOUNT" \
-    --band "$band" \
-    --used-percent "$used_percent" \
-    --source emergency-watchdog >>"$LOG_FILE" 2>&1 ) 2>/dev/null; then
-    log "requested $band cleanup for $WATCH_MOUNT"
-  else
-    log "cleanup request FAILED for $WATCH_MOUNT"
-  fi
-  return 0
-}
-
-rotate_log
-
-# ---------------------------------------------------------------------------
-# Disk check
-# ---------------------------------------------------------------------------
-
-avail="$(available_mb)"
-if [ -z "$avail" ]; then
-  log "could not read available space on $WATCH_MOUNT"
-elif [ "$avail" -ge "$DISK_FLOOR_MB" ] 2>/dev/null; then
-  rm -f "$LAST_DISK_FILE" 2>/dev/null || true
-else
-  used_percent="$(df -P "$WATCH_MOUNT" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
-  [ -n "$used_percent" ] || used_percent=0
-  first_disk_fail="$(read_state "$LAST_DISK_FILE")"
-  if [ -z "$first_disk_fail" ]; then
-    printf '%s\n' "$(now)" >"$LAST_DISK_FILE" 2>/dev/null || true
-    log "first observed low disk: ${avail}MB available on $WATCH_MOUNT (floor ${DISK_FLOOR_MB}MB, ${used_percent}% used)"
-  else
-    disk_elapsed=$(( $(now) - first_disk_fail ))
-    if [ "$disk_elapsed" -lt "$DISK_THRESHOLD_SECONDS" ]; then
-      log "low disk ${disk_elapsed}s/${DISK_THRESHOLD_SECONDS}s — not yet escalating (${avail}MB available)"
-    else
-      log "ESCALATING: ${avail}MB available on $WATCH_MOUNT for ${disk_elapsed}s (floor ${DISK_FLOOR_MB}MB, ${used_percent}% used)"
-      if [ "$avail" -lt $(( DISK_FLOOR_MB / 2 )) ] 2>/dev/null; then
-        request_cleanup critical "$used_percent"
-      else
-        request_cleanup high "$used_percent"
-      fi
-      rm -f "$LAST_DISK_FILE" 2>/dev/null || true
-    fi
-  fi
-fi
-
-# ---------------------------------------------------------------------------
-# Unit liveness check
-# ---------------------------------------------------------------------------
-
-any_down=0
-for u in $UNITS; do
-  if ! is_active "$u"; then
-    any_down=1
-  fi
-done
-
-if [ "$any_down" -eq 0 ]; then
-  rm -f "$LAST_FAIL_FILE" 2>/dev/null || true
-  exit 0
-fi
-
-first_fail="$(read_state "$LAST_FAIL_FILE")"
-if [ -z "$first_fail" ]; then
-  printf '%s\n' "$(now)" >"$LAST_FAIL_FILE" 2>/dev/null || true
-  log "first observed unhealthy: $UNITS"
-  exit 0
-fi
-
-elapsed=$(( $(now) - first_fail ))
-if [ "$elapsed" -lt "$THRESHOLD_SECONDS" ]; then
-  log "unhealthy ${elapsed}s/${THRESHOLD_SECONDS}s — not yet escalating"
-  exit 0
-fi
-
-log "ESCALATING: units unhealthy for ${elapsed}s; pressure disposition is owned by the standalone watchdog binary"
-
-# Attempt 1: cheap, non-mutating dependency refresh at the repo root, when the
-# unit supplied one. There is no hard-coded fallback: a watchdog that guesses at
-# somebody else's checkout is worse than one that skips this step.
-if [ -n "${` + buildinfo.SourceRootFallbackEnvVar + `:-}" ] && [ -f "${` + buildinfo.SourceRootFallbackEnvVar + `}/go.mod" ] && command -v go >/dev/null 2>&1; then
-  ( cd "$` + buildinfo.SourceRootFallbackEnvVar + `" && go mod download 2>>"$LOG_FILE" ) 2>/dev/null || log "go mod download exited non-zero"
-else
-  log "skipping go mod download (no ` + buildinfo.SourceRootFallbackEnvVar + `, go.mod, or go binary)"
-fi
-
-# Attempt 2: restart the systemd units; ExecStartPre will swap in known-good
-# binaries if the live ones are corrupt.
-for u in $UNITS; do
-  if ( systemctl --user restart "$u" 2>>"$LOG_FILE" ) 2>/dev/null; then
-    log "restart ok: $u"
-  else
-    log "restart FAILED: $u"
-  fi
-done
-
-rm -f "$LAST_FAIL_FILE" 2>/dev/null || true
-exit 0
-`
 }

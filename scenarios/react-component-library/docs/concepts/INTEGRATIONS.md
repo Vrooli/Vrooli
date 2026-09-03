@@ -56,3 +56,17 @@ requires them.
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+
+## Provider-neutral integration presentation
+
+`IntegrationCard@0.1.4` is the governed presentation pattern for a named
+connection. It accepts provider and account labels, connection status, scopes,
+bindings, usage, freshness, next-action text, and an action slot. It owns no
+provider protocol, credential authority, entitlement, or network behavior.
+
+Use `StatusBadge` for the shared connection vocabulary and pass lifecycle
+controls through the `actions` slot. Consumers own authorization and mutation
+callbacks, advertise only supported operations, and keep runtime dependency
+health in a separate component. The released stories cover connected,
+checking, attention, expired, disconnected, insufficient-scope,
+provider-unavailable, offline, and unknown states.

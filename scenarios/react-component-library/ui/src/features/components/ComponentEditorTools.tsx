@@ -1,7 +1,7 @@
 /** @vrooliComponentSource overlays.dialog */
 import { useState } from "react";
-import { Button } from "../../components/Button";
-import { Dialog } from "../../components/Dialog";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1";
 import type { ComponentStory } from "../../api/components";
 import type { UseComponentInspectorReturn } from "../../hooks/useComponentInspector";
 import { selectors } from "../../consts/selectors";

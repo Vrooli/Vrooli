@@ -1,8 +1,22 @@
 # Asset update flow
 
 An asset change follows one loop: declare intent, open a draft, edit the
-version source, build derived artifacts, run the changed-asset gates, and
+version source, build derived artifacts, run the single-asset check, and
 publish a new immutable version. Never edit a released version directory.
+
+## Run the scenario
+
+Use the scenario lifecycle from the scenario root. It owns ports, resources,
+environment, and the API/UI processes.
+
+```bash
+make setup
+make start
+```
+
+Confirm the API is healthy with `react-component-library status`, then use
+this guide for the asset edit loop. Run `make test` for the scenario-owned
+workflow suite.
 
 ## 1. Declare intent
 
@@ -39,17 +53,16 @@ build; run the first command and inspect the resulting diff.
 ## 4. Validate only the changed asset
 
 ```bash
-react-component-library catalog gates --all --asset-id controls.button --json
+react-component-library asset check controls.button
 ```
 
-The aggregate command runs every applicable executable gate against one asset.
-The response includes the inspected result, finding location, rule source, and
-recovery documentation. A zero-file result is a runner fault, not a pass. Use
-a named gate when narrowing an investigation, or `--all` when the asset is
-ready for the complete local cycle.
+The asset command builds the derived projections, runs every applicable gate
+against the asset closure, reuses or runs component evidence, and emits one
+verdict. A zero-file result is a runner fault, not a pass. Use a named catalog
+gate only when narrowing an investigation.
 
 Failure: a blocking finding remains. Recovery: fix the named authored source,
-rerun the generator, and repeat the asset gate. Do not widen the gate or add an
+rerun the generator, and repeat `asset check`. Do not widen the gate or add an
 allowlist to hide the finding.
 
 ## 5. Publish
@@ -61,9 +74,6 @@ react-component-library components draft-publish react-component-library:Button
 Publishing creates a new immutable release and invalidates evidence for the
 asset and its dependents. If publishing is rejected, resolve the reported
 shape, story, dependency, or gate failure in the draft and repeat steps 3–5.
-
-The scenario-owned suite remains the final workflow check:
-`vrooli scenario test react-component-library`.
 
 Run the scenario-owned suite for the complete workflow:
 `vrooli scenario test react-component-library`.

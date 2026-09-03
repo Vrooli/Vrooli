@@ -75,7 +75,24 @@ describe("SettingsModal", () => {
   });
 
   it("switches to the integrations tab and renders capability status from the API", async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (requestUrl(input).endsWith("/credentials")) {
+        return jsonResponse({
+          credentials: [{
+            id: "credential-1",
+            remote: "origin",
+            url: "https://github.com/example/git-control-tower.git",
+            type: "https",
+            username: "example",
+            token_masked: "••••",
+            is_configured: true,
+            created_at: "2026-05-01T00:00:00Z",
+            updated_at: "2026-05-01T00:00:00Z",
+          }],
+          timestamp: "2026-05-01T00:00:00Z",
+        });
+      }
+      return jsonResponse({
       capabilities: [
         {
           id: "test-genie",
@@ -99,7 +116,8 @@ describe("SettingsModal", () => {
         },
       ],
       timestamp: "2026-05-01T00:00:00Z",
-    }));
+      });
+    });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     renderWithQueryClient(<SettingsModal {...settingsProps()} />);
@@ -110,6 +128,8 @@ describe("SettingsModal", () => {
     expect(screen.getByText("Test Genie")).toBeInTheDocument();
     expect(screen.getByText("Browser Automation Studio")).toBeInTheDocument();
     expect(screen.getByText("phase diagnostics")).toBeInTheDocument();
+    expect(await screen.findByText("origin HTTPS credential")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "https://git-control-tower.test/api/v1/capabilities",
       expect.objectContaining({ cache: "no-store" }),

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/librarywalk"
 	"sort"
 	"sync"
 	"time"
@@ -96,7 +97,7 @@ func fingerprint(repoRoot string) (string, error) {
 	var inputs []input
 	for _, relative := range fingerprintRoots {
 		root := filepath.Join(repoRoot, relative)
-		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		err := librarywalk.WalkContext(context.Background(), root, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				// A missing tree is a legitimate state (a fresh checkout may not
 				// have built ui/src yet); it simply contributes nothing.

@@ -87,9 +87,18 @@ afterEach(() => {
   consoleError.mockRestore();
   consoleWarn.mockRestore();
 
-  if (errorCalls.length > 0 || warnCalls.length > 0) {
+  // jsdom's CSS parser rejects the modern `color-mix()` expressions shipped
+  // by the released library stylesheet. The browser still receives the
+  // stylesheet unchanged; this is only the diagnostic emitted while jsdom
+  // attaches the style element. Keep the strict console contract for every
+  // other error and warning.
+  const unexpectedErrorCalls = errorCalls.filter(
+    (args) => !args.some((arg) => String(arg).includes("Could not parse CSS stylesheet")),
+  );
+
+  if (unexpectedErrorCalls.length > 0 || warnCalls.length > 0) {
     const formatted = [
-      ...errorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
+      ...unexpectedErrorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
       ...warnCalls.map((args) => `console.warn: ${args.map(String).join(" ")}`),
     ].join("\n");
     throw new Error(`Unexpected console output during test:\n${formatted}`);

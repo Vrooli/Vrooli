@@ -332,6 +332,12 @@
       "publishedAt": "2026-09-01T15:20:42Z"
     },
     {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-09-03T02:35:37Z"
+    },
+    {
       "libraryId": "react-component-library:AsyncFormFlow",
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -450,6 +456,12 @@
       "version": "1.0.7",
       "draftVersion": "1.0.7-draft.1",
       "publishedAt": "2026-08-31T05:05:18Z"
+    },
+    {
+      "libraryId": "react-component-library:AuthClient",
+      "version": "1.0.0",
+      "publishedAt": "2026-08-27T00:00:00Z",
+      "backfilled": true
     },
     {
       "libraryId": "react-component-library:AuthSection",
@@ -806,6 +818,12 @@
       "publishedAt": "2026-08-31T05:24:58Z"
     },
     {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.11",
+      "draftVersion": "1.2.11-draft.1",
+      "publishedAt": "2026-09-03T02:35:54Z"
+    },
+    {
       "libraryId": "react-component-library:BoundedMeter",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -954,6 +972,18 @@
       "version": "2.2.6",
       "draftVersion": "2.2.6-draft.1",
       "publishedAt": "2026-09-01T16:48:48Z"
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.7",
+      "draftVersion": "2.2.7-draft.1",
+      "publishedAt": "2026-09-03T03:25:34Z"
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.8",
+      "draftVersion": "2.2.8-draft.1",
+      "publishedAt": "2026-09-03T03:52:12Z"
     },
     {
       "libraryId": "react-component-library:ButtonGroup",
@@ -2114,6 +2144,12 @@
       "publishedAt": "2026-08-31T05:19:20Z"
     },
     {
+      "libraryId": "react-component-library:EntitlementStore",
+      "version": "1.0.0",
+      "publishedAt": "2026-08-27T00:00:00Z",
+      "backfilled": true
+    },
+    {
       "libraryId": "react-component-library:ErrorBoundary",
       "version": "1.0.6",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2154,6 +2190,12 @@
       "version": "1.1.0",
       "draftVersion": "1.1.0-draft.1",
       "publishedAt": "2026-09-01T14:37:10Z"
+    },
+    {
+      "libraryId": "react-component-library:ErrorState",
+      "version": "1.1.1",
+      "draftVersion": "1.1.1-draft.1",
+      "publishedAt": "2026-09-03T02:38:11Z"
     },
     {
       "libraryId": "react-component-library:EvidenceCarousel",
@@ -2402,6 +2444,12 @@
       "publishedAt": "2026-09-01T14:32:17Z"
     },
     {
+      "libraryId": "react-component-library:FormWizard",
+      "version": "1.1.1",
+      "draftVersion": "1.1.1-draft.1",
+      "publishedAt": "2026-09-03T02:38:11Z"
+    },
+    {
       "libraryId": "react-component-library:FreshnessArc",
       "version": "0.1.1",
       "draftVersion": "0.1.1-draft.1",
@@ -2412,6 +2460,12 @@
       "version": "0.1.1",
       "draftVersion": "0.1.0-draft.1",
       "publishedAt": "2026-09-01T23:58:26Z"
+    },
+    {
+      "libraryId": "react-component-library:FreshnessArc",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-09-03T02:35:01Z"
     },
     {
       "libraryId": "react-component-library:FullPageDrawer",
@@ -2550,6 +2604,12 @@
       "version": "1.2.11",
       "draftVersion": "1.2.11-draft.1",
       "publishedAt": "2026-08-31T05:24:59Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.12",
+      "draftVersion": "1.2.12-draft.1",
+      "publishedAt": "2026-09-03T02:35:55Z"
     },
     {
       "libraryId": "react-component-library:GeneratedForm",
@@ -2832,6 +2892,30 @@
       "version": "1.1.4",
       "draftVersion": "1.1.4-draft.1",
       "publishedAt": "2026-08-31T05:19:14Z"
+    },
+    {
+      "libraryId": "react-component-library:IntegrationCard",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-03T03:38:16Z"
+    },
+    {
+      "libraryId": "react-component-library:IntegrationCard",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-09-03T03:50:27Z"
+    },
+    {
+      "libraryId": "react-component-library:IntegrationCard",
+      "version": "0.1.3",
+      "draftVersion": "0.1.3-draft.1",
+      "publishedAt": "2026-09-03T04:00:24Z"
+    },
+    {
+      "libraryId": "react-component-library:IntegrationCard",
+      "version": "0.1.4",
+      "draftVersion": "0.1.4-draft.1",
+      "publishedAt": "2026-09-03T04:07:08Z"
     },
     {
       "libraryId": "react-component-library:JsonViewer",
@@ -3440,6 +3524,12 @@
       "publishedAt": "2026-09-01T14:32:13Z"
     },
     {
+      "libraryId": "react-component-library:PasswordInput",
+      "version": "2.0.1",
+      "draftVersion": "2.0.1-draft.1",
+      "publishedAt": "2026-09-03T02:38:12Z"
+    },
+    {
       "libraryId": "react-component-library:PendingSyncBadge",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3710,6 +3800,12 @@
       "publishedAt": "2026-09-01T23:52:11Z"
     },
     {
+      "libraryId": "react-component-library:ProvenanceInk",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-09-03T02:38:38Z"
+    },
+    {
       "libraryId": "react-component-library:QuarantineBadge",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3762,6 +3858,12 @@
       "version": "1.2.0",
       "draftVersion": "1.2.0-draft.1",
       "publishedAt": "2026-09-01T14:49:32Z"
+    },
+    {
+      "libraryId": "react-component-library:RadioGroup",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-09-03T02:38:13Z"
     },
     {
       "libraryId": "react-component-library:RelativeTime",
@@ -4088,6 +4190,12 @@
       "publishedAt": "2026-08-31T05:25:00Z"
     },
     {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.13",
+      "draftVersion": "1.2.13-draft.1",
+      "publishedAt": "2026-09-03T02:35:55Z"
+    },
+    {
       "libraryId": "react-component-library:ResponsivePanel",
       "version": "1.1.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4118,6 +4226,12 @@
       "publishedAt": "2026-09-02T00:00:47Z"
     },
     {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.3",
+      "draftVersion": "0.1.3-draft.1",
+      "publishedAt": "2026-09-03T02:38:39Z"
+    },
+    {
       "libraryId": "react-component-library:SampleSeries",
       "version": "0.1.1",
       "draftVersion": "0.1.1-draft.1",
@@ -4128,6 +4242,12 @@
       "version": "0.1.1",
       "draftVersion": "0.1.0-draft.1",
       "publishedAt": "2026-09-01T23:58:27Z"
+    },
+    {
+      "libraryId": "react-component-library:SampleSeries",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-09-03T02:38:39Z"
     },
     {
       "libraryId": "react-component-library:ScoreGauge",

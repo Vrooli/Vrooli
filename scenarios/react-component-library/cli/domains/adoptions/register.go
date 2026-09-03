@@ -15,26 +15,10 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"AdoptionsService.ListAdoptions":          h.list,
-		"AdoptionsService.ListScenarios":          h.listScenarios,
 		"AdoptionsService.ListEffectiveAdoptions": h.listEffective,
 		"AdoptionsService.PreflightAdoption":      h.preflight,
 		"obligations":                             h.obligations,
-		"AdoptionsService.SyncScenarioTokens":     h.syncTokens,
-		"AdoptionsService.PruneScenarioTokens":    h.pruneTokens,
 		"AdoptionsService.LinkAdoption":           h.link,
-		"AdoptionsService.EjectAdoption":          h.eject,
-		"AdoptionsService.ApplyAdoption":          h.apply,
-		"AdoptionsService.BatchApplyAdoptions":    h.batchApplyCommand,
-		"AdoptionsService.ReapplyAdoption":        h.reapply,
-		"AdoptionsService.DeleteAdoption":         h.delete,
-		"AdoptionsService.RefreshAdoptions":       h.refresh,
-		"AdoptionsService.ForkReportAdoptions":    h.refresh,
-		"AdoptionsService.ReconcileAdoptions":     h.reconcile,
-		"AdoptionsService.ReconvergeAdoptions":    h.reconverge,
-		"AdoptionsService.DiscoverAdoptions":      h.discover,
-		"AdoptionsService.ConfirmDiscovery":       h.confirmDiscovery,
-		"AdoptionsService.ResolveAdoptionPath":    h.resolvePath,
-		"AdoptionsService.SuggestAdoptions":       h.suggest,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

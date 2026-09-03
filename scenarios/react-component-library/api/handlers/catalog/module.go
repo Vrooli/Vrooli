@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,11 +15,14 @@ import (
 	"time"
 
 	"react-component-library/internal/capabilities"
+	"react-component-library/internal/catalogbuild"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/components"
 	componenttests "react-component-library/internal/componenttests"
 	"react-component-library/internal/gates"
+	"react-component-library/internal/jobs"
+	"react-component-library/internal/librarywalk"
 	"react-component-library/internal/module"
 	"react-component-library/internal/versionledger"
 
@@ -26,6 +31,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
+	"google.golang.org/protobuf/proto"
 )
 
 type handler struct {
@@ -36,7 +42,19 @@ type handler struct {
 	quarantined     map[string]bool
 	quarantineKnown bool
 	captureRunner   *componenttests.Runner
+	testService     *componenttests.Service
+	assets          components.Service
+	jobRunner       *jobs.Runner
+	checkMu         sync.RWMutex
+	checkCache      map[string]*catalogv1.CheckAssetResponse
+	evidenceMu      sync.Mutex
 }
+
+type (
+	skipCalibrationContextKey  struct{}
+	skipJobAdmissionContextKey struct{}
+	preparedSetsContextKey     struct{}
+)
 
 // Module exposes the same live coverage projection used by the component-test
 // phase. No CLI-only computation or second catalog join is permitted.
@@ -45,7 +63,7 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 	if len(dbs) > 0 && dbs[0] != nil {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
-	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}}
+	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}, jobRunner: jobs.New(nil), checkCache: map[string]*catalogv1.CheckAssetResponse{}}
 	return h.module()
 }
 
@@ -63,6 +81,12 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 		evidence:      evidence,
 		quarantined:   map[string]bool{},
 		captureRunner: &componenttests.Runner{Assets: assets, Stories: assets, Executor: executor},
+		testService: componenttests.NewService(componenttests.Runner{Assets: assets, Stories: assets, Executor: executor, Revision: func(ctx context.Context, assetID, version string) (string, error) {
+			return catalogcoverage.CurrentRevisionForVersion(repoRoot, resolveRevisionLibraryID(ctx, assets, repoRoot, assetID), version)
+		}}, componenttests.NewSQLiteRepository(db)),
+		assets:     assets,
+		jobRunner:  jobs.New(db),
+		checkCache: map[string]*catalogv1.CheckAssetResponse{},
 	}
 	return h.module()
 }
@@ -80,6 +104,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_coverage", Path: catalogconnect.CatalogServiceGetCoverageProcedure, Method: "POST", Summary: "Report achieved catalog maturity", Category: "catalog"},
 	{ID: "catalog_next", Path: catalogconnect.CatalogServiceListNextWorkProcedure, Method: "POST", Summary: "Rank catalog next work", Category: "catalog"},
 	{ID: "catalog_gate", Path: catalogconnect.CatalogServiceRunGateProcedure, Method: "POST", Summary: "Run a declarative catalog gate", Category: "catalog"},
+	{ID: "catalog_asset_check", Path: catalogconnect.CatalogServiceCheckAssetProcedure, Method: "POST", Summary: "Check one asset and return one verdict", Category: "catalog"},
 	{ID: "catalog_graph", Path: catalogconnect.CatalogServiceGetAssetRelationshipsProcedure, Method: "POST", Summary: "Read catalog asset relationships", Category: "catalog"},
 	{ID: "catalog_structure", Path: catalogconnect.CatalogServiceGetCatalogStructureProcedure, Method: "POST", Summary: "Read catalog structure", Category: "catalog"},
 	{ID: "catalog_reconcile", Path: catalogconnect.CatalogServiceReconcileGraphProcedure, Method: "POST", Summary: "Reconcile catalog dependency graphs", Category: "catalog"},
@@ -88,6 +113,325 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_health", Path: catalogconnect.CatalogServiceGetHealthOverviewProcedure, Method: "POST", Summary: "Read server-computed catalog health", Category: "catalog"},
 	{ID: "catalog_readiness", Path: catalogconnect.CatalogServiceGetReadinessProcedure, Method: "POST", Summary: "Report catalog readiness and triage", Category: "catalog"},
 	{ID: "catalog_capture_evidence", Path: catalogconnect.CatalogServiceCaptureEvidenceProcedure, Method: "POST", Summary: "Capture declared visual evidence", Category: "catalog"},
+}
+
+func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1.CheckAssetRequest]) (*connect.Response[catalogv1.CheckAssetResponse], error) {
+	assetID := strings.TrimSpace(req.Msg.GetAssetId())
+	if assetID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("asset_id is required"))
+	}
+	cacheKey := ""
+	if h.assets != nil {
+		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
+			version := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+			if revision, revisionErr := catalogcoverage.CurrentRevisionForVersion(h.repoRoot, component.LibraryID, version); revisionErr == nil {
+				cacheKey = component.LibraryID + "@" + version + "#" + revision
+				h.checkMu.RLock()
+				cached := h.checkCache[cacheKey]
+				h.checkMu.RUnlock()
+				if cached != nil && cached.GetVerdict() != "STALE_TESTS" {
+					return connect.NewResponse(proto.Clone(cached).(*catalogv1.CheckAssetResponse)), nil
+				}
+			}
+		}
+	}
+	started := time.Now()
+	stages := make([]*catalogv1.AssetCheckStage, 0, 4)
+	var response *catalogv1.CheckAssetResponse
+	addStage := func(name, status, detail string, since time.Time) {
+		stages = append(stages, &catalogv1.AssetCheckStage{Name: name, Status: status, Seconds: time.Since(since).Seconds(), Detail: detail})
+		if response != nil {
+			response.Stages = stages
+		}
+	}
+	buildStart := time.Now()
+	if _, err := catalogbuild.Build(h.repoRoot, catalogbuild.Options{}); err != nil {
+		addStage("generator", "fault", err.Error(), buildStart)
+		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+	}
+	if _, err := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); err != nil {
+		addStage("generator", "fault", err.Error(), buildStart)
+		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+	}
+	addStage("generator", "passed", "catalog build and check passed", buildStart)
+
+	gateStart := time.Now()
+	gateResp, err := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{All: true, AssetId: assetID}))
+	if err != nil {
+		addStage("gates", "fault", err.Error(), gateStart)
+		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+	}
+	findings := append([]*catalogv1.GateFinding(nil), gateResp.Msg.Findings...)
+	findings = append(findings, gateResp.Msg.RunnerErrors...)
+	blocking := 0
+	for _, finding := range findings {
+		if finding.GetBlocking() || strings.EqualFold(finding.GetSeverity(), "error") || finding.GetSeverity() == "" {
+			blocking++
+		}
+	}
+	gateStatus := "passed"
+	if blocking > 0 {
+		gateStatus = "blocked"
+	}
+	addStage("gates", gateStatus, fmt.Sprintf("%d finding(s), %d blocking", len(findings), blocking), gateStart)
+
+	response = &catalogv1.CheckAssetResponse{AssetId: assetID, Findings: findings, Stages: stages}
+	if h.testService == nil || h.assets == nil {
+		if blocking > 0 {
+			addStage("tests", "skipped", "gate findings block the asset; component tests were not run", started)
+			packageStart := time.Now()
+			packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+			if packageErr != nil {
+				addStage("package", "fault", packageErr.Error(), packageStart)
+				response.Verdict = "FAULT"
+				return connect.NewResponse(response), nil
+			}
+			response.Findings = append(response.Findings, packageResp.Msg.Findings...)
+			addStage("package", packageStageStatus(packageResp.Msg.Findings), fmt.Sprintf("%d package finding(s)", len(packageResp.Msg.Findings)), packageStart)
+			response.Verdict = "BLOCKED"
+			return connect.NewResponse(response), nil
+		}
+		response.Verdict = "FAULT"
+		addStage("tests", "fault", "component-test service is not configured", started)
+		return connect.NewResponse(response), nil
+	}
+	component, resolveErr := resolveAsset(ctx, h.assets, assetID)
+	if resolveErr != nil {
+		if blocking > 0 {
+			addStage("tests", "skipped", "gate findings block the asset; indexed component lookup was not needed", started)
+			packageStart := time.Now()
+			packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+			if packageErr != nil {
+				addStage("package", "fault", packageErr.Error(), packageStart)
+				response.Verdict = "FAULT"
+				return connect.NewResponse(response), nil
+			}
+			response.Findings = append(response.Findings, packageResp.Msg.Findings...)
+			addStage("package", packageStageStatus(packageResp.Msg.Findings), fmt.Sprintf("%d package finding(s)", len(packageResp.Msg.Findings)), packageStart)
+			response.Verdict = "BLOCKED"
+			return connect.NewResponse(response), nil
+		}
+		response.Verdict = "FAULT"
+		addStage("tests", "fault", resolveErr.Error(), started)
+		return connect.NewResponse(response), nil
+	}
+	requestedVersion := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+	if component.AssetKind == components.AssetKindHook {
+		addStage("tests", "n/a", "hooks have no browser-backed component-test stage", started)
+		packageStart := time.Now()
+		packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+		if packageErr != nil {
+			addStage("package", "fault", packageErr.Error(), packageStart)
+			response.Verdict = "FAULT"
+			return connect.NewResponse(response), nil
+		}
+		response.Findings = append(response.Findings, packageResp.Msg.Findings...)
+		addStage("package", packageStageStatus(packageResp.Msg.Findings), fmt.Sprintf("%d package finding(s)", len(packageResp.Msg.Findings)), packageStart)
+		for _, finding := range packageResp.Msg.Findings {
+			if strings.EqualFold(finding.GetSeverity(), "error") || finding.GetSeverity() == "" {
+				blocking++
+			}
+		}
+		if blocking > 0 {
+			response.Verdict = "BLOCKED"
+		} else {
+			response.Verdict = "PUBLISHABLE"
+		}
+		return connect.NewResponse(response), nil
+	}
+	testStart := time.Now()
+	// The scoped gates already validate the dependency closure. The browser
+	// verdict belongs to the requested asset; running every transitive
+	// foundation story here lets an unrelated helper contract poison the
+	// asset's one-command result.
+	testRequest := componenttests.Request{ComponentID: component.LibraryID, Version: requestedVersion, IncludeClosure: false}
+	var report componenttests.Report
+	var reused bool
+	var testErr error
+	// Asset check is the single publishability command: it must reuse a fresh
+	// report or create one, rather than returning an intermediate stale verdict
+	// that requires a second command. RunWithReuse preserves the fast path.
+	if req.Msg.GetRunTests() {
+		report, reused, testErr = h.testService.RunWithReuse(ctx, testRequest)
+	} else {
+		report, reused, testErr = h.testService.Reusable(ctx, testRequest)
+		if testErr == nil && !reused {
+			addStage("tests", "stale", "no fresh report exists; rerun with --run-tests", testStart)
+			packageStart := time.Now()
+			packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+			if packageErr != nil {
+				addStage("package", "fault", packageErr.Error(), packageStart)
+				response.Verdict = "FAULT"
+				return connect.NewResponse(response), nil
+			}
+			response.Findings = append(response.Findings, packageResp.Msg.Findings...)
+			addStage("package", packageStageStatus(packageResp.Msg.Findings), fmt.Sprintf("%d package finding(s)", len(packageResp.Msg.Findings)), packageStart)
+			response.Verdict = "STALE_TESTS"
+			return connect.NewResponse(response), nil
+		}
+	}
+	if testErr != nil {
+		response.Verdict = "FAULT"
+		addStage("tests", "fault", testErr.Error(), testStart)
+		return connect.NewResponse(response), nil
+	}
+	response.ReusedReportId = report.ID
+	response.SourceRevision = report.SourceRevision
+	if report.Verdict != componenttests.VerdictPassed {
+		blocking++
+	}
+	// The evidence gate reads every materialized version of an asset so its
+	// corpus result remains complete. An asset check, however, is explicitly
+	// version-pinned (or resolves to the latest version); historical evidence
+	// must not poison that requested version's verdict.
+	if report.Verdict == componenttests.VerdictPassed {
+		filtered := findings[:0]
+		removedBlocking := 0
+		for _, finding := range findings {
+			if finding.GetCode() == "catalog.evidence_freshness" {
+				if finding.GetBlocking() || strings.EqualFold(finding.GetSeverity(), "error") || finding.GetSeverity() == "" {
+					removedBlocking++
+				}
+				continue
+			}
+			filtered = append(filtered, finding)
+		}
+		findings = filtered
+		blocking -= removedBlocking
+		response.Findings = findings
+		if len(stages) > 1 {
+			gateStage := stages[1]
+			gateStage.Status = map[bool]string{true: "blocked", false: "passed"}[blocking > 0]
+			gateStage.Detail = fmt.Sprintf("%d finding(s), %d blocking", len(findings), blocking)
+		}
+	}
+	addStage("tests", componentTestStageStatus(report.Verdict), fmt.Sprintf("report %s (%s; reused=%t)", report.ID, report.Verdict, reused), testStart)
+	packageStart := time.Now()
+	packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+	if packageErr != nil {
+		addStage("package", "fault", packageErr.Error(), packageStart)
+		response.Verdict = "FAULT"
+		return connect.NewResponse(response), nil
+	}
+	findings = append(findings, packageResp.Msg.Findings...)
+	for _, finding := range packageResp.Msg.Findings {
+		if strings.EqualFold(finding.GetSeverity(), "error") || finding.GetSeverity() == "" {
+			blocking++
+		}
+	}
+	response.Findings = findings
+	addStage("package", packageStageStatus(packageResp.Msg.Findings), fmt.Sprintf("%d package finding(s)", len(packageResp.Msg.Findings)), packageStart)
+	if blocking > 0 {
+		response.Verdict = "BLOCKED"
+	} else {
+		response.Verdict = "PUBLISHABLE"
+	}
+	if cacheKey != "" && response.GetVerdict() != "STALE_TESTS" {
+		h.checkMu.Lock()
+		h.checkCache[cacheKey] = proto.Clone(response).(*catalogv1.CheckAssetResponse)
+		h.checkMu.Unlock()
+	}
+	return connect.NewResponse(response), nil
+}
+
+func resolveAsset(ctx context.Context, assets components.Service, requested string) (components.Component, error) {
+	if component, err := assets.Get(ctx, requested); err == nil {
+		if component.LibraryID != "" && component.LibraryID != requested {
+			return component, nil
+		}
+	}
+	if component, err := assets.GetByLibraryID(ctx, requested); err == nil {
+		if component.LibraryID != "" {
+			return component, nil
+		}
+	}
+	// Catalog ids are the public asset-check vocabulary, while the registry
+	// service historically only exposed primary and library-id lookups. Resolve
+	// the public id through the same indexed projection instead of making the
+	// one-command workflow require callers to translate identifiers themselves.
+	indexed, err := assets.List(ctx, components.SearchQuery{Limit: 1000})
+	if err == nil {
+		for _, component := range indexed {
+			if component.CatalogID == requested && component.LibraryID != "" {
+				return component, nil
+			}
+		}
+	}
+	return components.Component{}, fmt.Errorf("asset %q is not indexed", requested)
+}
+
+func resolveRevisionLibraryID(ctx context.Context, assets components.Service, repoRoot, requested string) string {
+	if component, err := assets.Get(ctx, requested); err == nil && component.LibraryID != "" {
+		return component.LibraryID
+	}
+	if component, err := assets.GetByLibraryID(ctx, requested); err == nil && component.LibraryID != "" {
+		return component.LibraryID
+	}
+	if indexed, err := assets.List(ctx, components.SearchQuery{Limit: 2000}); err == nil {
+		for _, component := range indexed {
+			if component.ID == requested || component.CatalogID == requested || component.LibraryID == requested {
+				return component.LibraryID
+			}
+		}
+	}
+	implementations, err := catalogcoverage.LoadImplementations(filepath.Join(repoRoot, "scenarios", "react-component-library", "library"))
+	if err == nil {
+		for _, implementation := range implementations {
+			if implementation.CatalogID == requested && implementation.LibraryID != "" {
+				return implementation.LibraryID
+			}
+		}
+	}
+	return requested
+}
+
+func packageStageStatus(findings []*catalogv1.GateFinding) string {
+	for _, finding := range findings {
+		if finding == nil || finding.GetBlocking() || strings.EqualFold(finding.GetSeverity(), "error") || finding.GetSeverity() == "" {
+			return "blocked"
+		}
+	}
+	return "passed"
+}
+
+func componentTestStageStatus(verdict componenttests.Verdict) string {
+	if verdict == componenttests.VerdictPassed {
+		return "passed"
+	}
+	return "blocked"
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func findingCatalogID(finding gates.Finding) string {
+	if finding.Scope == gates.FindingScopeCorpus || strings.HasPrefix(finding.AssetID, "__corpus__") {
+		return ""
+	}
+	return firstNonEmpty(finding.CatalogID, finding.AssetID)
+}
+
+func findingScope(finding gates.Finding) catalogv1.FindingScope {
+	if finding.Scope == gates.FindingScopeCorpus || strings.HasPrefix(finding.AssetID, "__corpus__") {
+		return catalogv1.FindingScope_FINDING_SCOPE_CORPUS
+	}
+	return catalogv1.FindingScope_FINDING_SCOPE_ASSET
+}
+
+func findingSeverity(severity string) catalogv1.FindingSeverity {
+	if severity == "info" {
+		return catalogv1.FindingSeverity_FINDING_SEVERITY_INFO
+	}
+	if severity == "warning" {
+		return catalogv1.FindingSeverity_FINDING_SEVERITY_WARNING
+	}
+	return catalogv1.FindingSeverity_FINDING_SEVERITY_BLOCKING
 }
 
 // report serves the coverage projection through the revision-keyed cache. The
@@ -176,52 +520,57 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load catalog gate definitions: %w", definitionErr))
 	}
 	if req.Msg.GetAll() {
+		prepared := map[gates.Reads]librarywalk.Set{}
+		readLevel := gates.ReadsCorpus
+		if strings.TrimSpace(req.Msg.GetAssetId()) != "" {
+			readLevel = gates.ReadsClosure
+		}
+		set, setErr := librarywalk.Files(ctx, h.repoRoot, librarywalk.Scope{Assets: assetSetSlice(req.Msg.GetAssetId())}, librarywalk.Reads(readLevel))
+		if setErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("prepare catalog gate inputs: %w", setErr))
+		}
+		prepared[readLevel] = set
+		ctx = context.WithValue(ctx, preparedSetsContextKey{}, prepared)
 		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
 		type gateResult struct {
 			index int
 			resp  *connect.Response[catalogv1.RunGateResponse]
 			err   error
 		}
-		jobs := make(chan int)
-		results := make(chan gateResult, len(definitions))
-		workerCount := minInt(4, len(definitions))
-		var workers sync.WaitGroup
-		for worker := 0; worker < workerCount; worker++ {
-			workers.Add(1)
-			go func() {
-				defer workers.Done()
-				for index := range jobs {
-					definition := definitions[index]
-					if definition.ID == "documentation" && !req.Msg.GetIncludeAdvisory() {
-						continue
-					}
-					assetID := req.Msg.GetAssetId()
-					if registered, ok := gates.Lookup(definition.ID); ok && registered.CorpusScoped {
-						assetID = ""
-					}
-					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: assetID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
-					results <- gateResult{index: index, resp: result, err: runErr}
-				}
-			}()
-		}
-		go func() {
-			for index := range definitions {
-				jobs <- index
-			}
-			close(jobs)
-			workers.Wait()
-			close(results)
-		}()
 		ordered := make([]gateResult, len(definitions))
-		for result := range results {
-			ordered[result.index] = result
+		assetID := req.Msg.GetAssetId()
+		runErr := h.jobRunner.RunMatrix(ctx, len(definitions), minInt(4, len(definitions)), func(matrixCtx context.Context, index int) error {
+			definition := definitions[index]
+			if definition.ID == "documentation" && !req.Msg.GetIncludeAdvisory() {
+				return nil
+			}
+			if assetID != "" {
+				if registered, ok := gates.Lookup(definition.ID); ok && registered.Reads == gates.ReadsCorpus {
+					return nil
+				}
+			}
+			nestedCtx := context.WithValue(matrixCtx, skipCalibrationContextKey{}, true)
+			nestedCtx = context.WithValue(nestedCtx, skipJobAdmissionContextKey{}, true)
+			result, runErr := h.RunGate(nestedCtx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: assetID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
+			ordered[index] = gateResult{index: index, resp: result, err: runErr}
+			return runErr
+		})
+		if runErr != nil {
+			log.Printf("catalog matrix canceled: %v", runErr)
+			if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
+				return nil, connect.NewError(connect.CodeCanceled, runErr)
+			}
+			return nil, connect.NewError(connect.CodeInternal, runErr)
 		}
 		for _, result := range ordered {
+			if result.err != nil {
+				if errors.Is(result.err, context.Canceled) || errors.Is(result.err, context.DeadlineExceeded) {
+					return nil, connect.NewError(connect.CodeCanceled, result.err)
+				}
+				return nil, result.err
+			}
 			if result.resp == nil {
 				continue
-			}
-			if result.err != nil {
-				return nil, result.err
 			}
 			aggregate.InspectedFiles += result.resp.Msg.InspectedFiles
 			aggregate.Findings = append(aggregate.Findings, result.resp.Msg.Findings...)
@@ -265,7 +614,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	gateCalibrationRunner := gates.GateRunnerFor(gate)
 	calibration := gates.CalibrationReport{}
 	var calibrationErr error
-	if gateCalibrationRunner != nil {
+	if _, skipCalibration := ctx.Value(skipCalibrationContextKey{}).(bool); gateCalibrationRunner != nil && !skipCalibration {
 		calibration, calibrationErr = gates.Calibrate(h.repoRoot, gate, gateCalibrationRunner)
 	}
 	if calibrationErr != nil {
@@ -299,7 +648,15 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
-		result, _, err = gates.Run(gate, gates.Scope{Root: h.repoRoot, Assets: scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB})
+		scope := gates.Scope{Context: ctx, Root: h.repoRoot, Assets: h.scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB, Revision: func(libraryID, version string) (string, error) {
+			return catalogcoverage.CurrentRevisionForVersion(h.repoRoot, libraryID, version)
+		}}
+		if prepared, ok := ctx.Value(preparedSetsContextKey{}).(map[gates.Reads]librarywalk.Set); ok {
+			if registered, found := gates.Lookup(gate); found {
+				scope.Set = prepared[registered.Reads]
+			}
+		}
+		result, _, err = gates.Run(gate, scope)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
@@ -346,13 +703,15 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			if evidenceErr != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("derive evidence for gate %q: %w", gate, evidenceErr))
 			}
-			// Gate runners can legitimately outlive the client request budget
-			// while they derive evidence for the full catalog. Evidence is a
-			// durable observation, so do not discard it when the RPC context is
-			// canceled after the runner has completed.
-			persistCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			evidenceErr = h.evidence.Save(persistCtx, rows)
-			cancel()
+			// Evidence persistence is part of the cancellable job. A client
+			// disconnect must not leave a matrix running in the background just
+			// to finish a durable write.
+			// The gate matrix runs concurrently, while SQLite permits only a
+			// bounded number of writers. Serialize the short evidence commits so
+			// one gate cannot cancel its siblings through a transient lock error.
+			h.evidenceMu.Lock()
+			evidenceErr = h.evidence.Save(ctx, rows)
+			h.evidenceMu.Unlock()
 			if evidenceErr != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist evidence for gate %q: %w", gate, evidenceErr))
 			}
@@ -397,7 +756,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	response.RunnerErrors = make([]*catalogv1.GateFinding, 0, len(result.RunnerError))
 	response.EvidenceRowsWritten = int32(evidenceRowsWritten)
 	if nonDiscriminating {
-		response.Findings = append(response.Findings, &catalogv1.GateFinding{Code: "catalog.gate_non_discriminating", Message: "gate calibration passed without detecting its planted-error fixture; corpus verdict was quarantined as unmeasured", Severity: "error", Remediation: "Repair the gate runner or its calibration fixture, then rerun catalog gates --calibration-only. A green corpus result is not evidence until the named fixture fails.", DocsRef: "docs/internal/TESTING.md"})
+		response.Findings = append(response.Findings, &catalogv1.GateFinding{Code: "catalog.gate_non_discriminating", Message: "gate calibration passed without detecting its planted-error fixture; corpus verdict was quarantined as unmeasured", Severity: "error", Remediation: "Repair the gate runner or its calibration fixture, then rerun catalog gates --calibration-only. A green corpus result is not evidence until the named fixture fails.", DocsRef: "docs/internal/TESTING.md", Scope: catalogv1.FindingScope_FINDING_SCOPE_CORPUS, Blocking: true, Owner: "scenarios/react-component-library/catalog", SeverityClass: catalogv1.FindingSeverity_FINDING_SEVERITY_BLOCKING})
 	}
 	for _, finding := range result.Findings {
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{
@@ -411,6 +770,12 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			DocsRef:        finding.DocsRef,
 			RuleSource:     string(finding.RuleSource),
 			RuleDeclaredIn: finding.RuleDeclaredIn,
+			CatalogId:      findingCatalogID(finding),
+			LibraryId:      finding.LibraryID,
+			Scope:          findingScope(finding),
+			Blocking:       severity == "error",
+			Owner:          finding.Owner,
+			SeverityClass:  findingSeverity(severity),
 		})
 	}
 	for _, finding := range result.InformationalFindings {
@@ -425,20 +790,62 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			DocsRef:        finding.DocsRef,
 			RuleSource:     string(finding.RuleSource),
 			RuleDeclaredIn: finding.RuleDeclaredIn,
+			CatalogId:      findingCatalogID(finding),
+			LibraryId:      finding.LibraryID,
+			Scope:          findingScope(finding),
+			Blocking:       false,
+			Owner:          finding.Owner,
+			SeverityClass:  catalogv1.FindingSeverity_FINDING_SEVERITY_INFO,
 		})
 	}
 	for _, finding := range result.RunnerError {
-		response.RunnerErrors = append(response.RunnerErrors, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error", File: finding.File, Line: int32(finding.Line), Remediation: finding.Remediation, DocsRef: finding.DocsRef, RuleSource: string(finding.RuleSource), RuleDeclaredIn: finding.RuleDeclaredIn})
+		response.RunnerErrors = append(response.RunnerErrors, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error", File: finding.File, Line: int32(finding.Line), Remediation: finding.Remediation, DocsRef: finding.DocsRef, RuleSource: string(finding.RuleSource), RuleDeclaredIn: finding.RuleDeclaredIn, CatalogId: findingCatalogID(finding), LibraryId: finding.LibraryID, Scope: findingScope(finding), Blocking: true, Owner: finding.Owner, SeverityClass: catalogv1.FindingSeverity_FINDING_SEVERITY_BLOCKING})
+	}
+	if assetID := strings.TrimSpace(req.Msg.GetAssetId()); assetID != "" {
+		filtered := response.Findings[:0]
+		for _, finding := range response.Findings {
+			if finding.GetAssetId() == assetID || finding.GetAssetId() == strings.TrimPrefix(assetID, "react-component-library:") {
+				filtered = append(filtered, finding)
+			}
+		}
+		response.Findings = filtered
+		filteredErrors := response.RunnerErrors[:0]
+		for _, finding := range response.RunnerErrors {
+			if finding.GetAssetId() == assetID || finding.GetAssetId() == strings.TrimPrefix(assetID, "react-component-library:") {
+				filteredErrors = append(filteredErrors, finding)
+			}
+		}
+		response.RunnerErrors = filteredErrors
 	}
 	return connect.NewResponse(response), nil
 }
 
-func scopedAssetIDs(assetID string) []string {
+func assetSetSlice(assetID string) map[string]struct{} {
+	if strings.TrimSpace(assetID) == "" {
+		return nil
+	}
+	return map[string]struct{}{assetID: {}}
+}
+
+func (h *handler) scopedAssetIDs(assetID string) []string {
 	assetID = strings.TrimSpace(assetID)
 	if assetID == "" {
 		return nil
 	}
-	return []string{assetID}
+	index, err := h.graph()
+	if err != nil {
+		return []string{assetID}
+	}
+	closure, err := index.Closure(assetID)
+	if err != nil {
+		return []string{assetID}
+	}
+	ids := make([]string, 0, len(closure)+1)
+	ids = append(ids, assetID)
+	for _, node := range closure {
+		ids = append(ids, node.ID)
+	}
+	return ids
 }
 
 func (h *handler) gateRunner(gate string) gates.GateRunner {

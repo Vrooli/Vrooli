@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "hello-mobile",
-  "input_digest": "sha256:47d7141f734213032360212e8824124892ea5d682e99c7101776a9e1f24e87f5",
+  "input_digest": "sha256:ce1f36d2b04ca3a0abcb3c907001c6c5f0acc5363f6190d6383c07ad23ae41d9",
   "input_files": [
     "schemas/hello-mobile/v1/notes/attachments.proto",
     "schemas/hello-mobile/v1/notes/notes.proto",

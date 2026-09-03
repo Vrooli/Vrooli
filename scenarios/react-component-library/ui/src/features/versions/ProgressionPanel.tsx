@@ -1,7 +1,8 @@
 /** @vrooliComponentSource visualization.cartesian-charts */
 import { useQuery } from "@tanstack/react-query";
 import { listVersionLedger } from "../../api/versionLedger";
-import { CartesianCharts, type CartesianPoint } from "../../components/CartesianCharts";
+import { CartesianCharts } from "@vrooli/react-component-library/CartesianCharts/1";
+import type { ChartDatum } from "@vrooli/react-component-library/Chart/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -21,7 +22,7 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
   });
   const rows = ledger.data ?? [];
   const newest = rows[rows.length - 1];
-  const points: CartesianPoint[] = rows.map((row) => ({
+  const points: ChartDatum[] = rows.map((row) => ({
     id: row.version,
     label: row.version,
     value: Math.round(row.testPassRate * 100),

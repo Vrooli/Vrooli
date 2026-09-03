@@ -125,7 +125,7 @@ func readinessConfigProjection(config readinessConfigFile, report *catalogcovera
 		if definition.Run == nil {
 			continue
 		}
-		if definition.CorpusScoped {
+		if definition.Reads == gates.ReadsCorpus {
 			corpus++
 		} else {
 			attributable++

@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MouseEvent } from "react";
-import { InlineCode } from "./InlineCode";
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import { InlineCode, MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 import { renderWithProviders } from "../../test-utils";
 
 vi.mock("mermaid", () => ({

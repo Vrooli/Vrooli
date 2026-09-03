@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "python-uv-react-vite template UI manifest",
+  "description": "Declares the standard React/Vite UI contract for scenarios generated with a Python uv API.",
+  "schemaVersion": "2.0.0",
+  "targets": ["python-uv-react-vite"],
+  "idiom": "react-typescript",
+  "provides": ["design-tokens", "ui-provider"],
+  "files": {
+    "designTokens": {"path": "ui/src/design-tokens.css", "managedRegion": {"begin": "/* rcl:tokens:begin */", "end": "/* rcl:tokens:end */"}},
+    "tailwindTheme": {"path": "ui/tailwind.theme.json"},
+    "tokenMap": {"path": "ui/token-map.json"},
+    "localeCatalogue": {"path": "ui/src/i18n/locales/{locale}.json", "defaultLocale": "en"},
+    "selectorRegistry": {"path": "ui/src/consts/selectors.ts"},
+    "librarySelectors": {"path": "ui/src/consts/selectors.library.ts"},
+    "appEntry": {"path": "ui/src/main.tsx"},
+    "stringsRegistry": {"path": "ui/src/consts/strings.generated.ts"}
+  },
+  "gates": ["types", "tokens", "lifecycle"],
+  "templateStructureVersion": "python-uv-react-vite/v1",
+  "slotCoverage": "full",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "python-uv-react-vite",
+    "extensionRule": "Scenarios may override individual slot dir values inside their own .vrooli/ui-manifest.json overlay."
+  },
+  "slots": {
+    "ui-primitive": {"dir": "ui/src/components/ui", "pathPattern": "{dir}/{kebab-name}.tsx", "barrel": null},
+    "shared-component": {"dir": "ui/src/components", "pathPattern": "{dir}/{ComponentName}.tsx", "barrel": null},
+    "layout-shell": {"dir": "ui/src/layout", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null},
+    "layout-nav": {"dir": "ui/src/layout", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null},
+    "page": {"dir": "ui/src/pages", "pathPattern": "{dir}/{ComponentName}.tsx", "barrel": null},
+    "feature": {"dir": "ui/src/features/{feature}", "pathPattern": "{dir}", "multiFile": true, "requiresFeature": true, "barrel": null},
+    "feature-component": {"dir": "ui/src/features/{feature}", "pathPattern": "{dir}/{ComponentName}.tsx", "requiresFeature": true, "barrel": null},
+    "hook": {"dir": "ui/src/hooks", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "api-client": {"dir": "ui/src/api", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "lib-util": {"dir": "ui/src/lib", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "consts": {"dir": "ui/src/consts", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "i18n-strings": {"dir": "ui/src/i18n/locales", "pathPattern": "{dir}/{locale}.json", "barrel": null},
+    "theme-token": {"dir": "ui/src/theme", "pathPattern": "{dir}/{kebab-name}.css", "barrel": null},
+    "test-util": {"dir": "ui/src/test-utils", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "service": {"dir": "ui/src/services", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "provider": {"dir": "ui/src/providers", "pathPattern": "{dir}/{ComponentName}.tsx", "barrel": null},
+    "adapter": {"dir": "ui/src/adapters", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "pattern": {"dir": "ui/src/patterns", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null},
+    "page-template": {"dir": "ui/src/templates", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null},
+    "fixture": {"dir": "ui/src/fixtures", "pathPattern": "{dir}/{camelName}.ts", "barrel": null},
+    "visual-recipe": {"dir": "ui/src/visual", "pathPattern": "{dir}/{kebab-name}.ts", "barrel": null},
+    "motion": {"dir": "ui/src/motion", "pathPattern": "{dir}/{camelName}.ts", "barrel": null}
+  },
+  "defaults": {"slot": "shared-component", "fallbackDir": "ui/src/components"}
+}
