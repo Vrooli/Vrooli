@@ -417,11 +417,11 @@ func markRegistryClaimListenerStatus(t *testing.T, home, claimID, status string)
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
 	defer store.Close()
-	if _, err := store.UpdatePortClaimListenerEvidence(ctx, claimID, scenarioruntime.ListenerObservation{
+	if _, err := store.UpdatePortClaimListenerEvidenceBatch(ctx, map[string]scenarioruntime.ListenerObservation{claimID: {
 		CheckedAt: time.Now().UTC(),
 		Status:    status,
-	}); err != nil {
-		t.Fatalf("UpdatePortClaimListenerEvidence: %v", err)
+	}}); err != nil {
+		t.Fatalf("UpdatePortClaimListenerEvidenceBatch: %v", err)
 	}
 }
 

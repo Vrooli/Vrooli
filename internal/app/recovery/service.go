@@ -15,6 +15,7 @@
 package recovery
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -180,11 +181,21 @@ type WriteRequest struct {
 	AmbientVar        string
 	ShadowInstanceKey string
 	Anchor            string
+	// Replace is the explicit override for writing over a live engagement.
+	// Without it a second start for the same scenario and slug is refused,
+	// naming the holder, so two sessions cannot silently share one
+	// restore point.
+	Replace bool
 }
 
+// ErrEngagementLive is returned when a live engagement already exists for the
+// scenario and slug and the request did not ask to replace it.
+var ErrEngagementLive = errors.New("recovery: engagement is live")
+
 // WriteEngagement validates and persists the engagement manifest. A re-write
-// preserves the original CreatedAt (so the engagement age is stable) and renews
-// LastTouchedAt to now.
+// of a live engagement is refused unless req.Replace is set; with it, the
+// original CreatedAt is preserved (so the engagement age is stable) and
+// LastTouchedAt is renewed to now.
 func (s Service) WriteEngagement(req WriteRequest) (EngagementView, error) {
 	if err := requireRef(req.Scenario, req.Slug); err != nil {
 		return EngagementView{}, err
@@ -204,6 +215,10 @@ func (s Service) WriteEngagement(req WriteRequest) (EngagementView, error) {
 	now := s.now()
 	created := now
 	if existing, err := s.Store.ReadManifest(req.Scenario, req.Slug); err == nil {
+		if !req.Replace && !existing.Expired(now) {
+			return EngagementView{}, fmt.Errorf("%w: %s/%s in %s mode since %s (touched %s); pass --replace to take it over", ErrEngagementLive,
+				existing.Scenario, existing.Slug, existing.Mode, existing.CreatedAt.UTC().Format(time.RFC3339), existing.LastTouchedAt.UTC().Format(time.RFC3339))
+		}
 		created = existing.CreatedAt
 	}
 	shadowKey := strings.TrimSpace(req.ShadowInstanceKey)

@@ -1,8 +1,10 @@
 package recovery
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,7 +122,7 @@ func TestWriteEngagementPreservesCreatedAtOnRewrite(t *testing.T) {
 
 	later := created.Add(2 * time.Hour)
 	svc.Clock = fixedClock(later)
-	view, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "live"})
+	view, err := svc.WriteEngagement(WriteRequest{Replace: true, Scenario: "demo", Slug: "abc", Mode: "live"})
 	if err != nil {
 		t.Fatalf("rewrite: %v", err)
 	}
@@ -132,6 +134,24 @@ func TestWriteEngagementPreservesCreatedAtOnRewrite(t *testing.T) {
 	}
 	if view.Variant != "live" || view.ShadowInstanceKey != "" {
 		t.Fatalf("live mode leaked shadow fields: variant=%q key=%q", view.Variant, view.ShadowInstanceKey)
+	}
+}
+
+// [REQ:STORM-002] A second start for a scenario whose engagement is still live
+// is refused and names the holder; --replace is the explicit override.
+func TestEngagementStartRefusesLiveEngagement(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	svc, _ := newTestService(t, now)
+	if _, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "shadow", TTL: 3 * time.Hour}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "live", TTL: time.Hour})
+	if !errors.Is(err, ErrEngagementLive) || !strings.Contains(err.Error(), "demo/abc") || !strings.Contains(err.Error(), "2026-09-02T12:00:00Z") {
+		t.Fatalf("second start error = %v, want ErrEngagementLive naming the holder", err)
+	}
+	view, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "live", TTL: time.Hour, Replace: true})
+	if err != nil || !view.CreatedAt.Equal(now) {
+		t.Fatalf("replace = %+v, %v", view, err)
 	}
 }
 

@@ -30,7 +30,7 @@ func TestRecoveryShowDecodesSnakeCaseFields(t *testing.T) {
 		t.Errorf("mode/variant mismapped: %+v", got)
 	}
 
-	wantArgs := []string{"--no-stale-check", "recovery", "show", "--scenario", "demo", "--slug", "wip", "--json"}
+	wantArgs := []string{"recovery", "show", "--scenario", "demo", "--slug", "wip", "--json"}
 	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("argv = %v, want %v", runner.calls[0].args, wantArgs)
 	}
@@ -77,7 +77,7 @@ func TestRecoveryNamespaceDecodesStorageFields(t *testing.T) {
 	if got.GetPostgresDb() != "vrooli_demo_shadow" || got.GetDataDir() != "/data/demo@shadow" {
 		t.Errorf("storage fields mismapped: %+v", got)
 	}
-	wantArgs := []string{"--no-stale-check", "recovery", "namespace", "--scenario", "demo", "--variant", "shadow", "--json"}
+	wantArgs := []string{"recovery", "namespace", "--scenario", "demo", "--variant", "shadow", "--json"}
 	if !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("argv = %v, want %v", runner.calls[0].args, wantArgs)
 	}

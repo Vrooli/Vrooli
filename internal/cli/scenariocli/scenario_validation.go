@@ -8,6 +8,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/deployability"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -71,6 +72,18 @@ func ValidateScenarioManifests(root string) ManifestValidationReport {
 		}
 		validateDependencyIntents(&report, name, path, "resources", manifest.Dependencies.Resources)
 		validateDependencyIntents(&report, name, path, "scenarios", manifest.Dependencies.Scenarios)
+	}
+	// Keep lifecycle builder and entrypoint conformance on the canonical
+	// `scenario validate` path. JSON-schema validation alone accepts reserved
+	// builder vocabulary, which would otherwise fail later during setup.
+	if conformance, err := deployability.CheckScenarioFleet(root); err != nil {
+		report.Passed = false
+		report.Issues = append(report.Issues, ManifestValidationIssue{Path: root, Message: "scenario conformance: " + err.Error()})
+	} else {
+		for _, finding := range conformance.Findings {
+			report.Passed = false
+			report.Issues = append(report.Issues, ManifestValidationIssue{Path: finding.ManifestPath, Message: finding.Rule + ": " + finding.Message})
+		}
 	}
 	return report
 }

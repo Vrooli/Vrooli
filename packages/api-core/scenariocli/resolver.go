@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -221,6 +222,7 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 		args := cliutil.GoModuleInstallerArgs(item.modulePath, item.servicePath, item.binaryName, installDir, spec)
 		cmd := exec.CommandContext(ctx, "go", args...)
 		cmd.Dir = installerDir
+		cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin

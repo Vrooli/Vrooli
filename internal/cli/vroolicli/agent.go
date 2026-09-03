@@ -6,11 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/recovery"
@@ -43,13 +44,19 @@ func (a *agentArgs) Set(value string) error {
 
 func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch)")
+		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, list, recover, thaw)")
 	}
 	if args[0] == "recover" {
 		return app.runAgentRecovery(ctx, args[1:])
 	}
+	if args[0] == "thaw" {
+		return app.runAgentThaw(ctx, args[1:])
+	}
+	if args[0] == "list" {
+		return app.runAgentList(ctx, args[1:])
+	}
 	if args[0] != "launch" {
-		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, recover)", args[0])
+		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, list, recover, thaw)", args[0])
 	}
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
@@ -59,6 +66,8 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 	cwd := fs.String("cwd", "", "optional working directory")
 	var extra agentArgs
 	fs.Var(&extra, "arg", "additional argv token passed to the runner (repeatable)")
+	var claims agentArgs
+	fs.Var(&claims, "claim", "path this session will edit; a live holder of an overlapping claim is named and the launch continues (repeatable)")
 	if err := fs.Parse(args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -78,6 +87,7 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 		Agent:      *runner,
 		Args:       childArgs,
 		WorkingDir: strings.TrimSpace(*cwd),
+		Claims:     absoluteClaims(claims, strings.TrimSpace(*cwd)),
 		Stdin:      ctx.Stdin,
 		Stdout:     ctx.Stdout,
 		Stderr:     ctx.Stderr,
@@ -127,22 +137,25 @@ func (app *App) runAgentRecovery(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("resolve recovery record path: %w", err)
 	}
 	broker, err := recovery.New(path, func(runCtx context.Context, tier, target string, childEnv []string) error {
-		args := []string{"scenario", "start", target}
-		if tier == recovery.RecoveryTierTwo {
-			args = append(args, "--best-effort")
+		home, _ := os.UserHomeDir()
+		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		if resolveErr != nil {
+			return resolveErr
 		}
 		if tier == recovery.RecoveryTierThree {
-			setup := exec.CommandContext(runCtx, "vrooli", "scenario", "setup", target)
-			setup.Env = childEnv
-			if output, setupErr := setup.CombinedOutput(); setupErr != nil {
-				return fmt.Errorf("setup: %w: %s", setupErr, strings.TrimSpace(string(output)))
+			setup := cliinvoke.Run(runCtx, cliinvoke.Invocation{Binary: binary, Args: cliinvoke.ScenarioSetup(target), Env: childEnv})
+			if setupErr := setup.Error(); setupErr != nil {
+				return fmt.Errorf("setup: %w", setupErr)
 			}
 		}
-		cmd := exec.CommandContext(runCtx, "vrooli", args...)
-		cmd.Env = childEnv
-		cmd.Stdout = ctx.Stdout
-		cmd.Stderr = ctx.Stderr
-		return cmd.Run()
+		start := cliinvoke.Run(runCtx, cliinvoke.Invocation{
+			Binary: binary,
+			Args:   cliinvoke.ScenarioLifecycle("start", target, tier == recovery.RecoveryTierTwo),
+			Env:    childEnv,
+			Stdout: ctx.Stdout,
+			Stderr: ctx.Stderr,
+		})
+		return start.Error()
 	})
 	if err != nil {
 		return err
@@ -193,4 +206,28 @@ func agentRunnerBinary(name string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported coding-agent runner %q (supported: claude, claude-code, codex, opencode, grok)", name)
 	}
+}
+
+// absoluteClaims resolves claim paths against the launch directory so two
+// sessions in different working directories compare the same tree.
+func absoluteClaims(claims []string, cwd string) []string {
+	if len(claims) == 0 {
+		return nil
+	}
+	base := cwd
+	if base == "" {
+		base, _ = os.Getwd()
+	}
+	out := make([]string, 0, len(claims))
+	for _, claim := range claims {
+		claim = strings.TrimSpace(claim)
+		if claim == "" {
+			continue
+		}
+		if !filepath.IsAbs(claim) {
+			claim = filepath.Join(base, claim)
+		}
+		out = append(out, filepath.Clean(claim))
+	}
+	return out
 }

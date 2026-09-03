@@ -294,6 +294,21 @@ func TestStartTimingSummariesIncludeScenarioAndFleetTail(t *testing.T) {
 			t.Fatalf("filtered row = %+v, want alpha only", row)
 		}
 	}
+
+	windowed, err := store.StartTimingSummariesSince(ctx, "", time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("StartTimingSummariesSince(): %v", err)
+	}
+	if len(windowed) == 0 {
+		t.Fatal("StartTimingSummariesSince() returned no rows after the window")
+	}
+	future, err := store.StartTimingSummariesSince(ctx, "", time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("StartTimingSummariesSince(future): %v", err)
+	}
+	if len(future) != 0 {
+		t.Fatalf("future timing window returned rows: %+v", future)
+	}
 }
 
 func TestGetLatestStartOperationNotFound(t *testing.T) {

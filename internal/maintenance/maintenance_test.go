@@ -2029,3 +2029,79 @@ func TestCleanStaleLocksExpiresClaimsUnderTerminalInstances(t *testing.T) {
 		t.Fatalf("orphaned bound claim should be expired by cleanup; got %#v", afterClaims)
 	}
 }
+
+// The stale-lock sweep retires editor leases only on proof of death: a dead
+// pid is expired, a live session with an elapsed deadline is left alone.
+func TestCleanStaleLocksSweepsEditorLeases(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	bootID := ""
+	if host, hostErr := (hostsession.DefaultProvider{}).Current(ctx, ""); hostErr == nil {
+		bootID = host.BootID
+	}
+	if _, err := store.CreateEditorLease(ctx, scenarioruntime.EditorLease{SessionID: "dead-session", Agent: "codex", PID: 4000000, HostBootID: bootID, WorkingDir: root}, time.Nanosecond); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateEditorLease(ctx, scenarioruntime.EditorLease{SessionID: "live-session", Agent: "claude", PID: os.Getpid(), HostBootID: bootID, WorkingDir: root}, time.Nanosecond); err != nil {
+		t.Fatal(err)
+	}
+	stubListenerSnapshot(t, true, nil)
+	report, err := NewController(root, home).CleanStaleLocks()
+	if err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	var sawDead bool
+	for _, item := range report.Stopped {
+		if item.Name == "agent-session/dead-session" {
+			sawDead = true
+		}
+		if item.Name == "agent-session/live-session" {
+			t.Fatal("a live session with an elapsed deadline was expired")
+		}
+	}
+	if !sawDead {
+		t.Fatalf("dead session not expired: %+v", report.Stopped)
+	}
+	active, err := store.ListEditorLeases(ctx, false)
+	if err != nil || len(active) != 1 || active[0].SessionID != "live-session" {
+		t.Fatalf("active leases = %+v, %v", active, err)
+	}
+}
+
+// A process inside a vrooli-agents.slice scope is a coding-agent session the
+// launcher recorded, whatever its cwd or argv look like; the orphan sweep
+// never lists or kills it.
+func TestListOrphansExemptsAgentSessionScopes(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{
+			5200: {PID: 5200, PPID: 1, PGID: 5200, Command: filepath.Join(root, "scenarios", "beta", "api", "server")},
+			6100: {PID: 6100, PPID: 1, PGID: 6100, Command: "sh -c build", Cwd: root, Cgroup: "/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-agents.slice/vrooli-agent-abc.scope"},
+		}, nil
+	}
+	orphans, err := NewController(root, home).ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 5200 {
+		t.Fatalf("orphans = %#v, want only the untracked scenario server", orphans)
+	}
+	controller := NewController(root, home)
+	originalRead := readProcessEntryFn
+	t.Cleanup(func() { readProcessEntryFn = originalRead })
+	readProcessEntryFn = func(int) (processTableEntry, bool) {
+		return processTableEntry{PID: 6100, Command: "sh -c build", Cwd: root, Cgroup: "/vrooli.slice/vrooli-agents.slice/vrooli-agent-abc.scope"}, true
+	}
+	if controller.stillVrooliOrphan(6100) {
+		t.Fatal("the kill-time guard must refuse an agent session scope")
+	}
+}

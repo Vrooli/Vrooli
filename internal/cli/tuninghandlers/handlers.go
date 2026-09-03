@@ -34,7 +34,7 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 					return writeJSON(deps.Stdout(ctx), levers)
 				}
 				for _, lever := range levers {
-					_, _ = fmt.Fprintf(deps.Stdout(ctx), "%s\t%s\t%s\t%s\t%s\n", lever.Name, lever.Environment, lever.CompiledDefault, lever.ResolvedValue, lever.Source)
+					_, _ = fmt.Fprintf(deps.Stdout(ctx), "%s\t%s\t%s\t%s\t%s\t%s\n", lever.Name, lever.Kind, lever.Environment, lever.CompiledDefault, lever.ResolvedValue, lever.Source)
 				}
 				return nil
 			},

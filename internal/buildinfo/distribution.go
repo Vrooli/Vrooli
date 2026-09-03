@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildflags"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -146,7 +147,11 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 	env = setEnvValue(env, "CGO_ENABLED", cgoEnabled)
 	env = setEnvValue(env, "GOOS", options.Target.OS)
 	env = setEnvValue(env, "GOARCH", options.Target.Arch)
-	buildArgs := []string{"build", "-trimpath"}
+	goFlags := []string{"-trimpath"}
+	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("distribution")) > 0 {
+		goFlags = policy.For("distribution")
+	}
+	buildArgs := append([]string{"build"}, goFlags...)
 	overlayArgs, cleanupOverlay, err := distributionOverlay(root, options.Target)
 	if err != nil {
 		return DistributionArtifact{}, err

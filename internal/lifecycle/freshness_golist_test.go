@@ -1,7 +1,9 @@
 package lifecycle
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"testing"
 )
 
+const goExecutablePath = "/usr/bin/go"
+
 // cannedGoList builds a hostProbeDeps whose goListJSON seam returns a fixed
 // payload (or error) and whose lookPath resolves "go". Other fields are nil; the
 // adapter under test never touches them.
@@ -17,7 +21,7 @@ func cannedGoList(payload []byte, listErr error, goFound bool) hostProbeDeps {
 	return hostProbeDeps{
 		lookPath: func(name string) (string, error) {
 			if name == "go" && goFound {
-				return "/usr/bin/go", nil
+				return goExecutablePath, nil
 			}
 			return "", exec.ErrNotFound
 		},
@@ -47,6 +51,106 @@ func TestGoListFreshnessInputs_PreciseClosure(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("inputs mismatch:\n got=%v\nwant=%v", got, want)
+	}
+}
+
+func TestGoListFreshnessInputs_CachesByModuleFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte("sum-v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	deps := hostProbeDeps{
+		cache:    &hostProbeCache{},
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
+		readFile: os.ReadFile,
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return []byte(goListFixture), nil
+		},
+	}
+	// Exercise the cache adapter directly so the test is independent of the
+	// repository-root filtering in goListFreshnessInputs.
+	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("go list calls = %d, want one cached call", calls)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example/v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("go list calls after go.mod change = %d, want two", calls)
+	}
+}
+
+func TestClosureCache_HitSkipsGoList(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte("sum-v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n", dir, dir, filepath.Join(dir, "go.mod")))
+	calls := 0
+	deps := hostProbeDeps{
+		readFile: os.ReadFile,
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return payload, nil
+		},
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("first closure lookup did not succeed")
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("cached closure lookup did not succeed")
+	}
+	if calls != 1 {
+		t.Fatalf("go list calls = %d, want one durable-cache miss", calls)
+	}
+	if _, err := os.Stat(closureCachePath(dir)); err != nil {
+		t.Fatalf("closure cache was not written: %v", err)
+	}
+}
+
+func TestClosureCache_MissOnGoModChange(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	deps := hostProbeDeps{
+		readFile: os.ReadFile,
+		lookPath: func(string) (string, error) { return "/usr/bin/go", nil },
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n", dir, dir, filepath.Join(dir, "go.mod"))), nil
+		},
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("initial closure lookup did not succeed")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example/v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("post-change closure lookup did not succeed")
+	}
+	if calls != 2 {
+		t.Fatalf("go list calls = %d, want cache miss after go.mod change", calls)
 	}
 }
 

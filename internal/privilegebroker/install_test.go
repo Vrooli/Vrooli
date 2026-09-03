@@ -8,6 +8,7 @@ import (
 )
 
 func TestSystemdUnitRunsOnlyInternalBrokerWithExplicitCallerIdentity(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", "")
 	unit := systemdUnit("/usr/local/lib/vrooli/vrooli-privilege-broker", 1000, 1000)
 	for _, want := range []string{
 		"User=root",
@@ -72,5 +73,13 @@ func TestBrokerServiceCommandsRestartAfterInstall(t *testing.T) {
 		if strings.Join(got[index], " ") != strings.Join(want[index], " ") {
 			t.Fatalf("command[%d]=%q want %q", index, got[index], want[index])
 		}
+	}
+}
+
+func TestSocketPathUsesRuntimeDirectoryWhenConfigured(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", filepath.Join(t.TempDir(), "runtime"))
+	want := filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "vrooli", "privilege-broker.sock")
+	if got := SocketPath(); got != want {
+		t.Fatalf("SocketPath() = %q, want %q", got, want)
 	}
 }

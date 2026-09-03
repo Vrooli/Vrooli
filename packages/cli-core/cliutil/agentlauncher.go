@@ -63,6 +63,10 @@ type AgentLaunchRequest struct {
 	Environment []string
 	APIBase     string
 	WorkingDir  string
+	// Claims are advisory paths this session says it will edit; a live
+	// session holding an overlapping claim is named at launch and the
+	// launch continues (D8: advisory in this release).
+	Claims []string
 
 	// AttachTimeout bounds only the optional attribution request. It never
 	// bounds or cancels the coding agent itself.
@@ -105,6 +109,21 @@ func (e *AgentLaunchError) Unwrap() error { return e.Err }
 type LaunchResult struct {
 	Tier          string
 	AttachFailure string
+	// Scope is the platform-go ScopeRef of the session's ceiling ("cgroup:/…",
+	// "pgid:N", "job:N", "none") and ContainmentMethod how it was applied
+	// (systemd-run, transient-unit, cgroup-write, rlimit-shim, job, none).
+	// ContainmentSource says whether the ceilings came from the converged
+	// vrooli-agents.slice or the launcher's defaults; ContainmentFailure is
+	// why a session runs uncontained. Phase 10's editor lease stores them.
+	Scope              string
+	ContainmentMethod  string
+	ContainmentSource  string
+	ContainmentFailure string
+	// LeaseRecorded says whether the session's editor lease reached the
+	// runtime registry; ClaimOverlaps names live holders of overlapping
+	// claims (advisory).
+	LeaseRecorded bool
+	ClaimOverlaps []ClaimHolder
 }
 
 var ungovernedLaunches atomic.Uint64
@@ -149,6 +168,10 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// the identity credential that is intentionally delegated and drop scenario
 	// ownership/session observations before any launcher-owned overlay is added.
 	environment = []string(envkit.WithOverlay(envkit.Env(environment), envkit.DelegatedAgent, nil))
+	// The agent's shell inherits the build-width floor, so a hand-typed
+	// `go build` inside a session is polite by inheritance on both the exec
+	// and the spawn branch.
+	environment = []string(envkit.Toolchain(envkit.Env(environment), envkit.ToolchainOptions{}))
 	environment = PrepareWebConsoleAgentHome(request.Agent, environment)
 
 	// Deciding this before attaching matters: a launch that replaces its own
@@ -158,8 +181,25 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// process liveness (see attachedRunProcessAlive).
 	willExec := request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
 
-	attach := attachCodingAgent(ctx, request, harnessKind, willExec)
+	// The scope is named from the harness session id: it exists before the
+	// attach, so agent-manager's run row, the lease and the cgroup all carry
+	// the same name whether or not a run id is minted.
+	scope := agentScopeName("", harnessSessionID(harnessKind))
+	attach := attachCodingAgent(ctx, request, harnessKind, willExec, scope)
 	launchResult := LaunchResult{Tier: "tier-4"}
+	containment, containmentSource := agentContainmentFn()
+	var report containmentReport
+	// The session is visible for as long as it lives: the lease carries the
+	// tree, the scope and the claims; the registry expires it only on proof
+	// of death. The exec branch cannot heartbeat (the launcher becomes the
+	// agent), so it relies on that expiry alone.
+	launchResult.ClaimOverlaps = reportClaimOverlaps(ctx, request)
+	stopLease, recorded := recordEditorLease(ctx, EditorLeaseRecord{
+		SessionID: sessionIDForLease(attach.runID, harnessKind), Harness: harnessKind, Agent: request.Agent, PID: os.Getpid(),
+		WorkingDir: launchWorkingDir(request), Scope: scope, Claims: request.Claims,
+	}, !willExec)
+	launchResult.LeaseRecorded = recorded
+	defer stopLease("session ended")
 	if attach.token != "" {
 		environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, attach.token)
 		launchResult.Tier = "tier-1"
@@ -173,6 +213,9 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	}
 
 	if willExec {
+		// The launcher moves itself into the session scope first; exec keeps
+		// the pid and the ceiling, so the agent is born contained.
+		containSelf(request, scope, containment, containmentSource, &report)
 		// Returns only when the exec itself failed. That is a launcher problem,
 		// never the operator's, so fall through to spawn-and-wait rather than
 		// refusing to start the agent.
@@ -190,9 +233,35 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 
 	runChild := request.RunChild
 	if runChild == nil {
-		runChild = runNativeChild(request, binary)
+		runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report)
 	}
-	return launchResult, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+	err = runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+	launchResult.Scope, launchResult.ContainmentMethod = report.Scope, report.Method
+	launchResult.ContainmentSource, launchResult.ContainmentFailure = report.Source, report.Failure
+	return launchResult, err
+}
+
+// sessionIDForLease is the run id when agent-manager minted one, else the
+// harness session id the launcher already reports; the scope name is derived
+// from the same choice so the lease and the cgroup agree.
+func sessionIDForLease(runID, harnessKind string) string {
+	if id := strings.TrimSpace(runID); id != "" {
+		return id
+	}
+	return harnessSessionID(harnessKind)
+}
+
+// launchWorkingDir is the tree the session edits: the request's directory,
+// else this process's.
+func launchWorkingDir(request AgentLaunchRequest) string {
+	if dir := strings.TrimSpace(request.WorkingDir); dir != "" {
+		return dir
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
 }
 
 // stdioIsInherited reports whether the request's streams are exactly this
@@ -247,7 +316,7 @@ func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
 // process's pid will still be the agent's pid afterwards. Sending it turns
 // agent-manager's liveness check into a single stat of /proc/<pid> instead of a
 // scan of every process environment.
-func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool) codingAgentAttachment {
+func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool, scope string) codingAgentAttachment {
 	// An identity already in the environment means something else already owns a
 	// run for this work. agent-manager mints one per run and scrubs inherited
 	// ones precisely so ownership is unambiguous, so the right move here is to
@@ -274,6 +343,14 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	}
 	if reportPID {
 		body["process_id"] = os.Getpid()
+	}
+	// The tree and the ceiling travel with the attach so agent-manager's
+	// run row can say where a run edits and which scope contains it.
+	if dir := launchWorkingDir(request); dir != "" {
+		body["working_dir"] = dir
+	}
+	if scope != "" {
+		body["scope"] = scope
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {

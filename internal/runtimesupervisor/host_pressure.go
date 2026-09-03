@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 const (
@@ -46,17 +47,19 @@ type HostPressureProvider struct {
 }
 
 func NewHostPressureProvider(someAvg10Threshold float64) *HostPressureProvider {
-	return NewHostPressureProviderWithCPU(someAvg10Threshold, DefaultPressureCPUSomeAvg10)
+	return NewHostPressureProviderWithCPU(someAvg10Threshold, 0)
 }
 
-// NewHostPressureProviderWithCPU builds a provider with an explicit CPU stall
-// threshold. A non-positive value falls back to the default.
+// NewHostPressureProviderWithCPU builds a provider with explicit stall
+// thresholds. A non-positive value takes the setpoint's compiled fallback bar
+// for that cell; there is no second constant.
 func NewHostPressureProviderWithCPU(someAvg10Threshold, cpuSomeAvg10Threshold float64) *HostPressureProvider {
+	fallback := setpoint.Fallback()
 	if someAvg10Threshold <= 0 {
-		someAvg10Threshold = DefaultPressureSomeAvg10
+		someAvg10Threshold = fallback.Max(setpoint.CellMemoryPSI, 0)
 	}
 	if cpuSomeAvg10Threshold <= 0 {
-		cpuSomeAvg10Threshold = DefaultPressureCPUSomeAvg10
+		cpuSomeAvg10Threshold = fallback.Max(setpoint.CellCPUPressure, 0)
 	}
 	return &HostPressureProvider{
 		someAvg10Threshold:    someAvg10Threshold,

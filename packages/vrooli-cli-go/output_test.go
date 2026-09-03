@@ -3,10 +3,11 @@ package vroolicli
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
-func TestOutputCombinedInjectsNoStaleCheck(t *testing.T) {
+func TestOutputCombinedPassesNoGlobalFlags(t *testing.T) {
 	runner := &stubRunner{responses: []stubResponse{{output: []byte("log line")}}}
 	client := New(WithRunner(runner))
 
@@ -17,8 +18,11 @@ func TestOutputCombinedInjectsNoStaleCheck(t *testing.T) {
 	if string(out) != "log line" {
 		t.Fatalf("output = %q, want %q", out, "log line")
 	}
-	if want := []string{"--no-stale-check", "scenario", "logs", "x"}; !equalArgs(runner.calls[0].args, want) {
+	if want := []string{"scenario", "logs", "x"}; !equalArgs(runner.calls[0].args, want) {
 		t.Fatalf("args = %v, want %v", runner.calls[0].args, want)
+	}
+	if strings.HasPrefix(runner.calls[0].args[0], "--") {
+		t.Fatalf("args = %v, want no leading global flag", runner.calls[0].args)
 	}
 }
 

@@ -712,13 +712,13 @@ func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
 	}
 
 	clk.Advance(time.Second)
-	unbound, err := store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, ListenerObservation{
+	if n, err := store.UpdatePortClaimListenerEvidenceBatch(ctx, map[string]ListenerObservation{claim.ClaimID: {
 		CheckedAt: clk.Now(),
 		Status:    ListenerStatusNotListening,
-	})
-	if err != nil {
-		t.Fatalf("UpdatePortClaimListenerEvidence(not_listening) error = %v", err)
+	}}); err != nil || n != 1 {
+		t.Fatalf("UpdatePortClaimListenerEvidenceBatch(not_listening) = %d, %v", n, err)
 	}
+	unbound := portClaimByID(t, ctx, store, claim.ClaimID)
 	if unbound.ListenerStatus != ListenerStatusNotListening || unbound.ConsecutiveListenerMisses != 1 {
 		t.Fatalf("unbound evidence = %#v, want one not_listening miss", unbound)
 	}
@@ -728,15 +728,15 @@ func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
 
 	clk.Advance(time.Second)
 	pid := 4321
-	listening, err := store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, ListenerObservation{
+	if n, err := store.UpdatePortClaimListenerEvidenceBatch(ctx, map[string]ListenerObservation{claim.ClaimID: {
 		CheckedAt:    clk.Now(),
 		Status:       ListenerStatusListening,
 		PID:          &pid,
 		ProcessLabel: "alpha-api",
-	})
-	if err != nil {
-		t.Fatalf("UpdatePortClaimListenerEvidence(listening) error = %v", err)
+	}}); err != nil || n != 1 {
+		t.Fatalf("UpdatePortClaimListenerEvidenceBatch(listening) = %d, %v", n, err)
 	}
+	listening := portClaimByID(t, ctx, store, claim.ClaimID)
 	if listening.ListenerStatus != ListenerStatusListening || listening.ConsecutiveListenerMisses != 0 {
 		t.Fatalf("listening evidence = %#v, want listening without misses", listening)
 	}
@@ -1006,5 +1006,66 @@ func TestPruneTerminalPortClaims(t *testing.T) {
 	}
 	if claim, ok := byID["claim-live"]; !ok || !IsActivePortClaimStatus(claim.Status) {
 		t.Fatalf("claim-live (active) should survive untouched; remaining = %#v", remaining)
+	}
+}
+
+// One tick's evidence for many claims is one transaction: every live claim is
+// updated, a claim released before the write is skipped rather than failing
+// the batch, and the count says how many rows changed.
+func portClaimByID(t *testing.T, ctx context.Context, store *SQLiteStore, claimID string) PortClaim {
+	t.Helper()
+	claims, err := store.ListPortClaims(ctx, PortClaimFilter{})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	for _, claim := range claims {
+		if claim.ClaimID == claimID {
+			return claim
+		}
+	}
+	t.Fatalf("claim %s not found", claimID)
+	return PortClaim{}
+}
+
+// One tick's evidence for many claims is one transaction: every live claim is
+// updated, a claim released before the write is skipped rather than failing
+// the batch, and the count says how many rows changed.
+func TestListenerEvidenceIsOneWritePerTick(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-batch", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance() error = %v", err)
+	}
+	observations := map[string]ListenerObservation{}
+	for i, port := range []int{8100, 8101, 8102, 8103} {
+		claim, err := store.AcquirePortClaim(ctx, PortClaim{
+			ClaimID: fmt.Sprintf("claim-batch-%d", i), InstanceID: instance.InstanceID, Scenario: "alpha",
+			PortName: fmt.Sprintf("p%d", i), EnvVar: fmt.Sprintf("P%d_PORT", i), Port: port, Status: ClaimStatusBound,
+		})
+		if err != nil {
+			t.Fatalf("AcquirePortClaim(%d): %v", port, err)
+		}
+		observations[claim.ClaimID] = ListenerObservation{CheckedAt: clk.Now(), Status: ListenerStatusListening}
+	}
+	observations["released-before-the-write"] = ListenerObservation{CheckedAt: clk.Now(), Status: ListenerStatusListening}
+	n, err := store.UpdatePortClaimListenerEvidenceBatch(ctx, observations)
+	if err != nil || n != 4 {
+		t.Fatalf("batch = %d, %v; want 4 live claims updated and the missing one skipped", n, err)
+	}
+	claims, err := store.ListPortClaims(ctx, PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(claims) != 4 {
+		t.Fatalf("claims = %d, want 4", len(claims))
+	}
+	for _, claim := range claims {
+		if claim.ListenerStatus != ListenerStatusListening {
+			t.Fatalf("claim %d listener status = %q, want listening", claim.Port, claim.ListenerStatus)
+		}
 	}
 }

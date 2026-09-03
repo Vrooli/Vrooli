@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	"golang.org/x/mod/modfile"
 )
 
 const (
@@ -132,7 +133,18 @@ func readGoMod(path string) (parsedGoMod, error) {
 	if err != nil {
 		return parsedGoMod{}, fmt.Errorf("read %s: %w", path, err)
 	}
-	return parseGoMod(string(data)), nil
+	file, err := modfile.Parse(path, data, nil)
+	if err != nil {
+		return parsedGoMod{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	mod := parsedGoMod{requires: make(map[string]string), replaces: make(map[string]string)}
+	for _, requirement := range file.Require {
+		mod.requires[requirement.Mod.Path] = requirement.Mod.Version
+	}
+	for _, replacement := range file.Replace {
+		mod.replaces[replacement.Old.Path] = replacement.New.Path
+	}
+	return mod, nil
 }
 
 func packageModuleIdentifiers(pkg Package) []string {
@@ -292,71 +304,6 @@ type goModDependency struct {
 	Version            string
 	Present            bool
 	HasGovernedReplace bool
-}
-
-var (
-	goModRequireLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-]+)\s+([^\s]+)\s*(?://.*)?$`)
-	goModReplaceLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-]+)(?:\s+[^\s]+)?\s*=>\s*([^\s]+)(?:\s+[^\s]+)?\s*(?://.*)?$`)
-)
-
-func parseGoMod(content string) parsedGoMod {
-	mod := parsedGoMod{
-		requires: make(map[string]string),
-		replaces: make(map[string]string),
-	}
-
-	var inRequireBlock bool
-	var inReplaceBlock bool
-
-	for _, rawLine := range strings.Split(content, "\n") {
-		line := strings.TrimSpace(rawLine)
-		if line == "" || strings.HasPrefix(line, "//") {
-			continue
-		}
-		switch line {
-		case "require (":
-			inRequireBlock = true
-			inReplaceBlock = false
-			continue
-		case "replace (":
-			inReplaceBlock = true
-			inRequireBlock = false
-			continue
-		case ")":
-			inRequireBlock = false
-			inReplaceBlock = false
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(line, "require "):
-			parseGoRequireLine(mod.requires, strings.TrimSpace(strings.TrimPrefix(line, "require ")))
-		case strings.HasPrefix(line, "replace "):
-			parseGoReplaceLine(mod.replaces, strings.TrimSpace(strings.TrimPrefix(line, "replace ")))
-		case inRequireBlock:
-			parseGoRequireLine(mod.requires, line)
-		case inReplaceBlock:
-			parseGoReplaceLine(mod.replaces, line)
-		}
-	}
-
-	return mod
-}
-
-func parseGoRequireLine(bucket map[string]string, line string) {
-	matches := goModRequireLinePattern.FindStringSubmatch(line)
-	if len(matches) != discoveryParameterA {
-		return
-	}
-	bucket[matches[1]] = matches[2]
-}
-
-func parseGoReplaceLine(bucket map[string]string, line string) {
-	matches := goModReplaceLinePattern.FindStringSubmatch(line)
-	if len(matches) != discoveryParameterA {
-		return
-	}
-	bucket[matches[1]] = matches[2]
 }
 
 func (m parsedGoMod) dependencyFor(goModPath, repoRoot, module string) goModDependency {

@@ -71,10 +71,17 @@ func TestBinariesFreshnessBootstrapStampsManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
-	if stale {
-		t.Fatal("binary newer than source must bootstrap fresh")
+	if !stale {
+		t.Fatal("a runnable artifact without a manifest must be stale")
 	}
-	// The opportunistic stamp should have written a manifest.
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil || len(artifacts) != 1 {
+		t.Fatalf("freshness artifacts: %v", err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatalf("stamp manifest: %v", err)
+	}
+	// The explicit build stamp should make the next check manifest-authoritative.
 	manifestPath := cliutil.FreshnessManifestPath(binPath)
 	if _, err := os.Stat(manifestPath); err != nil {
 		t.Fatalf("expected manifest stamped at %s: %v", manifestPath, err)
@@ -87,9 +94,12 @@ func TestBinariesFreshnessManifestAuthoritative(t *testing.T) {
 	item := freshnessTestItem(appPath)
 	check := freshnessBinaryCheck()
 
-	// First call bootstraps + stamps.
-	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
-		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
 	}
 
 	// Editing the real input content must now read stale via the manifest.
@@ -114,9 +124,12 @@ func TestBinariesFreshnessUnrelatedScenarioEditStaysFresh(t *testing.T) {
 	item := freshnessTestItem(appPath)
 	check := freshnessBinaryCheck()
 
-	// Bootstrap + stamp.
-	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
-		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
 	}
 
 	// Headline regression: editing an UNRELATED scenario anywhere under the
@@ -144,8 +157,12 @@ func TestBinariesFreshnessToolchainChangeIsStale(t *testing.T) {
 	item := freshnessTestItem(appPath)
 	check := freshnessBinaryCheck()
 
-	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
-		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
 	}
 
 	// Simulate a toolchain upgrade by rewriting the recorded manifest's keyed

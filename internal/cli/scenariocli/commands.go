@@ -123,7 +123,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name: string(CommandTimings), Group: "Read-only Commands", Summary: "Show retained start and restart timing aggregates", Handler: CommandTimings, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--scenario", ValueName: "name", Description: "Limit timing rows to one scenario"}, commandtree.JSONOption()}},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--scenario", ValueName: "name", Description: "Limit timing rows to one scenario"}, {Name: "--since", ValueName: "date", Description: "Include records on or after YYYY-MM-DD or RFC3339"}, commandtree.JSONOption()}},
 		},
 		{Name: string(CommandRun), Group: "Lifecycle and Utility Commands", Summary: "Run a scenario directly (alias of start)", Handler: CommandRun, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{

@@ -210,7 +210,7 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 					return TimingsResponse{}, err
 				}
 				defer store.Close()
-				rows, err := store.StartTimingSummaries(context.Background(), req.Scenario)
+				rows, err := store.StartTimingSummariesSince(context.Background(), req.Scenario, req.Since)
 				return TimingsResponse{Rows: rows}, err
 			},
 			RenderTimingsResponse,

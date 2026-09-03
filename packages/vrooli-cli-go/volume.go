@@ -107,9 +107,6 @@ func (c *Client) HostVolume(ctx context.Context, req VolumeRequest) (*cliv1.Volu
 // exactly those results. The caller decides which of the two to trust by
 // whether the body decodes.
 func (c *Client) runKeepingOutput(ctx context.Context, args ...string) ([]byte, error) {
-	if !c.staleCheck {
-		args = append([]string{"--no-stale-check"}, args...)
-	}
 	out, err := c.runner.Run(ctx, c.bin, args...)
 	if err != nil {
 		return out, fmt.Errorf("run %s: %w", formatCommand(c.bin, args), err)

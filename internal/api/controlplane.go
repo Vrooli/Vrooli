@@ -16,6 +16,7 @@ import (
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // scenarioControlPlaneHandler is the typed control-plane adapter. It delegates
@@ -40,9 +41,16 @@ func (h *scenarioControlPlaneHandler) ListScenarios(_ context.Context, req *conn
 		for _, port := range item.Ports {
 			ports = append(ports, &cliv1.ScenarioPort{Key: port.Key, Step: port.Step, Port: int32(port.Port), ListenerStatus: port.ListenerStatus})
 		}
+		healthStatus := ""
+		if value, ok := item.Health.(string); ok {
+			healthStatus = value
+		} else if item.Health != nil {
+			healthStatus = fmt.Sprint(item.Health)
+		}
 		items = append(items, &cliv1.Scenario{
 			Name: item.Name, Description: item.Description, Version: item.Version,
 			Status: item.Status, Tags: item.Tags, Path: item.Path, Ports: ports,
+			HealthStatus: healthStatus,
 		})
 	}
 	failures := make([]*cliv1.DiscoveryFailure, 0, len(result.Failures))
@@ -52,7 +60,7 @@ func (h *scenarioControlPlaneHandler) ListScenarios(_ context.Context, req *conn
 	return connect.NewResponse(&cliv1.ScenarioListResponse{
 		Success:   true,
 		Summary:   &cliv1.ScenarioListSummary{TotalScenarios: int32(len(items)), Running: int32(result.RunningCount), Available: int32(len(items) - result.RunningCount)},
-		Scenarios: items, DiscoveryFailures: failures,
+		Scenarios: items, DiscoveryFailures: failures, ObservedAt: timestamppb.Now(),
 	}), nil
 }
 

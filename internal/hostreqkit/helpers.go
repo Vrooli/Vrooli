@@ -6,13 +6,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -254,21 +255,9 @@ func AugmentUserToolPath(home, currentPath, localAppData string) string {
 	for _, dir := range current {
 		seen[filepath.Clean(dir)] = struct{}{}
 	}
-	candidates := []string{
-		"/opt/homebrew/bin",
-		"/usr/local/go/bin",
-		"/usr/local/bin",
-		filepath.Join(home, "go", "bin"),
-		filepath.Join(home, ".local", "bin"),
-		filepath.Join(home, "bin"),
-	}
-	if localAppData = strings.TrimSpace(localAppData); localAppData != "" {
-		candidates = append(candidates, filepath.Join(localAppData, "Microsoft", "WinGet", "Links"))
-	}
-	candidates = append(candidates, filepath.Join(home, "AppData", "Local", "Microsoft", "WinGet", "Links"))
-	if runtimeBin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin); err == nil {
-		candidates = append(candidates, runtimeBin)
-	}
+	// The candidate table is the same one the rendered core units carry on
+	// PATH, so setup and the units it installs agree on where tools live.
+	candidates := platformgo.DefaultPathEntries(runtime.GOOS, home, localAppData)
 
 	prepend := make([]string, 0, len(candidates))
 	for _, dir := range candidates {

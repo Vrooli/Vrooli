@@ -21,9 +21,6 @@ func (c *Client) HostInstall(ctx context.Context, tool string, dryRun bool) (*cl
 	if dryRun {
 		args = append(args, "--dry-run")
 	}
-	if !c.staleCheck {
-		args = append([]string{"--no-stale-check"}, args...)
-	}
 
 	out, runErr := c.runner.Run(ctx, c.bin, args...)
 	resp, decodeErr := decode(out, &cliv1.CliHostInstallStatus{})

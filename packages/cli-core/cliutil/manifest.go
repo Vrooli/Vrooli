@@ -7,8 +7,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/cli-core/buildinfo"
 )
 
 // freshnessManifestVersion is the on-disk schema version of FreshnessManifest.
@@ -24,6 +27,17 @@ type FileManifestEntry struct {
 	Size    int64  `json:"size"`
 	MTimeNS int64  `json:"mtime_ns"`
 	Hash    string `json:"sha256"`
+}
+
+// DirectoryManifestEntry records the directories that contain recorded input
+// files. Their metadata lets a warm check detect additions and removals without
+// walking every input directory; a changed directory falls back to the full
+// enumerator so the file-set semantics remain unchanged.
+type DirectoryManifestEntry struct {
+	Rel      string   `json:"rel"`
+	Size     int64    `json:"size"`
+	MTimeNS  int64    `json:"mtime_ns"`
+	Children []string `json:"children,omitempty"`
 }
 
 // FreshnessManifest is the recorded freshness stamp written next to a build
@@ -42,10 +56,11 @@ type FreshnessManifest struct {
 	// NOT the freshness decision input: EvaluateFreshness compares KeyInputs and
 	// per-file entries directly (so it can name the precise offender), never the
 	// aggregate. Retained as a single human-legible "what was this build" handle.
-	Digest    string              `json:"digest"`
-	Inputs    []string            `json:"inputs,omitempty"`
-	KeyInputs map[string]string   `json:"key_inputs,omitempty"`
-	Files     []FileManifestEntry `json:"files"`
+	Digest      string                   `json:"digest"`
+	Inputs      []string                 `json:"inputs,omitempty"`
+	KeyInputs   map[string]string        `json:"key_inputs,omitempty"`
+	Files       []FileManifestEntry      `json:"files"`
+	Directories []DirectoryManifestEntry `json:"directories,omitempty"`
 }
 
 // FreshnessVerdict is the result of comparing the live input set against a
@@ -77,6 +92,7 @@ func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs ma
 		Inputs:      append([]string(nil), spec.Inputs...),
 		KeyInputs:   copyStringMap(keyInputs),
 		Files:       entries,
+		Directories: freshnessInputDirectories(spec, entries),
 	}, nil
 }
 
@@ -98,7 +114,7 @@ func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs
 		return v, nil
 	}
 
-	current, err := statFreshnessInputs(spec)
+	current, err := statFreshnessInputsForManifest(spec, manifest)
 	if err != nil {
 		return FreshnessVerdict{}, err
 	}
@@ -223,6 +239,112 @@ func statFreshnessInputs(spec FreshnessSpec) (map[string]statEntry, error) {
 	})
 }
 
+// statFreshnessInputsForManifest is the warm path for the manifest engine. A
+// manifest from the current schema records the parent directory metadata for
+// every input file. When those directories are unchanged, a direct stat of
+// the recorded files is enough: no file can have been added or removed beneath
+// an unchanged directory. Any directory change re-enters the canonical walk,
+// preserving the complete input-set semantics of EvaluateFreshness.
+func statFreshnessInputsForManifest(spec FreshnessSpec, manifest FreshnessManifest) (map[string]statEntry, error) {
+	if len(manifest.Directories) == 0 {
+		return statFreshnessInputs(spec)
+	}
+	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
+	if contextRoot == "" {
+		contextRoot = filepath.Clean(strings.TrimSpace(spec.SourceRoot))
+	}
+	for _, directory := range manifest.Directories {
+		abs := filepath.Join(contextRoot, filepath.FromSlash(directory.Rel))
+		info, err := os.Stat(abs)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return statFreshnessInputs(spec)
+			}
+			return nil, err
+		}
+		if !info.IsDir() {
+			return statFreshnessInputs(spec)
+		}
+		if directory.Rel == "." {
+			children, childrenErr := freshnessDirectoryChildren(abs, spec)
+			if childrenErr != nil || !slices.Equal(children, directory.Children) {
+				return statFreshnessInputs(spec)
+			}
+		} else if info.Size() != directory.Size || info.ModTime().UnixNano() != directory.MTimeNS {
+			return statFreshnessInputs(spec)
+		}
+	}
+
+	current := make(map[string]statEntry, len(manifest.Files))
+	for _, file := range manifest.Files {
+		abs := filepath.Join(contextRoot, filepath.FromSlash(file.Rel))
+		info, err := os.Lstat(abs)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return statFreshnessInputs(spec)
+			}
+			return nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return statFreshnessInputs(spec)
+		}
+		current[file.Rel] = statEntry{size: info.Size(), mtimeNS: info.ModTime().UnixNano(), abs: abs}
+	}
+	return current, nil
+}
+
+func freshnessInputDirectories(spec FreshnessSpec, entries []FileManifestEntry) []DirectoryManifestEntry {
+	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
+	if contextRoot == "" {
+		contextRoot = filepath.Clean(strings.TrimSpace(spec.SourceRoot))
+	}
+	seen := make(map[string]struct{})
+	directories := make([]DirectoryManifestEntry, 0, len(entries))
+	for _, entry := range entries {
+		rel := filepath.ToSlash(filepath.Dir(entry.Rel))
+		if rel == "." {
+			// The source root itself is still relevant for detecting a new
+			// top-level input file.
+		}
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		abs := filepath.Join(contextRoot, filepath.FromSlash(rel))
+		info, err := os.Stat(abs)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		seen[rel] = struct{}{}
+		entry := DirectoryManifestEntry{Rel: rel, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()}
+		if rel == "." {
+			entry.Children, _ = freshnessDirectoryChildren(abs, spec)
+		}
+		directories = append(directories, entry)
+	}
+	sort.Slice(directories, func(i, j int) bool { return directories[i].Rel < directories[j].Rel })
+	return directories
+}
+
+func freshnessDirectoryChildren(dir string, spec FreshnessSpec) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	children := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == FreshnessManifestSuffix || strings.HasSuffix(name, FreshnessManifestSuffix) || isBuildOutput(name) || hasSkippedSuffix(name, spec.SkipSuffixes) {
+			continue
+		}
+		if entry.IsDir() {
+			name += "/"
+		}
+		children = append(children, name)
+	}
+	sort.Strings(children)
+	return children, nil
+}
+
 func collectFreshnessEntries(spec FreshnessSpec) ([]FileManifestEntry, error) {
 	var entries []FileManifestEntry
 	err := walkFreshnessInputs(spec, func(root, abs string, info fs.FileInfo, _ func() bool) error {
@@ -230,7 +352,7 @@ func collectFreshnessEntries(spec FreshnessSpec) ([]FileManifestEntry, error) {
 		if readErr != nil {
 			return readErr
 		}
-		if isCompiledBinary(content) {
+		if buildinfo.IsCompiledBinary(content) {
 			return nil
 		}
 		rel, relErr := filepath.Rel(root, abs)
@@ -268,7 +390,24 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 	skipSuffixes := append([]string(nil), spec.SkipSuffixes...)
 	inputs := trimNonEmpty(spec.Inputs)
 	if len(inputs) == 0 {
-		return walkTreeInputs(sourceRoot, sourceRoot, skip, skipSuffixes, visit)
+		files, _, err := EnumerateInputs(sourceRoot, []string{"."}, EnumerateDeps{})
+		if err != nil {
+			return err
+		}
+		for _, rel := range files {
+			match := filepath.Join(sourceRoot, filepath.FromSlash(rel))
+			info, err := os.Stat(match)
+			if err != nil {
+				return err
+			}
+			if buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) || isBuildOutput(rel) {
+				continue
+			}
+			if err := visit(sourceRoot, match, info, magicPeek(match)); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
 	if contextRoot == "" {
@@ -280,6 +419,19 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 			return err
 		}
 		for _, match := range matches {
+			linkInfo, linkErr := os.Lstat(match)
+			if linkErr != nil {
+				if os.IsNotExist(linkErr) {
+					continue
+				}
+				return linkErr
+			}
+			if linkInfo.Mode()&os.ModeSymlink != 0 {
+				// Symlinks are references, not source files. In particular, a
+				// broken fixture link must not make an otherwise valid artifact
+				// impossible to stamp.
+				continue
+			}
 			info, err := os.Stat(match)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -291,6 +443,11 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 				if err := walkTreeInputs(contextRoot, match, skip, skipSuffixes, visit); err != nil {
 					return err
 				}
+				continue
+			}
+			if !info.Mode().IsRegular() {
+				// Sockets, devices, FIFOs, and other runtime artifacts are not
+				// build inputs and may not be readable as file content.
 				continue
 			}
 			rel, err := filepath.Rel(contextRoot, match)
@@ -322,6 +479,9 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		if rel == "." {
 			return nil
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
 		if buildinfoSkipDir(rel) && d.IsDir() {
 			return filepath.SkipDir
 		}
@@ -331,6 +491,9 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		info, infoErr := d.Info()
 		if infoErr != nil {
 			return infoErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil
 		}
 		return visit(root, path, info, magicPeek(path))
 	})
@@ -350,12 +513,13 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 var (
 	BuildOutputSkipNames = []string{
 		"coverage.out", "cov.out", "cover.out",
+		".vrooli-closure-go_module.json",
 		// jscpd writes its duplication report into the api tree, so a scan run
 		// would otherwise stale the binary that never consumed it.
 		"jscpd-report.json",
 	}
 
-	BuildOutputSkipSuffixes = []string{".log", ".test", ".exe"}
+	BuildOutputSkipSuffixes = []string{".log", ".test", ".tmp"}
 )
 
 // isBuildOutput reports whether rel names a build/test product rather than a
@@ -373,6 +537,17 @@ func isBuildOutput(rel string) bool {
 		}
 	}
 	return false
+}
+
+// BuildOutputSkipSuffixesFor returns output suffixes for the target platform.
+// Windows executables are excluded only when the caller's executable probe
+// says .exe is meaningful; a source file named *.exe on Unix is an input.
+func BuildOutputSkipSuffixesFor(executableSuffix string) []string {
+	suffixes := append([]string(nil), BuildOutputSkipSuffixes...)
+	if strings.TrimSpace(executableSuffix) != "" {
+		suffixes = append(suffixes, executableSuffix)
+	}
+	return suffixes
 }
 
 func hasSkippedSuffix(rel string, suffixes []string) bool {
@@ -396,7 +571,7 @@ func magicPeek(path string) func() bool {
 		defer f.Close()
 		var buf [4]byte
 		n, _ := f.Read(buf[:])
-		return isCompiledBinary(buf[:n])
+		return buildinfo.IsCompiledBinary(buf[:n])
 	}
 }
 

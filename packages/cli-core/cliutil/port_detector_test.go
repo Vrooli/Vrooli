@@ -2,10 +2,13 @@ package cliutil
 
 import (
 	"context"
+	"errors"
 	"os"
-	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 func TestSanitizePortOutput(t *testing.T) {
@@ -49,14 +52,14 @@ func BenchmarkLookupScenarioPortPeerRecord(b *testing.B) {
 	}
 }
 
-func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
+func TestDetectPortFromVrooliPassesNoGlobalFlags(t *testing.T) {
 	originalLookPath := lookPathFn
 	resetPortDetectorCache()
-	originalExec := execCommandContextFn
+	originalExec := runVrooliFn
 	originalPeer, originalRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
-		execCommandContextFn = originalExec
+		runVrooliFn = originalExec
 		peerRecordLookupFn, runtimeRegistryLookupFn = originalPeer, originalRegistry
 		resetPortDetectorCache()
 	})
@@ -65,6 +68,9 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 
+	originalHome := userHomeFn
+	userHomeFn = func() (string, error) { return t.TempDir(), nil }
+	t.Cleanup(func() { userHomeFn = originalHome })
 	lookPathFn = func(file string) (string, error) {
 		if file != "vrooli" {
 			t.Fatalf("expected vrooli lookup, got %s", file)
@@ -73,16 +79,20 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 	}
 
 	called := false
-	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		name, args := inv.Binary, inv.Args
 		called = true
 		if name != "/custom/vrooli" {
 			t.Fatalf("expected resolved vrooli path, got %s", name)
 		}
-		want := []string{"--no-stale-check", "--json", "scenario", "port", "test-genie", "API_PORT"}
+		want := []string{"scenario", "port", "test-genie", "API_PORT", "--json"}
 		if !reflect.DeepEqual(args, want) {
 			t.Fatalf("args = %#v, want %#v", args, want)
 		}
-		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"success\":true,\"port\":15422}\\n'")
+		if strings.HasPrefix(args[0], "--") {
+			t.Fatalf("args = %#v start with a global flag", args)
+		}
+		return cliinvoke.Result{Stdout: []byte("{\"success\":true,\"port\":15422}\n")}
 	}
 
 	port := DetectPortFromVrooli("test-genie", "API_PORT")()
@@ -97,21 +107,25 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 func TestDetectScenarioRuntimeStatusReadsStoppedLifecycleState(t *testing.T) {
 	originalLookPath := lookPathFn
 	resetPortDetectorCache()
-	originalExec := execCommandContextFn
+	originalExec := runVrooliFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
-		execCommandContextFn = originalExec
+		runVrooliFn = originalExec
 	})
+	originalHome := userHomeFn
+	userHomeFn = func() (string, error) { return t.TempDir(), nil }
+	t.Cleanup(func() { userHomeFn = originalHome })
 	lookPathFn = func(string) (string, error) { return "/custom/vrooli", nil }
-	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		name, args := inv.Binary, inv.Args
 		if name != "/custom/vrooli" {
 			t.Fatalf("expected resolved vrooli path, got %s", name)
 		}
-		want := []string{"--no-stale-check", "--json", "scenario", "status", "vrooli-bridge"}
+		want := []string{"scenario", "status", "vrooli-bridge", "--json"}
 		if !reflect.DeepEqual(args, want) {
 			t.Fatalf("args = %#v, want %#v", args, want)
 		}
-		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"scenario\":{\"status\":\"stopped\"}}\\n'")
+		return cliinvoke.Result{Stdout: []byte("{\"scenario\":{\"status\":\"stopped\"}}\n")}
 	}
 
 	if got := DetectScenarioRuntimeStatus("vrooli-bridge")(); got != "stopped" {
@@ -131,21 +145,22 @@ func TestRuntimeStatusFromJSONFallsBackToRuntime(t *testing.T) {
 func TestDetectPortFromVrooliFallsBackToBareCommand(t *testing.T) {
 	originalLookPath := lookPathFn
 	resetPortDetectorCache()
-	originalExec := execCommandContextFn
+	originalExec := runVrooliFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
-		execCommandContextFn = originalExec
+		runVrooliFn = originalExec
 	})
 
 	lookPathFn = func(file string) (string, error) {
-		return "", exec.ErrNotFound
+		return "", errors.New("executable file not found in $PATH")
 	}
 
-	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		name := inv.Binary
 		if name != "vrooli" {
 			t.Fatalf("expected bare vrooli fallback, got %s", name)
 		}
-		return exec.CommandContext(ctx, "bash", "-lc", "printf 'API_PORT=18847\\n'")
+		return cliinvoke.Result{Stdout: []byte("API_PORT=18847\n")}
 	}
 
 	port := DetectPortFromVrooli("scenario-auditor", "API_PORT")()
@@ -160,11 +175,11 @@ func TestDetectPortFromVrooliRoutesToShadowWhenShadowed(t *testing.T) {
 
 	originalLookPath := lookPathFn
 	resetPortDetectorCache()
-	originalExec := execCommandContextFn
+	originalExec := runVrooliFn
 	originalPeer, originalRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
-		execCommandContextFn = originalExec
+		runVrooliFn = originalExec
 		peerRecordLookupFn, runtimeRegistryLookupFn = originalPeer, originalRegistry
 		resetPortDetectorCache()
 	})
@@ -175,10 +190,11 @@ func TestDetectPortFromVrooliRoutesToShadowWhenShadowed(t *testing.T) {
 	lookPathFn = func(string) (string, error) { return "vrooli", nil }
 
 	var gotTarget string
-	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		// args: --no-stale-check --json scenario port <target> API_PORT
-		gotTarget = args[len(args)-2]
-		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"port\":19001}\\n'")
+	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		args := inv.Args
+		// args: scenario port <target> API_PORT --json
+		gotTarget = args[len(args)-3]
+		return cliinvoke.Result{Stdout: []byte("{\"port\":19001}\n")}
 	}
 
 	port := DetectPortFromVrooli("agent-manager", "API_PORT")()
@@ -198,11 +214,11 @@ func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
 
 	originalLookPath := lookPathFn
 	resetPortDetectorCache()
-	originalExec := execCommandContextFn
+	originalExec := runVrooliFn
 	originalPeer, originalRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
-		execCommandContextFn = originalExec
+		runVrooliFn = originalExec
 		peerRecordLookupFn, runtimeRegistryLookupFn = originalPeer, originalRegistry
 		resetPortDetectorCache()
 	})
@@ -213,14 +229,15 @@ func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
 	lookPathFn = func(string) (string, error) { return "vrooli", nil }
 
 	var targets []string
-	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		target := args[len(args)-2]
+	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		args := inv.Args
+		target := args[len(args)-3]
 		targets = append(targets, target)
 		if target == "swarm-manager@shadow" {
 			// Simulate "not found": non-zero exit yields empty port.
-			return exec.CommandContext(ctx, "bash", "-lc", "exit 1")
+			return cliinvoke.Result{Class: cliinvoke.Lifecycle, ExitCode: 1, Err: errors.New("exit status 1")}
 		}
-		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"port\":20002}\\n'")
+		return cliinvoke.Result{Stdout: []byte("{\"port\":20002}\n")}
 	}
 
 	port := DetectPortFromVrooli("swarm-manager", "API_PORT")()

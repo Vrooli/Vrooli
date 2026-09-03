@@ -13,6 +13,8 @@ const (
 	KindGeneratedTypeScript PackageKind = "generated_typescript"
 	KindGoRuntime           PackageKind = "go_runtime"
 	KindGoCLI               PackageKind = "go_cli"
+	KindPythonRuntime       PackageKind = "python_runtime"
+	KindRustRuntime         PackageKind = "rust_runtime"
 	KindInternalPlatform    PackageKind = "internal_platform"
 	KindSchemaOrContract    PackageKind = "schema_or_contract"
 )
@@ -53,6 +55,8 @@ const (
 type CommandSpec struct {
 	Name    string   `json:"name"`
 	Run     []string `json:"run"`
+	Inputs  []string `json:"inputs,omitempty"`
+	Ignore  []string `json:"ignore,omitempty"`
 	Outputs []string `json:"outputs,omitempty"`
 }
 

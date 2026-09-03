@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
@@ -198,7 +200,9 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if !reflect.DeepEqual(attachBody, map[string]string{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"]}) || attachBody["harness_session_id"] == "" {
+	// The attach carries the task, the harness identity, the tree and the
+	// scope the session is born in; nothing else.
+	if !reflect.DeepEqual(attachBody, map[string]string{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"], "working_dir": attachBody["working_dir"], "scope": attachBody["scope"]}) || attachBody["harness_session_id"] == "" || attachBody["working_dir"] == "" || !strings.HasPrefix(attachBody["scope"], "vrooli-agent-") {
 		t.Fatalf("attach body = %#v", attachBody)
 	}
 	if childPath != "/safe/fixture/codex" || !reflect.DeepEqual(childArgs, []string{"--unchanged", "literal value"}) {
@@ -207,8 +211,18 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	if got := environmentValue(childEnvironment, EnvIdentityToken); got != "safe-token" {
 		t.Fatalf("child token = %q, want safe-token", got)
 	}
-	if len(childEnvironment) != len(baseEnvironment) {
-		t.Fatalf("child environment length = %d, want %d", len(childEnvironment), len(baseEnvironment))
+	// Beyond the base environment the launcher adds exactly the token and
+	// the toolchain floor; nothing else may leak into the child.
+	for _, entry := range childEnvironment {
+		key, _, _ := strings.Cut(entry, "=")
+		if environmentValue(baseEnvironment, key) != "" || key == EnvIdentityToken {
+			continue
+		}
+		switch key {
+		case envkit.GoFlagsKey, envkit.GoMaxProcsKey, envkit.PnpmChildConcurrencyKey, envkit.PnpmWorkspaceConcurrencyKey:
+		default:
+			t.Fatalf("child environment gained %q beyond the token and the toolchain floor", entry)
+		}
 	}
 	if detachPath != "/api/v1/runs/safe-run-id/detach" {
 		t.Fatalf("detach path = %q", detachPath)

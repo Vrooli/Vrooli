@@ -74,7 +74,7 @@ func TestListResourcesFallsBackFromVerboseToPlain(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{
 			{err: errors.New("verbose unsupported")},
-			{output: []byte(`{"success":true,"resources":[{"name":"redis","path":"/r/redis","exists":true,"registered":true,"enabled":true,"has_cli":true,"unknown_field":"ignored"}]}`)},
+			{output: []byte(`{"success":true,"resources":[{"name":"redis","path":"/r/redis","exists":true,"registered":true,"enabled":true,"declares_cli":true,"unknown_field":"ignored"}]}`)},
 		},
 	}
 	client := New(WithRunner(runner))
@@ -90,13 +90,13 @@ func TestListResourcesFallsBackFromVerboseToPlain(t *testing.T) {
 	if got := resources[0].GetName(); got != "redis" {
 		t.Fatalf("resource name = %q, want redis", got)
 	}
-	if !resources[0].GetHasCli() {
-		t.Fatalf("expected snake_case has_cli to decode")
+	if !resources[0].GetDeclaresCli() {
+		t.Fatalf("expected snake_case declares_cli to decode")
 	}
 
 	wantCalls := [][]string{
-		{"--no-stale-check", "resource", "list", "--json", "--verbose"},
-		{"--no-stale-check", "resource", "list", "--json"},
+		{"resource", "list", "--json", "--verbose"},
+		{"resource", "list", "--json"},
 	}
 	if len(runner.calls) != len(wantCalls) {
 		t.Fatalf("expected %d calls, got %d", len(wantCalls), len(runner.calls))
@@ -128,7 +128,7 @@ func TestLocksDecodesRegistryClaims(t *testing.T) {
 		t.Fatalf("registry claim not decoded: %+v", claim)
 	}
 
-	wantArgs := []string{"--no-stale-check", "locks", "--json"}
+	wantArgs := []string{"locks", "--json"}
 	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("call args = %v, want %v", runner.calls, wantArgs)
 	}
@@ -158,7 +158,7 @@ func TestRuntimeSupervisorStatusDecodes(t *testing.T) {
 		t.Fatalf("nested last_tick not decoded: %+v", resp.GetLastTick())
 	}
 
-	wantArgs := []string{"--no-stale-check", "runtime", "supervisor", "status", "--json"}
+	wantArgs := []string{"runtime", "supervisor", "status", "--json"}
 	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("call args = %v, want %v", runner.calls, wantArgs)
 	}
@@ -180,7 +180,7 @@ func TestScenarioPortDecodesTypedFields(t *testing.T) {
 		t.Fatalf("unexpected port payload: success=%v port=%d", resp.GetSuccess(), resp.GetPort())
 	}
 
-	wantArgs := []string{"--no-stale-check", "scenario", "port", "scenario-dependency-analyzer", "API_PORT", "--json"}
+	wantArgs := []string{"scenario", "port", "scenario-dependency-analyzer", "API_PORT", "--json"}
 	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("call args = %v, want %v", runner.calls, wantArgs)
 	}
@@ -204,7 +204,7 @@ func TestScenarioPortAtPathPassesPhysicalScenarioDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ScenarioPortAtPath returned error: %v", err)
 	}
-	wantArgs := []string{"--no-stale-check", "scenario", "port", "generated", "API_PORT", "--json", "--path", "/tmp/workspace/scenarios/generated"}
+	wantArgs := []string{"scenario", "port", "generated", "API_PORT", "--json", "--path", "/tmp/workspace/scenarios/generated"}
 	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, wantArgs) {
 		t.Fatalf("call args = %v, want %v", runner.calls, wantArgs)
 	}
@@ -239,7 +239,7 @@ func TestRunnerErrorIsReturned(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "run vrooli --no-stale-check scenario list --json") {
+	if !strings.Contains(err.Error(), "run vrooli scenario list --json") {
 		t.Fatalf("error %q does not include command", err)
 	}
 }
@@ -276,20 +276,9 @@ func TestTimeoutAppliedWhenContextHasNoDeadline(t *testing.T) {
 	}
 }
 
-func TestNoStaleCheckInjectedByDefault(t *testing.T) {
+func TestClientDoesNotInjectLegacyStaleFlag(t *testing.T) {
 	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{"success":true,"scenarios":[]}`)}}}
 	if _, err := New(WithRunner(runner)).ListScenarios(context.Background()); err != nil {
-		t.Fatalf("ListScenarios: %v", err)
-	}
-	want := []string{"--no-stale-check", "scenario", "list", "--json"}
-	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0].args, want) {
-		t.Fatalf("args = %v, want %v", runner.calls[0].args, want)
-	}
-}
-
-func TestStaleCheckCanBeReenabled(t *testing.T) {
-	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{"success":true,"scenarios":[]}`)}}}
-	if _, err := New(WithRunner(runner), WithStaleCheck(true)).ListScenarios(context.Background()); err != nil {
 		t.Fatalf("ListScenarios: %v", err)
 	}
 	want := []string{"scenario", "list", "--json"}

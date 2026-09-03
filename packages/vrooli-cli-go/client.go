@@ -1,11 +1,14 @@
 package vroolicli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -31,16 +34,51 @@ type Runner interface {
 	RunCombined(ctx context.Context, name string, args ...string) ([]byte, error)
 }
 
+// execRunner is the production Runner. It delegates resolution and execution
+// to cli-invoke-go so the typed client shares the supervisors' invocation
+// discipline (deadline, WaitDelay, failure classes) instead of carrying its
+// own exec calls.
 type execRunner struct{}
 
 var _ Runner = execRunner{}
 
 func (execRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).Output()
+	res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: resolveBinary(name), Args: args, Timeout: timeoutFrom(ctx)})
+	return res.Stdout, res.Error()
 }
 
 func (execRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	var combined bytes.Buffer
+	res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: resolveBinary(name), Args: args, Timeout: timeoutFrom(ctx), Stdout: &combined, Stderr: &combined})
+	return combined.Bytes(), res.Error()
+}
+
+// resolveBinary turns the client's configured name into a path through the
+// one invoker seam. A configured path is explicit; the default name resolves
+// through VROOLI_BIN, the runtime home, then PATH. A miss returns the name so
+// the exec error names what was looked for.
+func resolveBinary(name string) string {
+	explicit := ""
+	if name != defaultBinary {
+		explicit = name
+	}
+	home, _ := os.UserHomeDir()
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: explicit, RuntimeHome: home})
+	if err != nil {
+		return name
+	}
+	return path
+}
+
+// timeoutFrom keeps cli-invoke-go's default backstop unless the caller's
+// context already carries a tighter deadline.
+func timeoutFrom(ctx context.Context) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining > 0 {
+			return remaining
+		}
+	}
+	return cliinvoke.DefaultTimeout
 }
 
 // Client wraps typed `vrooli ... --json` CLI contracts.
@@ -48,22 +86,19 @@ type Client struct {
 	bin            string
 	runner         Runner
 	defaultTimeout time.Duration
-	staleCheck     bool
 }
 
 // Option customizes a Client.
 type Option func(*Client)
 
 // New returns a Vrooli CLI client with production defaults: a 30s per-operation
-// timeout and the CLI's stale-binary check disabled (a programmatic caller runs
-// the installed binary as-is; freshness is a build concern, and the check walks
-// the repo tree on every invocation).
+// timeout and no global flags on the argv (a programmatic caller runs the
+// installed binary as-is; freshness is the lifecycle engine's concern).
 func New(opts ...Option) *Client {
 	c := &Client{
 		bin:            defaultBinary,
 		runner:         execRunner{},
 		defaultTimeout: defaultTimeout,
-		staleCheck:     false,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -98,14 +133,6 @@ func WithBinary(bin string) Option {
 	}
 }
 
-// WithStaleCheck re-enables the CLI's stale-binary check (disabled by default).
-// Pass true only when the caller genuinely wants to be gated on binary freshness.
-func WithStaleCheck(enabled bool) Option {
-	return func(c *Client) {
-		c.staleCheck = enabled
-	}
-}
-
 var cliJSON = protojson.UnmarshalOptions{DiscardUnknown: true}
 
 // Output runs a raw Vrooli CLI command and returns stdout without injecting
@@ -137,12 +164,8 @@ func (c *Client) withTimeout(ctx context.Context) (context.Context, context.Canc
 	return ctx, func() {}
 }
 
-// run executes one CLI invocation under the already-bounded ctx. It prepends
-// --no-stale-check unless the caller opted back into the stale check.
+// run executes one CLI invocation under the already-bounded ctx.
 func (c *Client) run(ctx context.Context, args ...string) ([]byte, error) {
-	if !c.staleCheck {
-		args = append([]string{"--no-stale-check"}, args...)
-	}
 	out, err := c.runner.Run(ctx, c.bin, args...)
 	if err != nil {
 		return nil, fmt.Errorf("run %s: %w", formatCommand(c.bin, args), err)
@@ -154,9 +177,6 @@ func (c *Client) run(ctx context.Context, args ...string) ([]byte, error) {
 // prefers a CombinedRunner; runners that do not implement it fall back to
 // stdout-only Run.
 func (c *Client) runCombined(ctx context.Context, args ...string) ([]byte, error) {
-	if !c.staleCheck {
-		args = append([]string{"--no-stale-check"}, args...)
-	}
 	out, err := c.runner.RunCombined(ctx, c.bin, args...)
 	if err != nil {
 		// Return the captured output alongside the error (matching

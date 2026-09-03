@@ -1,18 +1,19 @@
 package cliapp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 var (
@@ -22,11 +23,23 @@ var (
 	resolveScenarioCLIPath = func(root, scenario string) (string, error) {
 		return repocontract.ResolveScenarioFile(root, scenario, "cli")
 	}
-	execScenarioSetupCommand = func(name string) *exec.Cmd {
-		return exec.Command("vrooli", "scenario", "setup", name)
-	}
-	execScenarioStartCommand = func(name string) *exec.Cmd {
-		return exec.Command("vrooli", "scenario", "start", name)
+	// runScenarioLifecycle is the preflight's one seam onto the vrooli CLI:
+	// setup or start, streamed to the operator, no local deadline because a
+	// scenario start is itself a lifecycle orchestration.
+	runScenarioLifecycle = func(verb, name string) error {
+		home, _ := os.UserHomeDir()
+		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		if err != nil {
+			return err
+		}
+		res := cliinvoke.Run(context.Background(), cliinvoke.Invocation{
+			Binary:  binary,
+			Args:    cliinvoke.ScenarioLifecycle(verb, name, false),
+			Timeout: time.Hour,
+			Stdout:  os.Stdout,
+			Stderr:  os.Stderr,
+		})
+		return res.Error()
 	}
 )
 
@@ -678,27 +691,17 @@ func (a *ScenarioApp) tryAutoStart() error {
 
 	// Scenario start is itself a lifecycle orchestration command. Let it run to
 	// completion instead of imposing an arbitrary local subprocess deadline.
-	cmd := execScenarioStartCommand(a.options.Name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if err := runScenarioLifecycle("start", a.options.Name); err != nil {
 		// A copied or newly provisioned node can have a valid scenario manifest
 		// but no component artifact yet. The normal lifecycle start reports that
 		// as an exec failure; one governed setup retry repairs the artifact and
 		// keeps --auto-start useful on cold nodes without ever executing a binary
 		// directly.
 		fmt.Printf("%s is not startable yet; running scenario setup and retrying...\n", a.options.Name)
-		setup := execScenarioSetupCommand(a.options.Name)
-		setup.Stdout = os.Stdout
-		setup.Stderr = os.Stderr
-		if setupErr := setup.Run(); setupErr != nil {
+		if setupErr := runScenarioLifecycle("setup", a.options.Name); setupErr != nil {
 			return fmt.Errorf("vrooli scenario setup failed after start failure: %w (start: %v)", setupErr, err)
 		}
-		retry := execScenarioStartCommand(a.options.Name)
-		retry.Stdout = os.Stdout
-		retry.Stderr = os.Stderr
-		if retryErr := retry.Run(); retryErr != nil {
+		if retryErr := runScenarioLifecycle("start", a.options.Name); retryErr != nil {
 			return fmt.Errorf("vrooli scenario start failed after setup retry: %w (initial start: %v)", retryErr, err)
 		}
 	}

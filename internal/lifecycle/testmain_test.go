@@ -10,12 +10,29 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 )
 
 // TestMain makes process cleanup an explicit package invariant. Lifecycle
 // tests intentionally start detached scenario processes, so a green test can
 // otherwise leave a listener behind and poison the next invocation.
 func TestMain(m *testing.M) {
+	// Lifecycle unit tests must never start the host-wide runtime supervisor.
+	// In a test binary the production fallback executable is the test binary
+	// itself, which can recursively execute the suite after detachment. Tests
+	// that exercise the policy set the mode explicitly and inject the launch
+	// seam; all other tests run with the daemon disabled.
+	previousMode, hadMode := os.LookupEnv(runtimesupervisor.ModeEnv)
+	_ = os.Setenv(runtimesupervisor.ModeEnv, runtimesupervisor.ModeOff)
+	defer func() {
+		if hadMode {
+			_ = os.Setenv(runtimesupervisor.ModeEnv, previousMode)
+		} else {
+			_ = os.Unsetenv(runtimesupervisor.ModeEnv)
+		}
+	}()
+
 	before, beforeErr := lifecycleTestDescendants()
 	status := m.Run()
 	after, afterErr := waitForLifecycleTestDescendants()

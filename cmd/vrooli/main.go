@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/trustposture"
+	"github.com/vrooli/platform-go/rlimitexec"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/vroolicli"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessioncontain"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessionlease"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/floorengagement"
@@ -36,8 +39,6 @@ var vrooliVersion = "2.0.0"
 
 var (
 	resolveSourceRootFn = buildinfo.ResolveSourceRoot
-	checkStalenessFn    = buildinfo.CheckStaleness
-	rebuildAndReexecFn  = buildinfo.RebuildAndReexec
 	lookPathFn          = shell.LookPath
 	newLoggerFn         = createCommandLogger
 )
@@ -45,6 +46,11 @@ var (
 type globalOptions = rootcli.GlobalOptions
 
 func main() {
+	// The macOS session ceiling re-execs through this binary as an rlimit
+	// shim before anything else runs (platform-go/rlimitexec).
+	rlimitexec.MaybeRun(os.Args)
+	sessioncontain.Register()
+	sessionlease.Register()
 	// This internal-only service entry point is reached by the root-owned
 	// systemd unit installed by `sudo vrooli setup`. It is intentionally
 	// handled before normal CLI initialization and accepts no general command.
@@ -174,8 +180,6 @@ func configuredApp() *vroolicli.App {
 		},
 		ResolveSourceRootFn: resolveSourceRootFn,
 		HomeDirFn:           config.HomeDir,
-		CheckStalenessFn:    checkStalenessFn,
-		RebuildAndReexecFn:  rebuildAndReexecFn,
 		LookPathFn:          lookPathFn,
 		NewLoggerFn:         newLoggerFn,
 		DebugLogFn:          debugLog,

@@ -28,7 +28,7 @@ func TestResourceStatusesDecodesFleetForm(t *testing.T) {
 		t.Errorf("status not decoded: %+v", got)
 	}
 	// Fleet form takes no name argument.
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check resource status --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "resource status --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }
@@ -51,7 +51,7 @@ func TestResourceStatusSinglePassesName(t *testing.T) {
 	if resp.GetName() != "redis" || !resp.GetRunning() {
 		t.Errorf("unexpected response: %+v", resp)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check resource status redis --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "resource status redis --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }
@@ -95,7 +95,7 @@ func TestScenarioStatusSinglePassesName(t *testing.T) {
 	if resp.GetScenario().GetName() != "swarm-manager" || resp.GetRuntime().GetProcesses() != 2 {
 		t.Errorf("unexpected response: %+v", resp)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario status swarm-manager --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "scenario status swarm-manager --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }
@@ -114,7 +114,7 @@ func TestListScenariosWithPortsInjectsFlag(t *testing.T) {
 	if _, err := client.ListScenarios(context.Background(), WithPorts()); err != nil {
 		t.Fatalf("ListScenarios: %v", err)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario list --json --include-ports" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "scenario list --json --include-ports" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }
@@ -126,7 +126,7 @@ func TestListScenariosDefaultOmitsPortsFlag(t *testing.T) {
 	if _, err := client.ListScenarios(context.Background()); err != nil {
 		t.Fatalf("ListScenarios: %v", err)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario list --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "scenario list --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }

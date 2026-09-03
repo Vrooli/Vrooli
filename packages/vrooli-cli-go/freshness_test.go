@@ -41,7 +41,7 @@ func TestScenarioFreshnessDecodesReport(t *testing.T) {
 	if chk.GetCheckType() != "ui-bundle" || !chk.GetStale() || chk.GetCause() != "content changed" {
 		t.Errorf("check not decoded: %+v", chk)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario freshness web-console --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "scenario freshness web-console --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }
@@ -53,7 +53,7 @@ func TestScenarioFreshnessWithPath(t *testing.T) {
 	if _, err := client.ScenarioFreshness(context.Background(), "x", WithFreshnessPath("/custom/path")); err != nil {
 		t.Fatalf("ScenarioFreshness: %v", err)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario freshness x --json --path /custom/path" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "scenario freshness x --json --path /custom/path" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }

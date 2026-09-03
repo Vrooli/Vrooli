@@ -183,6 +183,21 @@ func TestTagNormalization(t *testing.T) {
 	}
 }
 
+func TestGoFlagsIgnoreConcurrencyWidth(t *testing.T) {
+	deps := buildInputDeps(map[string]string{
+		"GOOS": "linux", "GOARCH": "amd64", "CGO_ENABLED": "1",
+		"GOFLAGS": "-p=4 -mod=vendor",
+	}, "")
+	keys := goBuildKeyInputs(deps, "")
+	if got := keys["goflags"]; got != "-mod=vendor" {
+		t.Fatalf("goflags = %q, want only output-determining flags", got)
+	}
+	deps.goEnv = func(keys ...string) map[string]string { return map[string]string{"GOFLAGS": "-p 1"} }
+	if _, ok := goBuildKeyInputs(deps, "")["goflags"]; ok {
+		t.Fatal("a concurrency-only GOFLAGS value must be omitted")
+	}
+}
+
 // TestParseBuildCommandFlags covers the recognized shapes and the omit-on-ambiguity
 // default.
 func TestParseBuildCommandFlags(t *testing.T) {
@@ -211,13 +226,14 @@ func TestParseBuildCommandFlags(t *testing.T) {
 
 // TestUIBuildKeyInputs: node_major keyed when present, omitted when absent.
 func TestUIBuildKeyInputs(t *testing.T) {
+	t.Setenv("NODE_ENV", "development")
 	withNode := buildInputDeps(map[string]string{}, "20")
 	keys := uiBuildKeyInputs(withNode)
 	if keys["node_major"] != "20" {
 		t.Fatalf("node_major = %q, want 20", keys["node_major"])
 	}
 	if keys["node_env"] == "" {
-		t.Fatalf("node_env must always be present")
+		t.Fatalf("node_env must be present when explicitly set")
 	}
 	noNode := buildInputDeps(map[string]string{}, "")
 	if _, ok := uiBuildKeyInputs(noNode)["node_major"]; ok {
@@ -284,8 +300,12 @@ func TestBinariesFreshnessBuildDeterminantNamesKeyInExplain(t *testing.T) {
 	item := freshnessTestItem(appPath)
 	check := freshnessBinaryCheck()
 
-	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
-		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
 	}
 
 	manifestPath := cliutil.FreshnessManifestPath(binPath)

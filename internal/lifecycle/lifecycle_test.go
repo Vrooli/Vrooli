@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/process"
@@ -1367,6 +1368,74 @@ func TestRunnerStopWritesStoppedRuntimeRegistry(t *testing.T) {
 	}
 }
 
+func TestBeginRuntimeRegistryStopRecoversLiveRefFromStoppedInstance(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		Scenario:   "alpha",
+		Variant:    "live",
+		Status:     scenarioruntime.StatusStarting,
+		HostBootID: "boot-test",
+	}, scenarioruntime.DefaultHeartbeatTTL)
+	if err != nil {
+		store.Close()
+		t.Fatalf("CreateLease: %v", err)
+	}
+	pid, pgid := 4242, 4242
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		InstanceID: instance.InstanceID,
+		PID:        &pid,
+		PGID:       &pgid,
+		ProcessID:  "vrooli.develop.alpha.start-api",
+		Step:       "start-api",
+		Status:     WaitVerdictRunning,
+		StartedAt:  time.Now().UTC(),
+		HostBootID: "boot-test",
+	}); err != nil {
+		store.Close()
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+	if _, err := store.StopLease(ctx, instance.InstanceID, instance.Generation, "simulated stale stop"); err != nil {
+		store.Close()
+		t.Fatalf("StopLease: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.hostSession = func(context.Context, string) (hostsession.Snapshot, error) {
+			return hostsession.Snapshot{BootID: "boot-test", SessionID: "session-test"}, nil
+		}
+		deps.isPIDRunning = func(got int) bool { return got == pid }
+		deps.readProcessEnv = func(got int) (map[string]string, error) {
+			if got != pid {
+				return nil, fmt.Errorf("unexpected pid %d", got)
+			}
+			return map[string]string{
+				runtimeRegistryInstanceEnv: instance.InstanceID,
+				"VROOLI_SCENARIO":          "alpha",
+				"VROOLI_VARIANT":           "live",
+			}, nil
+		}
+	})
+	stop, err := runner.beginRuntimeRegistryStop(ctx, "alpha", "")
+	if err != nil {
+		t.Fatalf("beginRuntimeRegistryStop: %v", err)
+	}
+	defer stop.close()
+	if len(stop.processRecords) != 1 || stop.processRecords[0].PID != pid {
+		t.Fatalf("recovered process records = %#v, want pid %d", stop.processRecords, pid)
+	}
+}
+
 func TestRunnerStartHealthFailureWritesFailedRuntimeRegistry(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1842,14 +1911,23 @@ func TestUIBundleFreshnessTracksBundleFreshness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("uiBundleFreshness fresh: %v", err)
 	}
-	if stale {
-		t.Fatalf("expected fresh bundle to satisfy setup, reason=%q", reason)
+	if !stale {
+		t.Fatalf("missing manifest must require one build, reason=%q", reason)
+	}
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, component, defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
+	}
+	stale, _, err = checkFreshness()
+	if err != nil || stale {
+		t.Fatalf("stamped bundle should be fresh: stale=%v err=%v", stale, err)
 	}
 
-	// Remove the stamped manifest so the next check re-enters the bootstrap mtime
-	// path, then make the source newer than the bundle: must read stale.
+	// Remove the manifest; the next check must require a build regardless of mtime.
 	_ = os.Remove(cliutil.FreshnessManifestPath(bundlePath))
-	chtimes(t, sourcePath, time.Now().Add(time.Hour))
 
 	stale, reason, err = checkFreshness()
 	if err != nil {
@@ -1866,6 +1944,22 @@ func TestUIBundleFreshnessNarrowsProtoTypesFileDependencyToImportedFiles(t *test
 	uiDir := filepath.Join(appPath, "ui")
 	sourceDir := filepath.Join(uiDir, "src")
 	protoRoot := filepath.Join(repoRoot, "packages", "proto", "gen", "typescript")
+	testkitgo.WriteFile(t, filepath.Join(repoRoot, "packages", "proto", ".vrooli", "package.json"), `{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "proto",
+    "display_name": "Proto",
+    "kind": "schema_or_contract",
+    "language": "proto",
+    "module_identifiers": ["@vrooli/proto-types"],
+    "generated_outputs": [{"name": "proto-types", "identifiers": ["@vrooli/proto-types"]}],
+    "adoption": {"scenario_adoptable": true, "allowed_consumers": ["scenario_ui"], "adoption_modes": ["file_dependency"]},
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false}
+  }
+}
+`)
 	testkitgo.WriteFile(t, filepath.Join(uiDir, "package.json"), `{
   "dependencies": {
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
@@ -1910,6 +2004,22 @@ func TestUIBundleFreshnessFallsBackToWholeProtoTypesPackageWhenImportUnresolved(
 	uiDir := filepath.Join(appPath, "ui")
 	sourceDir := filepath.Join(uiDir, "src")
 	protoRoot := filepath.Join(repoRoot, "packages", "proto", "gen", "typescript")
+	testkitgo.WriteFile(t, filepath.Join(repoRoot, "packages", "proto", ".vrooli", "package.json"), `{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "proto",
+    "display_name": "Proto",
+    "kind": "schema_or_contract",
+    "language": "proto",
+    "module_identifiers": ["@vrooli/proto-types"],
+    "generated_outputs": [{"name": "proto-types", "identifiers": ["@vrooli/proto-types"]}],
+    "adoption": {"scenario_adoptable": true, "allowed_consumers": ["scenario_ui"], "adoption_modes": ["file_dependency"]},
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false}
+  }
+}
+`)
 	testkitgo.WriteFile(t, filepath.Join(uiDir, "package.json"), `{
   "dependencies": {
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
@@ -2440,7 +2550,7 @@ replace (
 `
 	testkitgo.WriteFile(t, goModPath, data)
 
-	paths, err := localReplacePathsWithDeps(goModPath, defaultHostProbeDeps())
+	paths, err := localReplaceDirs(goModPath)
 	if err != nil {
 		t.Fatalf("localReplacePaths: %v", err)
 	}

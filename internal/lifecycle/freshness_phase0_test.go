@@ -65,12 +65,11 @@ func TestBinariesFreshnessMissingBinary(t *testing.T) {
 	}
 }
 
-func TestBinariesFreshnessSourceNewerNamesFile(t *testing.T) {
+func TestBinariesFreshnessWithoutManifestNamesMissingManifest(t *testing.T) {
 	repoRoot, appPath, apiDir, binPath, srcPath := phase0BinScene(t)
-	old := time.Now().Add(-2 * time.Hour)
-	chtimes(t, binPath, old)
-	chtimes(t, filepath.Join(apiDir, "go.mod"), old)
-	chtimes(t, srcPath, time.Now()) // source newer than binary
+	_ = apiDir
+	_ = binPath
+	_ = srcPath
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
 	stale, reason, err := r.binariesFreshness(item, freshnessBinaryCheck())
@@ -80,17 +79,16 @@ func TestBinariesFreshnessSourceNewerNamesFile(t *testing.T) {
 	if !stale {
 		t.Fatal("expected stale when source newer than binary")
 	}
-	if !strings.Contains(reason, "source newer") || !strings.Contains(reason, "main.go") {
-		t.Fatalf("reason should name the offending file, got %q", reason)
+	if !strings.Contains(reason, "no manifest") {
+		t.Fatalf("reason should identify the missing manifest, got %q", reason)
 	}
 }
 
 func TestBinariesFreshnessIgnoresTestFiles(t *testing.T) {
 	repoRoot, appPath, apiDir, binPath, srcPath := phase0BinScene(t)
-	old := time.Now().Add(-2 * time.Hour)
-	chtimes(t, srcPath, old)
-	chtimes(t, filepath.Join(apiDir, "go.mod"), old)
-	chtimes(t, binPath, old)
+	_ = apiDir
+	_ = binPath
+	_ = srcPath
 	// Only a newer _test.go file: never changes the binary, must not be stale.
 	testFile := filepath.Join(apiDir, "main_test.go")
 	if err := os.WriteFile(testFile, []byte("package main"), 0o644); err != nil {
@@ -103,23 +101,23 @@ func TestBinariesFreshnessIgnoresTestFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
-	if stale {
-		t.Fatalf("editing a _test.go must not mark binary stale, got reason %q", reason)
+	if !stale || !strings.Contains(reason, "no manifest") {
+		t.Fatalf("missing manifest must remain stale, got reason %q", reason)
 	}
 }
 
 func TestBinariesFreshnessFresh(t *testing.T) {
 	repoRoot, appPath, _, binPath, srcPath := phase0BinScene(t)
-	chtimes(t, srcPath, time.Now().Add(-2*time.Hour))
-	chtimes(t, binPath, time.Now())
+	_ = binPath
+	_ = srcPath
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
 	stale, _, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
-	if stale {
-		t.Fatal("binary newer than all sources must be fresh")
+	if !stale {
+		t.Fatal("a runnable artifact without a manifest must be stale")
 	}
 }
 

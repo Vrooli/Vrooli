@@ -23,9 +23,19 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/platform-go/rlimitexec"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessioncontain"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessionlease"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 func main() {
+	// The macOS session ceiling re-execs through this binary as an rlimit
+	// shim before anything else runs (platform-go/rlimitexec).
+	rlimitexec.MaybeRun(os.Args)
+	sessioncontain.Register()
+	sessionlease.Register()
 	if runner, ok := cliutil.ShimAliasFromArgv0(os.Args[0]); ok {
 		os.Exit(runShim(runner, os.Args[1:]))
 	}
@@ -102,7 +112,7 @@ func execUnattributed(runner string, args []string, self string) error {
 	if err != nil {
 		return &cliutil.AgentLaunchError{Agent: runner, Err: err}
 	}
-	return cliutil.ExecAgent(path, binary, args, os.Environ())
+	return cliutil.ExecAgent(path, binary, args, envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.DelegatedAgent, nil), envkit.ToolchainOptions{Width: tuning.BuildWidth()}))
 }
 
 // shimSelfPath resolves this executable so the PATH search can refuse to

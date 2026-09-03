@@ -89,6 +89,9 @@ func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.
 	// succeeds with an empty scope; tests that exercise host requirements can
 	// overwrite this fixture.
 	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest())
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(`{"build.go_flags":{"develop":["-trimpath"],"distribution":["-trimpath","-buildvcs=false"],"scenario":["-trimpath"]}}`), 0o644); err != nil {
+		t.Fatalf("write build flag policy: %v", err)
+	}
 	testscenario.WriteScenarioService(t, root, manifest.Service.Name, manifest)
 	for _, component := range manifest.Components {
 		if component.Build.Kind != "go_module" || component.Build.Output != "api/mock-api" {

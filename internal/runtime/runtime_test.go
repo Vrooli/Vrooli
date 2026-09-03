@@ -629,12 +629,12 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"autoheal_recovery_privileges", "autoheal_watchdog", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
+		"agent_session_containment", "autoheal_recovery_privileges", "autoheal_watchdog", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
 		"edac_modules", "emergency_watchdog", "host_hardening", "kdump_observability", "kernel_config", "keyring_daemon_limits", "log_volume_bounds", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"path_hygiene",
-		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "tcp_tuning",
+		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "runtime_supervisor", "tcp_tuning",
 		"tpm_credential_access",
 		"vrooli_launcher", "workspace_sandbox_userns",
 	}

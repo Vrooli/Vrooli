@@ -42,8 +42,9 @@ func ConfigureCommand(cmd *exec.Cmd, options ProcessOptions) error {
 }
 
 // AssignProcessContainment attaches a started process to the native process
-// tree containment primitive. Unix backends have no extra handle to retain;
-// detached process groups already provide the tree boundary.
+// tree boundary: a Job Object on Windows, the detached process group the
+// child already started in on Unix (see processGroupBoundary). It is the
+// kill-the-tree boundary; resource ceilings are ContainedCommand's job.
 func AssignProcessContainment(process *os.Process) (func(), error) {
 	return assignProcessContainment(process)
 }
@@ -186,12 +187,15 @@ type ServiceInstallOptions struct {
 	LogPath string
 }
 
-// ServiceInstallResult is the platform-neutral service outcome.
+// ServiceInstallResult is the platform-neutral service outcome. Verdict is
+// what the native validator said about the rendered unit before it was
+// enabled; a rejected unit is never enabled and the install fails instead.
 type ServiceInstallResult struct {
-	UnitName string `json:"unit_name"`
-	UnitPath string `json:"unit_path"`
-	Scope    string `json:"scope"`
-	Active   bool   `json:"active"`
+	UnitName string  `json:"unit_name"`
+	UnitPath string  `json:"unit_path"`
+	Scope    string  `json:"scope"`
+	Active   bool    `json:"active"`
+	Verdict  Verdict `json:"verdict"`
 }
 
 // InstallService installs and starts the native runtime supervisor service.
@@ -245,6 +249,10 @@ type NativeServiceOptions struct {
 	User       bool
 	Executable string
 	Args       []string
+	// Kind selects the Windows backend: a daemon is looked up in the Service
+	// Control Manager first and falls back to a boot-triggered task, while
+	// oneshots and timers are always Task Scheduler tasks.
+	Kind ServiceKind
 }
 
 type ServiceState string

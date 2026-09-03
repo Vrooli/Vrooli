@@ -3,36 +3,36 @@ package lifecycle
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 
-	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/buildflags"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const (
-	componentsParameterA = 20
-)
-
-const (
-	componentsParameterB = 2
-	componentsParameterC = 394
-	componentsParameterD = 752
+	goModuleMemoryReservation = 394 << 20
+	pnpmMemoryReservation     = 752 << 20
+	componentPlaceholderEnd   = 2
 )
 
 // BuilderSpec is the declarative build contract shared by Tier 1 freshness,
 // setup derivation, and later Tier 2 projection. Command slices are argv
 // templates; the registry never invokes them by itself.
 type BuilderSpec struct {
-	Kind          string
-	Inputs        []string
-	DigestKeys    []string
-	DefaultOutput string
-	Environment   map[string]string
-	Install       []string
+	Kind            string
+	Inputs          []string
+	SkipSuffixes    []string
+	DigestKeys      []string
+	KeyResolver     string
+	ClosureResolver string
+	DefaultOutput   string
+	Environment     map[string]string
+	Install         []string
 	// InstallInputs are build-dir-relative files/globs whose content digest
 	// controls whether Install must run. Empty means always install.
 	InstallInputs []string
@@ -58,8 +58,6 @@ type BuilderSpec struct {
 	ProfileBuild             []string
 	FollowsWorkspaceFileDeps bool
 	Reserved                 bool
-	freshness                func(string, string, scenario.Component, hostProbeDeps) ([]artifactFreshness, error)
-	freshnessContext         func(context.Context, string, string, scenario.Component, hostProbeDeps) ([]artifactFreshness, error)
 }
 
 // BuildModeEnvVar names the perf-build channel selector. performance-health's
@@ -78,58 +76,62 @@ var builderRegistry = map[string]BuilderSpec{
 	"go_module": {
 		Kind:                   "go_module",
 		Inputs:                 []string{"**/*.go", "go.mod", "go.sum"},
-		DigestKeys:             []string{"go_toolchain", "GOOS", "GOARCH", "CGO_ENABLED", "GOAMD64", "GOARM64", "GOFLAGS", "build_tags"},
+		SkipSuffixes:           []string{"_test.go"},
+		KeyResolver:            "go_env",
+		DigestKeys:             []string{"toolchain", "goos", "goarch", "cgo_enabled", "goamd64", "goarm", "goflags"},
+		ClosureResolver:        "go_list",
 		DefaultOutput:          goModuleDefaultOutput,
 		Environment:            map[string]string{"GOWORK": "off"},
 		Install:                []string{"go", "mod", "download"},
 		InstallInputs:          []string{"go.mod", "go.sum"},
-		MemoryReservationBytes: componentsParameterC << componentsParameterA,
+		MemoryReservationBytes: goModuleMemoryReservation,
 		StagedOutput:           true,
 		Build:                  goModuleBuildArgv(),
-		freshness:              goModuleComponentFreshness,
-		freshnessContext:       goModuleComponentFreshnessContext,
 	},
 	"pnpm_vite": {
 		Kind:                     "pnpm_vite",
 		Inputs:                   []string{"{src}/**", "package.json", "vite.config.*", "tsconfig.json", "index.html"},
-		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
+		KeyResolver:              "node",
+		DigestKeys:               []string{"NODE_ENV", "node_major", "build_mode"},
 		DefaultOutput:            "{dir}/dist/index.html",
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
 		InstallStateFile:         "node_modules/.modules.yaml",
-		MemoryReservationBytes:   componentsParameterD << componentsParameterA,
+		MemoryReservationBytes:   pnpmMemoryReservation,
 		StagedOutput:             true,
 		StageDirectory:           true,
 		StageArgs:                []string{"--outDir", "{stage_output_dir}"},
 		Build:                    []string{"pnpm", "run", "build"},
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
-		freshness:                pnpmViteComponentFreshness,
-		freshnessContext:         pnpmViteComponentFreshnessContext,
 	},
 	"node_bundle": {
 		Kind:                     "node_bundle",
 		Inputs:                   []string{"{src}/**", "package.json", "tsconfig.json"},
-		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
+		SkipSuffixes:             []string{"_test.ts", "_test.tsx"},
+		DigestKeys:               []string{"NODE_ENV", "node_major", "build_mode"},
+		KeyResolver:              "node",
+		DefaultOutput:            "{dir}/dist/index.js",
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
 		InstallStateFile:         "node_modules/.modules.yaml",
-		MemoryReservationBytes:   componentsParameterD << componentsParameterA,
+		MemoryReservationBytes:   pnpmMemoryReservation,
 		Build:                    []string{"pnpm", "run", "build"},
 		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
-		freshness:                pnpmViteComponentFreshness,
-		freshnessContext:         pnpmViteComponentFreshnessContext,
-	},
-	// reuse remains in the registry vocabulary for schema compatibility with
-	// older manifests. Reuse components never execute a builder; componentArtifact
-	// resolves their target through Build.Reuse before consulting this entry.
-	"reuse": {
-		Kind: "reuse",
 	},
 	"python_uv": {
-		Kind:     "python_uv",
-		Reserved: true,
+		Kind:                   "python_uv",
+		Inputs:                 []string{"{src}/**", "pyproject.toml", "uv.lock"},
+		SkipSuffixes:           []string{"_test.py"},
+		DigestKeys:             []string{"python_version", "uv_version"},
+		KeyResolver:            "python",
+		DefaultOutput:          "{dir}/.venv/pyvenv.cfg",
+		Install:                []string{"uv", "sync", "--frozen"},
+		InstallInputs:          []string{"pyproject.toml", "uv.lock"},
+		InstallStateFile:       ".venv/pyvenv.cfg",
+		Build:                  []string{"uv", "sync", "--frozen"},
+		MemoryReservationBytes: goModuleMemoryReservation,
 	},
 	"cargo": {
 		Kind:     "cargo",
@@ -138,7 +140,42 @@ var builderRegistry = map[string]BuilderSpec{
 }
 
 func goModuleBuildArgv() []string {
-	return []string{"go", "build", "-o", "{output}", "{entry}"}
+	return []string{"go", "build", "-trimpath", "-o", "{output}", "{entry}"}
+}
+
+func goModuleBuildArgvForRoot(root string) ([]string, error) {
+	argv := goModuleBuildArgv()
+	policy, err := buildflags.Load(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return argv, nil
+		}
+		return nil, err
+	}
+	flags := policy.For("scenario")
+	insertAt := len(argv)
+	for index, value := range argv {
+		if value == "-o" {
+			insertAt = index
+			break
+		}
+	}
+	for _, flag := range flags {
+		found := false
+		for _, value := range argv {
+			if value == flag {
+				found = true
+				break
+			}
+		}
+		if !found {
+			argv = append(argv, "")
+			copy(argv[insertAt+1:], argv[insertAt:])
+			argv[insertAt] = flag
+			insertAt++
+		}
+	}
+	return argv, nil
 }
 
 // NormalizeBuildMode folds a raw VROOLI_BUILD_MODE value to the recognised
@@ -187,6 +224,7 @@ func BuilderRegistry() map[string]BuilderSpec {
 	out := make(map[string]BuilderSpec, len(builderRegistry))
 	for key, spec := range builderRegistry {
 		spec.Inputs = append([]string(nil), spec.Inputs...)
+		spec.SkipSuffixes = append([]string(nil), spec.SkipSuffixes...)
 		spec.DigestKeys = append([]string(nil), spec.DigestKeys...)
 		spec.Install = append([]string(nil), spec.Install...)
 		spec.InstallInputs = append([]string(nil), spec.InstallInputs...)
@@ -212,7 +250,7 @@ func RegisteredBuilderKinds() []string {
 
 // ResolveComponentArgv expands Tier 1 component path placeholders without
 // invoking a shell. {{bin.<component>}} resolves through build.output (or the
-// builder default), including build.reuse chains; {{ext}} is .exe on Windows.
+// builder default); {{ext}} is .exe on Windows.
 func ResolveComponentArgv(argv []string, scenarioRoot, scenarioName string, components map[string]scenario.Component) ([]string, error) {
 	return resolveComponentArgvForOS(argv, scenarioRoot, scenarioName, components, runtime.GOOS)
 }
@@ -260,9 +298,9 @@ func resolveComponentValue(value, scenarioRoot, scenarioName string, components 
 		if endOffset < 0 {
 			return "", fmt.Errorf("unterminated component binary placeholder in %q", value)
 		}
-		end := start + endOffset + componentsParameterB
+		end := start + endOffset + componentPlaceholderEnd
 		name := strings.TrimSpace(value[start+len("{{bin.") : start+endOffset])
-		artifact, err := componentArtifact(name, scenarioRoot, scenarioName, components, goos, map[string]bool{})
+		artifact, err := componentArtifact(name, scenarioRoot, scenarioName, components, goos)
 		if err != nil {
 			return "", err
 		}
@@ -270,19 +308,13 @@ func resolveComponentValue(value, scenarioRoot, scenarioName string, components 
 	}
 }
 
-func componentArtifact(name, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string, visiting map[string]bool) (string, error) {
+func componentArtifact(name, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string) (string, error) {
 	component, ok := components[name]
 	if !ok {
 		return "", fmt.Errorf("component %q does not exist", name)
 	}
-	if visiting[name] {
-		return "", fmt.Errorf("component build.reuse cycle at %q", name)
-	}
-	visiting[name] = true
-	defer delete(visiting, name)
-
 	if reused := strings.TrimSpace(component.Build.Reuse); reused != "" {
-		return componentArtifact(reused, scenarioRoot, scenarioName, components, goos, visiting)
+		return "", fmt.Errorf("component %q uses deprecated build.reuse=%q; declare the artifact once and reference it by path", name, reused)
 	}
 	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
 	if !ok || spec.Reserved {
@@ -356,98 +388,18 @@ func componentBuildTargets(name, scenarioRoot, scenarioName string, component sc
 
 func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
 	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
-	if !ok || spec.Reserved || spec.freshness == nil {
+	if !ok || spec.Reserved {
 		return nil, fmt.Errorf("build kind %q has no freshness implementation", component.Build.Kind)
 	}
-	return spec.freshness(appRoot, repoRoot, component, deps)
+	return builderFreshnessContext(context.Background(), appRoot, repoRoot, filepath.Base(appRoot), "component", component, spec, deps)
 }
 
-func componentFreshnessArtifactsContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+func componentFreshnessArtifactsContextWithName(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
 	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
-	if !ok || spec.Reserved || spec.freshnessContext == nil {
-		return componentFreshnessArtifacts(appRoot, repoRoot, component, deps)
+	if !ok || spec.Reserved {
+		return nil, fmt.Errorf("build kind %q has no freshness implementation", component.Build.Kind)
 	}
-	return spec.freshnessContext(ctx, appRoot, repoRoot, component, deps)
-}
-
-func goModuleComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	return goModuleComponentFreshnessContext(context.Background(), appRoot, repoRoot, component, deps)
-}
-
-func goModuleComponentFreshnessContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	targets, err := componentBuildTargets("component", appRoot, filepath.Base(appRoot), component, BuilderSpec{
-		Kind:          "go_module",
-		DefaultOutput: goModuleDefaultOutput,
-	}, runtimeGOOS())
-	if err != nil {
-		return nil, err
-	}
-	declared := make([]string, 0, len(targets))
-	for _, target := range targets {
-		rel, err := filepath.Rel(appRoot, target.Output)
-		if err != nil {
-			return nil, err
-		}
-		declared = append(declared, filepath.ToSlash(rel))
-	}
-	return binariesFreshnessArtifactsContext(ctx, appRoot, repoRoot, scenario.ConditionCheck{Type: "binaries", Targets: declared}, deps)
-}
-
-func pnpmViteComponentFreshness(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	return pnpmViteComponentFreshnessContext(context.Background(), appRoot, repoRoot, component, deps)
-}
-
-func pnpmViteComponentFreshnessContext(ctx context.Context, appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	dir := strings.TrimSpace(component.Build.Dir)
-	if dir == "" {
-		return nil, fmt.Errorf("build.dir is required")
-	}
-	output := strings.TrimSpace(component.Build.Output)
-	if output == "" {
-		output = filepath.ToSlash(filepath.Join(dir, "dist", "index.html"))
-	}
-	root := repoRoot
-	if strings.TrimSpace(root) == "" {
-		root = appRoot
-	}
-	artifactPath := resolveCheckPath(appRoot, output)
-	buildDir := resolveCheckPath(appRoot, dir)
-	sourceDir := filepath.Join(buildDir, "src")
-	inputs := []string{relUnder(root, sourceDir)}
-	for _, file := range []string{"package.json", "vite.config.ts", "vite.config.js", "tsconfig.json", "index.html"} {
-		inputs = append(inputs, relUnder(root, filepath.Join(buildDir, file)))
-	}
-	if specs, err := fileDependenciesWithDeps(filepath.Join(buildDir, "package.json"), deps); err == nil {
-		for _, spec := range specs {
-			resolved := resolveCheckPath(buildDir, strings.TrimPrefix(spec.Spec, "file:"))
-			dependencyInputs, dependencyErr := uiFileDependencyFreshnessInputsContext(ctx, root, sourceDir, spec.Name, resolved, deps)
-			if dependencyErr != nil {
-				return nil, dependencyErr
-			}
-			inputs = append(inputs, dependencyInputs...)
-		}
-	}
-	keyInputs := uiBuildKeyInputs(deps)
-	for key, value := range sharedPackageFreshnessKeyInputs(repoRoot, buildDir) {
-		keyInputs[key] = value
-	}
-	return []artifactFreshness{{
-		Target:       output,
-		ArtifactPath: artifactPath,
-		ManifestPath: cliutil.FreshnessManifestPath(artifactPath),
-		CheckType:    component.Build.Kind,
-		KeyInputs:    keyInputs,
-		Spec: cliutil.FreshnessSpec{
-			SourceRoot:      buildDir,
-			ContextRoot:     root,
-			Inputs:          inputs,
-			SkipSuffixes:    []string{cliutil.FreshnessManifestSuffix},
-			CaseInsensitive: deps.volumeCaseInsensitive(artifactPath),
-		},
-	}}, nil
+	return builderFreshnessContext(ctx, appRoot, repoRoot, scenarioName, componentName, component, spec, deps)
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

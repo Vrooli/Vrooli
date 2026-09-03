@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	"github.com/vrooli/cli-core/buildinfo"
 )
 
 // FreshnessSpec defines the exact source contract used to compute a CLI
@@ -16,11 +14,8 @@ type FreshnessSpec struct {
 	Inputs      []string
 	SkipFiles   []string
 	// SkipSuffixes excludes files whose slash-path ends with any listed suffix
-	// from the freshness manifest (e.g. "_test.go" so test edits never mark a
-	// compiled artifact stale). It is honored by the manifest engine
-	// (ComputeFreshnessManifest / EvaluateFreshness) only; the legacy
-	// ComputeFreshnessFingerprint deliberately ignores it so installed-CLI
-	// fingerprints stay byte-stable.
+	// from both the manifest and legacy fingerprint engines (e.g. "_test.go" so
+	// test edits never mark a compiled artifact stale).
 	SkipSuffixes []string
 	// CaseInsensitive case-folds rel-path comparison in EvaluateFreshness so a
 	// manifest recorded on a case-insensitive volume (NTFS, default APFS/HFS+)
@@ -106,17 +101,20 @@ func ComputeFreshnessFingerprint(spec FreshnessSpec) (string, error) {
 		return "", fmt.Errorf("freshness source root must not be empty")
 	}
 
-	skipFiles := append([]string(nil), spec.SkipFiles...)
-	inputs := trimNonEmpty(spec.Inputs)
-	if len(inputs) == 0 {
-		return buildinfo.ComputeFingerprint(sourceRoot, skipFiles...)
+	// Keep the legacy fingerprint API on the same enumeration and exclusion
+	// path as the manifest engine. This prevents the installed-CLI checker from
+	// quietly becoming a second freshness implementation.
+	entries, err := collectFreshnessEntries(FreshnessSpec{
+		SourceRoot:   sourceRoot,
+		ContextRoot:  spec.ContextRoot,
+		Inputs:       spec.Inputs,
+		SkipFiles:    spec.SkipFiles,
+		SkipSuffixes: spec.SkipSuffixes,
+	})
+	if err != nil {
+		return "", err
 	}
-
-	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
-	if contextRoot == "" {
-		contextRoot = sourceRoot
-	}
-	return computeFingerprintFromDeclaredInputs(contextRoot, inputs, skipFiles...)
+	return aggregateManifestDigest(entries, nil), nil
 }
 
 func trimNonEmpty(values []string) []string {

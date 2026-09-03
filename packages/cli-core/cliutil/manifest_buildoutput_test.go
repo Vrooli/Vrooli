@@ -47,9 +47,9 @@ func TestCoverageProfileChurnDoesNotMakeBinaryStale(t *testing.T) {
 	}
 }
 
-// The installed-CLI stale checker still uses the legacy content fingerprint,
-// not the stat-cache manifest above. Pin the same build-output exclusion there
-// because a mismatch causes an auto-rebuild and can restart a scenario API.
+// The installed-CLI stale checker uses the same canonical manifest enumeration
+// as the stat-cache manifest above. Pin the build-output exclusion at that
+// shared seam because a mismatch can restart a scenario API.
 func TestCoverageProfileChurnDoesNotChangeDeclaredInputFingerprint(t *testing.T) {
 	root := t.TempDir()
 	writeOutputTestFile(t, filepath.Join(root, "api", "main.go"), "package main\nfunc main(){}\n")
@@ -73,7 +73,7 @@ func TestCoverageProfileChurnDoesNotChangeDeclaredInputFingerprint(t *testing.T)
 func TestBuildOutputsAreExcludedFromInputs(t *testing.T) {
 	root := t.TempDir()
 	writeOutputTestFile(t, filepath.Join(root, "main.go"), "package main\n")
-	for _, name := range []string{"coverage.out", "cov.out", "cover.out", "api.log", "pkg.test", "jscpd-report.json"} {
+	for _, name := range []string{"coverage.out", "cov.out", "cover.out", "api.log", "pkg.test", "jscpd-report.json", ".vrooli-closure-go_module.json", ".vrooli-closure-go_module.json.tmp"} {
 		writeOutputTestFile(t, filepath.Join(root, name), "output\n")
 	}
 
@@ -83,6 +83,28 @@ func TestBuildOutputsAreExcludedFromInputs(t *testing.T) {
 	}
 	if len(manifest.Files) != 1 || filepath.Base(manifest.Files[0].Rel) != "main.go" {
 		t.Fatalf("expected only main.go as input, got %+v", manifest.Files)
+	}
+}
+
+// Source trees can contain links used by fixtures or development tooling. A
+// broken link is not a source file and must not make a successful build
+// impossible to stamp.
+func TestBrokenSymlinkIsIgnoredByFreshnessManifest(t *testing.T) {
+	root := t.TempDir()
+	writeOutputTestFile(t, filepath.Join(root, "main.go"), "package main\n")
+	if err := os.Symlink(filepath.Join(root, "does-not-exist"), filepath.Join(root, "broken-fixture")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"."}}
+	manifest, err := ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+	if err != nil {
+		t.Fatalf("compute with broken symlink: %v", err)
+	}
+	for _, file := range manifest.Files {
+		if file.Rel == "broken-fixture" {
+			t.Fatal("broken symlink was recorded as a freshness input")
+		}
 	}
 }
 

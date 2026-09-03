@@ -3,6 +3,7 @@ package scenariocli
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -16,6 +17,7 @@ const (
 
 type TimingsRequest struct {
 	Scenario string
+	Since    time.Time
 	JSON     bool
 }
 
@@ -29,8 +31,20 @@ func ParseTimingsRequest(globalsJSON bool, args []string) (TimingsRequest, error
 	if err != nil {
 		return TimingsRequest{}, err
 	}
+	var since time.Time
+	if raw := parsed.FlagValue("--since"); raw != "" {
+		parsedSince, parseErr := time.Parse("2006-01-02", raw)
+		if parseErr != nil {
+			parsedSince, parseErr = time.Parse(time.RFC3339, raw)
+		}
+		if parseErr != nil {
+			return TimingsRequest{}, fmt.Errorf("invalid --since %q: use YYYY-MM-DD or RFC3339", raw)
+		}
+		since = parsedSince
+	}
 	return TimingsRequest{
 		Scenario: parsed.FlagValue("--scenario"),
+		Since:    since,
 		JSON:     globalsJSON || parsed.HasFlag("--json"),
 	}, nil
 }

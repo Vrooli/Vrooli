@@ -23,7 +23,6 @@ func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
 		})), func() {}
 	}
 	app.ResolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	app.CheckStalenessFn = nil
 	t.Setenv("VROOLI_LOG_LEVEL", "info")
 
 	var stdout bytes.Buffer

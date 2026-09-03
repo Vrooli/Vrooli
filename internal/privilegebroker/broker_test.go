@@ -107,6 +107,22 @@ func TestBrokerRuntimeHomeRepairUsesTypedCallbackAndCallerBinding(t *testing.T) 
 	}
 }
 
+func TestBrokerStorageActionUsesFixedExecutorArguments(t *testing.T) {
+	fake := &fakeExecutor{}
+	b, err := New(Config{SocketPath: "/tmp/test.sock", AllowedUID: 1000, Executor: fake})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := b.Execute(context.Background(), Request{Version: ProtocolVersion, RequestID: "log-1", Action: ActionLogRotateForce, Log: &LogSubject{Stanza: managedLogStanza}}, 1000)
+	if result.Status != "completed" || len(fake.calls) != 1 {
+		t.Fatalf("result=%+v calls=%v", result, fake.calls)
+	}
+	want := "logrotate -f " + managedLogStanzaPath
+	if got := strings.Join(fake.calls[0], " "); got != want {
+		t.Fatalf("call=%q want=%q", got, want)
+	}
+}
+
 type errExecutor struct{ err error }
 
 func (e errExecutor) Run(context.Context, string, ...string) ([]byte, error) { return nil, e.err }

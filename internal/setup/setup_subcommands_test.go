@@ -1,6 +1,8 @@
 package setup
 
 import (
+	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -63,6 +65,9 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 	svc.deps.inspectPrivilegeBroker = func() privilegebroker.SetupStatus {
 		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask`"}
 	}
+	svc.deps.bootRecoveryStatus = func(context.Context) (BootRecoveryStatus, error) {
+		return BootRecoveryStatus{}, errors.New("dial tcp 127.0.0.1:0: connection refused")
+	}
 
 	stdout := &strings.Builder{}
 	if err := svc.RunSetupWithOptions(root, home, Options{Subcommand: "status"}, stdout, io.Discard); err != nil {
@@ -79,6 +84,7 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		"Run 'vrooli setup explain <name>'",
 		"Privilege broker: unavailable — setup was not elevated",
 		"Configuration: pending (.configuration-complete absent)",
+		"boot recovery: unknown (autoheal API not reachable",
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("status output missing %q:\n%s", expected, out)

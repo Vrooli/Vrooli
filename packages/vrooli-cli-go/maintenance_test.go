@@ -25,7 +25,7 @@ func TestOrphansDecodesProcesses(t *testing.T) {
 	if p := resp.GetOrphans()[0]; p.GetPid() != 4242 || p.GetPpid() != 1 || p.GetCommand() == "" {
 		t.Fatalf("orphan process not decoded: %+v", p)
 	}
-	if want := []string{"--no-stale-check", "orphans", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
+	if want := []string{"orphans", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
 		t.Fatalf("argv = %v, want %v", runner.calls[0].args, want)
 	}
 }
@@ -46,7 +46,7 @@ func TestDiagnosePortBuildsArgvAndDecodes(t *testing.T) {
 	if diag.GetPort() != 16542 || diag.GetScenario() != "swarm-manager" || !diag.GetInUse() {
 		t.Fatalf("diagnostic not decoded: %+v", diag)
 	}
-	if want := []string{"--no-stale-check", "diagnose-port", "16542", "swarm-manager", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
+	if want := []string{"diagnose-port", "16542", "swarm-manager", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
 		t.Fatalf("argv = %v, want %v", runner.calls[0].args, want)
 	}
 }
@@ -60,7 +60,7 @@ func TestDiagnosePortOmitsEmptyScenario(t *testing.T) {
 	if _, err := client.DiagnosePort(context.Background(), 8080, "  "); err != nil {
 		t.Fatalf("DiagnosePort returned error: %v", err)
 	}
-	if want := []string{"--no-stale-check", "diagnose-port", "8080", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
+	if want := []string{"diagnose-port", "8080", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
 		t.Fatalf("argv = %v, want %v (blank scenario should be omitted)", runner.calls[0].args, want)
 	}
 }
@@ -97,7 +97,7 @@ func TestCleanupOrphansAndLocksDecodeStopReport(t *testing.T) {
 			if !resp.GetSuccess() {
 				t.Fatalf("cleanup %s: success=false", tc.name)
 			}
-			if want := []string{"--no-stale-check", "cleanup", tc.wantArg, "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
+			if want := []string{"cleanup", tc.wantArg, "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
 				t.Fatalf("argv = %v, want %v", runner.calls[0].args, want)
 			}
 		})

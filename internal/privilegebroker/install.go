@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -25,6 +26,13 @@ const (
 	servicePath       = "/etc/systemd/system/" + serviceName
 	installedBinary   = "/usr/local/lib/vrooli/vrooli-privilege-broker"
 )
+
+// SocketPath resolves the broker endpoint from the platform runtime directory.
+// User-session platforms must not put a privileged control socket in a
+// repository or home directory; Linux keeps /run as the system fallback.
+func SocketPath() string {
+	return platformgo.PrivilegeBrokerSocketPath()
+}
 
 type SetupStatus struct {
 	Available  bool   `json:"available"`
@@ -55,14 +63,14 @@ func DefaultInstallerForRepo(executable, repoRoot string) Installer {
 
 func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if runtime.GOOS != string(hostreqspec.PlatformLinux) {
-		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run `vrooli setup --sudo-mode=ask`."}, nil
+		return SetupStatus{Supported: false, SocketPath: SocketPath(), Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run `vrooli setup --sudo-mode=ask`."}, nil
 	}
 	if os.Geteuid() != 0 {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install the privilege broker."}, nil
+		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install the privilege broker."}, nil
 	}
 	uid, gid, err := invokingIdentity()
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: err.Error(), Recovery: "Re-run `vrooli setup --sudo-mode=ask` from the owner account that will run Vrooli."}, nil
+		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: err.Error(), Recovery: "Re-run `vrooli setup --sudo-mode=ask` from the owner account that will run Vrooli."}, nil
 	}
 	runtimeRoot, err := installedRuntimeHomeRoot(i.RepoRoot, uint32(uid))
 	if err != nil {
@@ -91,7 +99,7 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 			return SetupStatus{}, fmt.Errorf("systemctl %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 		}
 	}
-	return SetupStatus{Available: true, Supported: true, SocketPath: DefaultSocketPath}, nil
+	return SetupStatus{Available: true, Supported: true, SocketPath: SocketPath()}, nil
 }
 
 // brokerServiceCommands deliberately restarts the broker after an install or
@@ -103,14 +111,15 @@ func brokerServiceCommands() [][]string {
 
 func Inspect() SetupStatus {
 	if runtime.GOOS != string(hostreqspec.PlatformLinux) {
-		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd"}
+		return SetupStatus{Supported: false, SocketPath: SocketPath(), Reason: "privilege broker is currently supported only on Linux with systemd"}
 	}
-	conn, err := net.Dial("unix", DefaultSocketPath)
+	socket := SocketPath()
+	conn, err := net.Dial("unix", socket)
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "broker socket is unavailable", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install or repair the privilege broker."}
+		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker socket is unavailable", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install or repair the privilege broker."}
 	}
 	_ = conn.Close()
-	return SetupStatus{Available: true, Supported: true, SocketPath: DefaultSocketPath}
+	return SetupStatus{Available: true, Supported: true, SocketPath: socket}
 }
 
 func systemdUnit(executable string, uid, gid int) string {
@@ -147,7 +156,7 @@ ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli
 
 [Install]
 WantedBy=multi-user.target
-`, strconv.Quote(executable), DefaultSocketPath, uid, gid, defaultAuditPath, runtimeArg)
+`, strconv.Quote(executable), SocketPath(), uid, gid, defaultAuditPath, runtimeArg)
 }
 
 func invokingIdentity() (int, int, error) {

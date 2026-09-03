@@ -143,7 +143,7 @@ func run() error {
 
 	cmd := exec.Command("go", "build", "-ldflags", flags, "-o", tmpPath, buildTarget)
 	cmd.Dir = buildModulePath
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

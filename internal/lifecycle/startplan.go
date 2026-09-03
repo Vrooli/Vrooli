@@ -31,7 +31,7 @@ func (r *Runner) observeRuntime(item scenario.Scenario, forceSetup bool, session
 	}
 	// Reuse is gated on FRESHNESS only (not provisioning): a healthy running
 	// instance is kept unless a binaries/ui-bundle check is stale.
-	stale, _, err := r.freshnessStaleCached(item, forceSetup, session)
+	stale, _, err := r.setupNeededCached(item, forceSetup, session)
 	if err != nil {
 		return runtimeObservation{}, err
 	}

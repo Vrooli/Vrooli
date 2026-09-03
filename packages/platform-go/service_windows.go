@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,10 +66,55 @@ func restartNativeService(options NativeServiceOptions) error {
 	return startNativeService(options)
 }
 
+// nativeServiceStatus asks the backend the unit kind selects: a daemon is a
+// Service Control Manager service when one is registered under the name
+// (the runtime supervisor), and otherwise a boot-triggered task (the
+// autoheal loop); oneshots and timers are always tasks. Asking schtasks
+// about an SCM service reports "does not exist" for a running daemon.
 func nativeServiceStatus(options NativeServiceOptions) (NativeServiceResult, error) {
+	if options.Kind == KindDaemon {
+		if result, found := scmServiceStatus(options); found {
+			return result, nil
+		}
+	}
 	output, err := nativeTask(options, "/Query")
 	state := parseSchtasksState(string(output), err)
 	return NativeServiceResult{Name: options.Name, Path: options.Path, Scope: "machine", Running: state == ServiceStateRunning, Enabled: err == nil, State: state, Evidence: ServiceEvidence{Source: "schtasks /Query /FO CSV", RawState: strings.TrimSpace(string(output))}}, nil
+}
+
+// scmServiceStatus reports a registered Windows service, or found=false when
+// no service of that name exists so the caller can fall back to a task.
+func scmServiceStatus(options NativeServiceOptions) (NativeServiceResult, bool) {
+	machine, err := mgr.Connect()
+	if err != nil {
+		return NativeServiceResult{}, false
+	}
+	defer machine.Disconnect()
+	service, err := machine.OpenService(options.Name)
+	if err != nil {
+		return NativeServiceResult{}, false
+	}
+	defer service.Close()
+	result := NativeServiceResult{Name: options.Name, Scope: "machine", State: ServiceStateUnknown, Evidence: ServiceEvidence{Source: "scm"}}
+	status, err := service.Query()
+	if err != nil {
+		result.Evidence.Detail = err.Error()
+		return result, true
+	}
+	result.Evidence.RawState = strconv.Itoa(int(status.State))
+	switch status.State {
+	case svc.Running:
+		result.State = ServiceStateRunning
+	case svc.Stopped:
+		result.State = ServiceStateStopped
+	default:
+		result.State = ServiceStateUnknown
+	}
+	result.Running = result.State == ServiceStateRunning
+	if config, err := service.Config(); err == nil {
+		result.Enabled = config.StartType == mgr.StartAutomatic
+	}
+	return result, true
 }
 
 func parseSchtasksState(raw string, commandErr error) ServiceState {
@@ -148,6 +194,17 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: resolve executable path: %w", err)
 	}
+	home, err := resolvedHome(options.HomeDir)
+	if err != nil {
+		return ServiceInstallResult{}, err
+	}
+	// The SCM takes the definition's command line directly; there is no
+	// rendered artifact to validate, so the verdict records the SCM accepting
+	// the registration.
+	definition, err := RuntimeSupervisorDefinition("windows", RuntimeSupervisorOptions{Home: home, Executable: executable, SourceRoot: options.SourceRoot, LogPath: options.LogPath})
+	if err != nil {
+		return ServiceInstallResult{}, err
+	}
 	machine, err := mgr.Connect()
 	if err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: connect to Windows SCM: %w", err)
@@ -159,8 +216,8 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 		StartType:      mgr.StartAutomatic,
 		ErrorControl:   mgr.ErrorNormal,
 		ServiceType:    windows.SERVICE_WIN32_OWN_PROCESS,
-		Description:    "Supervises Vrooli scenario runtimes",
-		BinaryPathName: executable,
+		Description:    definition.Description,
+		BinaryPathName: WindowsServiceCommandLine(definition),
 	})
 	if err != nil {
 		if !errors.Is(err, windows.ERROR_SERVICE_EXISTS) {
@@ -178,11 +235,12 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	// Start() returning nil only means the SCM accepted the start request.
 	// Query the settled state so an install cannot report success for a
 	// service that never reached Running.
+	verdict := Verdict{State: VerdictAccepted, Validator: "scm-create-service"}
 	if state := awaitWindowsRunning(service); state != svc.Running {
-		return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: false},
+		return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: false, Verdict: verdict},
 			fmt.Errorf("platform: installed %s but its state is %d, not running", runtimeSupervisorService, state)
 	}
-	return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: true}, nil
+	return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: true, Verdict: verdict}, nil
 }
 
 // awaitWindowsRunning polls the SCM until the service settles, reporting the

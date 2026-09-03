@@ -91,6 +91,90 @@ func TestDirectoryMissingDirectoryMeasuresEmpty(t *testing.T) {
 	}
 }
 
+func TestDirectorySelectAndDeleteRechecksCandidates(t *testing.T) {
+	root := newFixtureDir(t, 3, 1000, time.Hour)
+	p := newDirPruner(t, root)
+	candidates, err := p.Select(context.Background(), Budget{Name: "snapshots", MaxAge: 2 * time.Hour})
+	if err != nil {
+		t.Fatalf("Select: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("selected %d candidates, want 1", len(candidates))
+	}
+	// Change the selected entry after selection. Delete must re-stat it and
+	// report the bytes actually removed, rather than trusting stale metadata.
+	if err := os.WriteFile(filepath.Join(candidates[0].Path, "nested", "new.bin"), []byte("more"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := p.Delete(context.Background(), candidates, Batch{})
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if receipt.Files != 1 || receipt.BytesBefore != 3004 || receipt.BytesAfter != 2000 {
+		t.Fatalf("receipt = %+v", receipt)
+	}
+}
+
+func TestDirectoryDeleteRejectsEscapingSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	p := newDirPruner(t, root)
+	if _, err := p.Delete(context.Background(), Candidates{{Path: link}}, Batch{}); err == nil {
+		t.Fatal("expected escaping symlink deletion to be rejected")
+	}
+}
+
+func TestDirectoryDeleteHonorsProtectedGlob(t *testing.T) {
+	root := newFixtureDir(t, 1, 1000, time.Hour)
+	entry, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, ProtectedGlobs: []string{"snapshot-*"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Delete(context.Background(), Candidates{{Path: filepath.Join(root, entry[0].Name())}}, Batch{}); err == nil {
+		t.Fatal("expected protected glob to reject deletion")
+	}
+}
+
+func TestDirectorySelectUsesDescendantMtimeWhenConfigured(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "old")
+	if err := os.MkdirAll(entry, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(entry, "fresh")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Unix(100, 0)
+	fresh := old.Add(48 * time.Hour)
+	if err := os.Chtimes(entry, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(file, fresh, fresh); err != nil {
+		t.Fatal(err)
+	}
+	reliable := false
+	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, Now: func() time.Time { return fresh.Add(time.Hour) }, DirectoryMtimeReliable: &reliable})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := p.Select(context.Background(), Budget{Name: "test", MaxAge: 24 * time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(candidates) != 0 {
+		t.Fatalf("fresh descendant was selected: %+v", candidates)
+	}
+}
+
 func TestDirectoryPruneByAgeRemovesOldestWholeEntries(t *testing.T) {
 	root := newFixtureDir(t, 10, 1000, time.Hour)
 	result, err := newDirPruner(t, root).Prune(context.Background(), Budget{Name: "snapshots", MaxAge: 5 * time.Hour})

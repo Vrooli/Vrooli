@@ -9,14 +9,15 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/acquisition"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tools"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -414,11 +415,15 @@ func resourceArtifactBuildTargets(manifest resourceArtifactManifest) ([]resource
 
 func buildResourceController(ctx context.Context, resourceDir string, target resourceBuildTarget, outDir string) error {
 	goos := artifactOS(target.Platform.OS)
-	command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", filepath.Join(outDir, target.Artifact), ".")
-	command.Dir = filepath.Join(resourceDir, filepath.FromSlash(target.Module))
-	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+target.Platform.Arch)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+	command := shell.Command(shell.Spec{
+		Context: ctx,
+		Name:    "go",
+		Args:    []string{"build", "-trimpath", "-buildvcs=false", "-o", filepath.Join(outDir, target.Artifact), "."},
+		Dir:     filepath.Join(resourceDir, filepath.FromSlash(target.Module)),
+		Env:     envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + target.Platform.Arch}),
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
+	})
 	if err := command.Run(); err != nil {
 		return fmt.Errorf("build resource %s for %s: %w", target.Resource, target.Platform, err)
 	}
@@ -654,8 +659,12 @@ func runComposeStep(ctx context.Context, step binaryfetch.ComposeStep, resourceR
 		// compiling a package with whatever compiler/network state happens to
 		// exist on the release host.
 		args := []string{"pip", "install", "--only-binary", ":all:", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", pythonPlatform}
-		command := exec.CommandContext(ctx, "uv", args...)
-		command.Env = append(os.Environ(), "UV_NO_PROGRESS=1")
+		command := shell.Command(shell.Spec{
+			Context: ctx,
+			Name:    "uv",
+			Args:    args,
+			Env:     envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"UV_NO_PROGRESS=1"}),
+		})
 		output, err := command.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))

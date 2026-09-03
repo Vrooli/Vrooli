@@ -152,6 +152,7 @@ type ListItemOutput struct {
 	Tags               []string         `json:"tags"`
 	Path               string           `json:"path"`
 	Ports              []ListPortOutput `json:"ports"`
+	Health             any              `json:"health_status"`
 	StartFailureReason string           `json:"start_failure_reason,omitempty"`
 	StartFailedAt      *time.Time       `json:"start_failed_at,omitempty"`
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
+	agentsessioncontainment "github.com/vrooli/vrooli/internal/safeguards/agent-session-containment"
 	autohealwatchdog "github.com/vrooli/vrooli/internal/safeguards/autoheal-watchdog"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
@@ -39,6 +40,7 @@ import (
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
 	remotedesktopaccess "github.com/vrooli/vrooli/internal/safeguards/remote-desktop-access"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
+	runtimesupervisorsafeguard "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	tpmcredentialaccess "github.com/vrooli/vrooli/internal/safeguards/tpm-credential-access"
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
@@ -87,6 +89,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                        clock.NewHandler,
 	"autoheal_recovery_privileges": autohealrecoveryprivileges.NewHandler,
+	"agent_session_containment":    agentsessioncontainment.NewHandler,
 	"autoheal_watchdog":            autohealwatchdog.NewHandler,
 	"onboarding_apply_privileges":  onboardingapplyprivileges.NewHandler,
 	"model_policy_drift":           modelpolicydrift.NewHandler,
@@ -97,6 +100,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"tpm_credential_access":        tpmcredentialaccess.NewHandler,
 	"edac_modules":                 edacmodules.NewHandler,
 	"emergency_watchdog":           emergencywatchdog.NewHandler,
+	"runtime_supervisor":           runtimesupervisorsafeguard.NewHandler,
 	"log_volume_bounds":            logvolumebounds.NewHandler,
 	"keyring_daemon_limits":        keyringdaemonlimits.NewHandler,
 	"host_hardening":               hosthardening.NewHandler,

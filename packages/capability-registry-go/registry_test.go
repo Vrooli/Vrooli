@@ -2,10 +2,120 @@ package capabilityregistry
 
 import (
 	"context"
+	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestProjectManifestUsesManifestAuthorityAndOverlay(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/service.json"
+	data := `{"dependencies":{"scenarios":{"zeta":{"enabled":true,"required":true,"startup_policy":"try_start","description":"z"},"disabled":{"enabled":false}},"resources":{"postgres":{"enabled":true,"required":false,"startup_policy":"on_demand","description":"db"}}}}`
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defs, err := ProjectManifest(path, map[string]Overlay{"zeta": {ID: "zeta", Name: "Zeta", Features: []string{"stats"}, ActionKind: ActionKindScenarioRestart}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(defs) != 2 || defs[0].ID != "postgres" || defs[1].ID != "zeta" {
+		t.Fatalf("defs = %+v", defs)
+	}
+	if defs[1].Name != "Zeta" || !defs[1].Required || defs[1].StartupPolicy != "try_start" || len(defs[1].Features) != 1 {
+		t.Fatalf("overlay = %+v", defs[1])
+	}
+	if defs[1].Origin != "manifest" {
+		t.Fatalf("origin = %q, want manifest", defs[1].Origin)
+	}
+}
+
+func TestProjectManifestPreservesOverlayIdentityAndManifestSlug(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/service.json"
+	data := `{"dependencies":{"resources":{"claude-code":{"required":false,"startup_policy":"manual","description":"agent"}}}}`
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defs, err := ProjectManifest(path, map[string]Overlay{
+		"claude-code": {ID: "claude-code", IntegrationID: "claude", ActionKind: ActionKindOperatorCommand, OperatorCommand: "vrooli resource install claude-code --json"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(defs) != 1 || defs[0].ID != "claude" || defs[0].DependencySlug != "claude-code" || defs[0].ActionKind != ActionKindOperatorCommand {
+		t.Fatalf("projected alias = %+v", defs)
+	}
+}
+
+func TestValidateAcceptsControlPlane(t *testing.T) {
+	reg := New([]Def{{ID: "core", Description: "control plane", DependencyKind: DependencyControlPlane, DependencySlug: "vrooli"}}, map[string]Checker{"core": checkerFunc(func(context.Context) (Status, string) { return StatusAvailable, "ok" })}, 0)
+	if err := reg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateOverlaysRejectUnknownAndIllegalActions(t *testing.T) {
+	defs := []Def{{DependencySlug: "postgres", DependencyKind: DependencyResource}}
+	if err := ValidateOverlays(defs, map[string]Overlay{"missing": {}}); err == nil {
+		t.Fatal("unknown overlay accepted")
+	}
+	if err := ValidateOverlays(defs, map[string]Overlay{"postgres": {ActionKind: ActionKindScenarioRestart}}); err == nil {
+		t.Fatal("resource restart accepted")
+	}
+}
+
+func TestRegistryCoalescesConcurrentFullResolves(t *testing.T) {
+	checker := &blockingChecker{started: make(chan struct{}), release: make(chan struct{})}
+	reg := New([]Def{{ID: "svc", Description: "service", DependencyKind: DependencyScenario, DependencySlug: "svc"}}, map[string]Checker{"svc": checker}, time.Minute)
+	var wg sync.WaitGroup
+	results := make(chan []State, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- reg.Resolve(context.Background())
+		}()
+	}
+	select {
+	case <-checker.started:
+	case <-time.After(time.Second):
+		t.Fatal("first resolve did not start")
+	}
+	close(checker.release)
+	wg.Wait()
+	close(results)
+	if calls := checker.calls.Load(); calls != 1 {
+		t.Fatalf("checker calls = %d, want one coalesced probe", calls)
+	}
+	for states := range results {
+		if len(states) != 1 || states[0].Status != StatusAvailable {
+			t.Fatalf("states = %+v", states)
+		}
+	}
+}
+
+type blockingChecker struct {
+	started chan struct{}
+	release chan struct{}
+	calls   atomic.Int32
+}
+
+func (c *blockingChecker) Check(ctx context.Context) (Status, string) {
+	c.calls.Add(1)
+	select {
+	case c.started <- struct{}{}:
+	default:
+	}
+	select {
+	case <-c.release:
+		return StatusAvailable, "released"
+	case <-ctx.Done():
+		return StatusUnknown, ctx.Err().Error()
+	}
+}
 
 type checkerFunc func(context.Context) (Status, string)
 

@@ -145,6 +145,8 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 			return NewFailure(req.RequestID, req.Action, "runtime_home_repair_unavailable")
 		}
 		return b.config.RuntimeHomeRepair(ctx, *req.RuntimeHome)
+	case ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes:
+		return executeStorageAction(ctx, b.config.Executor, req)
 	default:
 		return executeUFW(ctx, b.config.Executor, req)
 	}
@@ -164,6 +166,7 @@ func (b *Broker) audit(uid uint32, req Request, result Result) {
 	defer f.Close()
 	// No request body, credentials, environment, or command output is logged.
 	_ = json.NewEncoder(f).Encode(struct {
+		RequestID string `json:"request_id"`
 		CallerUID uint32 `json:"caller_uid"`
 		Action    string `json:"action"`
 		Scenario  string `json:"scenario"`
@@ -171,5 +174,5 @@ func (b *Broker) audit(uid uint32, req Request, result Result) {
 		Port      int    `json:"port"`
 		Status    string `json:"status"`
 		Code      string `json:"code,omitempty"`
-	}{uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code})
+	}{req.RequestID, uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code})
 }

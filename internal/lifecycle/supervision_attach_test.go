@@ -3,10 +3,12 @@ package lifecycle
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -28,7 +30,7 @@ func newSupervisorSessionForTest(t *testing.T, home, supervisorID string) {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
 	defer store.Close()
-	pid := 4242
+	pid := os.Getpid()
 	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{
 		SupervisorID:  supervisorID,
 		HostBootID:    "boot-test",
@@ -66,6 +68,7 @@ func runningInstanceForTest(t *testing.T, home, slug string) scenarioruntime.Ins
 // nothing renewed the lease and the scenario read as stopped roughly 30 seconds
 // later while its API was still serving.
 func TestStartHandsOwnershipToTheLiveSupervisor(t *testing.T) {
+	t.Setenv(runtimesupervisor.ModeEnv, runtimesupervisor.ModeAuto)
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")

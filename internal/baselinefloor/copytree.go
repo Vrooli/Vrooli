@@ -10,7 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	"github.com/vrooli/vrooli/internal/scenariostale"
 )
 
 // defaultExcludes is the restore-point copy ladder exclude set, aligned to the
@@ -30,7 +29,7 @@ var defaultExcludes = map[string]struct{}{
 	".git":                            {},
 	repocontractmeta.ProjectConfigDir: {},
 	"generated":                       {},
-	scenariostale.SidecarFile:         {}, // ".build-fingerprint.json"
+	".build-fingerprint.json":         {},
 	".turbo":                          {},
 	".next":                           {},
 	"__pycache__":                     {},

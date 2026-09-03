@@ -60,7 +60,9 @@ func replaceProcess(argv0 string, argv []string, env []string) error {
 	return syscall.Exec(argv0, argv, env)
 }
 
-func assignProcessContainment(*os.Process) (func(), error) { return func() {}, nil }
+func assignProcessContainment(process *os.Process) (func(), error) {
+	return processGroupBoundary(process)
+}
 
 func gracefulStopProcess(process *os.Process) error {
 	if process == nil {
@@ -126,15 +128,32 @@ func processWorkingDir(pid int) (string, error) {
 	return path, nil
 }
 
+// processHasChildren reads every thread's children list: a child is listed
+// under the task that forked it, and a Go process forks from whichever OS
+// thread runs the goroutine, so the main thread's file alone misses children
+// as soon as the runtime has more than one thread.
 func processHasChildren(pid int) (bool, error) {
 	if pid <= 0 {
 		return false, fmt.Errorf("platform: invalid pid %d", pid)
 	}
-	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/task/" + strconv.Itoa(pid) + "/children")
+	taskDir := "/proc/" + strconv.Itoa(pid) + "/task"
+	tasks, err := os.ReadDir(taskDir)
 	if err != nil {
 		return false, err
 	}
-	return strings.TrimSpace(string(data)) != "", nil
+	for _, task := range tasks {
+		data, err := os.ReadFile(taskDir + "/" + task.Name() + "/children")
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue // the thread exited between the listing and the read
+			}
+			return false, err
+		}
+		if strings.TrimSpace(string(data)) != "" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // processScope returns the unified-hierarchy cgroup path for pid. The v2 line

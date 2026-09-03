@@ -82,6 +82,13 @@ type Options struct {
 	// Subcommand selects an alternate setup mode. Empty string runs the
 	// default apply flow. Recognized values: "status", "explain".
 	Subcommand string
+	// Phase selects which declared safeguard phase `setup status` inspects.
+	// Empty means "setup" (everything setup would converge). "readiness"
+	// runs Inspect for the safeguards that declare it: the boot-path
+	// preconditions a healthy host re-verifies on a schedule.
+	Phase string
+	// JSON switches `setup status` to a machine-readable report on stdout.
+	JSON bool
 	// ExplainName is the requirement name to look up when Subcommand is
 	// "explain". Ignored otherwise.
 	ExplainName string
@@ -131,6 +138,9 @@ type setupDeps struct {
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
 	configureCredentialBackend  func(io.Writer, io.Writer) error
 	discoverCapabilities        func(context.Context, string, string) ([]operatorcapability.Status, error)
+	// bootRecoveryStatus reads the autoheal API's boot-recovery projection
+	// for `setup status`; nil means the live fetch.
+	bootRecoveryStatus func(context.Context) (BootRecoveryStatus, error)
 }
 
 type setupService struct {
@@ -206,6 +216,9 @@ func newSetupService(deps setupDeps) *setupService {
 	}
 	if deps.detectPresentation == nil {
 		deps.detectPresentation = hostpresentation.Detect
+	}
+	if deps.bootRecoveryStatus == nil {
+		deps.bootRecoveryStatus = fetchBootRecovery
 	}
 	return &setupService{deps: deps}
 }

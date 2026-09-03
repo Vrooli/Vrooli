@@ -175,6 +175,7 @@ func (s Service) List(req ListRequest) (ListResponse, error) {
 			Tags:               CopyStrings(item.Scenario.Manifest.Service.Tags),
 			Path:               item.Scenario.Path + string(os.PathSeparator),
 			Ports:              listPorts,
+			Health:             item.Details.Health,
 			StartFailureReason: startFailureReason,
 			StartFailedAt:      startFailedAt,
 		})

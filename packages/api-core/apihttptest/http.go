@@ -58,6 +58,38 @@ func AssertStatus(t *testing.T, resp *http.Response, want int) {
 	assertStatus(t, resp, want)
 }
 
+// AssertMethod is a compatibility assertion for scenario client fixtures.
+func AssertMethod(t *testing.T, req *http.Request, want string) {
+	t.Helper()
+	if req == nil {
+		t.Fatalf("AssertMethod: request is nil (want %s)", want)
+	}
+	if req.Method != want {
+		t.Fatalf("AssertMethod: got %s, want %s", req.Method, want)
+	}
+}
+
+// WriteJSON writes a typed fixture response with the requested status.
+func WriteJSON(t *testing.T, w http.ResponseWriter, status int, value any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+}
+
+// ContainsString fails when expected is absent from values.
+func ContainsString(t *testing.T, values []string, expected string) {
+	t.Helper()
+	for _, value := range values {
+		if value == expected {
+			return
+		}
+	}
+	t.Fatalf("ContainsString: %q not found in %v", expected, values)
+}
+
 func assertStatus(t failer, resp *http.Response, want int) {
 	t.Helper()
 	if resp == nil {

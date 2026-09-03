@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	platform "github.com/vrooli/platform-go"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -47,6 +49,17 @@ type processTableEntry struct {
 	Command    string
 	Executable string // resolved /proc/<pid>/exe symlink target (empty on non-Linux or when unreadable)
 	Cwd        string // resolved /proc/<pid>/cwd symlink target (empty on non-Linux or when unreadable)
+	Cgroup     string // unified-hierarchy cgroup path (empty on non-Linux or when unreadable)
+}
+
+// agentSessionSlice is the user-manager slice every coding-agent session
+// scope lives under. A process inside it is a session the launcher recorded
+// as an editor lease; it is never an orphan, whatever its cwd or argv look
+// like, because the registry's proof-of-death expiry owns its lifetime.
+const agentSessionSlice = "/vrooli-agents.slice/"
+
+func insideAgentSessionScope(entry processTableEntry) bool {
+	return strings.Contains(entry.Cgroup, agentSessionSlice)
 }
 
 // ProcessSnapshot is the maintenance subsystem's canonical view of host-level
@@ -276,6 +289,9 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if !looksLikeVrooliProcessFn(root, home, entry) {
 			continue
 		}
+		if insideAgentSessionScope(entry) {
+			continue
+		}
 		// Never classify transient `vrooli` CLI invocations as orphans: they
 		// are legitimate short-lived user commands (e.g. `vrooli scenario
 		// restart <name>`) that don't register a process record, and
@@ -405,6 +421,7 @@ func parseProcessTableLine(line string) (processTableEntry, bool) {
 	}
 	exe, _ := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 	cwd, _ := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
+	cgroup, _ := platform.ProcessScope(pid)
 	return processTableEntry{
 		PID:        pid,
 		PPID:       ppid,
@@ -414,6 +431,7 @@ func parseProcessTableLine(line string) (processTableEntry, bool) {
 		Command:    strings.Join(fields[5:], " "),
 		Executable: exe,
 		Cwd:        cwd,
+		Cgroup:     cgroup,
 	}, true
 }
 

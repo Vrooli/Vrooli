@@ -20,6 +20,14 @@ type DirectoryConfig struct {
 	// remove through. A configured root, or any child/ancestor overlap with a
 	// protected root, is refused at the deletion boundary.
 	ProtectedRoots []string
+	// ProtectedGlobs are path patterns, matched against the cleaned absolute
+	// candidate path and its base name, that must never be removed.
+	ProtectedGlobs []string
+	// DirectoryMtimeReliable controls whether a directory's own mtime is a
+	// sufficient age signal. Set false on filesystems that do not propagate
+	// descendant changes to the directory entry; selection then uses the newest
+	// descendant mtime.
+	DirectoryMtimeReliable *bool
 	// Now supplies the current time. Defaults to time.Now.
 	Now func() time.Time
 	// Logger receives cycle detail. Defaults to slog.Default.
@@ -90,6 +98,10 @@ func NewDirectoryPruner(cfg DirectoryConfig) (*DirectoryPruner, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	if cfg.DirectoryMtimeReliable == nil {
+		reliable := true
+		cfg.DirectoryMtimeReliable = &reliable
+	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -105,6 +117,110 @@ type entry struct {
 	name    string
 	modTime time.Time
 	bytes   int64
+}
+
+// Select scans and orders candidates without deleting anything. It is the
+// reusable selection half of the directory retention engine.
+func (p *DirectoryPruner) Select(ctx context.Context, b Budget) (Candidates, error) {
+	entries, err := p.scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	victims, _ := p.selectVictims(entries, b)
+	selected := make(Candidates, 0, len(victims))
+	for _, victim := range victims {
+		selected = append(selected, Candidate{Path: filepath.Join(p.cfg.Path, victim.name), Bytes: victim.bytes, ModTime: victim.modTime})
+	}
+	return selected, nil
+}
+
+// Delete removes selected candidates with a re-stat and containment check at
+// the deletion boundary. A caller may use Lock to share the host recovery
+// lock with other deleters.
+func (p *DirectoryPruner) Delete(ctx context.Context, candidates Candidates, batch Batch) (Receipt, error) {
+	started := time.Now()
+	receipt := Receipt{}
+	if before, _, err := MeasureDirectory(ctx, p.cfg.Path); err == nil {
+		receipt.BytesBefore = before
+	}
+	var deletedBytes int64
+	if batch.Lock != nil {
+		unlock, err := batch.Lock(ctx)
+		if err != nil {
+			return receipt, err
+		}
+		defer unlock()
+	}
+	for index, candidate := range candidates {
+		if index > 0 && batch.MaxItems > 0 && receipt.Files >= int64(batch.MaxItems) {
+			receipt.Partial = true
+			break
+		}
+		if err := ctx.Err(); err != nil {
+			receipt.Partial = true
+			receipt.Duration = time.Since(started)
+			return receipt, err
+		}
+		if !PathContains(p.cfg.Path, filepath.Clean(candidate.Path)) || ProtectedPathOverlap(candidate.Path, p.protectedRoots) {
+			return receipt, fmt.Errorf("refusing to remove path outside directory target: %s", candidate.Path)
+		}
+		if protectedGlob(candidate.Path, p.cfg.ProtectedGlobs) {
+			return receipt, fmt.Errorf("refusing to remove protected path pattern: %s", candidate.Path)
+		}
+		resolved, resolveErr := filepath.EvalSymlinks(candidate.Path)
+		if resolveErr == nil && !PathContains(p.cfg.Path, resolved) {
+			return receipt, fmt.Errorf("refusing to remove path that resolves outside directory target: %s", candidate.Path)
+		}
+		if resolveErr != nil && !os.IsNotExist(resolveErr) {
+			return receipt, fmt.Errorf("resolve deletion candidate %s: %w", candidate.Path, resolveErr)
+		}
+		info, err := os.Stat(candidate.Path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return receipt, err
+		}
+		bytes := candidate.Bytes
+		if info.IsDir() {
+			if measured, _, measureErr := MeasureDirectory(ctx, candidate.Path); measureErr == nil {
+				bytes = measured
+			}
+		} else {
+			bytes = info.Size()
+		}
+		if batch.MaxBytes > 0 && deletedBytes+bytes > batch.MaxBytes {
+			receipt.Partial = true
+			break
+		}
+		if err := p.cfg.RemoveHook(candidate.Path, func() error { return RemovePath(ctx, candidate.Path) }); err != nil {
+			return receipt, err
+		}
+		deletedBytes += bytes
+		receipt.Files++
+	}
+	if usage, _, err := MeasureDirectory(ctx, p.cfg.Path); err == nil {
+		receipt.BytesAfter = usage
+	}
+	receipt.Duration = time.Since(started)
+	return receipt, nil
+}
+
+func protectedGlob(path string, patterns []string) bool {
+	path = filepath.Clean(path)
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		if matched, _ := filepath.Match(pattern, path); matched {
+			return true
+		}
+		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+			return true
+		}
+	}
+	return false
 }
 
 // Measure reports the total size and count of the directory's top-level entries.
@@ -149,11 +265,15 @@ func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
 			}
 			return out, fmt.Errorf("stat %s: %w", filepath.Join(p.cfg.Path, de.Name()), err)
 		}
-		size, err := p.entryBytes(ctx, filepath.Join(p.cfg.Path, de.Name()), info)
+		size, newest, err := p.entryBytes(ctx, filepath.Join(p.cfg.Path, de.Name()), info)
 		if err != nil {
 			return out, err
 		}
-		out = append(out, entry{name: de.Name(), modTime: info.ModTime(), bytes: size})
+		modTime := info.ModTime()
+		if !*p.cfg.DirectoryMtimeReliable && newest.After(modTime) {
+			modTime = newest
+		}
+		out = append(out, entry{name: de.Name(), modTime: modTime, bytes: size})
 	}
 
 	sort.Slice(out, func(i, j int) bool {
@@ -165,12 +285,13 @@ func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
 	return out, nil
 }
 
-func (p *DirectoryPruner) entryBytes(ctx context.Context, path string, info fs.FileInfo) (int64, error) {
+func (p *DirectoryPruner) entryBytes(ctx context.Context, path string, info fs.FileInfo) (int64, time.Time, error) {
 	if !info.IsDir() {
-		return info.Size(), nil
+		return info.Size(), info.ModTime(), nil
 	}
 	var total int64
-	err := filepath.WalkDir(path, func(walkPath string, d fs.DirEntry, walkErr error) error {
+	newest := info.ModTime()
+	err := WalkDirectory(ctx, path, func(_ string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
 				return nil
@@ -181,6 +302,9 @@ func (p *DirectoryPruner) entryBytes(ctx context.Context, path string, info fs.F
 			return err
 		}
 		if d.IsDir() {
+			if info, infoErr := d.Info(); infoErr == nil && info.ModTime().After(newest) {
+				newest = info.ModTime()
+			}
 			return nil
 		}
 		fi, err := d.Info()
@@ -191,12 +315,15 @@ func (p *DirectoryPruner) entryBytes(ctx context.Context, path string, info fs.F
 			return err
 		}
 		total += fi.Size()
+		if fi.ModTime().After(newest) {
+			newest = fi.ModTime()
+		}
 		return nil
 	})
 	if err != nil {
-		return total, fmt.Errorf("size %s: %w", path, err)
+		return total, newest, fmt.Errorf("size %s: %w", path, err)
 	}
-	return total, nil
+	return total, newest, nil
 }
 
 // Prune removes whole top-level entries, oldest first, until the directory is

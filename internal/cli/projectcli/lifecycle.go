@@ -239,11 +239,16 @@ func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 	if sub, rest, ok := extractSetupSubcommand(args); ok {
 		switch sub {
 		case lifecycleStatus:
-			opts, err := parseLifecycleOptions("setup status", rest, SetupStatusHelpText())
+			parsed, err := commandtree.ParseArgs("setup status", SetupStatusHelpText(), setupStatusArgSchema(), rest)
+			if err != nil {
+				return projectsetup.Options{}, err
+			}
+			opts, err := parseLifecycleOptions("setup status", withoutOption(rest, "--phase"), SetupStatusHelpText())
 			if err != nil {
 				return projectsetup.Options{}, err
 			}
 			opts.Subcommand = lifecycleStatus
+			opts.Phase = strings.ToLower(strings.TrimSpace(parsed.FlagValue("--phase")))
 			return opts, nil
 		case projectLifecycleExplain:
 			parsed, err := commandtree.ParseArgs("setup explain", SetupExplainHelpText(), setupExplainArgSchema(), rest)
@@ -290,7 +295,32 @@ func setupExplainArgSchema() commandtree.ArgSchema {
 }
 
 func SetupStatusHelpText() string {
-	return commandtree.HelpText("", "vrooli setup status", "Inspect host requirements without applying changes.", commandtree.Help{}, lifecycleOptionsSchema())
+	return commandtree.HelpText("", "vrooli setup status", "Inspect host requirements without applying changes.", commandtree.Help{}, setupStatusArgSchema())
+}
+
+// setupStatusArgSchema is the lifecycle schema plus the inspection-only
+// --phase selector. `--json` is a global flag and needs no entry here.
+func setupStatusArgSchema() commandtree.ArgSchema {
+	schema := lifecycleOptionsSchema()
+	schema.Options = append(schema.Options, commandtree.OptionArg{Name: "--phase", ValueName: "name", Description: "Safeguard phase to inspect (setup|readiness); readiness re-inspects the boot-path safeguards only"})
+	return schema
+}
+
+// withoutOption drops one value-carrying option from args so the shared
+// lifecycle parser never sees it.
+func withoutOption(args []string, name string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == name {
+			i++
+			continue
+		}
+		if strings.HasPrefix(args[i], name+"=") {
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
 }
 
 func SetupExplainHelpText() string {

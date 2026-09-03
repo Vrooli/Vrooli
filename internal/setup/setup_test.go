@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1144,6 +1145,9 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 		apiStarted = true
 		if spec.Command == "" || spec.Port != 18095 {
 			t.Fatalf("spec = %+v", spec)
+		}
+		if !slices.Contains(spec.Env, "VROOLI_API_PORT=18095") {
+			t.Fatalf("spec environment does not carry resolved API port: %q", spec.Env)
 		}
 		return nil
 	}

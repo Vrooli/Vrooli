@@ -61,8 +61,15 @@ import (
 // lock up front, which surfaces write-ordering bugs in a test rather than
 // leaving them to appear under production contention.
 func NewSQLite(t *testing.T) *sql.DB {
+	return OpenSQLiteFile(t, "test.db")
+}
+
+// OpenSQLiteFile is the legacy name for a fresh file-backed SQLite handle.
+// filename is kept within the per-test temporary directory; callers cannot
+// accidentally make a test helper open an arbitrary repository path.
+func OpenSQLiteFile(t *testing.T, filename string) *sql.DB {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "test.db")
+	path := filepath.Join(t.TempDir(), filepath.Base(filename))
 	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{TxLock: "immediate"})
 	if err != nil {
 		t.Fatalf("build sqlite dsn: %v", err)
@@ -71,6 +78,19 @@ func NewSQLite(t *testing.T) *sql.DB {
 	d, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
+	}
+	d.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = d.Close() })
+	return d
+}
+
+// OpenSQLiteMemory is retained for tests whose schema does not exercise file
+// locking. New repository tests should prefer NewSQLite.
+func OpenSQLiteMemory(t *testing.T) *sql.DB {
+	t.Helper()
+	d, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite memory database: %v", err)
 	}
 	d.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = d.Close() })

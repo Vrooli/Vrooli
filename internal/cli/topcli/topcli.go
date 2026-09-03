@@ -33,6 +33,7 @@ const (
 	CommandAuth             CommandID = "auth"
 	CommandRecovery         CommandID = "recovery"
 	CommandHost             CommandID = "host"
+	CommandHostWatchdog     CommandID = "host-watchdog"
 	CommandWorkload         CommandID = "workload"
 	CommandCapacity         CommandID = "capacity"
 	CommandCapability       CommandID = "capability"
@@ -69,6 +70,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
 		{Name: string(CommandRecovery), Group: "Maintenance Commands", Summary: "Baseline Modes recovery floor: restore points and engagement manifests", Handler: CommandRecovery, Suggestable: true},
 		{Name: string(CommandHost), Group: "Maintenance Commands", Summary: "Inspect local host inventory via the shared Go collector", Handler: CommandHost, Suggestable: true},
+		{Name: string(CommandHostWatchdog), Group: "Maintenance Commands", Summary: "Run the disk-floor watchdog and report pressure to storage-manager", Handler: CommandHostWatchdog, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: func([]string) bool { return true }}},
 		{Name: string(CommandWorkload), Group: "Maintenance Commands", Summary: "List host workloads and their Vrooli ownership posture", Handler: CommandWorkload, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},
 		{Name: string(CommandCapability), Group: "Maintenance Commands", Summary: "Read the manifest-derived cross-platform capability ledger", Handler: CommandCapability, Suggestable: true},
@@ -94,7 +96,10 @@ func ScenarioCanRunWithoutRoot(args []string) bool {
 	return len(args) == 0 || commandtree.WantsHelp(args)
 }
 
-func RenderMainHelp(w io.Writer, specs []commandtree.Spec[CommandID]) {
+// RenderMainHelp renders the root help. notes are appended after the
+// standard documentation note; the root runner passes the retired-flags line
+// so `vrooli help` documents the tolerance grace.
+func RenderMainHelp(w io.Writer, specs []commandtree.Spec[CommandID], notes ...string) {
 	commandtree.RenderHelp(w, commandtree.Help{
 		Title: "                          ___\n" +
 			" _   _ _ __ ___   ___    / (_)\n" +
@@ -106,7 +111,7 @@ func RenderMainHelp(w io.Writer, specs []commandtree.Spec[CommandID]) {
 		Usage:        "vrooli <command> [options]",
 		Options:      GlobalOptions(),
 		Examples:     []string{"vrooli <command> --help"},
-		Notes:        []string{"Documentation: docs/"},
+		Notes:        append([]string{"Documentation: docs/"}, notes...),
 		DefaultGroup: "",
 	}, specs)
 }
@@ -118,6 +123,5 @@ func GlobalOptions() []commandtree.OptionArg {
 		{Name: "--json", Description: "Emit JSON output when supported by the selected command"},
 		{Name: "--verbose", Description: "Enable verbose command output"},
 		{Name: "--no-color", Description: "Disable ANSI color output"},
-		{Name: "--no-stale-check", Description: "Skip the Go source freshness check"},
 	}
 }

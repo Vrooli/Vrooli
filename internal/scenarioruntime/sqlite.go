@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -602,66 +603,89 @@ DELETE FROM runtime_port_claims
 	return int(affected), nil
 }
 
-func (s *SQLiteStore) UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error) {
-	if strings.TrimSpace(claimID) == "" {
-		return PortClaim{}, fmt.Errorf("update listener evidence: claim_id is required")
+// UpdatePortClaimListenerEvidenceBatch writes one tick's listener evidence
+// for every observed claim inside one transaction: one statement per claim,
+// one commit per tick. Under host pressure the previous per-claim
+// transactions filled the supervisor log with SQLITE_BUSY. A claim that no
+// longer exists is skipped; the caller records observations, not authority.
+func (s *SQLiteStore) UpdatePortClaimListenerEvidenceBatch(ctx context.Context, observations map[string]ListenerObservation) (int, error) {
+	if len(observations) == 0 {
+		return 0, nil
 	}
+	claimIDs := make([]string, 0, len(observations))
+	for claimID := range observations {
+		if strings.TrimSpace(claimID) == "" {
+			return 0, fmt.Errorf("update listener evidence: claim_id is required")
+		}
+		claimIDs = append(claimIDs, claimID)
+	}
+	sort.Strings(claimIDs)
+	updated := 0
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		for _, claimID := range claimIDs {
+			changed, err := updatePortClaimListenerEvidenceTx(ctx, tx, s.now(), claimID, observations[claimID])
+			if err != nil {
+				return err
+			}
+			if changed {
+				updated++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return updated, nil
+}
+
+func updatePortClaimListenerEvidenceTx(ctx context.Context, tx *sql.Tx, now time.Time, claimID string, evidence ListenerObservation) (bool, error) {
 	status := normalizeListenerStatus(evidence.Status)
 	checkedAt := evidence.CheckedAt
 	if checkedAt.IsZero() {
-		checkedAt = s.now()
+		checkedAt = now
 	}
 	checkedAt = checkedAt.UTC()
-
-	var out PortClaim
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		current, err := getPortClaimTx(ctx, tx, claimID)
-		if err != nil {
-			return err
+	current, err := getPortClaimTx(ctx, tx, claimID)
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	lastSeenAt := current.LastListenerSeenAt
+	firstUnboundAt := current.FirstUnboundAt
+	misses := current.ConsecutiveListenerMisses
+	switch status {
+	case ListenerStatusListening, ListenerStatusForeignListener:
+		lastSeenAt = &checkedAt
+		firstUnboundAt = nil
+		misses = 0
+	case ListenerStatusNotListening:
+		if firstUnboundAt == nil {
+			firstUnboundAt = &checkedAt
 		}
-		lastSeenAt := current.LastListenerSeenAt
-		firstUnboundAt := current.FirstUnboundAt
-		misses := current.ConsecutiveListenerMisses
-		switch status {
-		case ListenerStatusListening, ListenerStatusForeignListener:
-			lastSeenAt = &checkedAt
-			firstUnboundAt = nil
-			misses = 0
-		case ListenerStatusNotListening:
-			if firstUnboundAt == nil {
-				firstUnboundAt = &checkedAt
-			}
-			misses++
-		case ListenerStatusInspectionUnavailable, ListenerStatusUnknown:
-			// Inspection gaps should be visible, but they are not listener misses.
-		}
-
-		result, err := tx.ExecContext(ctx, `
+		misses++
+	case ListenerStatusInspectionUnavailable, ListenerStatusUnknown:
+		// Inspection gaps should be visible, but they are not listener misses.
+	}
+	result, err := tx.ExecContext(ctx, `
 UPDATE runtime_port_claims
 SET updated_at = ?, last_listener_check_at = ?, last_listener_seen_at = ?,
   first_unbound_at = ?, consecutive_listener_misses = ?, listener_status = ?,
   listener_pid = ?, listener_process_label = ?
 WHERE claim_id = ?`,
-			formatTime(s.now()), formatTime(checkedAt), formatOptionalTime(lastSeenAt),
-			formatOptionalTime(firstUnboundAt), misses, status, optionalIntValue(evidence.PID),
-			evidence.ProcessLabel, claimID)
-		if err != nil {
-			return fmt.Errorf("update runtime port listener evidence: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("inspect runtime port listener evidence update: %w", err)
-		}
-		if affected == 0 {
-			return ErrNotFound
-		}
-		out, err = getPortClaimTx(ctx, tx, claimID)
-		return err
-	})
+		formatTime(now), formatTime(checkedAt), formatOptionalTime(lastSeenAt),
+		formatOptionalTime(firstUnboundAt), misses, status, optionalIntValue(evidence.PID),
+		evidence.ProcessLabel, claimID)
 	if err != nil {
-		return PortClaim{}, err
+		return false, fmt.Errorf("update runtime port listener evidence: %w", err)
 	}
-	return out, nil
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("inspect runtime port listener evidence update: %w", err)
+	}
+	return affected > 0, nil
 }
 
 func (s *SQLiteStore) UpsertHealthSnapshot(ctx context.Context, snapshot HealthSnapshot) (HealthSnapshot, error) {

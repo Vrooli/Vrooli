@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 func TestHostPressureProviderFailsClosedWhenEvidenceIsUnavailable(t *testing.T) {
@@ -116,7 +118,7 @@ func TestHostPressureProviderDegradesGracefullyWithoutCPUPSI(t *testing.T) {
 // that calls NewHostPressureProvider still gets the new signal.
 func TestDefaultConstructorEnablesCPUSignal(t *testing.T) {
 	p := NewHostPressureProvider(10)
-	if p.cpuSomeAvg10Threshold != DefaultPressureCPUSomeAvg10 {
-		t.Fatalf("cpu threshold = %v, want %v", p.cpuSomeAvg10Threshold, DefaultPressureCPUSomeAvg10)
+	if want := setpoint.Fallback().Max(setpoint.CellCPUPressure, -1); p.cpuSomeAvg10Threshold != want {
+		t.Fatalf("cpu threshold = %v, want the setpoint's %v", p.cpuSomeAvg10Threshold, want)
 	}
 }

@@ -61,7 +61,9 @@ func replaceProcess(argv0 string, argv []string, env []string) error {
 	return syscall.Exec(argv0, argv, env)
 }
 
-func assignProcessContainment(*os.Process) (func(), error) { return func() {}, nil }
+func assignProcessContainment(process *os.Process) (func(), error) {
+	return processGroupBoundary(process)
+}
 
 func gracefulStopProcess(process *os.Process) error {
 	if process == nil {

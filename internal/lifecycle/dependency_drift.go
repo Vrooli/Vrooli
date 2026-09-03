@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const dependencySpecifierMatchParts = 3
+
 // checkNodeLockfileDrift is deliberately read-only. It runs immediately
 // before a JavaScript component install/build and makes a stale lockfile a
 // typed lifecycle failure instead of an opaque package-manager error.
@@ -53,7 +55,7 @@ func checkNodeLockfileDrift(root string) ([]string, error) {
 		}
 		if inSpecifiers {
 			match := linePattern.FindStringSubmatch(line)
-			if len(match) == 3 {
+			if len(match) == dependencySpecifierMatchParts {
 				found[strings.TrimSpace(match[1])] = strings.TrimSpace(match[2])
 			}
 		}

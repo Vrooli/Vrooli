@@ -167,7 +167,7 @@ func TestParseArgsSeparatesGlobalsAndCommand(t *testing.T) {
 }
 
 func TestConsumeInlineGlobalFlagsPreservesPassthroughTail(t *testing.T) {
-	globals, args := ConsumeInlineGlobalFlags(GlobalOptions{}, []string{"list", "--json", "--", "--json"})
+	globals, args, _ := ConsumeInlineGlobalFlags(GlobalOptions{}, []string{"list", "--json", "--", "--json"})
 	if !globals.JSON {
 		t.Fatalf("globals = %#v, want JSON enabled", globals)
 	}

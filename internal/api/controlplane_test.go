@@ -35,8 +35,12 @@ func TestScenarioControlPlaneServiceIsMounted(t *testing.T) {
 	defer server.Close()
 	client := cliv1connect.NewScenarioControlPlaneServiceClient(server.Client(), server.URL)
 
-	if _, err := client.ListScenarios(context.Background(), connect.NewRequest(&cliv1.ListScenariosRequest{})); err != nil {
+	list, err := client.ListScenarios(context.Background(), connect.NewRequest(&cliv1.ListScenariosRequest{}))
+	if err != nil {
 		t.Fatalf("ListScenarios: %v", err)
+	}
+	if list.Msg.GetObservedAt() == nil || list.Msg.GetObservedAt().AsTime().IsZero() {
+		t.Fatalf("ListScenarios observed_at = %v, want producer timestamp", list.Msg.GetObservedAt())
 	}
 	requests := []struct {
 		name string

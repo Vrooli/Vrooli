@@ -38,7 +38,6 @@ func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 		if err != nil {
 			return err
 		}
-		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), extractCompletenessScenario(args), deps.Globals(ctx))
 		commandArgs := BuildScenarioCompletenessArgs(deps.Globals(ctx), args)
 		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 			Name:   cliPath,

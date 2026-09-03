@@ -26,7 +26,7 @@ func TestRenderMainHelpUsesPlainLabelsAndIncludesContract(t *testing.T) {
 	if !strings.Contains(output, "contract") {
 		t.Fatalf("output = %q", output)
 	}
-	for _, want := range []string{"--no-stale-check", "--verbose", "Documentation: docs/"} {
+	for _, want := range []string{"--verbose", "Documentation: docs/"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("missing %q in output = %q", want, output)
 		}

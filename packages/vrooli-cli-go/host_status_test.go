@@ -30,7 +30,7 @@ func TestHostInventoryDecodesQuotedByteCounts(t *testing.T) {
 	if got := resp.GetSwap().GetTotalBytes(); got != 74088177664 {
 		t.Fatalf("swap.total_bytes = %d, want 74088177664", got)
 	}
-	if want := []string{"--no-stale-check", "host", "inventory", "--json"}; !equalArgs(runner.calls[0].args, want) {
+	if want := []string{"host", "inventory", "--json"}; !equalArgs(runner.calls[0].args, want) {
 		t.Fatalf("call args = %v, want %v", runner.calls[0].args, want)
 	}
 }

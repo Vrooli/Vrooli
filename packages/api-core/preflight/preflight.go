@@ -94,15 +94,6 @@ func Run(cfg Config) bool {
 			if cfg.StalenessConfig.BinaryPath != "" {
 				staleCfg.BinaryPath = cfg.StalenessConfig.BinaryPath
 			}
-			if cfg.StalenessConfig.CommandRunner != nil {
-				staleCfg.CommandRunner = cfg.StalenessConfig.CommandRunner
-			}
-			if cfg.StalenessConfig.Reexec != nil {
-				staleCfg.Reexec = cfg.StalenessConfig.Reexec
-			}
-			if cfg.StalenessConfig.LookPath != nil {
-				staleCfg.LookPath = cfg.StalenessConfig.LookPath
-			}
 			if cfg.StalenessConfig.LifecycleManaged {
 				staleCfg.LifecycleManaged = true
 			}

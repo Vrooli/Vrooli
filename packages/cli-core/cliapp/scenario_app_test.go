@@ -2,11 +2,11 @@ package cliapp
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -636,14 +636,15 @@ func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
 	}
 	t.Setenv("API_BASE_ENV", server.URL)
 
-	originalExec := execScenarioStartCommand
-	originalSetup := execScenarioSetupCommand
-	t.Cleanup(func() { execScenarioStartCommand = originalExec; execScenarioSetupCommand = originalSetup })
+	originalRun := runScenarioLifecycle
+	t.Cleanup(func() { runScenarioLifecycle = originalRun })
 
 	var started string
-	execScenarioStartCommand = func(name string) *exec.Cmd {
-		started = name
-		return exec.Command("true")
+	runScenarioLifecycle = func(verb, name string) error {
+		if verb == "start" {
+			started = name
+		}
+		return nil
 	}
 
 	if err := app.tryAutoStart(); err != nil {
@@ -673,27 +674,27 @@ func TestScenarioAppTryAutoStartSetsUpColdScenarioBeforeRetry(t *testing.T) {
 		t.Fatalf("NewScenarioApp: %v", err)
 	}
 
-	originalSetup := execScenarioSetupCommand
-	originalStart := execScenarioStartCommand
-	t.Cleanup(func() { execScenarioSetupCommand = originalSetup; execScenarioStartCommand = originalStart })
+	originalRun := runScenarioLifecycle
+	t.Cleanup(func() { runScenarioLifecycle = originalRun })
 	setupCalled := false
 	startCalls := 0
-	execScenarioSetupCommand = func(name string) *exec.Cmd {
+	runScenarioLifecycle = func(verb, name string) error {
 		if name != "demo" {
-			t.Fatalf("setup scenario = %q, want demo", name)
+			t.Fatalf("%s scenario = %q, want demo", verb, name)
 		}
-		setupCalled = true
-		return exec.Command("true")
-	}
-	execScenarioStartCommand = func(name string) *exec.Cmd {
-		if name != "demo" {
-			t.Fatalf("start scenario = %q, want demo", name)
+		switch verb {
+		case "setup":
+			setupCalled = true
+			return nil
+		case "start":
+			startCalls++
+			if startCalls == 1 {
+				return errors.New("exit status 1")
+			}
+			return nil
 		}
-		startCalls++
-		if startCalls == 1 {
-			return exec.Command("sh", "-c", "exit 1")
-		}
-		return exec.Command("true")
+		t.Fatalf("unexpected verb %q", verb)
+		return nil
 	}
 
 	if err := app.tryAutoStart(); err != nil {
@@ -724,12 +725,14 @@ func TestScenarioAppTryAutoStartUsesLifecycleInAgentContext(t *testing.T) {
 		t.Fatalf("NewScenarioApp: %v", err)
 	}
 
-	originalExec := execScenarioStartCommand
-	t.Cleanup(func() { execScenarioStartCommand = originalExec })
+	originalRun := runScenarioLifecycle
+	t.Cleanup(func() { runScenarioLifecycle = originalRun })
 	var started string
-	execScenarioStartCommand = func(name string) *exec.Cmd {
-		started = name
-		return exec.Command("true")
+	runScenarioLifecycle = func(verb, name string) error {
+		if verb == "start" {
+			started = name
+		}
+		return nil
 	}
 	if err := app.tryAutoStart(); err != nil {
 		t.Fatalf("tryAutoStart: %v", err)
@@ -759,12 +762,14 @@ func TestScenarioAppTryAutoStartUsesLifecycleForAnyScenarioInAgentContext(t *tes
 		t.Fatalf("NewScenarioApp: %v", err)
 	}
 
-	originalExec := execScenarioStartCommand
-	t.Cleanup(func() { execScenarioStartCommand = originalExec })
+	originalRun := runScenarioLifecycle
+	t.Cleanup(func() { runScenarioLifecycle = originalRun })
 	var started string
-	execScenarioStartCommand = func(name string) *exec.Cmd {
-		started = name
-		return exec.Command("true")
+	runScenarioLifecycle = func(verb, name string) error {
+		if verb == "start" {
+			started = name
+		}
+		return nil
 	}
 	if err := app.tryAutoStart(); err != nil {
 		t.Fatalf("tryAutoStart: %v", err)

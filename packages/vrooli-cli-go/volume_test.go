@@ -45,7 +45,7 @@ func TestHostVolumeBuildsADeterministicCommand(t *testing.T) {
 	}
 
 	got := strings.Join(runner.args, " ")
-	want := "--no-stale-check host volume repair --device /dev/sda1 --json --filesystem ntfs3 --uuid E26A883E6A881189 --serial WD-1 --acknowledge-data-loss --dry-run"
+	want := "host volume repair --device /dev/sda1 --json --filesystem ntfs3 --uuid E26A883E6A881189 --serial WD-1 --acknowledge-data-loss --dry-run"
 	if got != want {
 		t.Fatalf("args =\n  %s\nwant\n  %s", got, want)
 	}

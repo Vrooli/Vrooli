@@ -79,6 +79,9 @@ func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) 
 		}
 
 		if resp.Report.Maintenance != nil {
+			if total, ok := resp.Report.Summary["agent_sessions"]; ok {
+				_, _ = fmt.Fprintf(w, "Agent sessions: %d live (%d in this tree); see `vrooli agent list`\n\n", total, resp.Report.Summary["agent_sessions_in_tree"])
+			}
 			_, _ = fmt.Fprintln(w, "Maintenance")
 			health := resp.Report.Maintenance.HealthSnapshot()
 			rows := [][]string{

@@ -153,7 +153,13 @@ type ItemStatus struct {
 	Manual               bool                       `json:"manual"`
 	Reasons              []string                   `json:"reasons,omitempty"`
 	Notes                []string                   `json:"notes,omitempty"`
-	Provenance           []hostreqspec.Provenance   `json:"provenance,omitempty"`
+	// Evidence carries machine-readable proof a handler collected while
+	// inspecting or applying, keyed by what it proves (for example
+	// "validator_verdict" holds the native validator's platformgo.Verdict for
+	// a rendered unit). Readiness inspections read it back from
+	// `vrooli setup status --json`.
+	Evidence   map[string]any           `json:"evidence,omitempty"`
+	Provenance []hostreqspec.Provenance `json:"provenance,omitempty"`
 }
 
 // ObservedSafeguard is the read-only boundary consumed by platform coverage.

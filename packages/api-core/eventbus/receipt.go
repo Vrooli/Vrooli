@@ -61,8 +61,10 @@ type Client struct {
 }
 
 type endpointRef struct {
-	mu  sync.RWMutex
-	url string
+	mu          sync.RWMutex
+	url         string
+	resolve     func() string
+	resolveOnce sync.Once
 }
 
 func newDynamicClient(baseURL string) (Client, func(string)) {
@@ -78,6 +80,14 @@ func (c Client) baseURL() string {
 	if c.endpoint == nil {
 		return strings.TrimSpace(c.BaseURL)
 	}
+	c.endpoint.resolveOnce.Do(func() {
+		if c.endpoint.resolve != nil {
+			resolved := strings.TrimSpace(c.endpoint.resolve())
+			c.endpoint.mu.Lock()
+			c.endpoint.url = resolved
+			c.endpoint.mu.Unlock()
+		}
+	})
 	c.endpoint.mu.RLock()
 	defer c.endpoint.mu.RUnlock()
 	return c.endpoint.url

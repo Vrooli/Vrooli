@@ -90,7 +90,7 @@ func parseLaunchctlState(raw string, commandErr error) ServiceState {
 }
 
 func nativeServiceLogs(options NativeServiceOptions, tail int) ([]byte, error) {
-	return os.ReadFile(filepath.Join(filepath.Dir(options.Path), "..", "Logs", options.Name+".log"))
+	return os.ReadFile(LaunchdLogPath(options.Path, options.Name))
 }
 
 func readHostLogs(options HostLogOptions) (HostLogResult, error) {
@@ -123,40 +123,50 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 			return ServiceInstallResult{}, fmt.Errorf("platform: resolve executable: %w", err)
 		}
 	}
-	path := filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.runtime-supervisor.plist")
+	path := RuntimeSupervisorUnitPath("darwin", home)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return ServiceInstallResult{}, err
 	}
-	logPath := strings.TrimSpace(options.LogPath)
-	if logPath == "" {
-		logPath = filepath.Join(home, "Library", "Logs", "com.vrooli.runtime-supervisor.log")
-	}
-	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
-		return ServiceInstallResult{}, fmt.Errorf("platform: create supervisor log dir: %w", err)
-	}
-	content := launchAgentContent(executable, home, options.SourceRoot, logPath)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	definition, err := RuntimeSupervisorDefinition("darwin", RuntimeSupervisorOptions{Home: home, Executable: executable, SourceRoot: options.SourceRoot, LogPath: options.LogPath})
+	if err != nil {
 		return ServiceInstallResult{}, err
 	}
+	if err := os.MkdirAll(filepath.Dir(definition.Logs.Stdout), 0o755); err != nil {
+		return ServiceInstallResult{}, fmt.Errorf("platform: create supervisor log dir: %w", err)
+	}
+	artifact, err := RenderLaunchd(definition)
+	if err != nil {
+		return ServiceInstallResult{}, err
+	}
+	result := ServiceInstallResult{UnitName: runtimeSupervisorLabel, UnitPath: path, Scope: "user"}
+	result.Verdict = ValidateLaunchd(artifact)
+	if result.Verdict.Rejected() {
+		return result, fmt.Errorf("platform: plutil rejected the rendered %s: %s", runtimeSupervisorLabel, result.Verdict.Output)
+	}
+	if err := os.WriteFile(path, []byte(artifact.Primary().Content), 0o644); err != nil {
+		return result, err
+	}
 	domain := launchdDomain(os.Getuid())
-	target := domain + "/com.vrooli.runtime-supervisor"
+	target := domain + "/" + runtimeSupervisorLabel
 	_ = exec.Command("launchctl", "bootout", target).Run()
 	if output, err := exec.Command("launchctl", "bootstrap", domain, path).CombinedOutput(); err != nil {
-		return ServiceInstallResult{}, fmt.Errorf("platform: launchctl bootstrap: %w: %s", err, strings.TrimSpace(string(output)))
+		return result, fmt.Errorf("platform: launchctl bootstrap: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 	if output, err := exec.Command("launchctl", "enable", target).CombinedOutput(); err != nil {
-		return ServiceInstallResult{}, fmt.Errorf("platform: launchctl enable: %w: %s", err, strings.TrimSpace(string(output)))
+		return result, fmt.Errorf("platform: launchctl enable: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 	// Prove the agent is actually running rather than merely bootstrapped:
 	// a plist launchd accepts but cannot execute leaves the install looking
 	// successful while nothing supervises the fleet.
 	if state := awaitLaunchdRunning(target); state != ServiceStateRunning {
 		output, _ := exec.Command("launchctl", "print", target).CombinedOutput()
-		return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: false},
-			fmt.Errorf("platform: installed com.vrooli.runtime-supervisor but it is %s, not running:\n%s", state, strings.TrimSpace(string(output)))
+		return result, fmt.Errorf("platform: installed %s but it is %s, not running:\n%s", runtimeSupervisorLabel, state, strings.TrimSpace(string(output)))
 	}
-	return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: true}, nil
+	result.Active = true
+	return result, nil
 }
+
+const runtimeSupervisorLabel = "com.vrooli.runtime-supervisor"
 
 // awaitLaunchdRunning polls launchctl print until the agent settles, reporting
 // the last observation so a start-then-crash is not mistaken for a start.
@@ -177,13 +187,13 @@ func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, erro
 	if err != nil {
 		return ServiceInstallResult{}, err
 	}
-	path := filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.runtime-supervisor.plist")
-	target := fmt.Sprintf("gui/%d/com.vrooli.runtime-supervisor", os.Getuid())
+	path := RuntimeSupervisorUnitPath("darwin", home)
+	target := launchdDomain(os.Getuid()) + "/" + runtimeSupervisorLabel
 	_ = exec.Command("launchctl", "bootout", target).Run()
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return ServiceInstallResult{}, err
 	}
-	return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: false}, nil
+	return ServiceInstallResult{UnitName: runtimeSupervisorLabel, UnitPath: path, Scope: "user", Active: false}, nil
 }
 
 func startInstalledService(options ServiceInstallOptions) (bool, error) {
@@ -191,16 +201,16 @@ func startInstalledService(options ServiceInstallOptions) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	path := filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.runtime-supervisor.plist")
+	path := RuntimeSupervisorUnitPath("darwin", home)
 	if _, err := os.Stat(path); err != nil {
 		return false, nil
 	}
-	target := launchdDomain(os.Getuid()) + "/com.vrooli.runtime-supervisor"
+	target := launchdDomain(os.Getuid()) + "/" + runtimeSupervisorLabel
 	if output, err := exec.Command("launchctl", "kickstart", target).CombinedOutput(); err != nil {
 		return false, fmt.Errorf("platform: launchctl kickstart: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 	if state := awaitLaunchdRunning(target); state != ServiceStateRunning {
-		return false, fmt.Errorf("platform: started com.vrooli.runtime-supervisor but it is %s, not running", state)
+		return false, fmt.Errorf("platform: started %s but it is %s, not running", runtimeSupervisorLabel, state)
 	}
 	return true, nil
 }
@@ -222,35 +232,5 @@ func launchdDomain(uid int) string {
 }
 
 func serviceStartHint() string {
-	return fmt.Sprintf("launchctl kickstart gui/%d/com.vrooli.runtime-supervisor", os.Getuid())
-}
-
-func launchAgentContent(executable, home, sourceRoot, logPath string) string {
-	sourceRoot = strings.TrimSpace(sourceRoot)
-	if strings.TrimSpace(logPath) == "" {
-		logPath = filepath.Join(home, "Library", "Logs", "com.vrooli.runtime-supervisor.log")
-	}
-	escape := func(value string) string {
-		return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&apos;").Replace(value)
-	}
-	args := ""
-	for _, arg := range []string{executable, "--no-stale-check", "runtime", "supervisor", "run"} {
-		args += fmt.Sprintf("    <string>%s</string>\n", escape(arg))
-	}
-	extra := ""
-	if sourceRoot != "" {
-		extra = fmt.Sprintf("    <key>VROOLI_SOURCE_ROOT</key>\n    <string>%s</string>\n", escape(sourceRoot))
-	}
-	working := ""
-	if sourceRoot != "" {
-		working = fmt.Sprintf("  <key>WorkingDirectory</key>\n  <string>%s</string>\n", escape(sourceRoot))
-	}
-	return fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>com.vrooli.runtime-supervisor</string>\n  <key>ProgramArguments</key><array>\n%s  </array>\n  <key>EnvironmentVariables</key><dict>\n    <key>HOME</key><string>%s</string>\n    <key>VROOLI_RUNTIME_SUPERVISOR</key><string>on</string>\n%s  </dict>\n%s  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>\n  <key>ThrottleInterval</key><integer>5</integer>\n  <key>StandardOutPath</key><string>%s</string>\n  <key>StandardErrorPath</key><string>%s</string>\n</dict></plist>\n", args, escape(home), extra, working, escape(logPath), escape(logPath))
-}
-
-func resolvedHome(home string) (string, error) {
-	if strings.TrimSpace(home) != "" {
-		return home, nil
-	}
-	return HomeDir()
+	return fmt.Sprintf("launchctl kickstart gui/%d/%s", os.Getuid(), runtimeSupervisorLabel)
 }

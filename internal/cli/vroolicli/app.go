@@ -53,6 +53,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/hostwatchdog"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -74,8 +75,6 @@ type Config struct {
 	VersionInfo           VersionInfo
 	ResolveSourceRootFn   func() (string, error)
 	HomeDirFn             func() (string, error)
-	CheckStalenessFn      func() (buildinfo.StaleCheck, error)
-	RebuildAndReexecFn    func([]string) error
 	LookPathFn            func(string) (string, error)
 	NewLoggerFn           func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func())
 	DebugLogFn            func(*slog.Logger, string, ...any)
@@ -93,8 +92,6 @@ type App struct {
 	VersionInfo           VersionInfo
 	ResolveSourceRootFn   func() (string, error)
 	HomeDirFn             func() (string, error)
-	CheckStalenessFn      func() (buildinfo.StaleCheck, error)
-	RebuildAndReexecFn    func([]string) error
 	LookPathFn            func(string) (string, error)
 	NewLoggerFn           func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func())
 	DebugLogFn            func(*slog.Logger, string, ...any)
@@ -140,8 +137,6 @@ func New(config Config) *App {
 		VersionInfo:           config.VersionInfo,
 		ResolveSourceRootFn:   config.ResolveSourceRootFn,
 		HomeDirFn:             config.HomeDirFn,
-		CheckStalenessFn:      config.CheckStalenessFn,
-		RebuildAndReexecFn:    config.RebuildAndReexecFn,
 		LookPathFn:            config.LookPathFn,
 		NewLoggerFn:           config.NewLoggerFn,
 		DebugLogFn:            config.DebugLogFn,
@@ -219,6 +214,7 @@ func RegisteredLeafPaths() ([]string, error) {
 	appendSpecs("resource acquisition", commandSpecNames(resourcecli.AcquisitionCommandSpecs()))
 	appendSpecs("resource acceleration", commandSpecNames(resourcecli.AccelerationCommandSpecs()))
 	paths = append(paths, credentialshandlers.RegisteredCommandPaths()...)
+	paths = append(paths, "host-watchdog")
 	paths = append(paths, tuninghandlers.RegisteredCommandPaths()...)
 	paths = append(paths, hosthandlers.RegisteredCommandPaths()...)
 	paths = append(paths, runtimehandlers.RegisteredCommandPaths()...)
@@ -236,12 +232,10 @@ func commandSpecNames[ID any](specs []commandtree.Spec[ID]) []string {
 
 func (app *App) Runner() *rootcli.Runner[*CommandContext] {
 	return rootcli.NewRunner(rootcli.RunnerConfig[*CommandContext]{
-		Registry:         app.Registry(),
-		NewLogger:        app.NewLoggerFn,
-		ResolveRoot:      app.resolveRoot,
-		PrimeRootEnv:     primeRootEnv,
-		ShouldRebuild:    app.shouldRebuild,
-		RebuildAndReexec: app.RebuildAndReexecFn,
+		Registry:     app.Registry(),
+		NewLogger:    app.NewLoggerFn,
+		ResolveRoot:  app.resolveRoot,
+		PrimeRootEnv: primeRootEnv,
 		NewContext: func(globals rootcli.GlobalOptions, stdout, stderr io.Writer, logger *slog.Logger) *CommandContext {
 			return &CommandContext{
 				Globals: globals,
@@ -256,7 +250,7 @@ func (app *App) Runner() *rootcli.Runner[*CommandContext] {
 			ctx.Root = root
 		},
 		ShowMainHelp: func(ctx *CommandContext) {
-			topcli.RenderMainHelp(ctx.Stdout, topcli.CommandSpecs())
+			topcli.RenderMainHelp(ctx.Stdout, topcli.CommandSpecs(), rootcli.RetiredFlagsHelpNote())
 		},
 		ShowVersion: func(ctx *CommandContext) error {
 			return WriteVersion(ctx.Stdout, ctx.Root, ctx.Globals, app.VersionInfo)
@@ -341,17 +335,6 @@ func (app *App) resolveRoot() (string, error) {
 		return "", fmt.Errorf("resolve Vrooli root: %w", err)
 	}
 	return filepath.Clean(root), nil
-}
-
-func (app *App) shouldRebuild() (bool, error) {
-	if app.CheckStalenessFn == nil {
-		return false, nil
-	}
-	status, err := app.CheckStalenessFn()
-	if err != nil {
-		return false, err
-	}
-	return status.Stale, nil
 }
 
 func (ctx *CommandContext) HomeDir() (string, error) {
@@ -479,6 +462,7 @@ func (app *App) runTopLevelSetup(ctx *CommandContext, opts projectsetup.Options)
 	if ctx.Globals.Verbose {
 		opts.Verbose = true
 	}
+	opts.JSON = ctx.Globals.JSON
 	return app.RunProjectSetupFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
 
@@ -864,7 +848,10 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
-		topcli.CommandHost:     hosthandlers.RootHandler(hosthandlers.HandlerDeps[*CommandContext]{Root: func(ctx *CommandContext) string { return ctx.Root }, Globals: func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals }, Stdout: commandStdout, Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr }}),
+		topcli.CommandHost: hosthandlers.RootHandler(hosthandlers.HandlerDeps[*CommandContext]{Root: func(ctx *CommandContext) string { return ctx.Root }, Globals: func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals }, Stdout: commandStdout, Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr }}),
+		topcli.CommandHostWatchdog: func(ctx *CommandContext, args []string) error {
+			return hostwatchdog.Run(context.Background(), hostwatchdog.CommandContext{Stdout: ctx.Stdout, Stderr: ctx.Stderr, JSON: ctx.Globals.JSON}, args)
+		},
 		topcli.CommandWorkload: hosthandlers.WorkloadHandler(hosthandlers.HandlerDeps[*CommandContext]{Root: func(ctx *CommandContext) string { return ctx.Root }, Globals: func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals }, Stdout: commandStdout, Stderr: func(ctx *CommandContext) io.Writer { return ctx.Stderr }}),
 		topcli.CommandAgent:    func(ctx *CommandContext, args []string) error { return ctx.app.runAgentCommand(ctx, args) },
 		topcli.CommandCapacity: capacityhandlers.RootHandler(capacityhandlers.HandlerDeps[*CommandContext]{

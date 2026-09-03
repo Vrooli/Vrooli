@@ -29,8 +29,6 @@ func newRuntimeTestApp(t *testing.T, root string) *App {
 		VersionInfo:         VersionInfo{CLIVersion: "1.0.0", PlatformVersion: "2.0.0"},
 		ResolveSourceRootFn: func() (string, error) { return root, nil },
 		HomeDirFn:           func() (string, error) { return t.TempDir(), nil },
-		CheckStalenessFn:    func() (buildinfo.StaleCheck, error) { return buildinfo.StaleCheck{}, nil },
-		RebuildAndReexecFn:  func([]string) error { return nil },
 		NewLoggerFn: func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func()) {
 			return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
 		},
@@ -199,7 +197,6 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 func TestRunVersionDoesNotRequireRootResolution(t *testing.T) {
 	app := newRuntimeTestApp(t, "/repo")
 	app.ResolveSourceRootFn = func() (string, error) { return "", errors.New("boom") }
-	app.CheckStalenessFn = nil
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

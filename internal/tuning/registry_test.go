@@ -51,8 +51,8 @@ func TestLeversExposeDefaultsResolutionAndSource(t *testing.T) {
 	resetDurationCacheForTest()
 	t.Setenv(EnvironmentVariable("HealthCheckTimeout"), "9s")
 	levers := Levers()
-	if len(levers) != len(durationDefinitions) {
-		t.Fatalf("Levers count = %d, want %d", len(levers), len(durationDefinitions))
+	if len(levers) != len(durationDefinitions)+len(countDefinitions) {
+		t.Fatalf("Levers count = %d, want %d", len(levers), len(durationDefinitions)+len(countDefinitions))
 	}
 	var health, runtime Lever
 	for _, lever := range levers {

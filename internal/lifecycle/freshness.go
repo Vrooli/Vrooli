@@ -15,13 +15,11 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -42,14 +40,14 @@ type installDigestRecord struct {
 // installNeeded is the builder-declared install gate. It hashes the declared
 // inputs, governed shared-package outputs, and the builder's marker; output
 // freshness remains owned by the existing artifact freshness engine.
-func installNeeded(repoRoot, root string, component scenario.Component, spec BuilderSpec) (bool, string, error) {
+func installNeeded(repoRoot, root string, component scenario.Component, spec BuilderSpec, probeDeps ...*hostProbeDeps) (bool, string, error) {
 	if len(spec.Install) == 0 {
 		return false, "", nil
 	}
 	if len(spec.InstallInputs) == 0 {
 		return true, "builder declares no install inputs", nil
 	}
-	digest, err := installInputsDigest(repoRoot, root, component, spec)
+	digest, err := installInputsDigest(repoRoot, root, component, spec, probeDeps...)
 	if err != nil {
 		return true, "unable to digest install inputs", err
 	}
@@ -77,11 +75,11 @@ func installNeeded(repoRoot, root string, component scenario.Component, spec Bui
 	return false, "install inputs unchanged", nil
 }
 
-func recordInstallDigest(repoRoot, root string, component scenario.Component, spec BuilderSpec) error {
+func recordInstallDigest(repoRoot, root string, component scenario.Component, spec BuilderSpec, probeDeps ...*hostProbeDeps) error {
 	if len(spec.InstallInputs) == 0 {
 		return nil
 	}
-	digest, err := installInputsDigest(repoRoot, root, component, spec)
+	digest, err := installInputsDigest(repoRoot, root, component, spec, probeDeps...)
 	if err != nil {
 		return err
 	}
@@ -105,7 +103,7 @@ func installDigestPath(root string, component scenario.Component, spec BuilderSp
 	return filepath.Join(root, dir, ".vrooli-install-"+name+".json")
 }
 
-func installInputsDigest(repoRoot, root string, component scenario.Component, spec BuilderSpec) (string, error) {
+func installInputsDigest(repoRoot, root string, component scenario.Component, spec BuilderSpec, probeDeps ...*hostProbeDeps) (string, error) {
 	dir := component.Build.Dir
 	if strings.TrimSpace(dir) == "" {
 		dir = "."
@@ -132,7 +130,11 @@ func installInputsDigest(repoRoot, root string, component scenario.Component, sp
 		}
 	}
 	if spec.FollowsWorkspaceFileDeps {
-		for name, digest := range sharedPackageFreshnessKeyInputs(repoRoot, filepath.Join(root, dir)) {
+		var deps *hostProbeDeps
+		if len(probeDeps) > 0 {
+			deps = probeDeps[0]
+		}
+		for name, digest := range sharedPackageFreshnessKeyInputs(repoRoot, filepath.Join(root, dir), deps) {
 			files = append(files, inputFile{path: "shared-package:" + name + "=" + digest})
 		}
 	}
@@ -223,7 +225,7 @@ func (r *Runner) FreshnessReportByName(name, customPath string) (FreshnessReport
 
 func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error) {
 	report := FreshnessReport{Scenario: item.Slug}
-	deps := defaultHostProbeDeps()
+	deps := r.hostProbeDeps()
 
 	componentNames := make([]string, 0, len(item.Manifest.Components))
 	for name := range item.Manifest.Components {
@@ -232,10 +234,7 @@ func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error
 	slices.Sort(componentNames)
 	for _, name := range componentNames {
 		component := item.Manifest.Components[name]
-		if strings.TrimSpace(component.Build.Reuse) != "" {
-			continue
-		}
-		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
 		if err != nil {
 			return FreshnessReport{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}
@@ -243,6 +242,17 @@ func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error
 			verdict, err := r.evaluateArtifactFreshness(artifact, deps)
 			if err != nil {
 				return FreshnessReport{}, err
+			}
+			if !verdict.Stale {
+				// Upgrade manifests written before directory snapshots existed.
+				// This is a metadata-only migration: the artifact has already
+				// proved fresh, so do not rebuild it, but pay the one-time full
+				// hash cost so subsequent gates can use the direct-stat fast path.
+				if manifest, ok, readErr := cliutil.ReadFreshnessManifest(artifact.ManifestPath); readErr == nil && ok && len(manifest.Directories) == 0 && len(manifest.Files) > 0 {
+					if stampErr := r.stampArtifactFreshness(artifact); stampErr != nil {
+						return FreshnessReport{}, fmt.Errorf("upgrade freshness manifest %s: %w", artifact.Target, stampErr)
+					}
+				}
 			}
 			report.appendVerdict(component.Build.Kind, verdict)
 		}
@@ -272,30 +282,28 @@ func (report *FreshnessReport) appendVerdict(checkType string, verdict artifactV
 	})
 }
 
-// stampScenarioFreshness records a fresh manifest for every freshness-checked
-// artifact of a scenario. Called after a successful setup build so the next
-// freshness check is manifest-authoritative (and the artifact-digest gate has a
-// baseline). Best-effort: a stamp failure is logged, never fatal to start.
-func (r *Runner) stampScenarioFreshness(item scenario.Scenario) {
-	deps := defaultHostProbeDeps()
-	for name, component := range item.Manifest.Components {
-		if strings.TrimSpace(component.Build.Reuse) != "" {
-			continue
+func (r *Runner) stampComponentFreshness(item scenario.Scenario, name string) error {
+	component, ok := item.Manifest.Components[name]
+	if !ok {
+		return nil
+	}
+	return r.stampComponentFreshnessWithDeps(item, name, component, r.hostProbeDeps())
+}
+
+func (r *Runner) stampComponentFreshnessWithDeps(item scenario.Scenario, name string, component scenario.Component, deps hostProbeDeps) error {
+	artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
+	if err != nil {
+		return fmt.Errorf("component %s freshness stamp spec: %w", name, err)
+	}
+	for _, artifact := range artifacts {
+		if _, statErr := deps.stat(artifact.ArtifactPath); statErr != nil {
+			return fmt.Errorf("component %s freshness stamp artifact %s: %w", name, artifact.ArtifactPath, statErr)
 		}
-		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
-		if err != nil {
-			r.logDebug("Freshness stamp skipped (component spec error)", logx.AttrScenario, item.Slug, "component", name, "error", err.Error())
-			continue
-		}
-		for _, artifact := range artifacts {
-			if _, statErr := deps.stat(artifact.ArtifactPath); statErr != nil {
-				continue
-			}
-			if err := r.stampArtifactFreshness(artifact); err != nil {
-				r.logDebug("Freshness stamp failed", logx.AttrScenario, item.Slug, "artifact", artifact.ArtifactPath, "error", err.Error())
-			}
+		if err := r.stampArtifactFreshness(artifact); err != nil {
+			return fmt.Errorf("component %s freshness stamp artifact %s: %w", name, artifact.ArtifactPath, err)
 		}
 	}
+	return nil
 }
 
 // binariesFreshnessArtifacts builds the freshness contract for a "binaries"
@@ -362,7 +370,7 @@ func binariesFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot str
 	}
 
 	inputs := []string{relUnder(repoRoot, binaryDir)}
-	replacePaths, err := localReplacePathsWithDeps(filepath.Join(binaryDir, "go.mod"), deps)
+	replacePaths, err := localReplaceDirs(filepath.Join(binaryDir, "go.mod"))
 	if err != nil {
 		return nil, err
 	}
@@ -410,13 +418,16 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	if _, err := deps.lookPath("go"); err != nil {
 		return nil, false
 	}
-	var raw []byte
-	var err error
-	if deps.goListJSONContext != nil {
-		raw, err = deps.goListJSONContext(ctx, binaryDir)
-	} else if deps.goListJSON != nil {
-		raw, err = deps.goListJSON(binaryDir)
+	toolchain := hostGoToolchain(deps)
+	cacheKey := closureCacheKey(binaryDir, toolchain, deps)
+	readFile := deps.readFile
+	if readFile == nil {
+		readFile = os.ReadFile
 	}
+	if inputs, ok := readClosureCache(closureCachePath(binaryDir), cacheKey, toolchain, readFile); ok {
+		return inputs, true
+	}
+	raw, err := cachedGoListJSONContext(ctx, binaryDir, deps)
 	if err != nil || len(bytes.TrimSpace(raw)) == 0 {
 		return nil, false
 	}
@@ -463,7 +474,47 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 		return nil, false
 	}
 	slices.Sort(inputs)
+	// Cache writes are best-effort. A read-only or interrupted build directory
+	// must still fall back to the in-process result without making freshness
+	// itself fail.
+	_ = writeClosureCache(closureCachePath(binaryDir), closureCache{
+		Version: closureCacheVersion, Key: cacheKey, Inputs: inputs, Toolchain: toolchain,
+	})
 	return inputs, true
+}
+
+func cachedGoListJSONContext(ctx context.Context, dir string, deps hostProbeDeps) ([]byte, error) {
+	if deps.cache == nil {
+		return runGoListJSONContext(ctx, dir, deps)
+	}
+	key := goListCacheKey(dir, deps)
+	deps.cache.mu.Lock()
+	if raw, ok := deps.cache.goList[key]; ok {
+		deps.cache.mu.Unlock()
+		return append([]byte(nil), raw...), nil
+	}
+	deps.cache.mu.Unlock()
+	raw, err := runGoListJSONContext(ctx, dir, deps)
+	if err != nil {
+		return nil, err
+	}
+	deps.cache.mu.Lock()
+	if deps.cache.goList == nil {
+		deps.cache.goList = make(map[string][]byte)
+	}
+	deps.cache.goList[key] = append([]byte(nil), raw...)
+	deps.cache.mu.Unlock()
+	return raw, nil
+}
+
+func runGoListJSONContext(ctx context.Context, dir string, deps hostProbeDeps) ([]byte, error) {
+	if deps.goListJSONContext != nil {
+		return deps.goListJSONContext(ctx, dir)
+	}
+	if deps.goListJSON != nil {
+		return deps.goListJSON(dir)
+	}
+	return nil, errors.New("go list adapter is unavailable")
 }
 
 // pathUnderRoot reports whether target is root itself or lives beneath it.
@@ -478,7 +529,7 @@ func pathUnderRoot(root, target string) bool {
 // declared lifecycle outputs to the consuming UI's freshness contract. A
 // file: dependency is copied by pnpm, so the package source directory alone is
 // not a sufficient identity for the installed consumer.
-func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string) map[string]string {
+func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string, deps *hostProbeDeps) map[string]string {
 	inputs := make(map[string]string)
 	dependencies, err := sharedPackageDependencies(repoRoot, filepath.Join(uiDir, "package.json"))
 	if err != nil {
@@ -487,7 +538,7 @@ func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string) map[string]string {
 	for _, dependency := range dependencies {
 		commands := append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...)
 		for index, command := range commands {
-			digest, err := sharedPackageOutputDigest(dependency.Root, command.Outputs)
+			digest, err := sharedPackageConsumedDigest(dependency.Root, command.Name, command.Outputs, deps)
 			if err != nil {
 				digest = "error"
 			}
@@ -502,8 +553,12 @@ func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string) map[string]string {
 }
 
 func uiFileDependencyFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, dependencyName, dependencyRoot string, deps hostProbeDeps) ([]string, error) {
-	if dependencyName == "@vrooli/proto-types" {
-		if inputs, ok := protoTypesFreshnessInputsContext(ctx, repoRoot, sourceDir, dependencyRoot, deps); ok {
+	pkg, _, governed, err := loadGovernedPackage(repoRoot, dependencyRoot)
+	if err != nil {
+		return nil, err
+	}
+	if governed && len(pkg.Manifest.Package.GeneratedOutputs) > 0 {
+		if inputs, ok := generatedPackageFreshnessInputsContext(ctx, repoRoot, sourceDir, dependencyName, dependencyRoot, deps); ok {
 			return inputs, nil
 		}
 	}
@@ -516,7 +571,7 @@ func uiFileDependencyFreshnessInputsContext(ctx context.Context, repoRoot, sourc
 var tsImportSourceRE = regexp.MustCompile(`\bfrom\s+["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)`)
 
 //nolint:gocyclo // freshness inputs merge generated files, dependency paths, and probe availability states.
-func protoTypesFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, dependencyRoot string, deps hostProbeDeps) ([]string, bool) {
+func generatedPackageFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, dependencyName, dependencyRoot string, deps hostProbeDeps) ([]string, bool) {
 	seen := map[string]struct{}{}
 	queue := []string{}
 	add := func(path string) {
@@ -551,10 +606,10 @@ func protoTypesFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, 
 			return readErr
 		}
 		for _, source := range importSources(string(data)) {
-			if !strings.HasPrefix(source, "@vrooli/proto-types/") {
+			if !strings.HasPrefix(source, dependencyName+"/") {
 				continue
 			}
-			resolved, resolvedOK := resolveProtoTypesImport(dependencyRoot, path, source, deps)
+			resolved, resolvedOK := resolveGeneratedPackageImport(dependencyRoot, dependencyName, path, source, deps)
 			if !resolvedOK {
 				ok = false
 				return errStopWalk
@@ -579,10 +634,10 @@ func protoTypesFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, 
 			return nil, false
 		}
 		for _, source := range importSources(string(data)) {
-			if !strings.HasPrefix(source, ".") && !strings.HasPrefix(source, "@vrooli/proto-types/") {
+			if !strings.HasPrefix(source, ".") && !strings.HasPrefix(source, dependencyName+"/") {
 				continue
 			}
-			resolved, resolvedOK := resolveProtoTypesImport(dependencyRoot, current, source, deps)
+			resolved, resolvedOK := resolveGeneratedPackageImport(dependencyRoot, dependencyName, current, source, deps)
 			if !resolvedOK {
 				return nil, false
 			}
@@ -612,10 +667,10 @@ func importSources(source string) []string {
 	return out
 }
 
-func resolveProtoTypesImport(dependencyRoot, importerPath, source string, deps hostProbeDeps) (string, bool) {
+func resolveGeneratedPackageImport(dependencyRoot, dependencyName, importerPath, source string, deps hostProbeDeps) (string, bool) {
 	switch {
-	case strings.HasPrefix(source, "@vrooli/proto-types/"):
-		rel := strings.TrimPrefix(source, "@vrooli/proto-types/")
+	case strings.HasPrefix(source, dependencyName+"/"):
+		rel := strings.TrimPrefix(source, dependencyName+"/")
 		return resolveGeneratedTypeScriptModule(filepath.Join(dependencyRoot, filepath.FromSlash(rel)), deps)
 	case strings.HasPrefix(source, "."):
 		return resolveGeneratedTypeScriptModule(filepath.Join(filepath.Dir(importerPath), filepath.FromSlash(source)), deps)
@@ -656,10 +711,8 @@ type artifactVerdict struct {
 
 // evaluateArtifactFreshness returns the structured freshness verdict for an
 // artifact. A missing/non-runnable artifact is always stale. When a recorded
-// manifest is present it is authoritative (stat-cache compare). When absent
-// (bootstrap / post-clean) the verdict falls back to the Phase-0 mtime heuristic
-// and, when it reports fresh, the manifest is stamped opportunistically so
-// already-fresh artifacts adopt the engine without a needless rebuild.
+// manifest is present it is authoritative (stat-cache compare). When absent,
+// the artifact is stale once so a successful build can write the manifest.
 func (r *Runner) evaluateArtifactFreshness(art artifactFreshness, deps hostProbeDeps) (artifactVerdict, error) {
 	return r.evaluateArtifactFreshnessContext(context.Background(), art, deps)
 }
@@ -693,22 +746,7 @@ func (r *Runner) evaluateArtifactFreshnessContext(ctx context.Context, art artif
 		return artifactVerdict{Target: art.Target}, nil
 	}
 
-	// Bootstrap: no manifest yet. Use the legacy mtime walk to decide, and on
-	// "fresh" stamp the manifest so the next check is manifest-authoritative.
-	stale, file, reason, err := bootstrapMtimeStaleContext(ctx, art, deps)
-	if err != nil {
-		return artifactVerdict{}, err
-	}
-	if stale {
-		return artifactVerdict{Target: art.Target, Stale: true, Cause: "source newer", File: file, HumanReason: reason}, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return artifactVerdict{}, err
-	}
-	if stampErr := r.stampArtifactFreshness(art); stampErr != nil {
-		r.logDebug("Opportunistic freshness stamp failed", "artifact", art.ArtifactPath, "error", stampErr.Error())
-	}
-	return artifactVerdict{Target: art.Target}, nil
+	return artifactVerdict{Target: art.Target, Stale: true, Cause: "no manifest", File: art.ManifestPath, HumanReason: fmt.Sprintf("%s stale (no manifest)", art.Target)}, nil
 }
 
 // stampArtifactFreshness computes and writes the recorded manifest for an
@@ -752,7 +790,10 @@ func relUnder(base, target string) string {
 // instrumentation. performance-health then correctly reports the capture as
 // unavailable, which looks like a broken browser rather than a skipped build.
 func uiBuildKeyInputs(deps hostProbeDeps) map[string]string {
-	keyInputs := map[string]string{"node_env": nodeEnvOrDefault(deps)}
+	keyInputs := map[string]string{}
+	if value := strings.TrimSpace(deps.getenv("NODE_ENV")); value != "" {
+		keyInputs["node_env"] = value
+	}
 	if deps.nodeVersion != nil {
 		if major := strings.TrimSpace(deps.nodeVersion()); major != "" {
 			keyInputs["node_major"] = major
@@ -764,50 +805,53 @@ func uiBuildKeyInputs(deps hostProbeDeps) map[string]string {
 	return keyInputs
 }
 
-func nodeEnvOrDefault(deps hostProbeDeps) string {
-	if v := strings.TrimSpace(deps.getenv("NODE_ENV")); v != "" {
-		return v
+func pythonBuildKeyInputs(deps hostProbeDeps) map[string]string {
+	keys := map[string]string{}
+	if deps.pythonVersion != nil {
+		if value := strings.TrimSpace(deps.pythonVersion()); value != "" {
+			keys["python_version"] = value
+		}
 	}
-	return runtimeEnvironmentDevelopment
+	if deps.uvVersion != nil {
+		if value := strings.TrimSpace(deps.uvVersion()); value != "" {
+			keys["uv_version"] = value
+		}
+	}
+	return keys
 }
 
-var (
-	goToolchainOnce  sync.Once
-	goToolchainValue string
-	goEnvOnce        sync.Once
-	goEnvValue       map[string]string
-	nodeVersionOnce  sync.Once
-	nodeVersionValue string
-)
-
 // defaultGoEnv resolves the requested `go env` determinants to their effective
-// values, cached once per process (the toolchain config does not change mid-run).
 // It runs `go env -json` once, caches the full map, then returns only the
 // requested keys that have a non-empty value. When go is unavailable the cache is
 // an empty map, so every key is omitted (omit-on-unknown). This is the resolved
 // build environment — `go env` reports the value the toolchain will actually use
 // (defaults + overrides), which is what determines the compiled output, unlike a
 // raw os.Getenv that is blank when a default would still apply.
-func defaultGoEnv(keys ...string) map[string]string {
-	goEnvOnce.Do(func() {
-		goEnvValue = map[string]string{}
+func defaultGoEnvCached(cache *hostProbeCache, keys ...string) map[string]string {
+	if cache == nil {
+		cache = &hostProbeCache{}
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if !cache.goEnvOK {
+		cache.goEnv = map[string]string{}
 		goBin, err := exec.LookPath("go")
 		if err != nil {
-			return
+			cache.goEnvOK = true
+		} else {
+			out, err := shell.NewCommand(goBin, "env", "-json").Output()
+			if err == nil {
+				var parsed map[string]string
+				if json.Unmarshal(out, &parsed) == nil {
+					cache.goEnv = parsed
+				}
+			}
+			cache.goEnvOK = true
 		}
-		out, err := shell.NewCommand(goBin, "env", "-json").Output()
-		if err != nil {
-			return
-		}
-		var parsed map[string]string
-		if err := json.Unmarshal(out, &parsed); err != nil {
-			return
-		}
-		goEnvValue = parsed
-	})
+	}
 	resolved := map[string]string{}
 	for _, k := range keys {
-		if v := strings.TrimSpace(goEnvValue[k]); v != "" {
+		if v := strings.TrimSpace(cache.goEnv[k]); v != "" {
 			resolved[k] = v
 		}
 	}
@@ -817,19 +861,51 @@ func defaultGoEnv(keys ...string) map[string]string {
 // defaultNodeVersion returns the host Node.js major version (e.g. "20"), cached
 // once per process. Empty when node is absent or its output is unparseable
 // (omit-on-unknown), in which case the node_major key is dropped.
-func defaultNodeVersion() string {
-	nodeVersionOnce.Do(func() {
+func defaultNodeVersionCached(cache *hostProbeCache) string {
+	if cache == nil {
+		cache = &hostProbeCache{}
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if !cache.nodeVersionOK {
 		nodeBin, err := exec.LookPath("node")
 		if err != nil {
-			return
+			cache.nodeVersionOK = true
+		} else {
+			if out, versionErr := shell.NewCommand(nodeBin, "--version").Output(); versionErr == nil {
+				cache.nodeVersion = nodeMajor(string(out))
+			}
+			cache.nodeVersionOK = true
 		}
-		out, err := shell.NewCommand(nodeBin, "--version").Output()
+	}
+	return cache.nodeVersion
+}
+
+func defaultPythonVersion() string {
+	python, err := exec.LookPath("python")
+	if err != nil {
+		python, err = exec.LookPath("python3")
 		if err != nil {
-			return
+			return ""
 		}
-		nodeVersionValue = nodeMajor(string(out))
-	})
-	return nodeVersionValue
+	}
+	out, err := shell.NewCommand(python, "--version").CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func defaultUVVersion() string {
+	uv, err := exec.LookPath("uv")
+	if err != nil {
+		return ""
+	}
+	out, err := shell.NewCommand(uv, "--version").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // nodeMajor extracts the major component from a `node --version` string such as
@@ -869,6 +945,9 @@ func goBuildKeyInputs(deps hostProbeDeps, buildCmd string) map[string]string {
 	keyInputs := map[string]string{}
 	if deps.goEnv != nil {
 		for k, v := range deps.goEnv(goEnvDeterminants...) {
+			if strings.EqualFold(k, "GOFLAGS") {
+				v = normalizeGoFlags(v)
+			}
 			if val := strings.TrimSpace(v); val != "" {
 				keyInputs[strings.ToLower(k)] = val
 			}
@@ -881,6 +960,30 @@ func goBuildKeyInputs(deps hostProbeDeps, buildCmd string) map[string]string {
 		keyInputs[k] = v
 	}
 	return keyInputs
+}
+
+// normalizeGoFlags removes flags that affect only Go's execution strategy,
+// not the bytes emitted by the compiler. The lifecycle adds -p for bounded
+// concurrency during setup, while a read-only freshness query may not inherit
+// that process-local setting; including it would make every artifact appear
+// stale when the worker width changes.
+func normalizeGoFlags(raw string) string {
+	tokens := tokenizeCommand(raw)
+	filtered := make([]string, 0, len(tokens))
+	for index := 0; index < len(tokens); index++ {
+		token := tokens[index]
+		if token == "-p" || token == "--p" {
+			if index+1 < len(tokens) {
+				index++
+			}
+			continue
+		}
+		if strings.HasPrefix(token, "-p=") || strings.HasPrefix(token, "--p=") {
+			continue
+		}
+		filtered = append(filtered, token)
+	}
+	return strings.Join(filtered, " ")
 }
 
 // parseBuildCommandFlags extracts the output-determining flags from a `go build`
@@ -996,18 +1099,26 @@ func tokenizeCommand(cmd string) []string {
 // scenarios, so an upgrade flips the key and forces a rebuild of byte-identical
 // sources — closing the most common false-negative.
 func hostGoToolchain(deps hostProbeDeps) string {
-	goToolchainOnce.Do(func() {
-		goBin, err := deps.lookPath("go")
-		if err != nil {
-			return
-		}
-		out, err := shell.NewCommand(goBin, "version").Output()
-		if err != nil {
-			return
-		}
-		goToolchainValue = strings.TrimSpace(string(out))
-	})
-	return goToolchainValue
+	cache := deps.cache
+	if cache == nil {
+		cache = &hostProbeCache{}
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if cache.goToolchainOK {
+		return cache.goToolchain
+	}
+	cache.goToolchainOK = true
+	goBin, err := deps.lookPath("go")
+	if err != nil {
+		return ""
+	}
+	out, err := shell.NewCommand(goBin, "version").Output()
+	if err != nil {
+		return ""
+	}
+	cache.goToolchain = strings.TrimSpace(string(out))
+	return cache.goToolchain
 }
 
 // isRunnableArtifact reports whether the stat'd path is a usable build artifact
@@ -1032,33 +1143,4 @@ func isRunnableArtifact(checkType, path string, info os.FileInfo, recognize func
 	default:
 		return !info.IsDir()
 	}
-}
-
-// bootstrapMtimeStaleContext is the legacy mtime heuristic used only when no
-// recorded manifest exists yet. It walks the artifact's declared input dirs
-// (already excluding the repo-root replace, _test.go, and the manifest file)
-// for any file newer than the artifact.
-func bootstrapMtimeStaleContext(ctx context.Context, art artifactFreshness, deps hostProbeDeps) (bool, string, string, error) {
-	root := art.Spec.ContextRoot
-	if strings.TrimSpace(root) == "" {
-		root = art.Spec.SourceRoot
-	}
-	include := func(path string, _ fs.DirEntry) bool {
-		rel := filepath.ToSlash(path)
-		if strings.HasSuffix(rel, "_test.go") || strings.HasSuffix(rel, cliutil.FreshnessManifestSuffix) {
-			return false
-		}
-		return true
-	}
-	for _, input := range art.Spec.Inputs {
-		if err := ctx.Err(); err != nil {
-			return false, "", "", err
-		}
-		resolved := filepath.Join(root, filepath.FromSlash(input))
-		if offender, found := firstFileNewerWithDepsContext(ctx, resolved, art.ArtifactPath, deps, include); found {
-			file := relForReason(root, offender)
-			return true, file, fmt.Sprintf("%s stale (source newer): %s", art.Target, file), nil
-		}
-	}
-	return false, "", "", nil
 }

@@ -88,6 +88,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--ambient-var", ValueName: "value", Description: "VROOLI_SHADOW_SCENARIOS value for nested-CLI routing"},
 					{Name: "--shadow-instance-key", ValueName: "key", Description: "Registry instance key for the shadow (default <scenario>@<variant>)"},
 					{Name: "--anchor", ValueName: "name", Description: "git-control-tower baseline record to diff against"},
+					{Name: "--replace", Description: "Take over a live engagement for the same scenario and slug (refused without it)"},
 					commandtree.JSONOption(),
 				},
 			},
@@ -243,6 +244,7 @@ func ParseWriteRequest(args []string) (recoveryapp.WriteRequest, error) {
 		AmbientVar:        parsed.FlagValue("--ambient-var"),
 		ShadowInstanceKey: parsed.FlagValue("--shadow-instance-key"),
 		Anchor:            parsed.FlagValue("--anchor"),
+		Replace:           parsed.HasFlag("--replace"),
 	}, nil
 }
 

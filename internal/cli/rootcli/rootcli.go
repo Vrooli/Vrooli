@@ -36,12 +36,11 @@ const (
 )
 
 type GlobalOptions struct {
-	JSON         bool
-	Verbose      bool
-	Quiet        bool
-	NoColor      bool
-	NoStaleCheck bool
-	NoMetrics    bool
+	JSON      bool
+	Verbose   bool
+	Quiet     bool
+	NoColor   bool
+	NoMetrics bool
 }
 
 func (g GlobalOptions) LogFormat() logx.Format {
@@ -117,6 +116,70 @@ type ParsedArgs struct {
 	Command string
 	Args    []string
 	Globals GlobalOptions
+	// Warnings carries one line per retired global that was consumed and
+	// ignored. Runner.Run prints them to stderr unless --quiet.
+	Warnings []string
+}
+
+// RetiredGlobal records a global flag the CLI no longer implements but still
+// tolerates. Every process that spawns `vrooli` is a consumer of the argv
+// contract; a consumer that shipped with a flag before it was retired must
+// keep working until RemoveAfter, with a warning, never a usage error.
+// Entries are for callers that already shipped; never add one to avoid
+// migrating a caller.
+type RetiredGlobal struct {
+	Flag        string
+	RetiredIn   string
+	RemoveAfter string
+	Note        string
+}
+
+// retiredGlobals is the tolerance table. DO NOT EMPTY IT before RemoveAfter:
+// on 2026-09-02 every supervisor on this host still passed --no-stale-check
+// after the global was retired, and the hard error turned the boot chain into
+// a no-op (docs/reference/staleness-and-rebuild.md, vrooli-autoheal
+// PROBLEMS.md). Scenario CLIs built from cli-core before the retirement still
+// emit the flag until the freshness engine rebuilds them; 83 were installed
+// in ~/.vrooli/bin on 2026-09-02. The flag does nothing: freshness is owned by
+// the lifecycle engine. The invoker registry test forbids any in-repo caller
+// from relying on this table. Remove the entry after RemoveAfter, not before.
+var retiredGlobals = map[string]RetiredGlobal{
+	"--no-stale-check": {
+		Flag:        "--no-stale-check",
+		RetiredIn:   "2026-09-02",
+		RemoveAfter: "2026-12-01",
+		Note:        "freshness is owned by the lifecycle engine; the flag is ignored",
+	},
+}
+
+// RetiredGlobals returns the tolerance table sorted by flag so help text and
+// documentation render it deterministically.
+func RetiredGlobals() []RetiredGlobal {
+	items := make([]RetiredGlobal, 0, len(retiredGlobals))
+	for _, item := range retiredGlobals {
+		items = append(items, item)
+	}
+	slices.SortFunc(items, func(a, b RetiredGlobal) int { return strings.Compare(a.Flag, b.Flag) })
+	return items
+}
+
+// RetiredFlagsHelpNote renders the tolerance table as one help line, or an
+// empty string when the table is empty.
+func RetiredFlagsHelpNote() string {
+	items := RetiredGlobals()
+	if len(items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		parts = append(parts, fmt.Sprintf("%s (retired %s, ignored with a warning until %s)", item.Flag, item.RetiredIn, item.RemoveAfter))
+	}
+	return "Retired flags: " + strings.Join(parts, "; ")
+}
+
+// Warning renders the one-line deprecation notice for a retired global.
+func (r RetiredGlobal) Warning() string {
+	return fmt.Sprintf("warning: %s is retired (%s) and ignored; remove it before %s (%s)", r.Flag, r.RetiredIn, r.RemoveAfter, r.Note)
 }
 
 func CommandHelpOnly(text string) error {
@@ -139,32 +202,37 @@ func ParseArgs(args []string) (ParsedArgs, error) {
 		case "--no-color":
 			parsed.Globals.NoColor = true
 			args = args[1:]
-		case "--no-stale-check":
-			parsed.Globals.NoStaleCheck = true
-			args = args[1:]
 		case "--no-metrics":
 			parsed.Globals.NoMetrics = true
 			args = args[1:]
 		case "--help", "-h":
-			return ParsedArgs{Command: "help", Globals: parsed.Globals}, nil
+			return ParsedArgs{Command: "help", Globals: parsed.Globals, Warnings: parsed.Warnings}, nil
 		case "--version", "-v":
-			return ParsedArgs{Command: "version", Globals: parsed.Globals}, nil
+			return ParsedArgs{Command: "version", Globals: parsed.Globals, Warnings: parsed.Warnings}, nil
 		default:
+			if retired, ok := retiredGlobals[args[0]]; ok {
+				parsed.Warnings = append(parsed.Warnings, retired.Warning())
+				args = args[1:]
+				continue
+			}
 			parsed.Command = args[0]
 			parsed.Args = append([]string(nil), args[1:]...)
 			return parsed, nil
 		}
 	}
-	return ParsedArgs{Command: "help", Globals: parsed.Globals}, nil
+	return ParsedArgs{Command: "help", Globals: parsed.Globals, Warnings: parsed.Warnings}, nil
 }
 
-func ConsumeInlineGlobalFlags(globals GlobalOptions, args []string) (GlobalOptions, []string) {
+// ConsumeInlineGlobalFlags lifts global flags that appear after the command
+// name. Retired globals are consumed the same way and reported as warnings.
+func ConsumeInlineGlobalFlags(globals GlobalOptions, args []string) (GlobalOptions, []string, []string) {
 	filtered := make([]string, 0, len(args))
+	var warnings []string
 	for index := 0; index < len(args); index++ {
 		switch args[index] {
 		case "--":
 			filtered = append(filtered, args[index:]...)
-			return globals, filtered
+			return globals, filtered, warnings
 		case "--json":
 			globals.JSON = true
 		case "--verbose":
@@ -173,15 +241,64 @@ func ConsumeInlineGlobalFlags(globals GlobalOptions, args []string) (GlobalOptio
 			globals.Quiet = true
 		case "--no-color":
 			globals.NoColor = true
-		case "--no-stale-check":
-			globals.NoStaleCheck = true
 		case "--no-metrics":
 			globals.NoMetrics = true
 		default:
+			if retired, ok := retiredGlobals[args[index]]; ok {
+				warnings = append(warnings, retired.Warning())
+				continue
+			}
 			filtered = append(filtered, args[index])
 		}
 	}
-	return globals, filtered
+	return globals, filtered, warnings
+}
+
+// Resolution is the parse-only view of an argv: which command and, for the
+// scenario family, which subcommand it dispatches to, without executing.
+type Resolution struct {
+	Command    string
+	Subcommand string
+	Args       []string
+	Globals    GlobalOptions
+	Warnings   []string
+}
+
+// ResolveArgv parses argv through the real root parser and the command
+// tables without executing anything. It returns the same unknown_command
+// error dispatch would, so a test can prove that every process which spawns
+// `vrooli` builds an argv the installed CLI accepts. Warnings are the retired
+// globals the argv still carries; a registered invoker must not rely on them.
+func ResolveArgv(args []string) (Resolution, error) {
+	parsed, err := ParseArgs(args)
+	if err != nil {
+		return Resolution{}, err
+	}
+	var inlineWarnings []string
+	parsed.Globals, parsed.Args, inlineWarnings = ConsumeInlineGlobalFlags(parsed.Globals, parsed.Args)
+	parsed.Warnings = append(parsed.Warnings, inlineWarnings...)
+	res := Resolution{Command: parsed.Command, Args: parsed.Args, Globals: parsed.Globals, Warnings: parsed.Warnings}
+	switch parsed.Command {
+	case rootHelpCommand, "version":
+		return res, nil
+	}
+	topSpecs := commandtree.BuildSpecMap(topcli.CommandSpecs())
+	spec, ok := topSpecs[commandtree.NormalizeName(parsed.Command)]
+	if !ok {
+		return Resolution{}, NewUnknownCommandError(parsed.Command, SuggestCommandNames(parsed.Command, commandtree.SuggestableNames(topcli.CommandSpecs())))
+	}
+	res.Command = spec.Name
+	if spec.Handler != topcli.CommandScenario || len(parsed.Args) == 0 || commandtree.WantsHelp(parsed.Args) {
+		return res, nil
+	}
+	scenarioSpecs := commandtree.BuildSpecMap(scenariocli.CommandSpecs())
+	sub, ok := scenarioSpecs[commandtree.NormalizeName(parsed.Args[0])]
+	if !ok {
+		return Resolution{}, NewUnknownScenarioCommandError(parsed.Args[0], SuggestCommandNames(parsed.Args[0], commandtree.SuggestableNames(scenariocli.CommandSpecs())))
+	}
+	res.Subcommand = sub.Name
+	res.Args = parsed.Args[1:]
+	return res, nil
 }
 
 func ContainsArg(args []string, target string) bool {
@@ -440,17 +557,15 @@ func ExitCode(err error) int {
 }
 
 type RunnerConfig[C any] struct {
-	Registry         *Registry[C]
-	NewLogger        func(GlobalOptions, io.Writer) (*slog.Logger, func())
-	NewContext       func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) C
-	SetRoot          func(C, string)
-	ResolveRoot      func() (string, error)
-	PrimeRootEnv     func(string)
-	ShouldRebuild    func() (bool, error)
-	RebuildAndReexec func([]string) error
-	ShowMainHelp     func(C)
-	ShowVersion      func(C) error
-	DebugLog         func(*slog.Logger, string, ...any)
+	Registry     *Registry[C]
+	NewLogger    func(GlobalOptions, io.Writer) (*slog.Logger, func())
+	NewContext   func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) C
+	SetRoot      func(C, string)
+	ResolveRoot  func() (string, error)
+	PrimeRootEnv func(string)
+	ShowMainHelp func(C)
+	ShowVersion  func(C) error
+	DebugLog     func(*slog.Logger, string, ...any)
 
 	MetricsRecorder *metrics.Recorder
 	CLIVersion      string
@@ -481,9 +596,16 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 		PrintErrorWithContext(stderr, NewErrorWithCategory(err, ErrorCategoryUsage, clipolicy.GeneralHelpHint, nil))
 		return 1
 	}
-	parsed.Globals, parsed.Args = ConsumeInlineGlobalFlags(parsed.Globals, parsed.Args)
+	var inlineWarnings []string
+	parsed.Globals, parsed.Args, inlineWarnings = ConsumeInlineGlobalFlags(parsed.Globals, parsed.Args)
+	parsed.Warnings = append(parsed.Warnings, inlineWarnings...)
 	if warning := parsed.Globals.OutputWarning(); warning != "" {
 		fmt.Fprintln(stderr, "warning:", warning)
+	}
+	if !parsed.Globals.Quiet {
+		for _, warning := range parsed.Warnings {
+			fmt.Fprintln(stderr, warning)
+		}
 	}
 	// Mirror the resolved verbosity into VROOLI_OUTPUT so render functions
 	// and spawned subprocesses share a single source of truth. Done here
@@ -552,37 +674,6 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 		_ = os.Setenv("NO_COLOR", "1")
 		if r.config.DebugLog != nil {
 			r.config.DebugLog(logger, "NO_COLOR requested by user flags")
-		}
-	}
-
-	if !parsed.Globals.NoStaleCheck && r.config.ShouldRebuild != nil {
-		stale, err := r.config.ShouldRebuild()
-		if err != nil {
-			PrintErrorWithContext(stderr, NewErrorWithCategory(
-				fmt.Errorf("stale binary check failed: %w", err),
-				ErrorCategoryRuntime,
-				"Use --no-stale-check for local experiments",
-				nil,
-			))
-			return 1
-		}
-		if stale {
-			if r.config.DebugLog != nil {
-				r.config.DebugLog(logger, "Stale check triggered")
-			}
-			if err := r.config.RebuildAndReexec(args); err != nil {
-				PrintErrorWithContext(stderr, NewErrorWithCategory(
-					fmt.Errorf("stale binary check failed: %w", err),
-					ErrorCategoryRuntime,
-					"Use --no-stale-check for local experiments",
-					nil,
-				))
-				return 1
-			}
-			if r.config.DebugLog != nil {
-				r.config.DebugLog(logger, "Rebuilt command binary and re-executed")
-			}
-			return 0
 		}
 	}
 

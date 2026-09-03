@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/shell"
@@ -23,6 +24,7 @@ import (
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/network"
@@ -42,9 +44,9 @@ const (
 )
 
 const (
-	phasesParameterA = 2
-	phasesParameterB = 3
-	phasesParameterC = 30000
+	uiComponentRoleOrder       = 2
+	startEnvironmentExtraSlots = 3
+	componentReadinessTimeout  = 30000
 )
 
 type PhaseExecutionStatus string
@@ -174,7 +176,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		}
 	}
 
-	env := make(map[string]string, len(envResult.EnvVars)+phasesParameterB)
+	env := make(map[string]string, len(envResult.EnvVars)+startEnvironmentExtraSlots)
 	for key, value := range envResult.EnvVars {
 		env[key] = value
 	}
@@ -273,7 +275,11 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		if err := r.provisionSharedPackages(ctx, item, env, logWriter, childWriter); err != nil {
 			return PhaseResult{}, err
 		}
-		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter, forceSetup)
+		verdicts, err := r.evaluateSetupVerdictsContext(ctx, item, forceSetup)
+		if err != nil {
+			return result, err
+		}
+		built, err := r.buildDeclaredComponents(ctx, item, env, childWriter, forceSetup, verdicts.ByComponent)
 		if err != nil {
 			return result, err
 		}
@@ -573,7 +579,7 @@ func orderedComponentNames(components map[string]scenario.Component) []string {
 }
 
 func sortComponentNames(names []string, components map[string]scenario.Component) {
-	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": phasesParameterA}
+	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": uiComponentRoleOrder}
 	sort.Slice(names, func(i, j int) bool {
 		left, leftOK := roleOrder[components[names[i]].Role]
 		right, rightOK := roleOrder[components[names[j]].Role]
@@ -590,16 +596,105 @@ func sortComponentNames(names []string, components map[string]scenario.Component
 	})
 }
 
-//nolint:gocyclo // component construction handles the manifest declared phase/component combinations.
-func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool) (int, error) {
+// buildDeclaredComponents runs independent component builds concurrently. A
+// one-component serial invocation preserves the existing staging, install,
+// lockfile, and atomic-publish behavior while the worker pool provides the
+// proportional lifecycle boundary.
+func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict) (int, error) {
+	names := orderedComponentNames(item.Manifest.Components)
+	reservations := make([]int64, 0, len(names))
+	registry := BuilderRegistry()
+	for _, name := range names {
+		component := item.Manifest.Components[name]
+		if spec, ok := registry[component.Build.Kind]; ok {
+			reservations = append(reservations, spec.MemoryReservationBytes)
+		}
+	}
+	workers := 1
+	if facts, err := hostinventory.HostMemoryFacts(); err == nil && facts.Trustworthy && facts.AvailableBytes > 0 {
+		workers = buildConcurrencyBudget(int64(facts.AvailableBytes), reservations)
+	}
+	if workers > len(names) {
+		workers = len(names)
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan string)
+	var logMu sync.Mutex
+	var wg sync.WaitGroup
+	var resultMu sync.Mutex
 	executed := 0
+	var firstErr error
+	worker := func() {
+		defer wg.Done()
+		for name := range jobs {
+			if workerCtx.Err() != nil {
+				continue
+			}
+			one := item
+			one.Manifest.Components = map[string]scenario.Component{name: item.Manifest.Components[name]}
+			componentLogMuWriter := lockedWriter{mu: &logMu, writer: writer, prefix: "[" + name + "] "}
+			count, err := r.buildDeclaredComponentsSerial(workerCtx, one, env, componentLogMuWriter, forceSetup, verdicts)
+			resultMu.Lock()
+			executed += count
+			if err != nil && firstErr == nil {
+				firstErr = fmt.Errorf("component %s: %w", name, err)
+				cancel()
+			}
+			resultMu.Unlock()
+		}
+	}
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go worker()
+	}
+	for _, name := range names {
+		select {
+		case jobs <- name:
+		case <-workerCtx.Done():
+			break
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	if firstErr != nil {
+		return executed, firstErr
+	}
+	return executed, workerCtx.Err()
+}
+
+type lockedWriter struct {
+	mu     *sync.Mutex
+	writer io.Writer
+	prefix string
+}
+
+func (w lockedWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	lines := strings.SplitAfter(string(p), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		if _, err := fmt.Fprint(w.writer, w.prefix, line); err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
+}
+
+//nolint:gocyclo // component construction handles the manifest declared phase/component combinations.
+func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict) (int, error) {
+	executed := 0
+	deps := r.hostProbeDeps()
 	registry := BuilderRegistry()
 	buildMode := BuildModeForEnv(env, os.Getenv)
 	for _, name := range orderedComponentNames(item.Manifest.Components) {
 		component := item.Manifest.Components[name]
-		if component.Build.Reuse != "" {
-			continue
-		}
 		ok, _, err := stepConditionsMet(item, component.Run.Condition, env)
 		if err != nil {
 			return executed, err
@@ -615,15 +710,36 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		if targetErr != nil {
 			return executed, targetErr
 		}
-		install, _, installErr := installNeeded(r.Root, item.Path, component, spec)
+		if !forceSetup {
+			if verdicts != nil {
+				if _, stale := verdicts[name]; !stale {
+					fmt.Fprintln(writer, "skipped (fresh)")
+					continue
+				}
+			} else {
+				fresh, freshnessErr := r.componentIsFresh(ctx, item, name, component)
+				if freshnessErr != nil {
+					return executed, fmt.Errorf("component %s freshness: %w", name, freshnessErr)
+				}
+				if fresh {
+					fmt.Fprintln(writer, "skipped (fresh)")
+					continue
+				}
+			}
+		}
+		install, _, installErr := installNeeded(r.Root, item.Path, component, spec, &deps)
 		if installErr != nil {
 			return executed, fmt.Errorf("component %s install inputs: %w", name, installErr)
 		}
 		if forceSetup && len(spec.Install) > 0 {
 			install = true
 		}
-		if _, err := os.Stat(filepath.Join(component.Build.Dir, "package.json")); err == nil {
-			if drift, driftErr := checkNodeLockfileDrift(component.Build.Dir); driftErr != nil {
+		buildDir, dirErr := componentWorkingDir(item.Path, component.Build.Dir)
+		if dirErr != nil {
+			return executed, fmt.Errorf("component %s build directory: %w", name, dirErr)
+		}
+		if _, err := os.Stat(filepath.Join(buildDir, "package.json")); err == nil {
+			if drift, driftErr := checkNodeLockfileDrift(buildDir); driftErr != nil {
 				return executed, fmt.Errorf("component %s dependency drift check: %w", name, driftErr)
 			} else if len(drift) > 0 {
 				return executed, fmt.Errorf("component %s dependency drift: package.json and pnpm-lock.yaml diverge for %s; run scenario-dependency-analyzer deps resync --scenario %s --surface %s", name, strings.Join(drift, ", "), item.Slug, name)
@@ -646,7 +762,7 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
 				return executed, fmt.Errorf("build component %s: %w", name, err)
 			}
-			if err := recordInstallDigest(r.Root, item.Path, component, spec); err != nil {
+			if err := recordInstallDigest(r.Root, item.Path, component, spec, &deps); err != nil {
 				return executed, fmt.Errorf("component %s install digest: %w", name, err)
 			}
 			executed++
@@ -654,6 +770,12 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		}
 		for _, buildTarget := range targets {
 			buildArgv := spec.BuildArgv(buildMode)
+			if spec.Kind == "go_module" {
+				buildArgv, err = goModuleBuildArgvForRoot(r.Root)
+				if err != nil {
+					return executed, fmt.Errorf("load Go build flag policy: %w", err)
+				}
+			}
 			target := buildTarget.Output
 			publishTarget := componentPublishTarget(target, spec.StageDirectory)
 			var stagedOutput string
@@ -721,8 +843,28 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 			executed++
 			commandIndex++
 		}
+		if err := r.stampComponentFreshness(item, name); err != nil {
+			return executed, err
+		}
 	}
 	return executed, nil
+}
+
+func (r *Runner) componentIsFresh(ctx context.Context, item scenario.Scenario, name string, component scenario.Component) (bool, error) {
+	artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.Path, r.Root, item.Slug, name, component, r.hostProbeDeps())
+	if err != nil {
+		return false, err
+	}
+	for _, artifact := range artifacts {
+		verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, r.hostProbeDeps())
+		if err != nil {
+			return false, err
+		}
+		if verdict.Stale {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func componentPublishTarget(target string, directory bool) string {
@@ -980,9 +1122,9 @@ func derivedReadiness(component scenario.Component) *scenario.ComponentReadiness
 		return component.Run.Readiness
 	}
 	if strings.TrimSpace(component.Run.Port) != "" {
-		return &scenario.ComponentReadiness{Type: "port_open", TimeoutMS: phasesParameterC}
+		return &scenario.ComponentReadiness{Type: "port_open", TimeoutMS: componentReadinessTimeout}
 	}
-	return &scenario.ComponentReadiness{Type: "process_alive", TimeoutMS: phasesParameterC}
+	return &scenario.ComponentReadiness{Type: "process_alive", TimeoutMS: componentReadinessTimeout}
 }
 
 func envPortValue(envVar string, env map[string]string) (int, bool) {
@@ -1201,11 +1343,36 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 	))
 	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
+	if tempDir := governedGoTempDir(stepEnv); tempDir != "" {
+		// Go requires GOTMPDIR to exist. Keeping the directory under the
+		// declared runtime-home root makes interrupted WORK dirs visible to
+		// storage-manager instead of scattering them across /tmp.
+		if err := os.MkdirAll(tempDir, 0o700); err == nil {
+			stepEnv = setEnvValue(stepEnv, "GOTMPDIR", tempDir)
+		}
+	}
 	if phase == phasesSetup {
 		stepEnv = setEnvValue(stepEnv, "CI", phasesTrue)
 		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", phasesTrue)
 	}
-	return stepEnv
+	// Every toolchain a step spawns inherits the build-width floor; the
+	// overlay composes with an inherited GOFLAGS and never replaces it.
+	return envkit.Toolchain(stepEnv, envkit.ToolchainOptions{Width: tuning.BuildWidth()})
+}
+
+func governedGoTempDir(env []string) string {
+	if existing := strings.TrimSpace(envValue(env, "GOTMPDIR")); existing != "" {
+		return ""
+	}
+	runtimeHome := strings.TrimSpace(envValue(env, "VROOLI_HOME"))
+	if runtimeHome == "" {
+		home := strings.TrimSpace(envValue(env, "HOME"))
+		if home == "" {
+			return ""
+		}
+		runtimeHome = filepath.Join(home, ".vrooli")
+	}
+	return filepath.Join(runtimeHome, "tmp", "go-work")
 }
 
 // runWithLifecycleLog opens the scenario lifecycle log file and invokes fn

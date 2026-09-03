@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	sharedPackagesParameterA = 2
+	sharedPackagePatternSplitParts = 2
 )
 
 const sharedPackageProvisioningDisabledEnv = "VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING"
@@ -305,7 +305,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 				Reason:      "declares no build outputs",
 			}
 		}
-		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs)
+		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs, command.Inputs, command.Ignore)
 		if err != nil {
 			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not inspect declared outputs", Err: err}
 		}
@@ -381,7 +381,7 @@ func firstProvisioningCommand(dependency sharedPackageDependency) string {
 // binary, say) is not covered; upgrading such a tool needs an explicit
 // regeneration. Output integrity is likewise out of scope — that is what a
 // generator's own verify command and its lock manifests are for.
-func sharedPackageOutputsFresh(home, root, commandName string, patterns []string) (bool, error) {
+func sharedPackageOutputsFresh(home, root, commandName string, patterns []string, declared ...[]string) (bool, error) {
 	outputs, err := declaredOutputFiles(root, patterns)
 	if err != nil {
 		return false, err
@@ -410,7 +410,7 @@ func sharedPackageOutputsFresh(home, root, commandName string, patterns []string
 	if sharedPackageOutputsListDigest(root, outputs) != stamp.OutputsDigest {
 		return false, nil
 	}
-	digest, err := sharedPackageSourceDigest(root, patterns)
+	digest, err := sharedPackageSourceDigest(root, patterns, declared...)
 	if err != nil {
 		return false, err
 	}
@@ -432,11 +432,90 @@ func sharedPackageOutputsListDigest(root string, outputs []string) string {
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil))
 }
 
+func sharedPackageOutputsContentDigest(root string, outputs []string) (string, error) {
+	hash := sha256.New()
+	for _, filePath := range outputs {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", err
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return "", err
+		}
+		_, _ = fmt.Fprintf(hash, "%s\x00", filepath.ToSlash(rel))
+		_, _ = hash.Write(data)
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
+func sharedPackageOutputsStatDigest(root string, outputs []string) (string, error) {
+	hash := sha256.New()
+	for _, filePath := range outputs {
+		info, err := os.Stat(filePath)
+		if err != nil {
+			return "", err
+		}
+		if !info.Mode().IsRegular() {
+			return "", fmt.Errorf("output %s is not a regular file", filePath)
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return "", err
+		}
+		_, _ = fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", filepath.ToSlash(rel), info.Size(), info.ModTime().UnixNano())
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
+func sharedPackageOutputSnapshot(root string, outputs []string) ([]string, []sharedPackageOutputDirectory, error) {
+	files := make([]string, 0, len(outputs))
+	seenDirs := map[string]struct{}{}
+	directories := make([]sharedPackageOutputDirectory, 0, len(outputs))
+	for _, filePath := range outputs {
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return nil, nil, err
+		}
+		files = append(files, filepath.ToSlash(rel))
+		dirRel := filepath.ToSlash(filepath.Dir(rel))
+		if _, ok := seenDirs[dirRel]; ok {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(dirRel)))
+		if err != nil {
+			return nil, nil, err
+		}
+		seenDirs[dirRel] = struct{}{}
+		directories = append(directories, sharedPackageOutputDirectory{Rel: dirRel, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()})
+	}
+	slices.Sort(files)
+	slices.SortFunc(directories, func(a, b sharedPackageOutputDirectory) int { return strings.Compare(a.Rel, b.Rel) })
+	return files, directories, nil
+}
+
+func sharedPackageOutputDirectoriesFresh(root string, directories []sharedPackageOutputDirectory) bool {
+	for _, directory := range directories {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(directory.Rel)))
+		if err != nil || !info.IsDir() || info.Size() != directory.Size || info.ModTime().UnixNano() != directory.MTimeNS {
+			return false
+		}
+	}
+	return true
+}
+
 // sharedPackageSourceDigest hashes every regular file under root that is not a
 // declared output. Path and content both feed the hash so a rename is a
 // change, and WalkDir's lexical order makes the result stable across runs and
 // machines.
-func sharedPackageSourceDigest(root string, outputPatterns []string) (string, error) {
+func sharedPackageSourceDigest(root string, outputPatterns []string, declared ...[]string) (string, error) {
+	var inputPatterns, ignorePatterns []string
+	if len(declared) > 0 && len(declared[0]) > 0 {
+		inputPatterns = declared[0]
+	}
+	if len(declared) > 1 {
+		ignorePatterns = declared[1]
+	}
 	hash := sha256.New()
 	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -448,7 +527,7 @@ func sharedPackageSourceDigest(root string, outputPatterns []string) (string, er
 			}
 			return nil
 		}
-		if !entry.Type().IsRegular() || sharedPackageOutputMatch(root, filePath, outputPatterns) {
+		if !entry.Type().IsRegular() || sharedPackageOutputMatch(root, filePath, outputPatterns) || (len(inputPatterns) > 0 && !sharedPackageInputMatch(root, filePath, inputPatterns, ignorePatterns)) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, filePath)
@@ -469,6 +548,28 @@ func sharedPackageSourceDigest(root string, outputPatterns []string) (string, er
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
 }
 
+func sharedPackageInputMatch(root, filePath string, inputs, ignores []string) bool {
+	rel, err := filepath.Rel(root, filePath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	for _, pattern := range ignores {
+		if ok, _ := filepath.Match(filepath.ToSlash(pattern), rel); ok {
+			return false
+		}
+	}
+	for _, pattern := range inputs {
+		if ok, _ := filepath.Match(filepath.ToSlash(pattern), rel); ok {
+			return true
+		}
+		if strings.HasSuffix(filepath.ToSlash(pattern), "/**") && strings.HasPrefix(rel, strings.TrimSuffix(filepath.ToSlash(pattern), "**")) {
+			return true
+		}
+	}
+	return false
+}
+
 // sharedPackageStampVersion invalidates every recorded stamp when the meaning
 // of the digest changes. Bump it alongside any change to what is hashed.
 const sharedPackageStampVersion = 2
@@ -487,7 +588,19 @@ type sharedPackageStamp struct {
 	// fresh forever and the gap would never heal. Hashing paths rather than
 	// bytes keeps the check cheap on a large generated tree.
 	OutputsDigest string `json:"outputs_digest"`
-	RecordedAt    string `json:"recorded_at"`
+	// OutputContentDigest is the digest consumed by downstream freshness keys.
+	// OutputsStatDigest lets consumers validate it with metadata-only probes.
+	OutputContentDigest string                         `json:"output_content_digest,omitempty"`
+	OutputsStatDigest   string                         `json:"outputs_stat_digest,omitempty"`
+	OutputFiles         []string                       `json:"output_files,omitempty"`
+	OutputDirectories   []sharedPackageOutputDirectory `json:"output_directories,omitempty"`
+	RecordedAt          string                         `json:"recorded_at"`
+}
+
+type sharedPackageOutputDirectory struct {
+	Rel     string `json:"rel"`
+	Size    int64  `json:"size"`
+	MTimeNS int64  `json:"mtime_ns"`
 }
 
 // sharedPackageStampPath locates the stamp for one package command. The file
@@ -540,7 +653,7 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 	if stampPath == "" {
 		return fmt.Errorf("no runtime home is configured, so freshness cannot be cached")
 	}
-	digest, err := sharedPackageSourceDigest(dependency.Root, command.Outputs)
+	digest, err := sharedPackageSourceDigest(dependency.Root, command.Outputs, command.Inputs, command.Ignore)
 	if err != nil {
 		return fmt.Errorf("hash sources: %w", err)
 	}
@@ -548,13 +661,43 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 	if err != nil {
 		return fmt.Errorf("list outputs: %w", err)
 	}
-	return writeSharedPackageStamp(stampPath, dependency.Name, command.Name, digest, sharedPackageOutputsListDigest(dependency.Root, outputs))
+	outputContentDigest, err := sharedPackageOutputsContentDigest(dependency.Root, outputs)
+	if err != nil {
+		return fmt.Errorf("hash outputs: %w", err)
+	}
+	outputStatDigest, err := sharedPackageOutputsStatDigest(dependency.Root, outputs)
+	if err != nil {
+		return fmt.Errorf("stat outputs: %w", err)
+	}
+	outputFiles, outputDirectories, err := sharedPackageOutputSnapshot(dependency.Root, outputs)
+	if err != nil {
+		return fmt.Errorf("snapshot outputs: %w", err)
+	}
+	return writeSharedPackageStampWithSnapshot(
+		stampPath,
+		dependency.Name,
+		command.Name,
+		digest,
+		sharedPackageOutputsListDigest(dependency.Root, outputs),
+		outputContentDigest,
+		outputStatDigest,
+		outputFiles,
+		outputDirectories,
+	)
 }
 
 // writeSharedPackageStamp records the sources that produced the current
 // outputs. It is written only after a command succeeds and its outputs are
 // confirmed present.
 func writeSharedPackageStamp(stampPath, packageName, commandName, digest, outputsDigest string) error {
+	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", "", nil, nil)
+}
+
+func writeSharedPackageStampWithDetails(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest string) error {
+	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest, nil, nil)
+}
+
+func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
 	if stampPath == "" {
 		return nil
 	}
@@ -562,12 +705,16 @@ func writeSharedPackageStamp(stampPath, packageName, commandName, digest, output
 		return err
 	}
 	data, err := json.Marshal(sharedPackageStamp{
-		Version:       sharedPackageStampVersion,
-		Package:       packageName,
-		Command:       commandName,
-		SourceDigest:  digest,
-		OutputsDigest: outputsDigest,
-		RecordedAt:    time.Now().UTC().Format(time.RFC3339),
+		Version:             sharedPackageStampVersion,
+		Package:             packageName,
+		Command:             commandName,
+		SourceDigest:        digest,
+		OutputsDigest:       outputsDigest,
+		OutputContentDigest: outputContentDigest,
+		OutputsStatDigest:   outputsStatDigest,
+		OutputFiles:         outputFiles,
+		OutputDirectories:   outputDirectories,
+		RecordedAt:          time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
@@ -583,7 +730,7 @@ func declaredOutputFiles(root string, patterns []string) ([]string, error) {
 			return nil, fmt.Errorf("output pattern %q must be relative", pattern)
 		}
 		if strings.Contains(filepath.ToSlash(pattern), "/**") {
-			prefix := strings.SplitN(filepath.ToSlash(pattern), "/**", sharedPackagesParameterA)[0]
+			prefix := strings.SplitN(filepath.ToSlash(pattern), "/**", sharedPackagePatternSplitParts)[0]
 			base := filepath.Join(root, filepath.FromSlash(prefix))
 			if err := filepath.WalkDir(base, func(filePath string, entry fs.DirEntry, err error) error {
 				if err != nil {
@@ -653,26 +800,92 @@ func sharedPackageOutputMatch(root, filePath string, patterns []string) bool {
 	return false
 }
 
-func sharedPackageOutputDigest(root string, patterns []string) (string, error) {
+func sharedPackageConsumedDigest(root, commandName string, patterns []string, deps *hostProbeDeps) (string, error) {
+	// The command is part of the durable stamp identity. Keep it in the
+	// runner-local key as well: two commands may enumerate the same path set
+	// while producing different artifacts or using different stamps.
+	cacheKey := root + "\x00" + commandName + "\x00" + strings.Join(patterns, "\x00")
+	if deps != nil && deps.cache != nil {
+		deps.cache.mu.Lock()
+		if digest, ok := deps.cache.sharedPackageDigests[cacheKey]; ok {
+			deps.cache.mu.Unlock()
+			return digest, nil
+		}
+		deps.cache.mu.Unlock()
+	}
+	var stamp sharedPackageStamp
+	var stampPath string
+	if deps != nil && deps.userHomeDir != nil {
+		if home, homeErr := deps.userHomeDir(); homeErr == nil {
+			stampPath, _ = sharedPackageStampPath(home, root, commandName)
+			if stampPath != "" {
+				stamp, _, _ = readSharedPackageStamp(stampPath)
+			}
+		}
+	}
+	if stamp.OutputContentDigest != "" && len(stamp.OutputFiles) > 0 && len(stamp.OutputDirectories) > 0 && sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories) {
+		files := make([]string, 0, len(stamp.OutputFiles))
+		valid := true
+		for _, rel := range stamp.OutputFiles {
+			filePath := filepath.Join(root, filepath.FromSlash(rel))
+			info, statErr := os.Stat(filePath)
+			if statErr != nil || !info.Mode().IsRegular() {
+				valid = false
+				break
+			}
+			files = append(files, filePath)
+		}
+		if valid {
+			if statDigest, statErr := sharedPackageOutputsStatDigest(root, files); statErr == nil && statDigest == stamp.OutputsStatDigest {
+				if deps != nil && deps.cache != nil {
+					deps.cache.mu.Lock()
+					if deps.cache.sharedPackageDigests == nil {
+						deps.cache.sharedPackageDigests = make(map[string]string)
+					}
+					deps.cache.sharedPackageDigests[cacheKey] = stamp.OutputContentDigest
+					deps.cache.mu.Unlock()
+				}
+				return stamp.OutputContentDigest, nil
+			}
+		}
+	}
 	files, err := declaredOutputFiles(root, patterns)
 	if err != nil {
 		return "", err
 	}
-	hash := sha256.New()
-	for _, filePath := range files {
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", err
-		}
-		rel, err := filepath.Rel(root, filePath)
-		if err != nil {
-			return "", err
-		}
-		_, _ = fmt.Fprintf(hash, "%s\x00", filepath.ToSlash(rel))
-		_, _ = hash.Write(data)
-	}
 	if len(files) == 0 {
+		if deps != nil && deps.cache != nil {
+			deps.cache.mu.Lock()
+			if deps.cache.sharedPackageDigests == nil {
+				deps.cache.sharedPackageDigests = make(map[string]string)
+			}
+			deps.cache.sharedPackageDigests[cacheKey] = "missing"
+			deps.cache.mu.Unlock()
+		}
 		return "missing", nil
 	}
-	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+	digest, err := sharedPackageOutputsContentDigest(root, files)
+	if err != nil {
+		return "", err
+	}
+	// Upgrade older durable stamps after the fallback content read. The next
+	// process can then validate output metadata and reuse this digest without
+	// reading the generated tree again.
+	if stampPath != "" && (stamp.OutputContentDigest == "" || len(stamp.OutputFiles) == 0 || len(stamp.OutputDirectories) == 0) && stamp.Package != "" {
+		if statDigest, statErr := sharedPackageOutputsStatDigest(root, files); statErr == nil {
+			outputFiles, outputDirectories, snapshotErr := sharedPackageOutputSnapshot(root, files)
+			if snapshotErr == nil {
+				_ = writeSharedPackageStampWithSnapshot(stampPath, stamp.Package, stamp.Command, stamp.SourceDigest, stamp.OutputsDigest, digest, statDigest, outputFiles, outputDirectories)
+			}
+		}
+	}
+	if deps != nil && deps.cache != nil {
+		deps.cache.mu.Lock()
+		if deps.cache.sharedPackageDigests == nil {
+			deps.cache.sharedPackageDigests = make(map[string]string)
+		}
+		deps.cache.sharedPackageDigests[cacheKey] = digest
+		deps.cache.mu.Unlock()
+	}
+	return digest, nil
 }

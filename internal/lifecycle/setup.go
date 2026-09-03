@@ -4,10 +4,17 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+type setupVerdicts struct {
+	Stale       bool
+	ByComponent map[string]artifactVerdict
+	Reason      string
+}
+
+func (v setupVerdicts) Any() bool { return v.Stale }
 
 // forceSetupFor reports whether the scenario identified by slug should be
 // force-rebuilt. A blank ForceSetupScenario means "force every scenario in this
@@ -32,21 +39,6 @@ func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, session *
 	})
 }
 
-// freshnessStaleCached is the reuse-decision spelling of the same component
-// build freshness authority used by setupNeededCached.
-func (r *Runner) freshnessStaleCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
-	ctx := context.Background()
-	if session != nil {
-		ctx = session.context()
-	}
-	if session == nil {
-		return r.evaluateSetupChecksContext(ctx, item, force)
-	}
-	return session.setupNeeded(item.Slug+"@"+item.Variant, force, func() (bool, []string, error) {
-		return r.evaluateSetupChecksContext(ctx, item, force)
-	})
-}
-
 // SetupNeeded reports whether a declared component build is stale.
 func (r *Runner) SetupNeeded(item scenario.Scenario, force bool) (bool, []string, error) {
 	return r.evaluateSetupChecks(item, force)
@@ -57,40 +49,52 @@ func (r *Runner) evaluateSetupChecks(item scenario.Scenario, force bool) (bool, 
 }
 
 func (r *Runner) evaluateSetupChecksContext(ctx context.Context, item scenario.Scenario, force bool) (bool, []string, error) {
-	reasons := []string{}
-	if force {
-		reasons = append(reasons, "Forced rebuild (restart)")
+	verdicts, err := r.evaluateSetupVerdictsContext(ctx, item, force)
+	if err != nil {
+		return false, nil, err
 	}
-	setupNeeded := force
+	if force {
+		return true, []string{"Forced rebuild (restart)"}, nil
+	}
+	reasons := []string{}
+	for _, verdict := range verdicts.ByComponent {
+		if verdict.Stale {
+			reasons = append(reasons, verdict.HumanReason)
+		}
+	}
+	slices.Sort(reasons)
+	return verdicts.Stale, reasons, nil
+}
+
+func (r *Runner) evaluateSetupVerdictsContext(ctx context.Context, item scenario.Scenario, force bool) (setupVerdicts, error) {
+	verdicts := setupVerdicts{Stale: force, ByComponent: map[string]artifactVerdict{}}
 	componentNames := make([]string, 0, len(item.Manifest.Components))
 	for name := range item.Manifest.Components {
 		componentNames = append(componentNames, name)
 	}
 	slices.Sort(componentNames)
-	deps := defaultHostProbeDeps()
+	deps := r.hostProbeDeps()
 	for _, name := range componentNames {
 		if err := ctx.Err(); err != nil {
-			return false, nil, err
+			return setupVerdicts{}, err
 		}
 		component := item.Manifest.Components[name]
-		if strings.TrimSpace(component.Build.Reuse) != "" {
-			continue
-		}
-		artifacts, err := componentFreshnessArtifactsContext(ctx, item.Path, r.Root, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.Path, r.Root, item.Slug, name, component, deps)
 		if err != nil {
-			return false, nil, fmt.Errorf("component %s freshness: %w", name, err)
+			return setupVerdicts{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}
 		for _, artifact := range artifacts {
 			verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, deps)
 			if err != nil {
-				return false, nil, err
+				return setupVerdicts{}, err
 			}
 			if verdict.Stale {
-				setupNeeded = true
-				reasons = append(reasons, fmt.Sprintf("Component %s: %s", name, verdict.HumanReason))
+				verdicts.Stale = true
+				if _, exists := verdicts.ByComponent[name]; !exists {
+					verdicts.ByComponent[name] = artifactVerdict{Target: verdict.Target, Stale: true, Cause: verdict.Cause, File: verdict.File, HumanReason: fmt.Sprintf("Component %s: %s", name, verdict.HumanReason)}
+				}
 			}
 		}
 	}
-
-	return setupNeeded, reasons, nil
+	return verdicts, nil
 }

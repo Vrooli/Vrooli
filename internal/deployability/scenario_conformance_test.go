@@ -7,12 +7,26 @@ import (
 	"testing"
 )
 
+func TestScenarioManifestConformanceRejectsReservedBuilder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "service.json")
+	if err := os.WriteFile(path, []byte(`{"components":{"api":{"build":{"kind":"cargo"},"run":{"argv":["./api"]}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := CheckScenarioManifest(path)
+	if err != nil {
+		t.Fatalf("CheckScenarioManifest: %v", err)
+	}
+	if len(findings) != 1 || findings[0].Rule != "known-builder-kind" || !strings.Contains(findings[0].Message, "reserved builder kind") {
+		t.Fatalf("findings = %#v, want reserved builder finding", findings)
+	}
+}
+
 func TestScenarioManifestRulesAreRegistered(t *testing.T) {
 	rules := ScenarioManifestConformanceRules()
-	if len(rules) != 3 {
-		t.Fatalf("registered manifest rules = %d, want 3", len(rules))
+	if len(rules) != 4 {
+		t.Fatalf("registered manifest rules = %d, want 4", len(rules))
 	}
-	for _, want := range []string{"known-builder-kind", "no-development-server", "production-ui-artifact"} {
+	for _, want := range []string{"known-builder-kind", "no-development-server", "production-ui-artifact", "NO_SHELL_ENTRYPOINT"} {
 		found := false
 		for _, rule := range rules {
 			if rule.Name == want && rule.Check != nil {

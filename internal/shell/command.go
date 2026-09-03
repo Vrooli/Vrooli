@@ -5,8 +5,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // StderrTail holds the last N lines of stderr written through TeeStderr.
@@ -105,6 +109,11 @@ func (OSRunner) Run(ctx context.Context, name string, args ...string) ([]byte, e
 	return CombinedOutput(Spec{Context: ctx, Name: name, Args: args})
 }
 
+// Command builds the process for a Spec. A toolchain program (go, pnpm, npm,
+// cargo, uv, vite, tsc) always receives the build-width floor from
+// envkit.Toolchain, composed over the Spec's environment or, when the Spec
+// has none, over this process's environment. Every other program keeps the
+// Spec's environment untouched, including nil (inherit).
 func Command(spec Spec) *exec.Cmd {
 	var cmd *exec.Cmd
 	if spec.Context != nil {
@@ -114,6 +123,13 @@ func Command(spec Spec) *exec.Cmd {
 	}
 	cmd.Dir = spec.Dir
 	cmd.Env = spec.Env
+	if IsToolchainProgram(spec.Name) {
+		parent := envkit.Env(spec.Env)
+		if parent == nil {
+			parent = envkit.Env(os.Environ())
+		}
+		cmd.Env = envkit.Toolchain(parent, envkit.ToolchainOptions{Width: tuning.BuildWidth()})
+	}
 	cmd.Stdin = spec.Stdin
 	cmd.Stdout = spec.Stdout
 	cmd.Stderr = spec.Stderr
@@ -160,4 +176,15 @@ func CombinedOutput(spec Spec) ([]byte, error) {
 
 func LookPath(name string) (string, error) {
 	return exec.LookPath(name)
+}
+
+// toolchainPrograms are the build tools whose parallelism the floor bounds.
+var toolchainPrograms = map[string]bool{"go": true, "pnpm": true, "npm": true, "cargo": true, "uv": true, "vite": true, "tsc": true}
+
+// IsToolchainProgram reports whether name (bare or a path, with or without a
+// Windows extension) is one of the build tools the toolchain floor governs.
+func IsToolchainProgram(name string) bool {
+	base := filepath.Base(strings.TrimSpace(name))
+	base = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd"), ".bat")
+	return toolchainPrograms[strings.ToLower(base)]
 }

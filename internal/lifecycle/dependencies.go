@@ -88,7 +88,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, s
 
 	fanoutCtx, cancel := context.WithCancel(session.context())
 	defer cancel()
-	limit := dependencyConcurrencyLimit(item)
+	limit := dependencyConcurrencyLimit()
 	sem := make(chan struct{}, limit)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -213,7 +213,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	var freshnessStale bool
 	var freshnessReasons []string
 	if dependencyRunning && strictHealthy {
-		freshnessStale, freshnessReasons, err = r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
+		freshnessStale, freshnessReasons, err = r.setupNeededCached(dependencyItem, dependencyForceSetup, session)
 		if err != nil {
 			if decision.continueOnFailure {
 				r.logWarn("Dependency setup check failed; continuing in best-effort mode",
@@ -292,7 +292,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		if decision.continueOnFailure {
 			return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view), nil
 		}
-		stale, _, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, session)
+		stale, _, err := r.setupNeededCached(dependencyItem, dependencyForceSetup, session)
 		if err != nil {
 			return false, err
 		}
@@ -349,7 +349,29 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	return "", nil
 }
 
-func dependencyConcurrencyLimit(item scenario.Scenario) int {
+func buildConcurrencyBudget(available int64, reservations []int64) int {
+	if available <= 0 || len(reservations) == 0 {
+		return dependenciesParameterA
+	}
+	used := int64(0)
+	count := 0
+	for _, reservation := range reservations {
+		if reservation <= 0 || used+reservation > available {
+			continue
+		}
+		used += reservation
+		count++
+	}
+	if count < 1 {
+		count = 1
+	}
+	if count > dependenciesParameterC {
+		count = dependenciesParameterC
+	}
+	return count
+}
+
+func dependencyConcurrencyLimit() int {
 	maxReservation := int64(0)
 	registry := BuilderRegistry()
 	for _, spec := range registry {
@@ -357,10 +379,6 @@ func dependencyConcurrencyLimit(item scenario.Scenario) int {
 			maxReservation = spec.MemoryReservationBytes
 		}
 	}
-	// Retain the item parameter as part of the seam: future builders may carry
-	// scenario-specific reservations, but the current registry-wide ceiling is
-	// the safe bound for a fan-out whose siblings can be heterogeneous.
-	_ = item
 	if maxReservation <= 0 {
 		return dependenciesParameterA
 	}
@@ -368,14 +386,7 @@ func dependencyConcurrencyLimit(item scenario.Scenario) int {
 	if err != nil || !facts.Trustworthy || facts.AvailableBytes == 0 {
 		return dependenciesParameterA
 	}
-	limit := int(facts.AvailableBytes / uint64(maxReservation))
-	if limit < 1 {
-		return 1
-	}
-	if limit > dependenciesParameterC {
-		return dependenciesParameterC
-	}
-	return limit
+	return buildConcurrencyBudget(int64(facts.AvailableBytes), []int64{maxReservation})
 }
 
 func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependencyReady func() (bool, error)) (func(), bool, error) {
@@ -510,7 +521,6 @@ func (r *Runner) rebuildDependencyArtifactsContext(ctx context.Context, item sce
 	}); err != nil {
 		return err
 	}
-	r.stampScenarioFreshness(item)
 	return nil
 }
 

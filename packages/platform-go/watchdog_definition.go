@@ -1,121 +1,118 @@
 package platform
 
 import (
-	"fmt"
 	"path/filepath"
-	"strings"
+	"time"
 )
 
-// WatchdogDefinitionOptions contains the platform-neutral inputs for a boot
-// supervisor definition. Rendering belongs here with the native lifecycle
-// backends; scenario packages should not carry service-manager templates.
+// WatchdogDefinitionOptions contains the platform-neutral inputs for the
+// autoheal loop's boot-supervisor unit. Rendering belongs here with the
+// native lifecycle backends; scenario packages do not carry unit templates.
 type WatchdogDefinitionOptions struct {
-	Root          string
-	Home          string
-	LoopBinary    string
-	VrooliBinary  string
-	Username      string
+	Root         string
+	Home         string
+	LoopBinary   string
+	VrooliBinary string
+	// Username is the principal the unit runs as; required for windows.
+	Username string
+	// SystemService installs into the system manager (as root) instead of
+	// the invoking user's manager.
 	SystemService bool
 }
 
-// RenderWatchdogDefinition renders the native boot-supervisor definition for
-// a target platform. The target argument is explicit so injected platform
-// tests can exercise every renderer on one host.
-func RenderWatchdogDefinition(target string, options WatchdogDefinitionOptions) (string, error) {
-	switch target {
-	case "linux":
-		return renderSystemdDefinition(options), nil
-	case "macos":
-		return renderLaunchdDefinition(options), nil
-	case "windows":
-		return renderWindowsTaskDefinition(options), nil
-	default:
-		return "", fmt.Errorf("platform: unsupported watchdog target %q", target)
+// WatchdogDefinition builds the autoheal loop's ServiceDefinition for a
+// target. The loop is what restarts everything else, so it carries the
+// strongest supervision: restart on failure with a bounded burst, the
+// emergency watchdog as its OnFailure= escalation, and the pressure
+// protections learned on 2026-08-19 when this host reached a load average of
+// 110 on 32 CPUs and autoheal's own health ticks timed out precisely when its
+// reports mattered most.
+func WatchdogDefinition(target string, options WatchdogDefinitionOptions) (ServiceDefinition, error) {
+	target, err := NormalizeTarget(target)
+	if err != nil {
+		return ServiceDefinition{}, err
 	}
-}
-
-func renderSystemdDefinition(options WatchdogDefinitionOptions) string {
-	wantedBy := "default.target"
-	userDirective := ""
+	unit, _ := CoreUnitByID(CoreUnitAutohealLoop)
+	emergency, _ := CoreUnitByID(CoreUnitEmergencyWatchdog)
+	scope := ScopeUser
+	username := options.Username
 	if options.SystemService {
-		userDirective = "User=root\n"
-		wantedBy = "multi-user.target"
+		scope = ScopeSystem
+		if username == "" {
+			username = "root"
+		}
 	}
-	return fmt.Sprintf(`[Unit]
-Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-After=network-online.target docker.service docker.socket
-Wants=network-online.target
-Wants=docker.service
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
-[Service]
-Type=simple
-ExecStart=%s
-Restart=always
-RestartSec=15
-%sEnvironment=VROOLI_LIFECYCLE_MANAGED=true
-Environment=HOME=%s
-Environment=VROOLI_ROOT=%s
-Environment=VROOLI_BIN=%s
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
-WorkingDirectory=%s
-TimeoutStopSec=30
-
-# The healer must outlive the condition it exists to fix. On 2026-08-19 this
-# host reached a load average of 110 on 32 CPUs; autoheal's own health ticks
-# timed out at five minutes each and it stopped reporting, precisely when its
-# reports mattered most. These three lines buy it scheduling priority, a
-# reclaim-protected memory floor, and near-immunity from the OOM killer — all
-# cheap for a supervisor whose steady-state footprint is small.
-CPUWeight=400
-MemoryMin=128M
-OOMScoreAdjust=-500
-
-[Install]
-WantedBy=%s
-`, options.LoopBinary, userDirective, options.Home, options.Root, options.VrooliBinary, options.Home, options.Home, filepath.Join(options.Root, "scenarios", "vrooli-autoheal"), wantedBy)
+	d := ServiceDefinition{
+		Name:             "vrooli-autoheal",
+		Label:            unit.Launchd,
+		Description:      "Vrooli Autoheal - Self-healing infrastructure supervisor",
+		DocumentationURL: DocumentationURL(unit.OwnerPath),
+		Executable:       options.LoopBinary,
+		Env: map[string]string{
+			"VROOLI_LIFECYCLE_MANAGED": "true",
+			"HOME":                     options.Home,
+			"VROOLI_ROOT":              options.Root,
+			"VROOLI_BIN":               options.VrooliBinary,
+			"PATH":                     DefaultPath(target, options.Home),
+		},
+		WorkingDirectory: targetJoin(target, options.Root, "scenarios", "vrooli-autoheal"),
+		Kind:             KindDaemon,
+		Restart:          RestartPolicy{Mode: RestartOnFailure, Delay: 15 * time.Second, BurstLimit: 5, BurstWindow: 300 * time.Second},
+		OnFailureUnit:    emergency.Systemd,
+		Scope:            scope,
+		Protections:      Protections{Containment: Containment{CPUWeight: 400}, MemoryMin: "128M", OOMScoreAdjust: -500},
+		StopTimeout:      30 * time.Second,
+		Username:         username,
+	}
+	if target == "darwin" {
+		logPath := LaunchdLogPath(LaunchAgentPath(options.Home, unit.Launchd), unit.Launchd)
+		d.Logs = LogPaths{Stdout: logPath, Stderr: logPath}
+	}
+	return d, nil
 }
 
-func renderLaunchdDefinition(options WatchdogDefinitionOptions) string {
-	loopBinary := xmlEscape(options.LoopBinary)
-	root := xmlEscape(options.Root)
-	home := xmlEscape(options.Home)
-	logPath := xmlEscape(filepath.Join(options.Home, "Library", "Logs", "vrooli-autoheal.log"))
-	errPath := xmlEscape(filepath.Join(options.Home, "Library", "Logs", "vrooli-autoheal.error.log"))
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.vrooli.autoheal</string>
-  <key>ProgramArguments</key><array><string>%s</string></array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>EnvironmentVariables</key><dict>
-    <key>VROOLI_LIFECYCLE_MANAGED</key><string>true</string>
-    <key>VROOLI_ROOT</key><string>%s</string>
-    <key>HOME</key><string>%s</string>
-    <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin</string>
-  </dict>
-  <key>WorkingDirectory</key><string>%s</string>
-  <key>StandardOutPath</key><string>%s</string>
-  <key>StandardErrorPath</key><string>%s</string>
-  <key>ThrottleInterval</key><integer>15</integer>
-</dict></plist>
-`, loopBinary, root, home, home, home, xmlEscape(filepath.Join(options.Root, "scenarios", "vrooli-autoheal")), logPath, errPath)
+// RenderWatchdogArtifact renders the autoheal loop unit for a target.
+func RenderWatchdogArtifact(target string, options WatchdogDefinitionOptions) (RenderedArtifact, error) {
+	d, err := WatchdogDefinition(target, options)
+	if err != nil {
+		return RenderedArtifact{}, err
+	}
+	return RenderDefinition(d, target)
 }
 
-func renderWindowsTaskDefinition(options WatchdogDefinitionOptions) string {
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo><Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description><Author>Vrooli</Author></RegistrationInfo>
-  <Triggers><BootTrigger><Enabled>true</Enabled><Delay>PT30S</Delay></BootTrigger></Triggers>
-  <Principals><Principal id="Author"><UserId>%s</UserId><LogonType>S4U</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
-  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><StartWhenAvailable>true</StartWhenAvailable><AllowStartOnDemand>true</AllowStartOnDemand><Enabled>true</Enabled><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><RestartOnFailure><Interval>PT1M</Interval><Count>999</Count></RestartOnFailure></Settings>
-  <Actions Context="Author"><Exec><Command>%s</Command><WorkingDirectory>%s</WorkingDirectory></Exec></Actions>
-</Task>
-`, xmlEscape(options.Username), xmlEscape(options.LoopBinary), xmlEscape(filepath.Join(options.Root, "scenarios", "vrooli-autoheal")))
+// RenderWatchdogDefinition renders the autoheal loop unit body for a target.
+// The target argument is explicit so injected platform tests can exercise
+// every renderer on one host.
+func RenderWatchdogDefinition(target string, options WatchdogDefinitionOptions) (string, error) {
+	artifact, err := RenderWatchdogArtifact(target, options)
+	if err != nil {
+		return "", err
+	}
+	return artifact.Primary().Content, nil
 }
 
-func xmlEscape(value string) string {
-	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&apos;").Replace(value)
+// RenderDefinition renders a definition with the target's renderer.
+func RenderDefinition(d ServiceDefinition, target string) (RenderedArtifact, error) {
+	target, err := NormalizeTarget(target)
+	if err != nil {
+		return RenderedArtifact{}, err
+	}
+	switch target {
+	case "darwin":
+		return RenderLaunchd(d)
+	case "windows":
+		return RenderWindowsTaskXML(d)
+	default:
+		return RenderSystemd(d)
+	}
+}
+
+// LaunchAgentPath is where a per-user LaunchAgent plist for label lives.
+func LaunchAgentPath(home, label string) string {
+	return filepath.Join(home, "Library", "LaunchAgents", label+".plist")
+}
+
+// SystemdUserUnitPath is where a per-user systemd unit file lives.
+func SystemdUserUnitPath(home, unitName string) string {
+	return filepath.Join(home, ".config", "systemd", "user", unitName)
 }

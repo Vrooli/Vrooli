@@ -12,7 +12,7 @@ directory listing as a hierarchy.
 | --- | --- | --- |
 | Host requirements and host state | `hostreqspec`, `hostreqkit`, `hostreq`, `hostreqcheck`, `hostreqrun`, `hostsession`, `hostfacts`, `hostinventory`, `hostpressure`, `hostpresentation`, `hostlifecycle` | specification → shared inspection/apply kit → requirement model and checks → execution/session → facts and inventory → pressure/presentation → lifecycle |
 | Credentials | `credentialpolicy`, `credentialauthority`, `credentialspec`, `credentialinventory`, `credentialescrow`, `credentials` | policy → authority → specification → inventory → escrow → keyring and repair operations |
-| Scenarios | `scenario`, `scenarioruntime`, `scenarioenv`, `scenarioexec`, `scenariostale` | model → runtime → environment → execution → stale-process observation |
+| Scenarios | `scenario`, `scenarioruntime`, `scenarioenv`, `scenarioexec` | model → runtime → environment → execution |
 | Operator state and capability | `operatorcapability`, `operatorinput`, `operatorstate` | capability contract → input collection → durable state |
 
 The adjacent `hostcapability`, `gpuaccess`, `accel`, `capabilitycatalog`, and

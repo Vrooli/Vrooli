@@ -8,11 +8,13 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialescrow"
 	"github.com/vrooli/vrooli/internal/durablebackup"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+	"github.com/vrooli/vrooli/internal/storageapproval"
 )
 
 func New(root, home string) (*operatorcapability.Registry, error) {
 	providers := credentialescrow.NewProviders(root, home)
 	providers = append(providers, durablebackup.NewProvider())
+	providers = append(providers, storageapproval.New())
 	return operatorcapability.NewRegistry(providers...)
 }
 

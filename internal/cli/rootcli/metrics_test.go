@@ -46,7 +46,6 @@ func newMetricsHarness(t *testing.T, handlers map[topcli.CommandID]Handler[*metr
 		ShowVersion: func(*metricsTestHarness) error { return nil },
 		ResolveRoot: func() (string, error) { return h.home, nil },
 		SetRoot:     func(*metricsTestHarness, string) {},
-		// No ShouldRebuild / RebuildAndReexec — stale check skipped.
 		MetricsRecorder: metrics.New(h.home, func(err error) { t.Logf("metrics IO err: %v", err) }),
 		CLIVersion:      "test-cli-1.2.3",
 		PlatformVersion: "test-platform-4.5.6",

@@ -38,6 +38,7 @@ var scenarioManifestRules = []ManifestRule{
 	{Name: "known-builder-kind", Check: checkKnownBuilderKinds},
 	{Name: "production-ui-artifact", Check: checkProductionUIArtifact},
 	{Name: "no-development-server", Check: checkNoDevelopmentServer},
+	{Name: "NO_SHELL_ENTRYPOINT", Check: checkNoShellEntrypoint},
 }
 
 // ScenarioManifestConformanceRules returns the registered manifest rules in
@@ -137,13 +138,45 @@ func checkKnownBuilderKinds(path string, manifest scenario.ServiceManifest) []Co
 		if kind == "" {
 			continue
 		}
-		if _, ok := registry[kind]; ok {
+		spec, ok := registry[kind]
+		if ok && !spec.Reserved {
 			continue
+		}
+		message := fmt.Sprintf("component %q declares unknown builder kind %q", name, kind)
+		if ok && spec.Reserved {
+			message = fmt.Sprintf("component %q declares reserved builder kind %q; no executable builder is registered", name, kind)
 		}
 		findings = append(findings, ConformanceFinding{
 			ManifestPath: path,
-			Message:      fmt.Sprintf("component %q declares unknown builder kind %q", name, kind),
+			Message:      message,
 		})
+	}
+	return findings
+}
+
+func checkNoShellEntrypoint(path string, manifest scenario.ServiceManifest) []ConformanceFinding {
+	var findings []ConformanceFinding
+	check := func(owner string, argv []string) {
+		if len(argv) == 0 {
+			return
+		}
+		first := strings.ToLower(filepath.Base(strings.TrimSpace(argv[0])))
+		switch first {
+		case "make", "bash", "sh", "zsh", "cmd", "powershell":
+			findings = append(findings, ConformanceFinding{ManifestPath: path, Message: fmt.Sprintf("%s uses forbidden shell entrypoint %q", owner, argv[0])})
+		}
+	}
+	for name, component := range manifest.Components {
+		check(fmt.Sprintf("component %q run", name), component.Run.Argv)
+	}
+	for phaseName, phase := range map[string]scenario.Phase{
+		"setup": manifest.Lifecycle.Setup,
+		"develop": manifest.Lifecycle.Develop,
+		"clean": manifest.Lifecycle.Clean,
+	} {
+		for _, step := range phase.Steps {
+			check(fmt.Sprintf("%s step %q", phaseName, step.Name), step.Exec)
+		}
 	}
 	return findings
 }

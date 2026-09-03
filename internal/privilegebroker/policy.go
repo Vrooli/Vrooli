@@ -24,9 +24,44 @@ func Validate(req Request) error {
 		return validateVolume(req)
 	case ActionRuntimeHomeOwnershipRepair:
 		return validateRuntimeHome(req)
+	case ActionLogRotateForce, ActionJournaldVacuum, ActionDockerPruneUnusedImages, ActionDockerPruneUnusedVolumes:
+		return validateStorageAction(req)
 	default:
 		return fmt.Errorf("action_not_allowed")
 	}
+}
+
+const managedLogStanza = "vrooli-log-volume-bounds"
+
+func validateStorageAction(req Request) error {
+	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil {
+		return fmt.Errorf("subject_not_allowed")
+	}
+	switch req.Action {
+	case ActionLogRotateForce:
+		if req.Log == nil || req.Journal != nil || req.Docker != nil || strings.TrimSpace(req.Log.Stanza) != managedLogStanza {
+			return fmt.Errorf("managed_log_stanza_required")
+		}
+	case ActionJournaldVacuum:
+		if req.Journal == nil || req.Log != nil || req.Docker != nil || req.Journal.MaxUseBytes <= 0 {
+			return fmt.Errorf("positive_journal_size_required")
+		}
+	case ActionDockerPruneUnusedImages:
+		if req.Docker == nil || req.Log != nil || req.Journal != nil || len(req.Docker.VolumeNames) != 0 {
+			return fmt.Errorf("image_prune_subject_required")
+		}
+	case ActionDockerPruneUnusedVolumes:
+		if req.Docker == nil || req.Log != nil || req.Journal != nil || len(req.Docker.VolumeNames) == 0 {
+			return fmt.Errorf("named_volume_list_required")
+		}
+		for _, name := range req.Docker.VolumeNames {
+			name = strings.TrimSpace(name)
+			if name == "" || name == "*" || strings.ContainsAny(name, "/\\ \t\r\n") || len(name) > 128 {
+				return fmt.Errorf("invalid_volume_name")
+			}
+		}
+	}
+	return nil
 }
 
 func validateRuntimeHome(req Request) error {

@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -206,6 +207,12 @@ func (c *Controller) Status(opts StatusOptions) (StatusReport, error) {
 				report.Summary["resources_healthy"]++
 			}
 		}
+	}
+	// Live coding-agent sessions on this host, from the runtime registry's
+	// editor leases; the count is the summary, `vrooli agent list` is the table.
+	if sessions, err := c.agentSessions(); err == nil {
+		report.Summary["agent_sessions"] = len(sessions)
+		report.Summary["agent_sessions_in_tree"] = countSessionsInTree(sessions, c.Root)
 	}
 	if !opts.ResourcesOnly {
 		scenarios, err := c.Scenarios.List()
@@ -668,4 +675,22 @@ func apiPortStatus(port string) string {
 
 func (r DoctorReport) JSON() ([]byte, error) {
 	return json.Marshal(r)
+}
+
+func (c *Controller) agentSessions() ([]scenarioruntime.EditorLease, error) {
+	return maintenance.NewController(c.Root, c.Home).ListAgentSessions()
+}
+
+// countSessionsInTree counts sessions whose working directory is the root or
+// inside it.
+func countSessionsInTree(sessions []scenarioruntime.EditorLease, root string) int {
+	root = filepath.Clean(root)
+	count := 0
+	for _, session := range sessions {
+		dir := filepath.Clean(session.WorkingDir)
+		if dir == root || strings.HasPrefix(dir, root+string(filepath.Separator)) {
+			count++
+		}
+	}
+	return count
 }

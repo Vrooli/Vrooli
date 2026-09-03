@@ -57,6 +57,27 @@ func TestModeFromEnvDefaultsToAuto(t *testing.T) {
 	}
 }
 
+func TestIsGoTestBinaryRejectsDetachedSupervisorFallback(t *testing.T) {
+	cases := map[string]bool{
+		"/tmp/go-build123/lifecycle.test": true,
+		"C:\\tmp\\lifecycle.test.exe":     true,
+		"/home/alice/.vrooli/bin/vrooli":  false,
+		"/tmp/vrooli-dev":                 false,
+	}
+	for path, want := range cases {
+		if got := isGoTestBinary(path); got != want {
+			t.Fatalf("isGoTestBinary(%q) = %t, want %t", path, got, want)
+		}
+	}
+}
+
+func TestSupervisorExecutableRejectsGoTestFallback(t *testing.T) {
+	_, err := supervisorExecutable(t.TempDir(), "/tmp/lifecycle.test")
+	if err == nil || !strings.Contains(err.Error(), "Go test binary") {
+		t.Fatalf("supervisorExecutable error = %v, want Go test binary refusal", err)
+	}
+}
+
 func TestServiceEnsureStartedRefusesLivePeerWithActionablePID(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
@@ -76,6 +97,41 @@ func TestServiceEnsureStartedRefusesLivePeerWithActionablePID(t *testing.T) {
 	err = svc.ensureStarted(ctx)
 	if !errors.Is(err, scenarioruntime.ErrSupervisorAlreadyRunning) || !strings.Contains(err.Error(), "43210") || !strings.Contains(err.Error(), "kill -TERM 43210") {
 		t.Fatalf("ensureStarted error = %v", err)
+	}
+}
+
+// [REQ:BOOT-RECOVERY-002] A dead predecessor's unexpired lease must not block
+// the successor. On 2026-09-02 every clean unit restart left a running row
+// with a dead PID and a 45 s lease; the claim refused it, the unit exited 1,
+// and systemd retried every 5 s until the lease lapsed: 1,070 restarts in 12 h.
+func TestServiceEnsureStartedRetiresDeadPredecessorWithLiveLease(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadPID := 43211
+	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{SupervisorID: "dead", HostBootID: "boot", HostSessionID: "session", PID: &deadPID}, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(Config{DBPath: dbPath, SupervisorID: "new", HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}, PIDRunning: func(int) bool { return false }})
+	defer svc.Close()
+	if err := svc.ensureStarted(ctx); err != nil {
+		t.Fatalf("ensureStarted error = %v, want the dead predecessor retired and the session claimed", err)
+	}
+	if svc.session.SupervisorID != "new" {
+		t.Fatalf("claimed session = %q, want new", svc.session.SupervisorID)
+	}
+	sessions, err := svc.store.ListSupervisorSessions(ctx, scenarioruntime.SupervisorSessionFilter{Statuses: []string{scenarioruntime.SupervisorStatusFailed}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 || sessions[0].SupervisorID != "dead" || !strings.Contains(sessions[0].StopReason, "pid dead") {
+		t.Fatalf("predecessor sessions = %+v, want dead marked failed with a pid-dead reason", sessions)
 	}
 }
 

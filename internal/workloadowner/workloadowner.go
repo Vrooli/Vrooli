@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -56,12 +57,7 @@ func DeclarationsFromRoot(root string) ([]Declaration, error) {
 		}
 		declarations = append(declarations, Declaration{Kind: "container", Name: container, Live: true, Evidence: []string{"enabled resource manifest: " + manifestPath}})
 	}
-	for _, unit := range []string{
-		"vrooli-runtime-supervisor.service",
-		"vrooli-autoheal.service",
-		"vrooli-emergency-watchdog.service",
-		"vrooli-emergency-watchdog.timer",
-	} {
+	for _, unit := range platformgo.CoreSystemdUnits() {
 		declarations = append(declarations, Declaration{
 			Kind: "service-unit", Name: unit, Live: true,
 			Evidence: []string{"Vrooli control-plane unit declaration: " + unit},

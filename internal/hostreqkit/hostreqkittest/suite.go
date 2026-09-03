@@ -141,6 +141,11 @@ type Case struct {
 	// Checks limits a package adapter to the stamped rules it actually owns.
 	// An empty list runs the complete shared suite.
 	Checks []string
+	// Seams points the handler's host interactions at fakes for the checks
+	// that inspect or apply against a "real" host shape
+	// (inspect_reports_validator_verdict, apply_reverifies). It registers its
+	// own cleanup on t.
+	Seams func(t *testing.T)
 }
 
 // PackageCheck preserves a package-specific behavior that is not shared with
@@ -502,6 +507,45 @@ func runSuite(t suiteT, c Case) {
 		})
 	}
 
+	if enabled(c, "inspect_reports_validator_verdict") {
+		t.Run("inspect_reports_validator_verdict", func(t suiteT) {
+			withSeams(t, c)
+			status := c.NewHandler().Inspect(LinuxHost(), BaseRequirement(c))
+			verdict, ok := status.Evidence["validator_verdict"]
+			if !ok || verdict == nil {
+				t.Errorf("Inspect evidence = %+v, want validator_verdict for the rendered native unit", status.Evidence)
+			}
+		})
+	}
+
+	if enabled(c, "apply_reverifies") {
+		t.Run("apply_reverifies", func(t suiteT) {
+			withSeams(t, c)
+			h := c.NewHandler()
+			status := h.Inspect(LinuxHost(), BaseRequirement(c))
+			if status.SupportClass != hostreqkit.SupportSupported {
+				t.Errorf("Inspect SupportClass = %q, want supported under the case's seams", status.SupportClass)
+				return
+			}
+			applied, err := h.Apply(LinuxHost(), status, hostreqkit.EnsureOptions{})
+			if err != nil {
+				t.Errorf("Apply() error = %v", err)
+				return
+			}
+			// A mutation must prove itself: Applied comes only from a
+			// re-inspection, and an unproven mutation reports failed.
+			switch {
+			case applied.Applied && applied.ExecutionState != hostreqkit.ExecutionApplied && applied.ExecutionState != hostreqkit.ExecutionAlreadyPresent:
+				t.Errorf("Apply() Applied=true with ExecutionState=%q", applied.ExecutionState)
+			case !applied.Applied && applied.ExecutionState != hostreqkit.ExecutionFailed:
+				t.Errorf("Apply() Applied=false with ExecutionState=%q, want failed: an unverified mutation is not applied", applied.ExecutionState)
+			}
+			if _, ok := applied.Evidence["validator_verdict"]; !ok {
+				t.Errorf("Apply() evidence = %+v, want validator_verdict", applied.Evidence)
+			}
+		})
+	}
+
 	if enabled(c, "apply_dry_run") {
 		t.Run("apply_dry_run", func(t suiteT) {
 			h := c.NewHandler()
@@ -608,6 +652,17 @@ func LoadManifestProperties(path string) (map[string]ManifestProperty, error) {
 		return nil, err
 	}
 	return manifest.Config.Properties, nil
+}
+
+// withSeams installs the case's seams when the suite runs under a real
+// *testing.T; the mutation harness has no host to fake.
+func withSeams(t suiteT, c Case) {
+	if c.Seams == nil {
+		return
+	}
+	if real, ok := t.(realT); ok {
+		c.Seams(real.T)
+	}
 }
 
 func enabled(c Case, check string) bool {

@@ -31,7 +31,7 @@ type Client struct {
 // NewClient constructs a client for the default broker socket.
 func NewClient() *Client {
 	return &Client{
-		SocketPath: DefaultSocketPath,
+		SocketPath: SocketPath(),
 		Timeout:    tuning.PrivilegeBrokerOperationTimeout(),
 		dial: func(ctx context.Context, socket string) (net.Conn, error) {
 			var dialer net.Dialer
@@ -93,7 +93,7 @@ func (c *Client) Do(ctx context.Context, req Request) (Result, error) {
 
 func (c *Client) socket() string {
 	if c.SocketPath == "" {
-		return DefaultSocketPath
+		return SocketPath()
 	}
 	return c.SocketPath
 }

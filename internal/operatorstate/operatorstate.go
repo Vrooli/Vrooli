@@ -70,6 +70,13 @@ type Session struct {
 	Step int `json:"step"`
 }
 
+// NotificationsChoice names the person the host's notifications go to.
+// notification-hub reads it at event intake; a host with no recipient records
+// every incident notification as unroutable with this setting named.
+type NotificationsChoice struct {
+	Recipient string `json:"recipient,omitempty"`
+}
+
 // Document is the typed projection of operator-state.json. RawFields holds
 // fields not yet understood by this binary. Their JSON bytes are retained so
 // a patch from this version cannot erase a field owned by a newer version.
@@ -86,6 +93,7 @@ type Document struct {
 	Resources           map[string]EnabledChoice   `json:"resources,omitempty"`
 	HostTools           map[string]OptInChoice     `json:"host_tools,omitempty"`
 	HostSafeguards      map[string]OptInChoice     `json:"host_safeguards,omitempty"`
+	Notifications       *NotificationsChoice       `json:"notifications,omitempty"`
 	Completion          *Completion                `json:"completion,omitempty"`
 	Session             *Session                   `json:"session,omitempty"`
 	RawFields           map[string]json.RawMessage `json:"-"`

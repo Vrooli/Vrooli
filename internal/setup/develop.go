@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildflags"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -98,6 +99,10 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 	if apiPort <= 0 {
 		apiPort = defaultAPIPort
 	}
+	// The project manifest supplies the default port, but an explicit
+	// VROOLI_API_PORT override controls both the health probe and the child
+	// process. Keep the launch environment aligned with the resolved port.
+	env = envkit.WithOverlay(env, envkit.SameScenario, envkit.Env{"VROOLI_API_PORT=" + strconv.Itoa(apiPort)})
 
 	healthy, err := apiAlreadyHealthy(apiPort)
 	if err != nil {
@@ -164,9 +169,13 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 	)
 
 	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
+	goFlags := []string{"-trimpath"}
+	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("develop")) > 0 {
+		goFlags = policy.For("develop")
+	}
 	return shell.Run(shell.Spec{
 		Name:   "go",
-		Args:   []string{"build", "-trimpath", "-ldflags", ldflags, "-o", outputPath, target},
+		Args:   append(append([]string{"build"}, goFlags...), "-ldflags", ldflags, "-o", outputPath, target),
 		Dir:    root,
 		Env:    env,
 		Stdout: stdout,

@@ -17,7 +17,7 @@ const (
 	// this constant, and convert any existing local DB with a one-shot
 	// operator-run script (see docs/plans/
 	// project-internal-greenfield-migration-purge-plan.md).
-	SchemaVersion = 8
+	SchemaVersion = 9
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -408,7 +408,10 @@ type PortClaimRepository interface {
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]PortClaim, error)
 	ListPortClaims(ctx context.Context, filter PortClaimFilter) ([]PortClaim, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]PortClaim, error)
-	UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error)
+	// UpdatePortClaimListenerEvidenceBatch records one tick's listener
+	// observations for many claims in one transaction and returns how many
+	// rows changed; a claim released before the write is skipped, not an error.
+	UpdatePortClaimListenerEvidenceBatch(ctx context.Context, observations map[string]ListenerObservation) (int, error)
 	RenewReservedPortClaimsForInstance(ctx context.Context, instanceID string, expiresAt time.Time) (int, error)
 }
 
@@ -467,4 +470,35 @@ type ListenerObservation struct {
 	Status       string
 	PID          *int
 	ProcessLabel string
+}
+
+// EditorLease is one live agent session editing a tree: who it is, where it
+// is, which containment scope it runs in, and the advisory paths it claims.
+// It is a projection of a process, not a lock: the row expires only on proof
+// of death (boot mismatch or the pid gone), never on a slow heartbeat.
+type EditorLease struct {
+	SessionID           string
+	Harness             string
+	Agent               string
+	PID                 int
+	HostBootID          string
+	WorkingDir          string
+	Scope               string
+	ContainmentMethod   string
+	Claims              []string
+	Status              string
+	CreatedAt           time.Time
+	LastHeartbeatAt     time.Time
+	HeartbeatDeadlineAt time.Time
+	StoppedAt           *time.Time
+	StopReason          string
+}
+
+// EditorLeaseRepository is the registry's view of live agent sessions.
+type EditorLeaseRepository interface {
+	CreateEditorLease(ctx context.Context, lease EditorLease, ttl time.Duration) (EditorLease, error)
+	HeartbeatEditorLease(ctx context.Context, sessionID string, ttl time.Duration) (EditorLease, error)
+	StopEditorLease(ctx context.Context, sessionID, reason string) (EditorLease, error)
+	ListEditorLeases(ctx context.Context, includeStopped bool) ([]EditorLease, error)
+	ExpireStaleEditorLeases(ctx context.Context, at time.Time, guard StartingLeaseGuard) ([]EditorLease, error)
 }

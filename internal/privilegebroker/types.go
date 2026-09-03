@@ -27,6 +27,10 @@ const (
 	ActionVolumeFilesystemCheck      = "volume.filesystem.check"
 	ActionVolumeFilesystemRepair     = "volume.filesystem.repair"
 	ActionRuntimeHomeOwnershipRepair = "runtime-home.ownership.repair"
+	ActionLogRotateForce              = "log.rotate.force"
+	ActionJournaldVacuum              = "journald.vacuum"
+	ActionDockerPruneUnusedImages     = "docker.prune.unused-images"
+	ActionDockerPruneUnusedVolumes    = "docker.prune.unused-volumes"
 )
 
 // Request is the complete v1 wire input. Deliberately, it has no command,
@@ -41,6 +45,21 @@ type Request struct {
 	// against exactly the shape it needs and nothing else.
 	Volume      *VolumeSubject      `json:"volume,omitempty"`
 	RuntimeHome *RuntimeHomeSubject `json:"runtime_home,omitempty"`
+	Log         *LogSubject         `json:"log,omitempty"`
+	Journal     *JournalSubject     `json:"journal,omitempty"`
+	Docker      *DockerSubject      `json:"docker,omitempty"`
+}
+
+type LogSubject struct {
+	Stanza string `json:"stanza"`
+}
+
+type JournalSubject struct {
+	MaxUseBytes int64 `json:"max_use_bytes"`
+}
+
+type DockerSubject struct {
+	VolumeNames []string `json:"volume_names,omitempty"`
 }
 
 // VolumeSubject identifies a storage volume for a volume.* action. There is no

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -203,24 +202,22 @@ func (s *Service) launchRecovery(ctx context.Context, request RecoveryLaunchRequ
 }
 
 func (s *Service) defaultRecoveryLaunch(ctx context.Context, request RecoveryLaunchRequest) error {
-	executable := strings.TrimSpace(s.cfg.Executable)
-	if executable == "" {
-		var err error
-		executable, err = os.Executable()
-		if err != nil {
-			return fmt.Errorf("resolve lifecycle executable: %w", err)
-		}
+	executable, err := supervisorExecutable(s.cfg.HomeDir, s.cfg.Executable)
+	if err != nil {
+		return fmt.Errorf("resolve lifecycle executable: %w", err)
 	}
 	root, err := buildinfo.ResolveSourceRoot()
 	if err != nil {
 		return fmt.Errorf("resolve recovery lifecycle source root: %w", err)
 	}
-	args := []string{"--no-stale-check", "scenario", "restart", request.Scenario, "--instance", request.Variant}
-	cmd := shell.NewCommandContext(ctx, executable, args...)
-	cmd.Dir = root
-	cmd.Env = supervisorCommandEnv(os.Environ(), s.cfg.HomeDir)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("lifecycle restart %s@%s: %w: %s", request.Scenario, request.Variant, err, strings.TrimSpace(string(output)))
+	res := cliinvoke.Run(ctx, cliinvoke.Invocation{
+		Binary: executable,
+		Args:   cliinvoke.ScenarioRestartInstance(request.Scenario, request.Variant),
+		Dir:    root,
+		Env:    supervisorCommandEnv(os.Environ(), s.cfg.HomeDir),
+	})
+	if err := res.Error(); err != nil {
+		return fmt.Errorf("lifecycle restart %s@%s: %w", request.Scenario, request.Variant, err)
 	}
 	return nil
 }

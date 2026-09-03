@@ -14,11 +14,13 @@
 package servertest
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // LiveServer is the test-side equivalent of main.go's HTTP boot path:
@@ -54,6 +56,70 @@ type failer interface {
 func NewLiveServer(t *testing.T, s HandlerProvider) *LiveServer {
 	t.Helper()
 	return newLiveServer(t, s)
+}
+
+// NewHandlerServer is the compatibility spelling used by older scenario
+// tests. It retains the same cleanup and real-socket behavior as
+// NewLiveServer, without requiring a wrapper type for callers that only need
+// the httptest.Server URL.
+func NewHandlerServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// NewServer is the compatibility spelling for a path-handler fixture.
+func NewServer(t *testing.T, routes map[string]http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	for path, handler := range routes {
+		mux.HandleFunc(path, handler)
+	}
+	return NewHandlerServer(t, mux)
+}
+
+// TestClient returns a bounded client for compatibility fixtures. Callers
+// that need the exact transport from an httptest.Server should use its
+// Client method instead.
+func TestClient() *http.Client {
+	return &http.Client{Timeout: 10 * time.Second}
+}
+
+// AssertMethod is the legacy fixture assertion retained for consumers of the
+// servertest compatibility surface.
+func AssertMethod(t *testing.T, req *http.Request, want string) {
+	t.Helper()
+	if req == nil {
+		t.Fatalf("AssertMethod: request is nil (want %s)", want)
+	}
+	if req.Method != want {
+		t.Fatalf("AssertMethod: got %s, want %s", req.Method, want)
+	}
+}
+
+// WriteJSON writes a JSON fixture response with an explicit status.
+func WriteJSON(t *testing.T, w http.ResponseWriter, status int, value any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+}
+
+// DecodeJSON decodes a request body for legacy HTTP fixture handlers.
+func DecodeJSON[T any](t *testing.T, r *http.Request) T {
+	t.Helper()
+	var value T
+	if r == nil || r.Body == nil {
+		t.Fatalf("DecodeJSON: request body is nil")
+		return value
+	}
+	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+		t.Fatalf("DecodeJSON: %v", err)
+	}
+	return value
 }
 
 func newLiveServer(t failer, s HandlerProvider) *LiveServer {

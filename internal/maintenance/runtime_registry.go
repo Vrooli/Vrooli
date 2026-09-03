@@ -23,8 +23,11 @@ type runtimeMaintenanceStore interface {
 	scenarioruntime.CleanupRepository
 	scenarioruntime.ProcessRefRepository
 	scenarioruntime.EventRepository
+	scenarioruntime.EditorLeaseRepository
 	ListSupervisorSessions(ctx context.Context, filter scenarioruntime.SupervisorSessionFilter) ([]scenarioruntime.SupervisorSession, error)
 	ExpireStaleSupervisorSessions(ctx context.Context, at time.Time, guard scenarioruntime.StartingLeaseGuard) ([]scenarioruntime.SupervisorSession, error)
+	ExpireStaleEditorLeases(ctx context.Context, at time.Time, guard scenarioruntime.StartingLeaseGuard) ([]scenarioruntime.EditorLease, error)
+	ListEditorLeases(ctx context.Context, includeStopped bool) ([]scenarioruntime.EditorLease, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]scenarioruntime.PortClaim, error)
 	PruneTerminalPortClaims(ctx context.Context, before time.Time) (int, error)
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error)

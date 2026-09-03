@@ -70,8 +70,10 @@ type Runner struct {
 	// engagement awareness" — every instance runs from its working tree, the
 	// pre-Baseline-Modes behavior. Injected at construction by the CLI edge so
 	// the lifecycle never imports internal/baselinefloor directly.
-	Engagements EngagementResolver
-	deps        lifecycleDeps
+	Engagements  EngagementResolver
+	probeCache   *hostProbeCache
+	probeCacheMu sync.Mutex
+	deps         lifecycleDeps
 	// sinks are the progress-event consumers. Nil means "just the built-in
 	// text renderer" (the Runner itself implements ProgressSink); populated
 	// via WithProgressSink.
@@ -182,6 +184,7 @@ type lifecycleDeps struct {
 }
 
 type hostProbeDeps struct {
+	cache       *hostProbeCache
 	stat        func(string) (os.FileInfo, error)
 	readFile    func(string) ([]byte, error)
 	lookPath    func(string) (string, error)
@@ -210,7 +213,9 @@ type hostProbeDeps struct {
 	// nodeVersion returns the host Node.js major version (e.g. "20"), empty when
 	// node is absent. Keyed into the ui-bundle digest because Vite/esbuild output
 	// can differ across Node majors from identical source. Tests inject.
-	nodeVersion func() string
+	nodeVersion   func() string
+	pythonVersion func() string
+	uvVersion     func() string
 	// recognizeArtifact is the OS artifact-recognition seam: given a stat'd path
 	// and its FileInfo, it reports capability-flagged evidence of whether the path
 	// is a runnable compiled build artifact (exec bit on Unix, executable
@@ -222,6 +227,21 @@ type hostProbeDeps struct {
 	// case-insensitive, so manifest rel-path comparison can case-fold there. When
 	// unavailable it degrades to case-sensitive (correctness-safe). Tests inject.
 	volumeCaseEvidence func(path string) caseEvidence
+}
+
+// hostProbeCache scopes expensive toolchain probes to one Runner dependency
+// graph. Keeping the cache behind the dependency seam prevents one test or
+// Runner from poisoning another Runner's build-environment verdict.
+type hostProbeCache struct {
+	mu                   sync.Mutex
+	goToolchain          string
+	goToolchainOK        bool
+	goEnv                map[string]string
+	goEnvOK              bool
+	nodeVersion          string
+	nodeVersionOK        bool
+	goList               map[string][]byte
+	sharedPackageDigests map[string]string
 }
 
 func defaultLifecycleDeps() lifecycleDeps {
@@ -237,7 +257,12 @@ func defaultLifecycleDeps() lifecycleDeps {
 }
 
 func defaultHostProbeDeps() hostProbeDeps {
+	return hostProbeDepsForCache(&hostProbeCache{})
+}
+
+func hostProbeDepsForCache(cache *hostProbeCache) hostProbeDeps {
 	return hostProbeDeps{
+		cache:              cache,
 		stat:               os.Stat,
 		readFile:           os.ReadFile,
 		lookPath:           exec.LookPath,
@@ -246,8 +271,10 @@ func defaultHostProbeDeps() hostProbeDeps {
 		walkDir:            filepath.WalkDir,
 		goListJSON:         defaultGoListJSON,
 		goListJSONContext:  defaultGoListJSONContext,
-		goEnv:              defaultGoEnv,
-		nodeVersion:        defaultNodeVersion,
+		goEnv:              func(keys ...string) map[string]string { return defaultGoEnvCached(cache, keys...) },
+		nodeVersion:        func() string { return defaultNodeVersionCached(cache) },
+		pythonVersion:      defaultPythonVersion,
+		uvVersion:          defaultUVVersion,
 		recognizeArtifact:  recognizeArtifact,
 		volumeCaseEvidence: hostVolumeCaseEvidence,
 	}
@@ -366,12 +393,22 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 		Ports:       manager,
 		Logger:      logx.WithSubsystem(baseLogger, "lifecycle"),
 		Engagements: defaultEngagementResolver,
+		probeCache:  &hostProbeCache{},
 		deps:        deps,
 	}, nil
 }
 
 func (r *Runner) environmentProfile() string {
 	return hostreq.NormalizeEnvironment(r.Environment)
+}
+
+func (r *Runner) hostProbeDeps() hostProbeDeps {
+	r.probeCacheMu.Lock()
+	defer r.probeCacheMu.Unlock()
+	if r.probeCache == nil {
+		r.probeCache = &hostProbeCache{}
+	}
+	return hostProbeDepsForCache(r.probeCache)
 }
 
 //nolint:gocyclo // runtime dependency assembly retains optional-resource and compatibility fallbacks.
@@ -698,7 +735,6 @@ func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.
 	}); err != nil {
 		return fmt.Errorf("prepare replacement artifacts for %s: %w", item.Slug, err)
 	}
-	r.stampScenarioFreshness(item)
 	return nil
 }
 
@@ -785,7 +821,6 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		// artifact now that setup has (re)built them. Subsequent checks become
 		// manifest-authoritative; the next freshness eval reads a stat-cache
 		// stamp instead of walking the source tree.
-		r.stampScenarioFreshness(item)
 		if err := runtimeSession.heartbeat(ctx); err != nil {
 			return Result{}, err
 		}
@@ -1021,6 +1056,9 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	}
 
 	liveRecords := process.LiveRecords(records)
+	if len(runtimeStop.processRecords) > 0 {
+		liveRecords = append(liveRecords, runtimeStop.processRecords...)
+	}
 	if len(liveRecords) > 0 {
 		if err := r.terminateAndAwait(ctx, liveRecords); err != nil {
 			return err
@@ -1590,130 +1628,6 @@ func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, er
 		}
 	}
 	return current != nil, nil
-}
-
-func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, error) {
-	data, err := deps.readFile(goModPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	paths := []string{}
-	inBlock := false
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		switch line {
-		case "", ")":
-			if line == ")" {
-				inBlock = false
-			}
-			continue
-		case "replace (":
-			inBlock = true
-			continue
-		}
-
-		candidate := line
-		if strings.HasPrefix(line, "replace ") {
-			candidate = strings.TrimSpace(strings.TrimPrefix(line, "replace "))
-		} else if !inBlock {
-			continue
-		}
-		if !strings.Contains(candidate, "=>") {
-			continue
-		}
-
-		fields := strings.Fields(candidate)
-		if len(fields) == 0 {
-			continue
-		}
-		path := fields[len(fields)-1]
-		if strings.HasPrefix(path, "../") {
-			paths = append(paths, path)
-		}
-	}
-	return paths, nil
-}
-
-// firstFileNewerWithDeps walks root and returns the first file (in walk order)
-// whose mtime is strictly after target's and that passes the include filter.
-// Skip directories (.git, node_modules, dist, data, …) are pruned with
-// fs.SkipDir so the walk never descends into them — this both avoids the
-// 4400+-module node_modules sweep and keeps the result deterministic. The
-// returned path is the offending file, which callers thread into honest
-// "what changed" reason strings.
-func firstFileNewerWithDepsContext(ctx context.Context, root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) (string, bool) {
-	if err := ctx.Err(); err != nil {
-		return "", false
-	}
-	if _, err := deps.stat(root); err != nil {
-		return "", false
-	}
-	targetInfo, err := deps.stat(target)
-	if err != nil {
-		return "", false
-	}
-	targetTime := targetInfo.ModTime()
-
-	var offender string
-	walkErr := deps.walkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if path != root && isSkippableDirName(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if include != nil && !include(path, d) {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			return nil
-		}
-		if info.ModTime().After(targetTime) {
-			offender = path
-			return errStopWalk
-		}
-		return nil
-	})
-
-	if errors.Is(walkErr, errStopWalk) {
-		return offender, true
-	}
-	return "", false
-}
-
-// isSkippableDirName reports whether a directory basename is a build/VCS/output
-// directory that the freshness walk should never descend into, applied at walk
-// time so the subtree is pruned (fs.SkipDir) rather than filtered file-by-file.
-func isSkippableDirName(name string) bool {
-	switch name {
-	case ".git", ".idea", ".vscode", "node_modules", "dist", "build", "coverage", "tmp", "data":
-		return true
-	}
-	return false
-}
-
-// relForReason renders path relative to base (slash-separated) for human-facing
-// reason strings, falling back to the absolute path when no clean relative form
-// exists.
-func relForReason(base, path string) string {
-	if base == "" {
-		return path
-	}
-	if rel, err := filepath.Rel(base, path); err == nil {
-		return filepath.ToSlash(rel)
-	}
-	return path
 }
 
 var errStopWalk = errors.New("stop walk")

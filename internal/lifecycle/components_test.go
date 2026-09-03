@@ -2,35 +2,170 @@
 package lifecycle
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/packagegov"
 	packagefixture "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
+func testBuildScenario(t *testing.T) scenario.Scenario {
+	t.Helper()
+	root := t.TempDir()
+	return scenario.Scenario{
+		Slug: "ledger-build-test",
+		Path: root,
+		Manifest: scenario.ServiceManifest{Components: map[string]scenario.Component{
+			"api": {Role: "api", Build: scenario.ComponentBuild{Kind: "test_builder", Dir: "."}},
+			"ui":  {Role: "ui", Build: scenario.ComponentBuild{Kind: "test_builder", Dir: "."}},
+		}},
+	}
+}
+
+func installTestBuilder(t *testing.T) {
+	t.Helper()
+	previous, existed := builderRegistry["test_builder"]
+	builderRegistry["test_builder"] = BuilderSpec{
+		Kind:          "test_builder",
+		DefaultOutput: "{dir}/{component}.artifact",
+		Build:         []string{"cp", "/etc/hosts", "{output}"},
+	}
+	t.Cleanup(func() {
+		if existed {
+			builderRegistry["test_builder"] = previous
+		} else {
+			delete(builderRegistry, "test_builder")
+		}
+	})
+}
+
+func installTimedTestBuilder(t *testing.T, reservation int64, failAPI bool) {
+	t.Helper()
+	script := filepath.Join(t.TempDir(), "builder.sh")
+	contents := "#!/bin/sh\n"
+	if failAPI {
+		contents += "case \"$1\" in *api.artifact) exit 17;; esac\n"
+	}
+	contents += "sleep 0.30\nprintf ok > \"$1\"\n"
+	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	previous, existed := builderRegistry["test_builder"]
+	builderRegistry["test_builder"] = BuilderSpec{
+		Kind:                   "test_builder",
+		DefaultOutput:          "{dir}/{component}.artifact",
+		MemoryReservationBytes: reservation,
+		Build:                  []string{script, "{output}"},
+	}
+	t.Cleanup(func() {
+		if existed {
+			builderRegistry["test_builder"] = previous
+		} else {
+			delete(builderRegistry, "test_builder")
+		}
+	})
+}
+
+func runBuildLedgerTest(t *testing.T, item scenario.Scenario, force bool, stale ...string) int {
+	t.Helper()
+	verdicts := make(map[string]artifactVerdict, len(stale))
+	for _, name := range stale {
+		verdicts[name] = artifactVerdict{Target: name, Stale: true}
+	}
+	runner := &Runner{Root: item.Path, Home: t.TempDir()}
+	count, err := runner.buildDeclaredComponents(context.Background(), item, nil, io.Discard, force, verdicts)
+	if err != nil {
+		t.Fatalf("buildDeclaredComponents: %v", err)
+	}
+	return count
+}
+
+func TestBuildDeclaredComponents_SkipsFreshComponents(t *testing.T) {
+	installTestBuilder(t)
+	if got := runBuildLedgerTest(t, testBuildScenario(t), false); got != 0 {
+		t.Fatalf("built fresh components = %d, want 0", got)
+	}
+}
+
+func TestBuildDeclaredComponents_RebuildsStaleUIOnly(t *testing.T) {
+	installTestBuilder(t)
+	if got := runBuildLedgerTest(t, testBuildScenario(t), false, "ui"); got != 1 {
+		t.Fatalf("built components = %d, want 1", got)
+	}
+}
+
+func TestBuildDeclaredComponents_RebuildsBothWhenBothStale(t *testing.T) {
+	installTestBuilder(t)
+	if got := runBuildLedgerTest(t, testBuildScenario(t), false, "api", "ui"); got != 2 {
+		t.Fatalf("built components = %d, want 2", got)
+	}
+}
+
+func TestBuildDeclaredComponents_ForceRebuildsAll(t *testing.T) {
+	installTestBuilder(t)
+	if got := runBuildLedgerTest(t, testBuildScenario(t), true); got != 2 {
+		t.Fatalf("built components = %d, want 2", got)
+	}
+}
+
+func TestBuildDeclaredComponents_IndependentComponentsOverlap(t *testing.T) {
+	installTimedTestBuilder(t, 1, false)
+	start := time.Now()
+	if got := runBuildLedgerTest(t, testBuildScenario(t), false, "api", "ui"); got != 2 {
+		t.Fatalf("built components = %d, want 2", got)
+	}
+	if elapsed := time.Since(start); elapsed >= 550*time.Millisecond {
+		t.Fatalf("independent builds took %s; expected overlap", elapsed)
+	}
+}
+
+func TestBuildDeclaredComponents_BudgetOfOneSerialises(t *testing.T) {
+	installTimedTestBuilder(t, 1<<62, false)
+	start := time.Now()
+	if got := runBuildLedgerTest(t, testBuildScenario(t), false, "api", "ui"); got != 2 {
+		t.Fatalf("built components = %d, want 2", got)
+	}
+	if elapsed := time.Since(start); elapsed < 550*time.Millisecond {
+		t.Fatalf("budget-one builds took %s; expected serialization", elapsed)
+	}
+}
+
+func TestBuildDeclaredComponents_FailureCancelsSiblings(t *testing.T) {
+	installTimedTestBuilder(t, 1, true)
+	_, err := (&Runner{Root: t.TempDir(), Home: t.TempDir()}).buildDeclaredComponents(context.Background(), testBuildScenario(t), nil, io.Discard, false, map[string]artifactVerdict{"api": {Stale: true}, "ui": {Stale: true}})
+	if err == nil || !strings.Contains(err.Error(), "component api") {
+		t.Fatalf("error = %v, want component api failure", err)
+	}
+}
+
 func TestBuilderRegistryDeclaresImplementedAndReservedKinds(t *testing.T) {
 	registry := BuilderRegistry()
-	want := []string{"cargo", "go_module", "node_bundle", "pnpm_vite", "python_uv", "reuse"}
+	want := []string{"cargo", "go_module", "node_bundle", "pnpm_vite", "python_uv"}
 	if got := RegisteredBuilderKinds(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("RegisteredBuilderKinds() = %v, want %v", got, want)
 	}
-	for _, kind := range []string{"go_module", "pnpm_vite", "node_bundle", "reuse"} {
+	for _, kind := range []string{"go_module", "pnpm_vite", "node_bundle"} {
 		if registry[kind].Reserved {
 			t.Fatalf("%s unexpectedly reserved", kind)
 		}
 	}
-	for _, kind := range []string{"python_uv", "cargo"} {
-		if !registry[kind].Reserved {
-			t.Fatalf("%s must remain reserved until it has an adopter", kind)
-		}
+	if registry["python_uv"].Reserved {
+		t.Fatal("python_uv must be executable once registered")
+	}
+	if !registry["cargo"].Reserved {
+		t.Fatal("cargo must remain reserved until it has an adopter")
 	}
 	if registry["go_module"].Environment["GOWORK"] != "off" {
 		t.Fatalf("go_module must preserve the executor's GOWORK=off build environment")
@@ -53,8 +188,49 @@ func TestBuilderRegistryMatchesServiceSchema(t *testing.T) {
 	for i, value := range enum {
 		got[i] = value.(string)
 	}
+	// "reuse" remains in the schema for backward-compatible diagnostics, but
+	// is intentionally not an executable registry row.
+	got = slices.DeleteFunc(got, func(kind string) bool { return kind == "reuse" })
 	if want := RegisteredBuilderKinds(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("service schema builder kinds = %v, registry = %v", got, want)
+	}
+}
+
+func TestBuilderDigestKeysAreEmitted(t *testing.T) {
+	deps := hostProbeDeps{
+		getenv: func(name string) string {
+			if name == "NODE_ENV" {
+				return "development"
+			}
+			if name == BuildModeEnvVar {
+				return "profile"
+			}
+			return ""
+		},
+		lookPath:      exec.LookPath,
+		nodeVersion:   func() string { return "22" },
+		pythonVersion: func() string { return "3.11" },
+		uvVersion:     func() string { return "0.8" },
+		goEnv: func(keys ...string) map[string]string {
+			values := make(map[string]string, len(keys))
+			for _, key := range keys {
+				values[key] = "set"
+			}
+			return values
+		},
+	}
+	deps.cache = &hostProbeCache{}
+	for kind, spec := range BuilderRegistry() {
+		if spec.Reserved {
+			continue
+		}
+		keys := builderFreshnessKeys(spec, deps)
+		for _, declared := range spec.DigestKeys {
+			key := strings.ToLower(declared)
+			if _, ok := keys[key]; !ok {
+				t.Errorf("builder %s declares digest key %q but resolver emitted %v", kind, declared, keys)
+			}
+		}
 	}
 }
 
@@ -162,7 +338,7 @@ func TestInstallInputDigestIncludesGovernedSharedPackageOutputs(t *testing.T) {
 	}
 }
 
-func TestResolveComponentArgvResolvesBinaryReuseAndExtension(t *testing.T) {
+func TestResolveComponentArgvRejectsDeprecatedBinaryReuse(t *testing.T) {
 	components := map[string]scenario.Component{
 		"api": {
 			Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"},
@@ -172,26 +348,18 @@ func TestResolveComponentArgvResolvesBinaryReuseAndExtension(t *testing.T) {
 		},
 	}
 	root := filepath.Join("workspace", "scenario-to-mcp")
-	got, err := resolveComponentArgvForOS([]string{"{{bin.registry}}", "helper{{ext}}"}, root, "scenario-to-mcp", components, "windows")
-	if err != nil {
-		t.Fatalf("resolveComponentArgvForOS: %v", err)
-	}
-	want := []string{
-		filepath.Join(root, "api", "scenario-to-mcp-api.exe"),
-		"helper.exe",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("argv = %v, want %v", got, want)
+	if _, err := resolveComponentArgvForOS([]string{"{{bin.registry}}", "helper{{ext}}"}, root, "scenario-to-mcp", components, "windows"); err == nil || !strings.Contains(err.Error(), "declare the artifact once") {
+		t.Fatalf("resolveComponentArgvForOS error = %v, want deprecated reuse guidance", err)
 	}
 }
 
-func TestResolveComponentArgvRejectsReuseCycle(t *testing.T) {
+func TestResolveComponentArgvRejectsDeprecatedReuse(t *testing.T) {
 	components := map[string]scenario.Component{
 		"api":      {Build: scenario.ComponentBuild{Reuse: "registry"}},
 		"registry": {Build: scenario.ComponentBuild{Reuse: "api"}},
 	}
-	if _, err := resolveComponentArgvForOS([]string{"{{bin.api}}"}, "/scenario", "demo", components, "linux"); err == nil {
-		t.Fatal("expected build.reuse cycle to fail")
+	if _, err := resolveComponentArgvForOS([]string{"{{bin.api}}"}, "/scenario", "demo", components, "linux"); err == nil || !strings.Contains(err.Error(), "deprecated build.reuse") {
+		t.Fatalf("expected deprecated build.reuse rejection, got %v", err)
 	}
 }
 
@@ -234,9 +402,9 @@ func TestGoModuleFreshnessIncludesDeclaredSecondaryArtifacts(t *testing.T) {
 			{Entry: "./cmd/helper", Output: "api/helper"},
 		},
 	}}
-	artifacts, err := goModuleComponentFreshness(root, root, component, defaultHostProbeDeps())
+	artifacts, err := componentFreshnessArtifacts(root, root, component, defaultHostProbeDeps())
 	if err != nil {
-		t.Fatalf("goModuleComponentFreshness: %v", err)
+		t.Fatalf("componentFreshnessArtifacts: %v", err)
 	}
 	if len(artifacts) != 2 {
 		t.Fatalf("freshness artifact count = %d, want 2", len(artifacts))
@@ -332,6 +500,7 @@ func TestDeclaredCommandForTypedProvisioningStepRejectsShellPlaceholder(t *testi
 }
 
 func TestPNPMViteRegistryOwnsAgentInboxFreshnessContract(t *testing.T) {
+	t.Setenv("NODE_ENV", "development")
 	repoRoot := filepath.Clean(filepath.Join("..", ".."))
 	appRoot := filepath.Join(repoRoot, "scenarios", "agent-inbox")
 	deps := defaultHostProbeDeps()
@@ -402,6 +571,25 @@ func TestBuildArgvSelectsProfileChannel(t *testing.T) {
 	goSpec := registry["go_module"]
 	if got, want := goSpec.BuildArgv("profile"), goSpec.Build; !reflect.DeepEqual(got, want) {
 		t.Fatalf("go_module profile channel = %v, want the default %v", got, want)
+	}
+}
+
+func TestGoModuleBuildArgvUsesRepositoryFlagPolicy(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{"build.go_flags":{"develop":["-trimpath"],"distribution":["-trimpath","-buildvcs=false"],"scenario":["-trimpath","-buildvcs=false"]}}`
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := goModuleBuildArgvForRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"go", "build", "-trimpath", "-buildvcs=false", "-o", "{output}", "{entry}"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("policy-aware Go argv = %v, want %v", got, want)
 	}
 }
 

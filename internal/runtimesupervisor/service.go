@@ -18,12 +18,14 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 const (
@@ -42,11 +44,6 @@ const (
 	DefaultMaxHealthConcurrency = 16
 	DefaultBatchSize            = 250
 	DefaultRecoveryConcurrency  = 1
-	DefaultPressureSomeAvg10    = 10.0
-	// DefaultPressureCPUSomeAvg10 is deliberately much higher than the memory
-	// threshold: CPU contention is normal on a build host, and only a run queue
-	// deep enough to stall most work should gate recovery.
-	DefaultPressureCPUSomeAvg10 = 50.0
 
 	ModeEnv  = "VROOLI_RUNTIME_SUPERVISOR"
 	ModeOff  = "off"
@@ -211,9 +208,18 @@ func New(cfg Config) *Service {
 const MaxConsecutiveTickFailures = 10
 
 func Run(ctx context.Context, cfg Config) error {
+	if !cfg.Takeover && runningUnderNativeUnit() {
+		// The native unit is the one instance the host wants. A peer that is
+		// live when the unit starts is either a supervisor a CLI launched
+		// while the unit was down or a predecessor still shutting down;
+		// exiting 1 and letting systemd retry every 5 s until its lease lapses
+		// is what produced 1,070 restarts on 2026-09-02.
+		cfg.Takeover = true
+	}
 	svc := New(cfg)
 	defer svc.Close()
 	if err := svc.ensureStarted(ctx); err != nil {
+		svc.logf("supervisor cannot start: %v", err)
 		return err
 	}
 	svc.logf("supervisor started supervisor_id=%s pid=%d lease_ttl=%s renew_interval=%s",
@@ -312,6 +318,7 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	// instance is answered from it (previously: one lsof + N ps PER CLAIM,
 	// every tick, forever).
 	portListener := s.tickPortListener()
+	observations := map[string]scenarioruntime.ListenerObservation{}
 	for _, instance := range instances {
 		claims := claimsByInstance[instance.InstanceID]
 		for key, evidence := range scenarioruntime.ProcessEvidenceFromRefs(refsByInstance[instance.InstanceID], s.pidRunning) {
@@ -328,11 +335,15 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 			if !ok {
 				continue
 			}
-			if _, err := s.store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, scenarioruntime.ListenerObservationFromEvidence(s.now(), evidence)); err != nil {
-				// Evidence is an observation, not authority. A claim released
-				// concurrently is the common cause and is not a tick failure.
-				s.logf("could not record listener evidence for claim %s: %v", claim.ClaimID, err)
-			}
+			observations[claim.ClaimID] = scenarioruntime.ListenerObservationFromEvidence(s.now(), evidence)
+		}
+	}
+	if len(observations) > 0 {
+		// One write per tick. Evidence is an observation, not authority: a
+		// claim released concurrently is the common cause of a miss and is not
+		// a tick failure, so the batch reports once with the claim count.
+		if _, err := s.store.UpdatePortClaimListenerEvidenceBatch(ctx, observations); err != nil {
+			s.logf("could not record listener evidence for %d claims: %v", len(observations), err)
 		}
 	}
 	reconciled := s.reconcileStartingInstances(ctx, instances, claimsByInstance, refsByInstance, healthByInstance, listeners)
@@ -703,6 +714,16 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	}
 	for _, peer := range sessions {
 		if peer.PID == nil || *peer.PID <= 0 || !s.pidRunning(*peer.PID) {
+			// A running row with a dead owner blocks the claim for as long as
+			// its lease lasts (up to 45 s), and ClaimSupervisorSession refuses
+			// any running row regardless of liveness. The reaper above honours
+			// the lease on purpose (a peer mid-heartbeat must not be reaped by
+			// a stranger), but this process is not a stranger: it is the next
+			// supervisor, and a dead PID is proof enough here.
+			if _, err := s.store.StopSupervisorSession(ctx, peer.SupervisorID, scenarioruntime.SupervisorStatusFailed, "predecessor pid dead at successor start"); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+				return fmt.Errorf("retire dead predecessor supervisor %s: %w", peer.SupervisorID, err)
+			}
+			s.logf("retired predecessor supervisor %s: owner pid dead", peer.SupervisorID)
 			continue
 		}
 		if !s.cfg.Takeover {
@@ -992,8 +1013,19 @@ func normalizeBatchSize(v int) int {
 }
 
 func EnvConfig() Config {
-	pressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_SOME_AVG10", DefaultPressureSomeAvg10)
-	cpuPressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_CPU_SOME_AVG10", DefaultPressureCPUSomeAvg10)
+	// The pressure bars come from the setpoint (internal/setpoint, the one
+	// reader): memory PSI from its own cell, CPU PSI from the cell the
+	// watchdog and autoheal grade. The environment overrides the file, not a
+	// constant. A present file that fails validation falls back to the
+	// compiled bars and is logged so a broken bar file is visible.
+	cwd, _ := os.Getwd()
+	bars, err := setpoint.Resolve(os.Environ(), cwd)
+	if err != nil {
+		bars = setpoint.Fallback()
+		fmt.Fprintf(os.Stderr, "runtime supervisor: setpoint unreadable, using %s: %v\n", bars.Path, err)
+	}
+	pressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_SOME_AVG10", bars.Max(setpoint.CellMemoryPSI, 0))
+	cpuPressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_CPU_SOME_AVG10", bars.Max(setpoint.CellCPUPressure, 0))
 	return Config{
 		RenewInterval:        durationEnv("VROOLI_RUNTIME_SUPERVISOR_RENEW_INTERVAL", DefaultRenewInterval),
 		LeaseTTL:             durationEnv("VROOLI_RUNTIME_SUPERVISOR_LEASE_TTL", DefaultLeaseTTL),
@@ -1057,15 +1089,20 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 		return nil
 	}
 
-	exe := strings.TrimSpace(cfg.Executable)
-	if exe == "" {
-		var exeErr error
-		exe, exeErr = os.Executable()
-		if exeErr != nil {
-			return fmt.Errorf("resolve vrooli executable for runtime supervisor: %w", exeErr)
-		}
+	exe, err := supervisorExecutable(cfg.HomeDir, cfg.Executable)
+	if err != nil {
+		return err
 	}
-	cmd := shell.NewCommand(exe, "--no-stale-check", "runtime", "supervisor", "run")
+	// A Go test binary is not a control-plane executable. Starting it with the
+	// supervisor argv makes it run its test suite again; when those tests call
+	// EnsureRunning this creates a detached recursive test storm. This matters
+	// in particular when the installed service is unavailable, because the
+	// fallback otherwise uses os.Executable().
+	// This is a detached daemon launch, not a run-and-wait invocation, so it
+	// starts the process and releases it instead of going through
+	// cliinvoke.Run; the argv still comes from the shared catalog so the
+	// invoker registry test parses exactly what runs here.
+	cmd := shell.NewCommand(exe, cliinvoke.RuntimeSupervisorRun()...)
 	cmd.Env = supervisorCommandEnv(os.Environ(), cfg.HomeDir)
 	// The spawned supervisor outlives this process, so inheriting the caller's
 	// streams is worse than useless: writes land on the stderr of a CLI that
@@ -1089,6 +1126,24 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("start runtime supervisor: %w", err)
 	}
 	return cmd.Process.Release()
+}
+
+func supervisorExecutable(homeDir, requested string) (string, error) {
+	executable, _, err := ExecutablePath(homeDir, requested)
+	if err != nil {
+		return "", fmt.Errorf("resolve vrooli executable for runtime supervisor: %w", err)
+	}
+	if isGoTestBinary(executable) {
+		return "", fmt.Errorf("refuse to launch runtime supervisor from Go test binary %q", executable)
+	}
+	return executable, nil
+}
+
+func isGoTestBinary(path string) bool {
+	// Normalize the alternate separator so the predicate remains testable and
+	// correct when a Windows-style path is supplied by a cross-platform caller.
+	name := strings.ToLower(filepath.Base(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/")))
+	return strings.HasSuffix(name, ".test") || strings.HasSuffix(name, ".test.exe")
 }
 
 // orDiscard keeps optional diagnostics from panicking on an unset writer.
@@ -1172,4 +1227,11 @@ func floatEnv(name string, fallback float64) float64 {
 		return fallback
 	}
 	return value
+}
+
+// runningUnderNativeUnit reports whether the native service manager started
+// this process: systemd sets INVOCATION_ID for every unit it runs, and the
+// rendered supervisor unit sets VROOLI_RUNTIME_SUPERVISOR=on.
+func runningUnderNativeUnit() bool {
+	return os.Getenv("INVOCATION_ID") != "" && os.Getenv("VROOLI_RUNTIME_SUPERVISOR") == "on"
 }

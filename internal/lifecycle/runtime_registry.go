@@ -47,6 +47,11 @@ type runtimeRegistryStopSession struct {
 	enabled   bool
 	store     scenarioRuntimeStore
 	instances []scenarioruntime.Instance
+	// processRecords contains live process references recovered from the
+	// registry. Filesystem records are not sufficient after a supervisor or
+	// older lifecycle process has removed them while the child remains alive.
+	processRecords []process.Record
+	processRefIDs  []string
 }
 
 func disabledRuntimeRegistrySession() runtimeRegistrySession {
@@ -103,11 +108,12 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, var
 	// rows. A normalized variant (never empty) restricts the filter to exactly
 	// this instance; an empty variant would match all variants (the dangerous
 	// reap-sibling behavior this fixes), so callers pass the resolved variant.
-	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+	filter := scenarioruntime.InstanceFilter{
 		Scenario: scenarioName,
 		Variant:  scenarioruntime.InstanceKey{Scenario: scenarioName, Variant: variant}.Normalize().Variant,
 		Statuses: scenarioruntime.StopCandidateInstanceStatuses(),
-	})
+	}
+	instances, err := store.ListInstances(ctx, filter)
 	if err != nil {
 		_ = store.Close()
 		return runtimeRegistryStopSession{}, fmt.Errorf("list scenario runtime leases for stop: %w", err)
@@ -120,7 +126,69 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, var
 			}
 		}
 	}
-	return runtimeRegistryStopSession{enabled: true, store: store, instances: instances}, nil
+
+	// A stopped row can still own a live process when an earlier supervisor or
+	// lifecycle binary released its lease before it reaped the child. Inspect
+	// every row for the requested instance, but only recover references that are
+	// current-host, marked running, live, and still identify themselves as this
+	// exact runtime instance. This prevents a recycled PID from becoming a
+	// stop target.
+	allInstances, err := store.ListInstances(ctx, filterWithoutStatuses(filter))
+	if err != nil {
+		_ = store.Close()
+		return runtimeRegistryStopSession{}, fmt.Errorf("list all scenario runtime leases for stop: %w", err)
+	}
+	host, err := r.runtimeDeps().hostSession(ctx, r.Home)
+	if err != nil {
+		_ = store.Close()
+		return runtimeRegistryStopSession{}, fmt.Errorf("resolve host session for runtime process stop: %w", err)
+	}
+	processRecords := make([]process.Record, 0)
+	processRefIDs := make([]string, 0)
+	for _, instance := range allInstances {
+		refs, listErr := store.ListProcessRefs(ctx, instance.InstanceID)
+		if listErr != nil {
+			_ = store.Close()
+			return runtimeRegistryStopSession{}, fmt.Errorf("list runtime processes for %s: %w", instance.InstanceID, listErr)
+		}
+		for _, ref := range refs {
+			if ref.Status != WaitVerdictRunning || ref.PID == nil || *ref.PID <= 0 || ref.HostBootID != host.BootID {
+				continue
+			}
+			if !r.runtimeDeps().isPIDRunning(*ref.PID) {
+				// The process is gone, so clear the durable running marker while
+				// this scenario's stop reconciles its runtime ownership.
+				processRefIDs = append(processRefIDs, ref.RefID)
+				continue
+			}
+			env, envErr := r.runtimeDeps().readProcessEnv(*ref.PID)
+			if envErr != nil || strings.TrimSpace(env[runtimeRegistryInstanceEnv]) != instance.InstanceID || strings.TrimSpace(env["VROOLI_SCENARIO"]) != scenarioName || strings.TrimSpace(env["VROOLI_VARIANT"]) != filter.Variant {
+				continue
+			}
+			pgid := 0
+			if ref.PGID != nil {
+				pgid = *ref.PGID
+			}
+			processRecords = append(processRecords, process.Record{
+				PID:       *ref.PID,
+				PGID:      pgid,
+				ProcessID: ref.ProcessID,
+				Scenario:  scenarioName,
+				Step:      ref.Step,
+				Command:   ref.Command,
+				LogFile:   ref.LogFile,
+				StartedAt: ref.StartedAt,
+				Status:    ref.Status,
+			})
+			processRefIDs = append(processRefIDs, ref.RefID)
+		}
+	}
+	return runtimeRegistryStopSession{enabled: true, store: store, instances: instances, processRecords: processRecords, processRefIDs: processRefIDs}, nil
+}
+
+func filterWithoutStatuses(filter scenarioruntime.InstanceFilter) scenarioruntime.InstanceFilter {
+	filter.Statuses = nil
+	return filter
 }
 
 func (s runtimeRegistrySession) close() error {
@@ -510,6 +578,12 @@ func (s runtimeRegistryStopSession) finish(ctx context.Context) error {
 		}
 		if _, err := s.store.StopLease(ctx, instance.InstanceID, instance.Generation, "scenario stopped"); err != nil {
 			return fmt.Errorf("stop scenario runtime lease: %w", err)
+		}
+	}
+	endedAt := time.Now().UTC()
+	for _, refID := range s.processRefIDs {
+		if _, err := s.store.UpdateProcessRefStatus(ctx, refID, "exited", &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+			return fmt.Errorf("mark runtime process %s exited during stop: %w", refID, err)
 		}
 	}
 	return nil

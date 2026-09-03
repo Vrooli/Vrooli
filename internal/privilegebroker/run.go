@@ -21,7 +21,7 @@ func RunServiceCommand(args []string, stdout, stderr io.Writer) int {
 	}
 	flags := flag.NewFlagSet("privilege-broker serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	socket := flags.String("socket", DefaultSocketPath, "")
+	socket := flags.String("socket", SocketPath(), "")
 	allowedUID := flags.Uint("allowed-uid", 0, "")
 	socketGID := flags.Int("socket-gid", -1, "")
 	auditPath := flags.String("audit-path", defaultAuditPath, "")

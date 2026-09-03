@@ -222,7 +222,7 @@ CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_epoch
   ON runtime_recovery_decisions(epoch_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_instance
   ON runtime_recovery_decisions(scenario, variant, created_at DESC);
-`
+` + editorLeaseSchemaSQL
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	current, err := readSchemaVersion(ctx, s.db)
@@ -291,6 +291,10 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 		return err
 	},
 	7: addStartOperationProvenance,
+	8: func(ctx context.Context, db *sql.DB) error {
+		_, err := db.ExecContext(ctx, editorLeaseSchemaSQL)
+		return err
+	},
 }
 
 // addStartOperationProvenance records WHO initiated a start, not merely its
@@ -314,6 +318,29 @@ func addStartOperationProvenance(ctx context.Context, db *sql.DB) error {
 	}
 	return nil
 }
+
+// editorLeaseSchemaSQL is the live agent session projection (schema 9).
+const editorLeaseSchemaSQL = `
+CREATE TABLE IF NOT EXISTS runtime_editor_leases (
+  session_id TEXT PRIMARY KEY,
+  harness TEXT NOT NULL DEFAULT '',
+  agent TEXT NOT NULL DEFAULT '',
+  pid INTEGER,
+  host_boot_id TEXT NOT NULL DEFAULT '',
+  working_dir TEXT NOT NULL DEFAULT '',
+  scope TEXT NOT NULL DEFAULT '',
+  containment_method TEXT NOT NULL DEFAULT '',
+  claims_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_heartbeat_at TEXT NOT NULL,
+  heartbeat_deadline_at TEXT NOT NULL,
+  stopped_at TEXT,
+  stop_reason TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_status ON runtime_editor_leases(status);
+CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_working_dir ON runtime_editor_leases(working_dir);
+`
 
 const recoverySchemaSQL = `
 CREATE TABLE IF NOT EXISTS runtime_recovery_policies (

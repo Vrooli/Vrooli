@@ -55,3 +55,35 @@ func TestRuntimeHomePolicyAcceptsOnlyApprovedClassAndCallerIdentity(t *testing.T
 		}
 	}
 }
+
+func TestStorageActionPolicyRejectsUnboundedSubjects(t *testing.T) {
+	tests := []struct {
+		name string
+		req  Request
+	}{
+		{"unknown log stanza", Request{Version: ProtocolVersion, RequestID: "1", Action: ActionLogRotateForce, Log: &LogSubject{Stanza: "all"}}},
+		{"negative journal size", Request{Version: ProtocolVersion, RequestID: "2", Action: ActionJournaldVacuum, Journal: &JournalSubject{MaxUseBytes: -1}}},
+		{"wildcard volume", Request{Version: ProtocolVersion, RequestID: "3", Action: ActionDockerPruneUnusedVolumes, Docker: &DockerSubject{VolumeNames: []string{"*"}}}},
+		{"empty volume list", Request{Version: ProtocolVersion, RequestID: "4", Action: ActionDockerPruneUnusedVolumes, Docker: &DockerSubject{}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := Validate(test.req); err == nil {
+				t.Fatal("Validate accepted an unsafe storage action")
+			}
+		})
+	}
+}
+
+func TestStorageActionPolicyAcceptsOnlyBoundedSubjects(t *testing.T) {
+	for _, req := range []Request{
+		{Version: ProtocolVersion, RequestID: "log", Action: ActionLogRotateForce, Log: &LogSubject{Stanza: managedLogStanza}},
+		{Version: ProtocolVersion, RequestID: "journal", Action: ActionJournaldVacuum, Journal: &JournalSubject{MaxUseBytes: 1024}},
+		{Version: ProtocolVersion, RequestID: "image", Action: ActionDockerPruneUnusedImages, Docker: &DockerSubject{}},
+		{Version: ProtocolVersion, RequestID: "volume", Action: ActionDockerPruneUnusedVolumes, Docker: &DockerSubject{VolumeNames: []string{"unused-volume"}}},
+	} {
+		if err := Validate(req); err != nil {
+			t.Fatalf("Validate(%s) = %v", req.Action, err)
+		}
+	}
+}

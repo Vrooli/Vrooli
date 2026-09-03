@@ -14,11 +14,13 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 var (
 	lookPathFn              = exec.LookPath
-	execCommandContextFn    = exec.CommandContext
+	userHomeFn              = os.UserHomeDir
+	runVrooliFn             = cliinvoke.Run
 	sqliteLookPathFn        = exec.LookPath
 	sqliteExecCommandFn     = exec.CommandContext
 	peerRecordLookupFn      = lookupPeerRecord
@@ -124,7 +126,7 @@ type portCacheEntry struct {
 }
 
 // resetPortDetectorCache drops every memoized lookup. Tests use it so a
-// replaced execCommandContextFn is actually consulted.
+// replaced runVrooliFn is actually consulted.
 func resetPortDetectorCache() {
 	portCacheMu.Lock()
 	defer portCacheMu.Unlock()
@@ -381,20 +383,26 @@ func SetPortLookupRunner(fn func(ctx context.Context, target, portVar string) Sc
 	}
 }
 
+// resolveVrooliBinary finds the CLI through the one invoker seam; a miss
+// falls back to the bare name so exec reports the PATH failure itself.
+func resolveVrooliBinary() string {
+	home, _ := userHomeFn()
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home, LookPath: lookPathFn})
+	if err != nil {
+		return "vrooli"
+	}
+	return path
+}
+
 // runScenarioPortCommand is the sole place this repository shells out after
 // peer-record and runtime-registry discovery miss.
 func runScenarioPortCommand(ctx context.Context, target, portVar string) ScenarioPortOutcome {
 	ctx, cancel := boundedLookupContext(ctx)
 	defer cancel()
 
-	argv0 := "vrooli"
-	if resolved, err := lookPathFn("vrooli"); err == nil && strings.TrimSpace(resolved) != "" {
-		argv0 = resolved
-	}
-	cmd := execCommandContextFn(ctx, argv0, "--no-stale-check", "--json", "scenario", "port", target, portVar)
-	output, err := cmd.CombinedOutput()
-	text := strings.TrimSpace(string(output))
-	if err != nil {
+	res := runVrooliFn(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: cliinvoke.ScenarioPortJSON(target, portVar)})
+	text := strings.TrimSpace(string(res.Combined()))
+	if err := res.Error(); err != nil {
 		return ScenarioPortOutcome{Output: text, Err: err}
 	}
 	return ScenarioPortOutcome{Port: sanitizePortOutput(text), Output: text}
@@ -452,16 +460,11 @@ func DetectScenarioRuntimeStatus(scenarioName string) func() string {
 func detectRuntimeStatusForTarget(target string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	argv0 := "vrooli"
-	if resolved, err := lookPathFn("vrooli"); err == nil && strings.TrimSpace(resolved) != "" {
-		argv0 = resolved
-	}
-	cmd := execCommandContextFn(ctx, argv0, "--no-stale-check", "--json", "scenario", "status", target)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	res := runVrooliFn(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: cliinvoke.ScenarioStatusJSON(target)})
+	if res.Class != cliinvoke.OK {
 		return ""
 	}
-	return runtimeStatusFromJSON(string(output))
+	return runtimeStatusFromJSON(string(res.Combined()))
 }
 
 func runtimeStatusFromJSON(output string) string {

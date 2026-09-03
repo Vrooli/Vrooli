@@ -10,15 +10,22 @@ import (
 
 const callerProvidedValue = "caller-provided"
 
-// Lever describes one operator-visible timing control.
+// Lever describes one operator-visible control: a duration that bounds how
+// long, or a count that bounds how many.
 type Lever struct {
 	Name            string `json:"name"`
+	Kind            string `json:"kind"`
 	Environment     string `json:"environment_variable"`
 	CompiledDefault string `json:"compiled_default"`
 	ResolvedValue   string `json:"resolved_value"`
 	Source          string `json:"source"`
 	Description     string `json:"description"`
 }
+
+const (
+	leverKindDuration = "duration"
+	leverKindCount    = "count"
+)
 
 type durationDefinition struct {
 	Name                  string
@@ -128,11 +135,27 @@ var durationDefinitions = []durationDefinition{
 	{Name: "ScenarioActionTimeout", CompiledDefault: 0, CallerProvidedDefault: true},
 }
 
-// Levers returns the complete timing control surface in stable name order.
-// Calling it resolves each lever through Duration, preserving the resolver's
+// Levers returns the complete control surface in stable name order. Calling
+// it resolves each lever through Duration or Count, preserving the resolvers'
 // once-per-process semantics.
 func Levers() []Lever {
-	levers := make([]Lever, 0, len(durationDefinitions))
+	levers := make([]Lever, 0, len(durationDefinitions)+len(countDefinitions))
+	for _, definition := range countDefinitions {
+		resolved := Count(definition.Name, definition.CompiledDefault)
+		source := "default"
+		if countHasOverride(definition.Name) {
+			source = "environment"
+		}
+		levers = append(levers, Lever{
+			Name:            definition.Name,
+			Kind:            leverKindCount,
+			Environment:     EnvironmentVariable(definition.Name),
+			CompiledDefault: fmt.Sprintf("%d %s", definition.CompiledDefault, definition.Unit),
+			ResolvedValue:   fmt.Sprintf("%d %s", resolved, definition.Unit),
+			Source:          source,
+			Description:     leverDescription(definition.Name),
+		})
+	}
 	for _, definition := range durationDefinitions {
 		resolved := Duration(definition.Name, definition.CompiledDefault)
 		compiledDefault := definition.CompiledDefault.String()
@@ -147,6 +170,7 @@ func Levers() []Lever {
 		}
 		levers = append(levers, Lever{
 			Name:            definition.Name,
+			Kind:            leverKindDuration,
 			Environment:     EnvironmentVariable(definition.Name),
 			CompiledDefault: compiledDefault,
 			ResolvedValue:   resolvedValue,
@@ -183,10 +207,10 @@ func leverDescription(name string) string {
 func RenderDocumentation() string {
 	levers := Levers()
 	var output strings.Builder
-	output.WriteString("| Lever | Environment variable | Compiled default | Description |\n")
-	output.WriteString("| --- | --- | --- | --- |\n")
+	output.WriteString("| Lever | Kind | Environment variable | Compiled default | Description |\n")
+	output.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, lever := range levers {
-		_, _ = fmt.Fprintf(&output, "| `%s` | `%s` | `%s` | %s |\n", lever.Name, lever.Environment, lever.CompiledDefault, lever.Description)
+		_, _ = fmt.Fprintf(&output, "| `%s` | %s | `%s` | `%s` | %s |\n", lever.Name, lever.Kind, lever.Environment, lever.CompiledDefault, lever.Description)
 	}
 	return output.String()
 }

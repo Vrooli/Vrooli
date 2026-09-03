@@ -424,12 +424,29 @@ type timingSamples struct {
 // for this view: its JSON step list preserves the operation dimension that the
 // phase-duration ETA table does not retain.
 func (s *SQLiteStore) StartTimingSummaries(ctx context.Context, scenario string) ([]StartTimingSummary, error) {
+	return s.startTimingSummariesSince(ctx, scenario, time.Time{})
+}
+
+// StartTimingSummariesSince limits the retained timing view to records at or
+// after since. A zero time preserves the all-retained-history behavior.
+func (s *SQLiteStore) StartTimingSummariesSince(ctx context.Context, scenario string, since time.Time) ([]StartTimingSummary, error) {
+	return s.startTimingSummariesSince(ctx, scenario, since)
+}
+
+func (s *SQLiteStore) startTimingSummariesSince(ctx context.Context, scenario string, since time.Time) ([]StartTimingSummary, error) {
 	scenario = strings.TrimSpace(scenario)
 	query := `
 SELECT scenario, operation, steps_json
 FROM runtime_start_operations
 WHERE status != ?`
 	args := []any{StartOperationStatusRunning}
+	if !since.IsZero() {
+		// runtime_start_operations records operation time as started_at. The
+		// phase-duration table has recorded_at, but it does not retain the
+		// operation step JSON needed by this view.
+		query += " AND started_at >= ?"
+		args = append(args, since.UTC().Format(time.RFC3339Nano))
+	}
 	if scenario != "" {
 		query += " AND scenario = ?"
 		args = append(args, scenario)

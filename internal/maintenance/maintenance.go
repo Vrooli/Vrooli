@@ -234,6 +234,15 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 				fmt.Sprintf("Retired %d supervisor session(s) whose process is gone", len(expiredSessions))))
 		}
 
+		// Editor leases are agent sessions; the same proof-of-death guard
+		// applies. A session that is slow to heartbeat is building, not gone.
+		expiredEditors, err := store.ExpireStaleEditorLeases(ctx, now, guard)
+		if err != nil {
+			failed = append(failed, control.Failed("editor-leases", err))
+		}
+		for _, lease := range expiredEditors {
+			stopped = append(stopped, control.Stopped("agent-session/"+lease.SessionID, "Expired editor lease: "+lease.StopReason))
+		}
 		prunedClaims, err := store.PruneTerminalPortClaims(ctx, now.Add(-terminalPortClaimRetention))
 		if err != nil {
 			failed = append(failed, control.Failed("claim-retention", err))
@@ -444,7 +453,7 @@ func (c *Controller) stillVrooliOrphan(pid int) bool {
 	if !ok {
 		return false
 	}
-	return looksLikeVrooliProcessFn(c.Root, c.Home, entry)
+	return looksLikeVrooliProcessFn(c.Root, c.Home, entry) && !insideAgentSessionScope(entry)
 }
 
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {
@@ -810,4 +819,25 @@ func isMissingProcessError(err error) bool {
 	text := strings.ToLower(err.Error())
 	return strings.Contains(text, "process already finished") ||
 		strings.Contains(text, "no such process")
+}
+
+// ListAgentSessions returns the live editor leases: every coding-agent
+// session the launcher recorded whose process this host has not proven dead.
+// A missing registry means no sessions, not an error.
+func (c *Controller) ListAgentSessions() ([]scenarioruntime.EditorLease, error) {
+	store, closeStore, err := openRuntimeRegistryFn(c.Home)
+	if err != nil || store == nil {
+		return nil, err
+	}
+	defer closeStore()
+	ctx := context.Background()
+	leases, err := store.ListEditorLeases(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	guard := scenarioruntime.StartingLeaseGuard{PIDRunning: newPIDLivenessMemo(processIsRunning)}
+	if host, hostErr := (hostsession.DefaultProvider{}).Current(ctx, ""); hostErr == nil {
+		guard.CurrentBootID = host.BootID
+	}
+	return scenarioruntime.LiveEditorLeases(leases, guard), nil
 }

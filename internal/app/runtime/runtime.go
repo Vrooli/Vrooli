@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"time"
 
+	runtimesupervisorsafeguard "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
+
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
@@ -183,7 +185,7 @@ func (app *App) installSupervisor(ctx *CommandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := runtimesupervisor.InstallService(context.Background(), runtimesupervisor.ServiceInstallOptions{HomeDir: home, Executable: exe, SourceRoot: root, User: userService})
+	result, err := installSupervisorService(context.Background(), home, exe, root, userService)
 	if err != nil {
 		return err
 	}
@@ -244,4 +246,27 @@ func commandWantsHelp(args []string) bool {
 		}
 	}
 	return false
+}
+
+// installSupervisorService is the CLI's install path. A user install goes
+// through the runtime_supervisor safeguard's Converge, the same code `vrooli
+// setup` runs and the readiness phase re-inspects, so the CLI cannot render a
+// unit setup would later call stale. System-scope installs keep the platform
+// path, which refuses them until broker support exists.
+func installSupervisorService(ctx context.Context, home, exe, root string, userService bool) (runtimesupervisor.ServiceInstallResult, error) {
+	if !userService {
+		return runtimesupervisor.InstallService(ctx, runtimesupervisor.ServiceInstallOptions{HomeDir: home, Executable: exe, SourceRoot: root, User: false})
+	}
+	converged, err := runtimesupervisorsafeguard.Converge(ctx, runtimesupervisorsafeguard.ConvergeOptions{OS: runtime.GOOS, Home: home, Root: root, Executable: exe})
+	rendered := converged.Rendered
+	result := runtimesupervisor.ServiceInstallResult{
+		UnitName:              rendered.UnitName,
+		UnitPath:              rendered.Path,
+		Scope:                 "user",
+		Active:                converged.Active,
+		LogPath:               rendered.LogPath,
+		Executable:            rendered.Executable,
+		ExecutableIsCanonical: rendered.Canonical,
+	}
+	return result, err
 }

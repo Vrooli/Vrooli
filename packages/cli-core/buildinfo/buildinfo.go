@@ -75,7 +75,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 			return fmt.Errorf("read %s: %w", rel, readErr)
 		}
 
-		if isCompiledBinary(content) {
+		if IsCompiledBinary(content) {
 			return nil
 		}
 
@@ -111,7 +111,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 func skipDir(path string) bool {
 	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
 	for _, skip := range skipDirs {
-		if pathHasComponent(path, skip) {
+		if PathHasComponent(path, skip) {
 			return true
 		}
 	}
@@ -128,12 +128,12 @@ func skipDir(path string) bool {
 func skipFile(path string, extra []string) bool {
 	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
 	for _, skip := range skipFiles {
-		if pathHasComponent(path, skip) {
+		if PathHasComponent(path, skip) {
 			return true
 		}
 	}
 	for _, skip := range extra {
-		if pathHasComponent(path, skip) {
+		if PathHasComponent(path, skip) {
 			return true
 		}
 	}
@@ -148,7 +148,7 @@ func skipFile(path string, extra []string) bool {
 // Multi-segment patterns (e.g., `custom/cache`) match by prefix —
 // `custom/cache/index.json` is excluded but `other/custom/cache.json` is
 // not. Empty want never matches.
-func pathHasComponent(path, want string) bool {
+func PathHasComponent(path, want string) bool {
 	if want == "" {
 		return false
 	}
@@ -171,7 +171,7 @@ func pathHasComponent(path, want string) bool {
 // Java .class files share the CA FE BA BE prefix with Mach-O fat binaries,
 // but those are also compiled artifacts and equally inappropriate as
 // freshness inputs.
-func isCompiledBinary(content []byte) bool {
+func IsCompiledBinary(content []byte) bool {
 	if len(content) < 4 {
 		return false
 	}

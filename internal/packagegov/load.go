@@ -398,7 +398,7 @@ func validateManifestSemantics(item Package) []ValidationIssue {
 
 func isAllowedPackageKind(kind PackageKind) bool {
 	switch kind {
-	case KindJSRuntime, KindGeneratedTypeScript, KindGoRuntime, KindGoCLI, KindInternalPlatform, KindSchemaOrContract:
+	case KindJSRuntime, KindGeneratedTypeScript, KindGoRuntime, KindGoCLI, KindPythonRuntime, KindRustRuntime, KindInternalPlatform, KindSchemaOrContract:
 		return true
 	default:
 		return false

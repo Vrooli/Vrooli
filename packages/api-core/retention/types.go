@@ -38,6 +38,34 @@ type Usage struct {
 	Items int64
 }
 
+// Candidate is one selected filesystem entry ready for deletion. Selection
+// records the observed size, while Delete re-stats it before acting.
+type Candidate struct {
+	Path    string
+	Bytes   int64
+	ModTime time.Time
+}
+
+// Candidates is an ordered deletion set, normally oldest first.
+type Candidates []Candidate
+
+// Batch bounds one deletion transaction. Lock, when supplied, returns an
+// unlock function and is acquired before the first deletion.
+type Batch struct {
+	MaxItems int
+	MaxBytes int64
+	Lock     func(context.Context) (func(), error)
+}
+
+// Receipt is the durable-friendly result of a filesystem deletion batch.
+type Receipt struct {
+	BytesBefore int64
+	BytesAfter  int64
+	Files       int64
+	Duration    time.Duration
+	Partial     bool
+}
+
 // Bound names which declared bound determined the retained set.
 type Bound int
 

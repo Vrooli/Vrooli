@@ -1,13 +1,10 @@
 package cliutil
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/vrooli/envkit-go"
@@ -143,7 +140,7 @@ func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string
 		cmd.Args = append(cmd.Args, "--freshness-input", input)
 	}
 	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -293,285 +290,18 @@ func (c *StaleChecker) manifestSourcePath(contextRoot string) string {
 	return filepath.Join(contextRoot, filepath.FromSlash(c.ManifestSourcePath))
 }
 
-type staleFileEntry struct {
-	rel  string
-	size int64
-	hash [32]byte
-}
-
-func computeFingerprintFromDeclaredInputs(root string, inputs []string, extraSkipFiles ...string) (string, error) {
-	entries := make(map[string]staleFileEntry)
-	for _, input := range inputs {
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
-		}
-		matches, err := expandDeclaredInputPaths(root, input)
-		if err != nil {
-			return "", err
-		}
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return "", err
-			}
-			if info.IsDir() {
-				if err := filepath.WalkDir(match, func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					rel, relErr := filepath.Rel(root, path)
-					if relErr != nil {
-						return relErr
-					}
-					rel = filepath.ToSlash(rel)
-					if rel == "." {
-						return nil
-					}
-					if buildinfoSkipDir(rel) && d.IsDir() {
-						return filepath.SkipDir
-					}
-					if d.IsDir() || buildinfoSkipFile(rel, extraSkipFiles) {
-						return nil
-					}
-					content, readErr := os.ReadFile(path)
-					if readErr != nil {
-						return readErr
-					}
-					if isCompiledBinary(content) {
-						return nil
-					}
-					fileInfo, infoErr := d.Info()
-					if infoErr != nil {
-						return infoErr
-					}
-					entries[rel] = staleFileEntry{rel: rel, size: fileInfo.Size(), hash: sha256.Sum256(content)}
-					return nil
-				}); err != nil {
-					return "", err
-				}
-				continue
-			}
-			rel, err := filepath.Rel(root, match)
-			if err != nil {
-				return "", err
-			}
-			rel = filepath.ToSlash(rel)
-			if buildinfoSkipFile(rel, extraSkipFiles) {
-				continue
-			}
-			content, err := os.ReadFile(match)
-			if err != nil {
-				return "", err
-			}
-			if isCompiledBinary(content) {
-				continue
-			}
-			entries[rel] = staleFileEntry{rel: rel, size: info.Size(), hash: sha256.Sum256(content)}
-		}
-	}
-	list := make([]staleFileEntry, 0, len(entries))
-	for _, entry := range entries {
-		list = append(list, entry)
-	}
-	sort.Slice(list, func(i, j int) bool { return list[i].rel < list[j].rel })
-	hasher := sha256.New()
-	for _, entry := range list {
-		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
-}
-
-// dumpFreshnessFiles re-walks the freshness spec and prints each
-// participating file's relative path, byte size, and short hash prefix to
-// the provided logger. Mirrors [computeFingerprintFromDeclaredInputs] so
-// the listing is exactly what the fingerprint hash sees.
 func dumpFreshnessFiles(spec FreshnessSpec, logf func(string, ...interface{})) error {
-	root := spec.ContextRoot
-	if strings.TrimSpace(root) == "" {
-		root = spec.SourceRoot
+	entries, err := collectFreshnessEntries(spec)
+	if err != nil {
+		return err
 	}
-	root = filepath.Clean(strings.TrimSpace(root))
-	if root == "" {
-		return fmt.Errorf("empty root")
-	}
-	type entry struct {
-		rel  string
-		size int64
-		hash string
-	}
-	var listed []entry
-	visit := func(rel string, info fs.FileInfo, content []byte) {
-		listed = append(listed, entry{rel: rel, size: info.Size(), hash: fmt.Sprintf("%x", sha256.Sum256(content))})
-	}
-	for _, input := range spec.Inputs {
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
+	logf("  Files (%d):\n", len(entries))
+	for _, entry := range entries {
+		hash := entry.Hash
+		if len(hash) > 12 {
+			hash = hash[:12]
 		}
-		matches, err := expandDeclaredInputPaths(root, input)
-		if err != nil {
-			return err
-		}
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil {
-				continue
-			}
-			if info.IsDir() {
-				_ = filepath.WalkDir(match, func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					rel, _ := filepath.Rel(root, path)
-					rel = filepath.ToSlash(rel)
-					if rel == "." {
-						return nil
-					}
-					if buildinfoSkipDir(rel) && d.IsDir() {
-						return filepath.SkipDir
-					}
-					if d.IsDir() || buildinfoSkipFile(rel, spec.SkipFiles) {
-						return nil
-					}
-					content, _ := os.ReadFile(path)
-					if isCompiledBinary(content) {
-						return nil
-					}
-					fi, _ := d.Info()
-					visit(rel, fi, content)
-					return nil
-				})
-				continue
-			}
-			rel, _ := filepath.Rel(root, match)
-			rel = filepath.ToSlash(rel)
-			if buildinfoSkipFile(rel, spec.SkipFiles) {
-				continue
-			}
-			content, _ := os.ReadFile(match)
-			if isCompiledBinary(content) {
-				continue
-			}
-			visit(rel, info, content)
-		}
-	}
-	sort.Slice(listed, func(i, j int) bool { return listed[i].rel < listed[j].rel })
-	logf("  Files (%d):\n", len(listed))
-	for _, e := range listed {
-		logf("    %s  %10d  %s\n", e.hash[:12], e.size, e.rel)
+		logf("    %s  %10d  %s\n", hash, entry.Size, entry.Rel)
 	}
 	return nil
-}
-
-// isCompiledBinary reports whether content begins with a recognised compiled
-// executable magic number. The freshness fingerprint excludes these because
-// stray build artifacts (e.g., `go build` output sitting next to source files
-// like `cli/<binary-name>` or `cli/<legacy-binary-name>`) would otherwise
-// rewrite the fingerprint on every rebuild and trip the rebuild-loop guard.
-//
-// Recognised formats:
-//
-//   - ELF (Linux, BSD, etc.):       7F 45 4C 46
-//   - Mach-O 32 / 64 / fat (macOS): FE ED FA CE / FE ED FA CF / CA FE BA BE
-//     (and reverse-byte-order variants)
-//   - PE / COFF (Windows):           4D 5A ("MZ")
-//   - WebAssembly module:            00 61 73 6D
-//
-// Java .class files share the CA FE BA BE prefix, but those are also
-// compiled artifacts and equally inappropriate as freshness inputs.
-func isCompiledBinary(content []byte) bool {
-	if len(content) < 4 {
-		return false
-	}
-	prefix4 := [4]byte{content[0], content[1], content[2], content[3]}
-	switch prefix4 {
-	case [4]byte{0x7F, 0x45, 0x4C, 0x46}, // ELF
-		[4]byte{0xFE, 0xED, 0xFA, 0xCE}, // Mach-O 32
-		[4]byte{0xFE, 0xED, 0xFA, 0xCF}, // Mach-O 64
-		[4]byte{0xCE, 0xFA, 0xED, 0xFE}, // Mach-O 32 reverse
-		[4]byte{0xCF, 0xFA, 0xED, 0xFE}, // Mach-O 64 reverse
-		[4]byte{0xCA, 0xFE, 0xBA, 0xBE}, // Mach-O fat / Java class
-		[4]byte{0x00, 0x61, 0x73, 0x6D}: // WebAssembly
-		return true
-	}
-	if content[0] == 'M' && content[1] == 'Z' {
-		return true
-	}
-	return false
-}
-
-func expandDeclaredInputPaths(root, input string) ([]string, error) {
-	if hasGlobPattern(input) {
-		return filepath.Glob(filepath.Join(root, filepath.FromSlash(input)))
-	}
-	return []string{filepath.Join(root, filepath.FromSlash(input))}, nil
-}
-
-func hasGlobPattern(value string) bool {
-	return strings.ContainsAny(value, "*?[")
-}
-
-func buildinfoSkipDir(path string) bool {
-	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
-	for _, skip := range []string{".git", ".vscode", ".idea", "coverage", "dist", "build", "tmp", "data", "node_modules"} {
-		if pathHasComponent(path, skip) {
-			return true
-		}
-	}
-	return false
-}
-
-// buildinfoSkipFile reports whether a relative path should be excluded from
-// the freshness fingerprint. A skip pattern matches when it equals any path
-// component — so "swarm-manager" skips both `swarm-manager` (binary at the
-// context root) AND `cli/swarm-manager` (stray binary that landed inside the
-// freshness glob via `go build` in the cli dir). Without component-level
-// matching, leftover binaries inside the source tree would rewrite the
-// fingerprint on every rebuild and trip the rebuild-loop guard.
-//
-// Compiled-binary files are filtered separately by [isCompiledBinary] at
-// read time; this function handles only path-based exclusions.
-func buildinfoSkipFile(path string, extra []string) bool {
-	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
-	if isBuildOutput(path) {
-		return true
-	}
-	for _, skip := range []string{"build.meta"} {
-		if pathHasComponent(path, skip) {
-			return true
-		}
-	}
-	for _, skip := range extra {
-		if pathHasComponent(path, skip) {
-			return true
-		}
-	}
-	return false
-}
-
-// pathHasComponent reports whether the slash-separated path matches the
-// skip pattern want. Single-component patterns (no `/`) match if any path
-// segment is exactly equal to want — so `swarm-manager` excludes both
-// `swarm-manager` (binary at the root) AND `cli/swarm-manager` (stray
-// binary that landed inside a `cli/**` glob via `go build` in cli/).
-// Multi-segment patterns (e.g., `custom/cache`) match by prefix —
-// `custom/cache/index.json` is excluded but `other/custom/cache.json` is
-// not. Empty want never matches.
-func pathHasComponent(path, want string) bool {
-	if want == "" {
-		return false
-	}
-	if strings.Contains(want, "/") {
-		return path == want || strings.HasPrefix(path, want+"/")
-	}
-	for _, segment := range strings.Split(path, "/") {
-		if segment == want {
-			return true
-		}
-	}
-	return false
 }
