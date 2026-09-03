@@ -335,6 +335,8 @@ func resolveWorkspace(scenario string, s discovery.Surface, lang, now string) (w
 		ToolchainIdentity: s.Toolchain.ToolchainIdentity, TestPath: resolution.TestPath,
 		TestCommand: resolution.TestCommand, CoverageCommand: resolution.CoverageCommand,
 		TestExecutable: resolution.TestExecutable, TestArgs: append([]string(nil), resolution.TestArgs...),
+		TypecheckCommand: resolution.TypecheckCommand, TypecheckExecutable: resolution.TypecheckExecutable,
+		TypecheckArgs:      append([]string(nil), resolution.TypecheckArgs...),
 		CoverageExecutable: resolution.CoverageExecutable, CoverageArgs: append([]string(nil), resolution.CoverageArgs...),
 		Status: resolution.Status, DegradedReason: resolution.DegradedReason,
 	}
@@ -365,38 +367,45 @@ func buildExecutionPlanForMode(workspaces []Workspace, fastTestOnly bool) Execut
 		if !fastTestOnly && ws.CoverageCommand != "" {
 			command = ws.CoverageCommand
 		}
-		if command == "" {
-			continue
-		}
-		executable := ws.TestExecutable
-		args := ws.TestArgs
-		artifacts := ws.TestArtifacts
-		if fastTestOnly {
-			artifacts = nil
-		}
-		if !fastTestOnly && ws.CoverageCommand != "" {
-			executable = ws.CoverageExecutable
-			args = ws.CoverageArgs
-		}
 		timeout := ws.TimeoutSeconds
 		if timeout <= 0 {
 			timeout = defaultWorkspaceTimeoutSeconds
 		}
-		plan.Commands = append(plan.Commands, PlannedCommand{
-			WorkspaceID:            ws.ID,
-			Name:                   ws.Language + " test",
-			Command:                command,
-			Executable:             executable,
-			Args:                   append([]string(nil), args...),
-			Artifacts:              append([]Artifact(nil), artifacts...),
-			Resource:               ws.Resource,
-			WorkingDirectory:       ws.RootPath,
-			TimeoutSeconds:         timeout,
-			NoOutputTimeoutSeconds: ws.NoOutputTimeoutSeconds,
-			Kind:                   kindTest,
-			TestKind:               ws.TestKind,
-			Hermetic:               ws.Hermetic,
-		})
+		if command != "" {
+			executable := ws.TestExecutable
+			args := ws.TestArgs
+			artifacts := ws.TestArtifacts
+			if fastTestOnly {
+				artifacts = nil
+			}
+			if !fastTestOnly && ws.CoverageCommand != "" {
+				executable = ws.CoverageExecutable
+				args = ws.CoverageArgs
+			}
+			plan.Commands = append(plan.Commands, PlannedCommand{
+				WorkspaceID:            ws.ID,
+				Name:                   ws.Language + " test",
+				Command:                command,
+				Executable:             executable,
+				Args:                   append([]string(nil), args...),
+				Artifacts:              append([]Artifact(nil), artifacts...),
+				Resource:               ws.Resource,
+				WorkingDirectory:       ws.RootPath,
+				TimeoutSeconds:         timeout,
+				NoOutputTimeoutSeconds: ws.NoOutputTimeoutSeconds,
+				Kind:                   kindTest,
+				TestKind:               ws.TestKind,
+				Hermetic:               ws.Hermetic,
+			})
+		}
+		if ws.TypecheckCommand != "" {
+			plan.Commands = append(plan.Commands, PlannedCommand{
+				WorkspaceID: ws.ID, Name: ws.Language + " typecheck", Command: ws.TypecheckCommand,
+				Executable: ws.TypecheckExecutable, Args: append([]string(nil), ws.TypecheckArgs...),
+				WorkingDirectory: ws.RootPath, TimeoutSeconds: timeout,
+				NoOutputTimeoutSeconds: ws.NoOutputTimeoutSeconds, Kind: kindTest, TestKind: "typecheck", Hermetic: ws.Hermetic,
+			})
+		}
 	}
 	switch len(plan.Commands) {
 	case 0:

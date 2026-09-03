@@ -87,6 +87,23 @@ run confirming that new ui-health screenshots and workflow-health recordings
 are persisted and streamed through opaque routes. Copied historical evidence is
 strong migration evidence, but it is not an authoritative post-repair run.
 
+- Closed 2026-08-29: Unit Health's bounded executor used the independently
+  resolved managed Go binary while inheriting a foreign host `GOROOT`, allowing
+  the selected toolchain to load an incompatible standard library. The executor
+  now removes inherited `GOROOT`/`GOTOOLDIR` only for resolved Go commands and
+  attributes each waited child to the execution metrics collector. Unit tests
+  cover portable Go executable names, environment isolation, preservation for
+  non-Go commands, and child RSS attribution. A live execution-backed Unit
+  Health validation of `vrooli-autoheal` passed both Go coverage commands and
+  the TypeScript coverage command.
+- Provider freshness gap observed 2026-08-29: a Test Genie tidiness phase reused
+  a running Tidiness Manager whose binary predated the current scenario-seam
+  rebasing logic, so repository-only seam budgets were incorrectly applied to
+  `vrooli-autoheal`. A lifecycle restart made the same aggregate gate pass with
+  an empty applicable-seam audit. Add an exact provider-freshness regression
+  proving that source/build-input drift cannot reuse a stale running provider;
+  until then, this remains an open Test Genie orchestration gap.
+
 - Detection refactor 2026-05: DB detection lives in `internal/orchestrator/phases/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
 - Historical queue, generation, and separate fix/requirements-improve gaps listed here were retired in July 2026. The supported workflow is now evidence-backed remediation from a completed execution; do not reintroduce those independent paths to address old ledger entries.
 

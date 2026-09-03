@@ -1,0 +1,200 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "vrooli-memory.scope-bootstrap",
+  "version": "1",
+  "purpose": "Create a scenario's usage memory scope with its facet vocabulary and starter classification rules, idempotently, and report what already existed.",
+  "inputs": {
+    "scope": {
+      "type": "string",
+      "required": true,
+      "description": "Scope id, for example bas-usage."
+    },
+    "label": {
+      "type": "string",
+      "required": false,
+      "description": "Human label; defaults to the scope id."
+    },
+    "facets": {
+      "type": "array",
+      "default": [],
+      "description": "Facet vocabulary. NOT settable through the binding today (manifest bind_waiver on facets-json); when the scope does not exist and facets are given, the program returns partial/facets_not_settable and the caller creates the scope with the CLI first."
+    },
+    "wake_budget": {
+      "type": "integer",
+      "default": 48
+    },
+    "max_entry_lines": {
+      "type": "integer",
+      "default": 2
+    },
+    "rules": {
+      "type": "array",
+      "default": [],
+      "description": "Starter rules: [{id, facet, body_pattern, kind?, priority?}]. Created disabled, dry-run, enabled only when the dry run matched at least one entry or the corpus is empty."
+    },
+    "frontier_target": {
+      "type": "integer",
+      "default": 16
+    }
+  },
+  "assumptions": [
+    "vrooli-memory is running; a degraded health (embeddings) still accepts scope and rule writes",
+    "the caller owns the scope name and is not bootstrapping another scenario's scope",
+    "each call runs in its own program-runtime session; session variables persist across submissions"
+  ],
+  "invariants": [
+    "the only writes are scopes/create, rules/create, and rules/enable, each declared below",
+    "an existing scope is never re-created; its budgets are left as they are",
+    "a rule is never enabled without a dry run in the same submission",
+    "the envelope is printed exactly once, on every path",
+    "a scope that does not exist is created without facets, or not at all when facets were requested"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/scopes/list",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/scopes/create",
+      "effect": "write"
+    },
+    {
+      "id": "vrooli-memory/rules/list",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/rules/create",
+      "effect": "write"
+    },
+    {
+      "id": "vrooli-memory/rules/dry-run",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/rules/enable",
+      "effect": "write"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "decide",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "scope_existed": "true when the scope was already registered",
+      "scope_created": "true when this run created it",
+      "rules": "list of {id, existed, created, dry_run_matches, enabled}",
+      "facets": "the facet vocabulary in effect (as requested when created; unknown when pre-existing)"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "rule_dry_run_empty",
+        "facets_not_settable",
+        "unknown_facet"
+      ]
+    },
+    "evidence": "scope id and rule ids"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "idempotent-existing",
+      "inputs": {
+        "scope": "agent-memory"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "scope_existed": true
+        }
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "facets-on-new-scope",
+      "inputs": {
+        "scope": "fixture-never-created",
+        "facets": [
+          "a"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "missing-scope",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "rule-unknown-facet",
+      "inputs": {
+        "scope": "fixture-scope-bootstrap",
+        "rules": [
+          {
+            "id": "fixture-unknown-facet",
+            "facet": "no-such-facet",
+            "body_pattern": "x"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      },
+      "requires": [
+        "vrooli-memory"
+      ],
+      "note": "fixture-only scope: never point a fixture at a live usage scope"
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "vrooli-memory"
+}

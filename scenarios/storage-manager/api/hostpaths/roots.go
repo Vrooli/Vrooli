@@ -54,11 +54,19 @@ type Roots struct {
 // down. Unresolvable roots are simply absent.
 func Resolve() Roots {
 	return Roots{
-		Tmp:             existing(os.TempDir()),
+		Tmp:             existing(os.TempDir(), goWorkRoot()),
 		Trash:           existing(trashRoots()...),
 		GoBuildCache:    existing(goBuildCacheRoot()),
 		PlaywrightCache: existing(playwrightCacheRoot()),
 	}
+}
+
+func goWorkRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return ""
+	}
+	return filepath.Join(home, ".vrooli", "tmp", "go-work")
 }
 
 // goBuildCacheRoot resolves Go's build cache.

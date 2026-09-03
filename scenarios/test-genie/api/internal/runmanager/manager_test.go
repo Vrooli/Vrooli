@@ -18,6 +18,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
 // fakeExecutor is a scriptable stand-in for *execution.SuiteExecutionService. It
@@ -58,6 +59,29 @@ func newFakeExecutor(scenarioDir string) *fakeExecutor {
 		release:     make(chan struct{}),
 		started:     make(chan struct{}),
 	}
+}
+
+type shadowTestLease struct{ released atomic.Int32 }
+
+func (l *shadowTestLease) Release(context.Context) error {
+	l.released.Add(1)
+	return nil
+}
+
+type shadowTestBroker struct {
+	lease    *shadowTestLease
+	verdict  sharedcapacity.Verdict
+	err      error
+	acquires atomic.Int32
+}
+
+func (b *shadowTestBroker) Acquire(context.Context, string, int64, int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error) {
+	b.acquires.Add(1)
+	return b.lease, b.verdict, b.err
+}
+
+func (b *shadowTestBroker) ObserveHostState(context.Context) (sharedcapacity.HostObservation, error) {
+	return sharedcapacity.HostObservation{AvailableRAMBytes: 8 << 30, Load1: 0.25, SwapUsedPercent: 3}, nil
 }
 
 func (f *fakeExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
@@ -152,6 +176,168 @@ func TestStartRejectsEmptyScenario(t *testing.T) {
 	m := New(newFakeExecutor(""), "")
 	if _, err := m.Start(StartOptions{Input: startInput("")}); err == nil {
 		t.Fatal("expected error for empty scenarioName")
+	}
+}
+
+func TestNewPreservesConcurrentRunFloor(t *testing.T) {
+	t.Setenv("TEST_GENIE_MAX_CONCURRENT_RUNS", "0")
+	m := New(newFakeExecutor(""), "")
+	defer m.Shutdown()
+
+	if m.maxConcurrentRuns != defaultMaxConcurrentRuns {
+		t.Fatalf("max concurrent runs = %d, want default %d", m.maxConcurrentRuns, defaultMaxConcurrentRuns)
+	}
+}
+
+func TestAdaptiveConcurrencyRespectsFloorCeilingAndHoldVerdicts(t *testing.T) {
+	m := New(newFakeExecutor(""), "")
+	defer m.Shutdown()
+	m.maxConcurrentRuns, m.minConcurrentRuns = 4, 2
+	m.EnableAdaptiveConcurrency()
+	if m.effectiveConcurrent != 2 {
+		t.Fatalf("enabled effective concurrency = %d, want floor 2", m.effectiveConcurrent)
+	}
+	for _, verdict := range []string{"unknown", "error"} {
+		m.applyShadowVerdict(verdict)
+		if m.effectiveConcurrent != 2 {
+			t.Fatalf("%s changed effective concurrency to %d", verdict, m.effectiveConcurrent)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		m.applyShadowVerdict("admit")
+	}
+	if m.effectiveConcurrent != 3 {
+		t.Fatalf("three grants raised effective concurrency to %d, want 3", m.effectiveConcurrent)
+	}
+	for i := 0; i < 3; i++ {
+		m.applyShadowVerdict("admit")
+	}
+	if m.effectiveConcurrent != 4 {
+		t.Fatalf("six grants raised effective concurrency to %d, want ceiling 4", m.effectiveConcurrent)
+	}
+	m.applyShadowVerdict("admit")
+	if m.effectiveConcurrent != 4 {
+		t.Fatalf("ceiling changed after extra grant: %d", m.effectiveConcurrent)
+	}
+	m.applyShadowVerdict("defer")
+	if m.effectiveConcurrent != 2 {
+		t.Fatalf("defer changed effective concurrency to %d, want floor 2", m.effectiveConcurrent)
+	}
+}
+
+func TestShadowAdmissionDoesNotChangeIntegerAdmission(t *testing.T) {
+	exec := newFakeExecutor("")
+	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS"}
+	m := New(exec, t.TempDir())
+	defer m.Shutdown()
+	lease := &shadowTestLease{}
+	broker := &shadowTestBroker{lease: lease, verdict: sharedcapacity.Verdict{Kind: "defer", Reason: "test saturation"}}
+	m.SetCapacityBroker(broker)
+	m.WithSuiteEnvelopeProvider(func(context.Context) ([]execution.SuiteEnvelopeEstimate, error) {
+		return []execution.SuiteEnvelopeEstimate{{Scenario: "demo", Preset: "comprehensive", RAMBytes: 1, CPUMilli: 1, Reliable: true}}, nil
+	})
+
+	res, err := m.Start(StartOptions{Input: inputWith("demo", "comprehensive")})
+	if err != nil {
+		t.Fatalf("shadow defer must not reject the run: %v", err)
+	}
+	if res.RunID == "" || broker.acquires.Load() != 1 || lease.released.Load() != 1 {
+		t.Fatalf("shadow lifecycle = run %q, acquires %d, releases %d; want one admitted and released probe", res.RunID, broker.acquires.Load(), lease.released.Load())
+	}
+	if got := m.AdmissionStatus().ShadowDecisions.WouldDefer; got != 1 {
+		t.Fatalf("shadow would-defer count = %d, want 1", got)
+	}
+	close(exec.release)
+}
+
+func TestShadowBrokerErrorDoesNotFailRun(t *testing.T) {
+	exec := newFakeExecutor("")
+	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS"}
+	m := New(exec, t.TempDir())
+	defer m.Shutdown()
+	broker := &shadowTestBroker{err: errors.New("broker unavailable")}
+	m.SetCapacityBroker(broker)
+	m.WithSuiteEnvelopeProvider(func(context.Context) ([]execution.SuiteEnvelopeEstimate, error) {
+		return []execution.SuiteEnvelopeEstimate{{Scenario: "demo", Preset: "comprehensive", RAMBytes: 1, CPUMilli: 1, Reliable: true}}, nil
+	})
+
+	if _, err := m.Start(StartOptions{Input: inputWith("demo", "comprehensive")}); err != nil {
+		t.Fatalf("shadow broker error must not fail the run: %v", err)
+	}
+	if got := m.AdmissionStatus().ShadowDecisions.Errors; got != 1 {
+		t.Fatalf("shadow error count = %d, want 1", got)
+	}
+	close(exec.release)
+}
+
+func TestAdaptiveSuiteLeaseReleasesOnTerminalRun(t *testing.T) {
+	exec := newFakeExecutor("")
+	m := New(exec, t.TempDir())
+	defer m.Shutdown()
+	lease := &shadowTestLease{}
+	broker := &shadowTestBroker{lease: lease, verdict: sharedcapacity.Verdict{Kind: "grant"}}
+	m.SetCapacityBroker(broker)
+	m.WithSuiteEnvelopeProvider(func(context.Context) ([]execution.SuiteEnvelopeEstimate, error) {
+		return []execution.SuiteEnvelopeEstimate{{Scenario: "demo", Preset: "comprehensive", RAMBytes: 1, CPUMilli: 1, Reliable: true}}, nil
+	})
+	m.EnableAdaptiveConcurrency()
+	started, err := m.Start(StartOptions{Input: inputWith("demo", "comprehensive")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started.RunID == "" || lease.released.Load() != 0 {
+		t.Fatalf("lease was not held for an active run: run=%q releases=%d", started.RunID, lease.released.Load())
+	}
+	close(exec.release)
+	m.Shutdown()
+	if got := lease.released.Load(); got != 1 {
+		t.Fatalf("suite lease releases = %d, want 1", got)
+	}
+}
+
+func TestTwelveMemberReservationUsesItsOwnQueueBucket(t *testing.T) {
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, t.TempDir())
+	defer m.Shutdown()
+	m.maxConcurrentRuns = 1
+	m.effectiveConcurrent = 1
+	const reservationID = "gct:collection:1:agi:sample"
+	for i := 0; i < 12; i++ {
+		input := inputWith(fmt.Sprintf("member-%d", i), "comprehensive")
+		input.Request.CollectionReservationID = reservationID
+		input.Request.CollectionReservationMemberCount = 12
+		if _, err := m.Start(StartOptions{Input: input, Caller: "git-control-tower:baseline"}); err != nil {
+			t.Fatalf("member %d rejected: %v", i, err)
+		}
+	}
+	if got := m.AdmissionStatus().Queued; got != 11 {
+		t.Fatalf("queued reservation members = %d, want 11", got)
+	}
+	if got := atomic.LoadUint64(&m.queueRejectedTotal); got != 0 {
+		t.Fatalf("queue rejections = %d, want 0", got)
+	}
+}
+
+func TestReservationExpiresWhenDeclaredMembersTerminate(t *testing.T) {
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, t.TempDir())
+	defer m.Shutdown()
+	input := inputWith("member", "comprehensive")
+	input.Request.CollectionReservationID = "gct:collection:2:agi:sample"
+	input.Request.CollectionReservationMemberCount = 1
+	started, err := m.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Abort("member", started.RunID); err != nil {
+		t.Fatal(err)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.reservations[input.Request.CollectionReservationID]; exists {
+		t.Fatal("reservation remains after its declared member terminated")
 	}
 }
 
@@ -381,6 +567,7 @@ func blockingManager(t *testing.T) (*Manager, *fakeExecutor, func()) {
 			released = true
 			close(exec.release)
 		}
+		m.Shutdown()
 	}
 }
 
@@ -740,6 +927,82 @@ func TestAdmissionStatusReportsOccupancyLimitsAndOutcomes(t *testing.T) {
 	close(fake.release)
 }
 
+func TestAdmissionStatusAccumulatesSchedulerAdmissionCounters(t *testing.T) {
+	fake := newFakeExecutor("")
+	fake.result = &orchestrator.SuiteExecutionResult{
+		ScenarioName:                 "demo",
+		Success:                      true,
+		Verdict:                      "PASS",
+		SchedulerEstimatedAdmissions: 2,
+		SchedulerPhaseAdmissions:     3,
+		CompletedAt:                  time.Now().UTC(),
+	}
+	m := New(fake, t.TempDir())
+	defer m.Shutdown()
+
+	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
+	<-fake.started
+	close(fake.release)
+	if _, err := m.Wait(context.Background(), "demo", runID); err != nil {
+		t.Fatalf("wait: %v", err)
+	}
+
+	status := m.AdmissionStatus()
+	if status.FallbackAdmissionsTotal != 2 || status.PhaseAdmissionsTotal != 3 {
+		t.Fatalf("scheduler counters = fallback:%d phases:%d, want fallback:2 phases:3", status.FallbackAdmissionsTotal, status.PhaseAdmissionsTotal)
+	}
+}
+
+func TestQueuedStatusReportsFIFOPositionAndWaitEstimate(t *testing.T) {
+	fake := newFakeExecutor("")
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 1
+	m.maxQueuedRuns = 2
+	defer m.Shutdown()
+
+	if _, err := m.Start(StartOptions{Input: startInput("alpha"), EstimatedTotalSeconds: 120}); err != nil {
+		t.Fatalf("start alpha: %v", err)
+	}
+	<-fake.started
+	queued, err := m.Start(StartOptions{Input: startInput("beta"), EstimatedTotalSeconds: 90})
+	if err != nil {
+		t.Fatalf("queue beta: %v", err)
+	}
+	status, err := m.Status("beta", queued.RunID)
+	if err != nil {
+		t.Fatalf("status beta: %v", err)
+	}
+	if status.Status != sharedruns.StatusQueued || status.QueuePosition != 1 || !status.QueueWaitKnown || status.EstimatedQueueWaitSeconds <= 0 {
+		t.Fatalf("queued status = %+v, want FIFO position 1 and known wait", status)
+	}
+	close(fake.release)
+}
+
+func TestQueuedStatusReportsUnknownWaitWithoutRunningEstimate(t *testing.T) {
+	fake := newFakeExecutor("")
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 1
+	m.maxQueuedRuns = 1
+	defer m.Shutdown()
+
+	if _, err := m.Start(StartOptions{Input: startInput("alpha")}); err != nil {
+		t.Fatalf("start alpha: %v", err)
+	}
+	<-fake.started
+	queued, err := m.Start(StartOptions{Input: startInput("beta")})
+	if err != nil {
+		t.Fatalf("queue beta: %v", err)
+	}
+	status, err := m.Status("beta", queued.RunID)
+	if err != nil {
+		t.Fatalf("status beta: %v", err)
+	}
+	if status.QueuePosition != 1 || status.QueueWaitKnown || status.EstimatedQueueWaitSeconds != 0 {
+		t.Fatalf("queued unknown status = %+v, want position 1 and unknown wait", status)
+	}
+	close(fake.release)
+}
+
 func TestCoalescedRunBypassesPreviewSaturation(t *testing.T) {
 	fake := newFakeExecutor(t.TempDir())
 	m := New(fake, t.TempDir())
@@ -1090,6 +1353,33 @@ func TestImmediateAdmissionPersistsBeforeExecutorPlanning(t *testing.T) {
 	}
 	if record.Status != sharedruns.StatusFailed {
 		t.Fatalf("durable status = %q, want failed", record.Status)
+	}
+}
+
+func TestEvidenceRunGetsRetentionLeaseBeforeExecutorStarts(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	m := New(exec, root)
+	defer m.Shutdown()
+
+	input := startInput("calibration")
+	input.Request.RetainForEvidence = true
+	input.Request.RetentionReason = "phase measurement calibration"
+	runID := startRun(t, m, StartOptions{Input: input})
+
+	leases, err := sharedruns.NewPinLeaseStore(filepath.Join(root, "calibration")).ActiveForRun(runID, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("read retention lease: %v", err)
+	}
+	if len(leases) != 1 {
+		t.Fatalf("retention leases = %d, want one before execution", len(leases))
+	}
+	if leases[0].Reason != "phase measurement calibration" {
+		t.Fatalf("retention reason = %q", leases[0].Reason)
+	}
+	close(exec.release)
+	if _, err := m.Wait(context.Background(), "calibration", runID); err != nil {
+		t.Fatalf("wait for evidence run: %v", err)
 	}
 }
 

@@ -48,6 +48,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, cleanupGroup)
+	recoveryGroup, err := cleanup.RegisterRecovery(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, recoveryGroup)
 	validateGroup, err := validate.Register(core, manifest)
 	if err != nil {
 		return nil, err

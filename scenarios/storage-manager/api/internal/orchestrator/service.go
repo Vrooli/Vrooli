@@ -6,22 +6,39 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/eventbus"
+	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
+	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
 	"storage-manager/internal/cleanup"
 	"storage-manager/internal/policy"
 	"storage-manager/internal/providers"
 )
 
 type Policy struct {
-	Version   string
-	Profile   policy.ProfileName
-	Providers map[string]cleanup.ProviderPolicy
-	CreatedAt time.Time
+	Version           string
+	Profile           policy.ProfileName
+	Providers         map[string]cleanup.ProviderPolicy
+	StandingApprovals map[string]StandingApproval
+	CreatedAt         time.Time
+}
+
+// StandingApproval is host-local authority for one conditional provider. The
+// subject constraints remain provider-owned; this record only says that the
+// operator explicitly enabled that provider on this host.
+type StandingApproval struct {
+	ApprovedAt         time.Time         `json:"approved_at"`
+	ApprovedBy         string            `json:"approved_by"`
+	HostID             string            `json:"host_id"`
+	SubjectConstraints map[string]string `json:"subject_constraints,omitempty"`
 }
 
 type ProviderPlan struct {
@@ -110,6 +127,7 @@ type AuditEvent struct {
 	ProviderID     string
 	IdempotencyKey string
 	Message        string
+	ReclaimedBytes int64
 	Redacted       bool
 }
 
@@ -128,6 +146,11 @@ type Service struct {
 	registry *providers.Registry
 	store    Store
 	clock    cleanup.Clock
+	hostID   func() string
+	// recoveryContext is owned by the API process, not by an individual RPC.
+	// Server-owned recovery work must survive a caller disconnect but stop when
+	// the service itself shuts down.
+	recoveryContext context.Context
 
 	// Disk-pressure intake state. pressure collapses duplicate reports of the
 	// same event; autonomousApply is the kill switch for unattended deletion.
@@ -146,6 +169,16 @@ type Service struct {
 	censusJobs     map[string]*censusJob
 	censusSeq      uint64
 	latestCensusID string
+
+	recoveryMu       sync.Mutex
+	recoveryRuns     map[string]*RecoveryRun
+	recoverySeq      uint64
+	recoveryInstance string
+	recoveryGate     sync.Mutex
+	recoveryBusy     bool
+	recoveryLockPath string
+	events           eventPublisher
+	journal          journalAppender
 }
 
 type censusJob struct {
@@ -162,20 +195,75 @@ type censusJob struct {
 const defaultPressureDedupWindow = 5 * time.Minute
 
 func NewService(registry *providers.Registry, store Store, clock cleanup.Clock) *Service {
+	return NewServiceWithContext(context.Background(), registry, store, clock)
+}
+
+// NewServiceWithContext constructs a service whose server-owned workers share
+// the supplied process lifetime. The context must be cancelled during API
+// shutdown.
+func NewServiceWithContext(serviceContext context.Context, registry *providers.Registry, store Store, clock cleanup.Clock) *Service {
+	if serviceContext == nil {
+		serviceContext = context.Background()
+	}
 	return &Service{
-		registry:       registry,
-		store:          store,
-		clock:          clock,
-		pressure:       newPressureGuard(defaultPressureDedupWindow),
-		warningBugLast: make(map[string]time.Time),
-		warningBugBusy: make(map[string]bool),
+		registry:        registry,
+		store:           store,
+		clock:           clock,
+		recoveryContext: serviceContext,
+		pressure:        newPressureGuard(defaultPressureDedupWindow),
+		warningBugLast:  make(map[string]time.Time),
+		warningBugBusy:  make(map[string]bool),
 		// Autonomous apply is on by default: the incident happened because
 		// nothing acted overnight. The kill switch exists to turn remediation
 		// off deliberately, not to require a deliberate act to turn it on.
-		autonomousApply: true,
-		censusJobs:      make(map[string]*censusJob),
+		autonomousApply:  true,
+		censusJobs:       make(map[string]*censusJob),
+		recoveryRuns:     make(map[string]*RecoveryRun),
+		recoveryInstance: fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()),
+		hostID: func() string {
+			host, _ := os.Hostname()
+			return strings.TrimSpace(host)
+		},
+		// Lifecycle injects VROOLI_EVENTS_API_BASE when the event service is
+		// available. Keep construction side-effect free: discovery during API
+		// startup can delay or prevent the health listener from binding.
+		events: eventbus.Client{BaseURL: os.Getenv("VROOLI_EVENTS_API_BASE")},
 	}
 }
+
+type eventPublisher interface {
+	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
+}
+
+type journalAppender interface {
+	AppendRecovery(context.Context, RecoveryRun) error
+}
+
+type journalClient struct {
+	client journalconnect.JournalServiceClient
+}
+
+func NewJournalAppender(baseURL string) journalAppender {
+	if strings.TrimSpace(baseURL) == "" {
+		return nil
+	}
+	return journalClient{client: journalconnect.NewJournalServiceClient(http.DefaultClient, strings.TrimRight(baseURL, "/"))}
+}
+
+func (c journalClient) AppendRecovery(ctx context.Context, run RecoveryRun) error {
+	_, err := c.client.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{
+		Kind: "work-record", Trigger: run.Trigger,
+		Approach: fmt.Sprintf("recovery ladder run %s; action=%s", run.ID, run.Action),
+		Evidence: fmt.Sprintf("run_id=%s reclaimed_bytes=%d target_free_bytes=%d", run.ID, run.ReclaimedBytes, run.TargetFreeBytes),
+		Outcome:  run.StoppedBecause, Scope: "storage-manager",
+		Body: fmt.Sprintf("Storage recovery run %s reclaimed %d bytes and stopped because %s.", run.ID, run.ReclaimedBytes, run.StoppedBecause),
+	}))
+	return err
+}
+
+func (s *Service) SetEventPublisher(p eventPublisher) { s.events = p }
+
+func (s *Service) SetJournalAppender(a journalAppender) { s.journal = a }
 
 // SetWarningDependencies wires the read-only growth projection and the
 // report-bug transport used by warning pressure. It is a production seam so
@@ -211,6 +299,54 @@ func (s *Service) SetPolicyProfile(ctx context.Context, name policy.ProfileName)
 	}
 	_ = s.audit(ctx, AuditEvent{Type: "policy.saved", Message: string(name)})
 	return out, nil
+}
+
+// SetStandingApproval records host-local authority for one conditional
+// provider. The approval is deliberately separate from the profile: changing
+// a cleanup profile must never silently grant a root-owned action.
+func (s *Service) SetStandingApproval(ctx context.Context, providerID string, approval StandingApproval) (Policy, error) {
+	providerID = strings.TrimSpace(providerID)
+	provider, ok := s.registry.Get(providerID)
+	if !ok || provider.Metadata().SafetyTier != cleanup.SafetyTierConditional {
+		return Policy{}, fmt.Errorf("standing approval requires a registered conditional provider: %s", providerID)
+	}
+	if strings.TrimSpace(approval.HostID) == "" || strings.TrimSpace(approval.ApprovedBy) == "" || approval.ApprovedAt.IsZero() {
+		return Policy{}, fmt.Errorf("standing approval requires approved_by, approved_at, and host_id")
+	}
+	if s.hostID == nil || strings.TrimSpace(s.hostID()) == "" {
+		return Policy{}, fmt.Errorf("standing approval requires the current host identity")
+	}
+	if strings.TrimSpace(approval.HostID) != strings.TrimSpace(s.hostID()) {
+		return Policy{}, fmt.Errorf("standing approval host_id %q does not match current host", approval.HostID)
+	}
+	current, err := s.CurrentPolicy(ctx)
+	if err != nil {
+		return Policy{}, err
+	}
+	if current.StandingApprovals == nil {
+		current.StandingApprovals = map[string]StandingApproval{}
+	}
+	current.StandingApprovals[providerID] = approval
+	if err := s.store.SavePolicy(ctx, current); err != nil {
+		return Policy{}, err
+	}
+	_ = s.audit(ctx, AuditEvent{Type: "standing_approval.saved", ProviderID: providerID, Message: "host-local approval recorded"})
+	return current, nil
+}
+
+// RevokeStandingApproval removes authority for one conditional provider. A
+// missing entry is a successful idempotent revoke.
+func (s *Service) RevokeStandingApproval(ctx context.Context, providerID string) (Policy, error) {
+	current, err := s.CurrentPolicy(ctx)
+	if err != nil {
+		return Policy{}, err
+	}
+	delete(current.StandingApprovals, strings.TrimSpace(providerID))
+	if err := s.store.SavePolicy(ctx, current); err != nil {
+		return Policy{}, err
+	}
+	_ = s.audit(ctx, AuditEvent{Type: "standing_approval.revoked", ProviderID: strings.TrimSpace(providerID), Message: "host-local approval revoked"})
+	return current, nil
 }
 
 func (s *Service) CurrentPolicy(ctx context.Context) (Policy, error) {
@@ -432,8 +568,8 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 	if err := s.store.SaveApply(ctx, report); err != nil {
 		return ApplyReport{}, err
 	}
-	_ = s.audit(ctx, AuditEvent{Type: "apply.completed", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes)})
-	_ = s.audit(ctx, AuditEvent{Type: "plan.applied", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes)})
+	_ = s.audit(ctx, AuditEvent{Type: "apply.completed", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes), ReclaimedBytes: report.ReclaimedBytes})
+	_ = s.audit(ctx, AuditEvent{Type: "plan.applied", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes), ReclaimedBytes: report.ReclaimedBytes})
 	return report, nil
 }
 
@@ -488,7 +624,7 @@ func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan,
 			Redacted: true,
 		})
 	}
-	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes repairs=%d retries=%d", result.ReclaimedBytes, result.Repairs, result.RetryAttempts)})
+	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes repairs=%d retries=%d", result.ReclaimedBytes, result.Repairs, result.RetryAttempts), ReclaimedBytes: result.ReclaimedBytes})
 	return result, true, nil
 }
 

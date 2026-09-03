@@ -42,8 +42,9 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 
 // RegisterChecksFromConfig adds health checks using the user's monitoring configuration.
 // This respects which scenarios and resources the user has configured for monitoring.
-func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager) (*SupervisionController, error) {
+func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager, delivery coverage.DeliveryReader) (*SupervisionController, error) {
 	factory := NewCheckFactoryFromConfigManager(configMgr)
+	factory.deliveryReader = delivery
 	// Scenario/resource membership is reconciled from the canonical supervision
 	// set below. The persisted monitoring configuration is additive input to
 	// that controller, not a second registration path.
@@ -88,7 +89,11 @@ func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabil
 	// These projections are themselves checks so a missing remediation path or
 	// unreadable delivery source is visible in the same ordered-severity model.
 	registry.Register(coverage.NewRemediationReachCheck(registry))
-	registry.Register(coverage.NewDeliveryReachCheck(coverage.UnavailableDeliveryReader))
+	delivery := coverage.UnavailableDeliveryReader
+	if provider, ok := factory.(deliveryReaderProvider); ok && provider.DeliveryReader() != nil {
+		delivery = provider.DeliveryReader()
+	}
+	registry.Register(coverage.NewDeliveryReachCheck(delivery))
 	log.Printf("autoheal startup: Vrooli checks registered in %s (total=%s)", time.Since(sectionStarted), time.Since(started))
 }
 
@@ -141,4 +146,10 @@ func ScheduleInitialTick(registry *checks.Registry, saver ResultSaver, delay tim
 
 		log.Printf("initial tick completed: %d checks executed", len(results))
 	}()
+}
+
+// deliveryReaderProvider is implemented by the factory that carries the
+// notification-hub delivery projection; a fake factory need not.
+type deliveryReaderProvider interface {
+	DeliveryReader() coverage.DeliveryReader
 }

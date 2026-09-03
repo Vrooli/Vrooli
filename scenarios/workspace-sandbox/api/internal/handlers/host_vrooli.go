@@ -54,7 +54,7 @@ func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
 	defer cancel()
 
-	args := []string{"--no-stale-check", "scenario", req.Action, req.Name}
+	args := []string{"scenario", req.Action, req.Name}
 	if req.Action == "port" && req.PortName != "" {
 		args = append(args, req.PortName)
 	}

@@ -120,7 +120,7 @@ func commandArgsUntilBoundary(words []string) []string {
 
 func skipGlobalFlags(args []string) []string {
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
-		if args[0] == "--no-stale-check" || args[0] == "--json" || args[0] == "--verbose" || args[0] == "--no-color" {
+		if args[0] == "--json" || args[0] == "--verbose" || args[0] == "--no-color" {
 			args = args[1:]
 			continue
 		}

@@ -21,22 +21,7 @@ var (
 )
 
 func normalizeCommandInvocation(name string, args []string) (string, []string) {
-	if name != "vrooli" || containsArg(args, "--no-stale-check") {
-		return name, args
-	}
-	normalized := make([]string, 0, len(args)+1)
-	normalized = append(normalized, "--no-stale-check")
-	normalized = append(normalized, args...)
-	return name, normalized
-}
-
-func containsArg(args []string, target string) bool {
-	for _, arg := range args {
-		if arg == target {
-			return true
-		}
-	}
-	return false
+	return name, append([]string(nil), args...)
 }
 
 // ParseJSON parses JSON from a string into a target value.
@@ -56,6 +41,18 @@ func EnsureCommandAvailable(name string) error {
 // New code should use shared.Log* directly.
 var logPhaseStep = shared.LogStep
 
+// phaseCommandEnv is the environment of every phase command: color disabled
+// so logs stay readable, and the build-width floor composed over the
+// inherited environment so a phase's go, pnpm or vite never runs wide.
+func phaseCommandEnv(parent envkit.Env) envkit.Env {
+	return envkit.Toolchain(envkit.WithOverlay(parent, envkit.SameScenario, envkit.Env{
+		"NO_COLOR=1",
+		"FORCE_COLOR=0",
+		"CLICOLOR=0",
+		"TERM=dumb",
+	}), envkit.ToolchainOptions{})
+}
+
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -65,12 +62,7 @@ func runCommand(ctx context.Context, dir string, logWriter io.Writer, name strin
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
-		"NO_COLOR=1",
-		"FORCE_COLOR=0",
-		"CLICOLOR=0",
-		"TERM=dumb",
-	})
+	cmd.Env = phaseCommandEnv(envkit.Env(os.Environ()))
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
@@ -88,13 +80,7 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	// Disable ANSI color in captured output to keep logs readable.
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
-		"NO_COLOR=1",
-		"FORCE_COLOR=0",
-		"CLICOLOR=0",
-		"TERM=dumb",
-	})
+	cmd.Env = phaseCommandEnv(envkit.Env(os.Environ()))
 	var output bytes.Buffer
 	if logWriter != nil {
 		cmd.Stdout = io.MultiWriter(logWriter, &output)

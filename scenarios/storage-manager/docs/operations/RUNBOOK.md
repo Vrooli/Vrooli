@@ -71,6 +71,11 @@ Long-lived API processes can record scheduled observations by setting
 readiness never triggers a surprise host scan. Scheduled observations never
 apply cleanup or placement migrations.
 
+Legacy `report_json` migration is not part of startup. If the narrow entry
+sample model must be rebuilt, set `STORAGE_CENSUS_BACKFILL=1` for a maintenance
+start; the migration waits 30 seconds after readiness and has a two-minute
+context limit. Remove the setting after the maintenance run.
+
 The static Test Genie `storage` phase remains a fast isolation/persistence
 gate. It does not run this host census; use the storage-manager comprehensive
 run for product acceptance and live API truthfulness.

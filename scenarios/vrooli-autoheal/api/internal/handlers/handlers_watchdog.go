@@ -1,12 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	apierrors "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/errors"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/watchdog"
@@ -82,25 +80,32 @@ func getOneLinerInstall(platformStr, apiBaseURL string) string {
 	return fmt.Sprintf(`curl -fsS -X POST %s/api/v1/watchdog/install -H 'Content-Type: application/json' -d '{}'`, apiBaseURL)
 }
 
-// WatchdogInstall handles installation of the OS watchdog service
+// watchdogMutationResult is the response shape of the watchdog mutation
+// endpoints. They exist for older clients; the only mutation any of them
+// performs is delegating to the control-plane safeguard.
+type watchdogMutationResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
+}
+
+// WatchdogInstall delegates to the control-plane safeguard that owns the unit.
 // [REQ:WATCH-INSTALL-001]
 func (h *Handlers) WatchdogInstall(w http.ResponseWriter, r *http.Request) {
-	// Parse installation options from request body
-	var opts watchdog.InstallOptions
 	if r.Body != nil && r.ContentLength > 0 {
+		var opts map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
 			apierrors.LogAndRespond(w, apierrors.NewValidationError("watchdog", "invalid request body", err))
 			return
 		}
+		// Options are ignored: policy is resolved by the setup-owned safeguard.
 	}
-
-	_ = opts // policy is resolved by the setup-owned control-plane safeguard.
 	output, runErr := h.controlPlane.OutputCombined(r.Context(), "host", "safeguard", "autoheal_watchdog")
-	result := &watchdog.InstallResult{Success: runErr == nil, Message: "autoheal watchdog installation delegated to vrooli setup", ServicePath: ""}
+	result := watchdogMutationResult{Success: runErr == nil, Message: "autoheal watchdog installation delegated to vrooli setup"}
 	if runErr != nil {
 		result.Error = fmt.Sprintf("vrooli host safeguard autoheal_watchdog: %v: %s", runErr, strings.TrimSpace(string(output)))
 	}
-
+	h.watchdogDetector.Invalidate()
 	w.Header().Set("Content-Type", "application/json")
 	if !result.Success {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -110,35 +115,23 @@ func (h *Handlers) WatchdogInstall(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// WatchdogUninstall handles removal of the OS watchdog service
-func (h *Handlers) WatchdogUninstall(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Minute)
-	defer cancel()
-
-	result := h.watchdogDetector.Uninstall(ctx)
-
-	w.Header().Set("Content-Type", "application/json")
-	if !result.Success {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		apierrors.LogError("watchdog_uninstall", "encode_response", err)
-	}
+// WatchdogUninstall is retained for older clients and refuses: setup owns the
+// unit's lifecycle and must preserve its declared protection contract.
+func (h *Handlers) WatchdogUninstall(w http.ResponseWriter, _ *http.Request) {
+	writeWatchdogRefusal(w, "watchdog_uninstall", "autoheal watchdog lifecycle is owned by project setup", "scenario-owned watchdog uninstall is unsupported; use the project setup policy")
 }
 
-// WatchdogEnableLinger enables systemd lingering for user services (Linux only)
-func (h *Handlers) WatchdogEnableLinger(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
+// WatchdogEnableLinger is retained for older clients and refuses: lingering
+// follows the operator's boot policy, which `vrooli setup` applies.
+func (h *Handlers) WatchdogEnableLinger(w http.ResponseWriter, _ *http.Request) {
+	writeWatchdogRefusal(w, "watchdog_linger", "systemd lingering is owned by project setup", "run `vrooli setup` to apply the selected boot policy")
+}
 
-	result := h.watchdogDetector.EnableLingering(ctx)
-
+func writeWatchdogRefusal(w http.ResponseWriter, op, message, detail string) {
 	w.Header().Set("Content-Type", "application/json")
-	if !result.Success {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		apierrors.LogError("watchdog_linger", "encode_response", err)
+	w.WriteHeader(http.StatusNotImplemented)
+	if err := json.NewEncoder(w).Encode(watchdogMutationResult{Success: false, Message: message, Error: detail}); err != nil {
+		apierrors.LogError(op, "encode_response", err)
 	}
 }
 

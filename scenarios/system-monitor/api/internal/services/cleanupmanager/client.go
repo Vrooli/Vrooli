@@ -40,11 +40,22 @@ const (
 
 // Report is an outbound pressure signal.
 type Report struct {
-	SourceScenario string  `json:"sourceScenario"`
-	Partition      string  `json:"partition"`
-	UsedPercent    float64 `json:"usedPercent"`
-	Band           Band    `json:"band"`
-	AvailableBytes int64   `json:"availableBytes"`
+	SourceScenario       string      `json:"sourceScenario"`
+	Partition            string      `json:"partition"`
+	UsedPercent          float64     `json:"usedPercent"`
+	Band                 Band        `json:"band"`
+	AvailableBytes       int64       `json:"availableBytes"`
+	FillRateBytesPerHour int64       `json:"fillRateBytesPerHour,omitempty"`
+	HotWriters           []HotWriter `json:"hotWriters,omitempty"`
+	Trigger              string      `json:"trigger,omitempty"`
+}
+
+// HotWriter identifies a governed root whose growth rate is unsafe.
+type HotWriter struct {
+	Root          string `json:"root"`
+	CurrentBytes  int64  `json:"currentBytes"`
+	BytesPerHour  int64  `json:"bytesPerHour"`
+	WindowSeconds int64  `json:"windowSeconds"`
 }
 
 // Outcome is what storage-manager did about the report.
@@ -59,6 +70,7 @@ type Outcome struct {
 	Reason                 string   `json:"reason"`
 	BugReference           string   `json:"bugReference"`
 	AutonomousApplyEnabled bool     `json:"autonomousApplyEnabled"`
+	RunID                  string   `json:"runId"`
 }
 
 // Config controls Client behaviour.

@@ -19,6 +19,13 @@ type Request struct {
 	// DiagnosticsPreset ("none"|"light"|"full") overrides the playbooks
 	// diagnostics config for this run (richer BAS artifact capture).
 	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
+	// CaptureProfile controls capture depth. The baseline profile also disables
+	// phase-cache reuse so the run remains a valid measurement sample.
+	CaptureProfile string `json:"captureProfile,omitempty"`
+	// RetainForEvidence creates a server-owned expiring lease before execution
+	// so calibration measurements survive ordinary run retention.
+	RetainForEvidence bool   `json:"retainForEvidence,omitempty"`
+	RetentionReason   string `json:"retentionReason,omitempty"`
 
 	// Runtime URLs for phases that need to connect to running services.
 	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the

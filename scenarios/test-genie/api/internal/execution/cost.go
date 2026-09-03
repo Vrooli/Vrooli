@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"time"
+
+	"test-genie/internal/shared/stats"
 )
 
 type CostSample struct {
@@ -19,6 +20,7 @@ type CostSample struct {
 	PeakRSSBytes         int64
 	CPUReliability       string
 	MemoryReliability    string
+	MeasurementScope     string
 	PredictedWallClockMs sql.NullInt64
 	CacheHit             bool
 	CacheAudit           bool
@@ -74,10 +76,160 @@ type CostSummary struct {
 	// phase had already produced. See CostReport for how it is attributed.
 	RepeatFailureWallClockMs int64
 	RepeatFailureSampleCount int
+	// MeasurementScopes counts collector generations in the auditable history.
+	MeasurementScopes map[string]int `json:"measurementScopes,omitempty"`
 }
 
 type CostSource interface {
 	CostReport(context.Context, string, time.Time, time.Time) ([]CostSummary, error)
+}
+
+// SuiteEnvelopeEstimate is the measured host reservation for one suite. RAM
+// and CPU are the p90 of each historical run's maximum simultaneously active
+// phase claims; a run's phases are never summed when they did not overlap.
+type SuiteEnvelopeEstimate struct {
+	Scenario string `json:"scenario"`
+	Preset   string `json:"preset"`
+	RAMBytes int64  `json:"ramBytes"`
+	CPUMilli int64  `json:"cpuMilli"`
+	Runs     int    `json:"runs"`
+	Reliable bool   `json:"reliable"`
+}
+
+const suiteEnvelopeMinRuns = 5
+
+type envelopeInterval struct {
+	start, end time.Time
+	ram, cpu   int64
+}
+
+// SuiteEnvelopeEstimate returns a scenario- and preset-scoped envelope. The
+// history schema records phase timestamps so overlapping work can be summed at
+// each sweep point. Missing timestamps or unreliable resource readings exclude
+// that phase; fewer than five usable runs is an honest unknown.
+func (r *SuiteExecutionRepository) SuiteEnvelopeEstimate(ctx context.Context, scenario, preset string) (SuiteEnvelopeEstimate, error) {
+	scenario, preset = strings.TrimSpace(scenario), strings.TrimSpace(preset)
+	q := `SELECT e.id, p.started_at, p.completed_at, p.wall_clock_ms, p.cpu_user_ms, p.peak_rss_bytes
+		FROM suite_execution_phases p JOIN suite_executions e ON e.id = p.execution_id
+		WHERE e.scenario_name = ? AND COALESCE(NULLIF(e.preset_used, ''), NULLIF(e.requested_preset, ''), '') = ?
+		AND e.completed_at IS NOT NULL AND p.started_at IS NOT NULL AND p.completed_at IS NOT NULL
+		AND p.cache_hit = 0
+		AND p.cpu_reliability = 'RELIABILITY_RELIABLE' AND p.memory_reliability = 'RELIABILITY_RELIABLE'
+		ORDER BY e.completed_at DESC`
+	rows, err := r.db.QueryContext(ctx, q, scenario, preset)
+	if err != nil {
+		return SuiteEnvelopeEstimate{}, err
+	}
+	defer rows.Close()
+	byRun := map[string][]envelopeInterval{}
+	for rows.Next() {
+		var runID, started, completed string
+		var wall, cpu, ram sql.NullInt64
+		if err := rows.Scan(&runID, &started, &completed, &wall, &cpu, &ram); err != nil {
+			return SuiteEnvelopeEstimate{}, err
+		}
+		start, startErr := time.Parse(time.RFC3339Nano, started)
+		end, endErr := time.Parse(time.RFC3339Nano, completed)
+		if startErr != nil || endErr != nil || !end.After(start) || !wall.Valid || wall.Int64 <= 0 || !cpu.Valid || !ram.Valid || ram.Int64 <= 0 {
+			continue
+		}
+		cpuMilli := cpu.Int64 * 1000 / wall.Int64
+		if cpuMilli < 100 {
+			cpuMilli = 100
+		}
+		byRun[runID] = append(byRun[runID], envelopeInterval{start: start, end: end, ram: ram.Int64, cpu: cpuMilli})
+	}
+	if err := rows.Err(); err != nil {
+		return SuiteEnvelopeEstimate{}, err
+	}
+	rams, cpus := make([]int64, 0, len(byRun)), make([]int64, 0, len(byRun))
+	for _, intervals := range byRun {
+		if valueRAM, valueCPU, ok := maxConcurrentEnvelope(intervals); ok {
+			rams, cpus = append(rams, valueRAM), append(cpus, valueCPU)
+		}
+	}
+	estimate := SuiteEnvelopeEstimate{Scenario: scenario, Preset: preset, Runs: len(rams)}
+	if len(rams) < suiteEnvelopeMinRuns {
+		return estimate, nil
+	}
+	sort.Slice(rams, func(i, j int) bool { return rams[i] < rams[j] })
+	sort.Slice(cpus, func(i, j int) bool { return cpus[i] < cpus[j] })
+	estimate.RAMBytes = rams[stats.NearestRankIndex(len(rams), .9)]
+	estimate.CPUMilli = cpus[stats.NearestRankIndex(len(cpus), .9)]
+	estimate.Reliable = true
+	return estimate, nil
+}
+
+// SuiteEnvelopeEstimates returns every scenario/preset envelope with enough
+// history for the operator admission surface. Unknown combinations are
+// intentionally omitted: the absence is the honest "no evidence" state.
+func (r *SuiteExecutionRepository) SuiteEnvelopeEstimates(ctx context.Context) ([]SuiteEnvelopeEstimate, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT e.scenario_name, COALESCE(NULLIF(e.preset_used, ''), NULLIF(e.requested_preset, ''), '') FROM suite_executions e WHERE e.completed_at IS NOT NULL ORDER BY e.scenario_name, 2`)
+	if err != nil {
+		return nil, err
+	}
+	var keys [][2]string
+	for rows.Next() {
+		var scenario, preset string
+		if err := rows.Scan(&scenario, &preset); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		keys = append(keys, [2]string{scenario, preset})
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var out []SuiteEnvelopeEstimate
+	for _, key := range keys {
+		scenario, preset := key[0], key[1]
+		estimate, err := r.SuiteEnvelopeEstimate(ctx, scenario, preset)
+		if err != nil {
+			return nil, err
+		}
+		if estimate.Reliable {
+			out = append(out, estimate)
+		}
+	}
+	return out, nil
+}
+
+func maxConcurrentEnvelope(intervals []envelopeInterval) (int64, int64, bool) {
+	type event struct {
+		at       time.Time
+		ram, cpu int64
+		delta    int
+	}
+	events := make([]event, 0, len(intervals)*2)
+	for _, in := range intervals {
+		events = append(events, event{at: in.start, ram: in.ram, cpu: in.cpu, delta: 1}, event{at: in.end, ram: in.ram, cpu: in.cpu, delta: -1})
+	}
+	sort.SliceStable(events, func(i, j int) bool {
+		if events[i].at.Equal(events[j].at) {
+			return events[i].delta < events[j].delta
+		}
+		return events[i].at.Before(events[j].at)
+	})
+	var ram, cpu, maxRAM, maxCPU int64
+	for _, e := range events {
+		if e.delta < 0 {
+			ram -= e.ram
+			cpu -= e.cpu
+			continue
+		}
+		ram += e.ram
+		cpu += e.cpu
+		if ram > maxRAM {
+			maxRAM = ram
+		}
+		if cpu > maxCPU {
+			maxCPU = cpu
+		}
+	}
+	return maxRAM, maxCPU, len(events) > 0
 }
 
 const calibrationInterval = 7 * 24 * time.Hour
@@ -94,6 +246,13 @@ const phaseDurationRiskPercentile = 0.90
 // observed p90 and the window bounds how long stale tail behavior can affect
 // admission.
 const deadlineHistoryWindow = 14 * 24 * time.Hour
+
+// deadlineMinSamples is the minimum observed duration history used by the
+// deadline guard. Inclusive nearest-rank returns the maximum for p90 when
+// fewer than ten samples exist; that conservative tail is appropriate for a
+// capacity claim, but a maximum-as-p90 would incorrectly exclude a phase from
+// every batch. Capacity claims deliberately keep their own conservative tail.
+const deadlineMinSamples = 10
 
 // minUnmeasurableEvidence is how many measurable-but-never-RELIABLE samples a
 // phase must accumulate inside the calibration window before it is treated as
@@ -204,6 +363,7 @@ func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenar
 			FROM suite_execution_phases p JOIN suite_executions e ON e.id = p.execution_id
 			WHERE p.phase_name = ? AND e.completed_at >= ? AND e.completed_at < ?
 			AND p.cpu_reliability = 'RELIABILITY_RELIABLE' AND p.memory_reliability = 'RELIABILITY_RELIABLE'`
+		q += " AND p.measurement_scope = 'MEASUREMENT_SCOPE_OPERATION'"
 		args := []any{strings.TrimSpace(phase), time.Now().UTC().Add(-30 * 24 * time.Hour).Format(time.RFC3339Nano), time.Now().UTC().Add(time.Second).Format(time.RFC3339Nano)}
 		if strings.TrimSpace(scope) != "" {
 			q += " AND e.scenario_name = ?"
@@ -257,8 +417,7 @@ func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenar
 	}
 	sort.Slice(ramValues, func(i, j int) bool { return ramValues[i] < ramValues[j] })
 	sort.Slice(cpuValues, func(i, j int) bool { return cpuValues[i] < cpuValues[j] })
-	index := func(n int) int { return (n*9+9)/10 - 1 }
-	return ramValues[index(len(ramValues))], cpuValues[index(len(cpuValues))], true
+	return ramValues[stats.NearestRankIndex(len(ramValues), 0.9)], cpuValues[stats.NearestRankIndex(len(cpuValues), 0.9)], true
 }
 
 // PhaseDurationEstimate returns the observed p90 wall-clock duration for the
@@ -335,17 +494,13 @@ func (r *SuiteExecutionRepository) PhaseDurationEstimate(ctx context.Context, sc
 	if len(samples) == 0 {
 		return 0, false
 	}
+	if len(samples) < deadlineMinSamples {
+		return 0, false
+	}
 	sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
 	// Use the same nearest-rank ceiling as PhaseCostEstimate so the scheduler
 	// and cost report agree about what p90 means, especially for small samples.
-	index := int(math.Ceil(float64(len(samples)) * phaseDurationRiskPercentile))
-	if index < 1 {
-		index = 1
-	}
-	index--
-	if index >= len(samples) {
-		index = len(samples) - 1
-	}
+	index := stats.NearestRankIndex(len(samples), phaseDurationRiskPercentile)
 	return samples[index], true
 }
 
@@ -372,6 +527,7 @@ func (r *SuiteExecutionRepository) CostReport(ctx context.Context, scenario stri
 		SELECT e.scenario_name, p.phase_name, p.status,
 		       COALESCE(p.wall_clock_ms, p.duration_ms),
 		       p.cpu_user_ms, p.peak_rss_bytes, p.cpu_reliability, p.memory_reliability,
+		       p.measurement_scope,
 		       p.cache_hit, p.cache_audit, p.cache_audit_mismatch, p.cache_no_saving,
 		       p.predicted_duration_ms,
 		       e.requested_at, e.started_at
@@ -405,9 +561,10 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		var s CostSample
 		var cpuUser, peak sql.NullInt64
 		var cpuRel, memRel sql.NullString
+		var measurementScope sql.NullString
 		var cacheHit, cacheAudit, cacheAuditMismatch, cacheNoSaving int
 		var requestedAt, startedAt sql.NullString
-		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &cacheHit, &cacheAudit, &cacheAuditMismatch, &cacheNoSaving, &s.PredictedWallClockMs, &requestedAt, &startedAt); err != nil {
+		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &measurementScope, &cacheHit, &cacheAudit, &cacheAuditMismatch, &cacheNoSaving, &s.PredictedWallClockMs, &requestedAt, &startedAt); err != nil {
 			return nil, err
 		}
 		s.QueueLatencyMs = queueLatencyMs(requestedAt, startedAt)
@@ -427,12 +584,16 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		if memRel.Valid {
 			s.MemoryReliability = memRel.String
 		}
+		if measurementScope.Valid {
+			s.MeasurementScope = measurementScope.String
+		}
 		key := s.Scenario + "\x00" + s.Phase
 		b := buckets[key]
 		if b == nil {
-			b = &bucket{key: key, CostSummary: CostSummary{Scenario: s.Scenario, Phase: s.Phase}}
+			b = &bucket{key: key, CostSummary: CostSummary{Scenario: s.Scenario, Phase: s.Phase, MeasurementScopes: map[string]int{}}}
 			buckets[key] = b
 		}
+		b.MeasurementScopes[s.MeasurementScope]++
 		b.SampleCount++
 		if s.CacheHit {
 			b.CacheHitCount++
@@ -505,17 +666,17 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		sort.Slice(b.reliableWall, func(i, j int) bool { return b.reliableWall[i] < b.reliableWall[j] })
 		if n := len(b.reliableWall); n > 0 {
 			b.MedianWallClockMs = b.reliableWall[(n-1)/2]
-			b.P90WallClockMs = b.reliableWall[(n*9+9)/10-1]
+			b.P90WallClockMs = b.reliableWall[stats.NearestRankIndex(n, 0.9)]
 		}
 		if n := len(b.passingWall); n > 0 {
 			sort.Slice(b.passingWall, func(i, j int) bool { return b.passingWall[i] < b.passingWall[j] })
 			b.PassingMedianWallClockMs = b.passingWall[(n-1)/2]
-			b.PassingP90WallClockMs = b.passingWall[(n*9+9)/10-1]
+			b.PassingP90WallClockMs = b.passingWall[stats.NearestRankIndex(n, 0.9)]
 		}
 		if n := len(b.failingWall); n > 0 {
 			sort.Slice(b.failingWall, func(i, j int) bool { return b.failingWall[i] < b.failingWall[j] })
 			b.FailingMedianWallClockMs = b.failingWall[(n-1)/2]
-			b.FailingP90WallClockMs = b.failingWall[(n*9+9)/10-1]
+			b.FailingP90WallClockMs = b.failingWall[stats.NearestRankIndex(n, 0.9)]
 		}
 		if b.PredictionSampleCount > 0 {
 			b.PredictionMeanAbsoluteErrorMs /= int64(b.PredictionSampleCount)
@@ -539,7 +700,7 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		if n := len(b.queueLatencies); n > 0 {
 			sort.Slice(b.queueLatencies, func(i, j int) bool { return b.queueLatencies[i] < b.queueLatencies[j] })
 			b.QueueLatencyMedianMs = b.queueLatencies[(n-1)/2]
-			b.QueueLatencyP90Ms = b.queueLatencies[(n*9+9)/10-1]
+			b.QueueLatencyP90Ms = b.queueLatencies[stats.NearestRankIndex(n, 0.9)]
 		}
 		b.reliableWall = nil
 		b.passingWall = nil

@@ -90,19 +90,6 @@ func TestFreshServicesAreHealthy(t *testing.T) {
 	}
 }
 
-// A unit that is not running is a liveness problem owned by other checks.
-// Reporting it here would double-report one condition.
-func TestStoppedServiceIsNotReportedStale(t *testing.T) {
-	r := runStaleCheck(t, resolver(map[string][3]any{}))
-
-	if r.Status != checks.StatusOK {
-		t.Fatalf("status = %v, want ok for absent units", r.Status)
-	}
-	if r.Details["unitsChecked"] != 0 {
-		t.Errorf("unitsChecked = %v, want 0", r.Details["unitsChecked"])
-	}
-}
-
 // One unit going stale repeatedly must dedupe into one incident, so the
 // fingerprint dimension has to be the unit set rather than a timestamp.
 func TestFindingKeyIsTheStaleUnitSet(t *testing.T) {
@@ -262,4 +249,26 @@ type recordingResolver struct{ seen map[string]bool }
 func (r *recordingResolver) Resolve(_ context.Context, unit string) (string, bool, bool) {
 	r.seen[unit] = true
 	return "", false, false
+}
+
+// A unit the service manager reports as not running is a boot-recovery
+// failure, not a condition to stay silent about: the emergency watchdog only
+// acts after its own sustain window, and until then nothing else names the
+// dead unit. The remediation is setup, which owns the unit.
+func TestStaleServiceBinaryReportsDeadUnitCritical(t *testing.T) {
+	r := runStaleCheck(t, resolver(map[string][3]any{
+		"a.service": {"/bin/a", false, true},
+	}))
+	if r.Status != checks.StatusCritical {
+		t.Fatalf("status = %v, want critical for a unit with no main process; details %v", r.Status, r.Details)
+	}
+	if r.Details["unit"] != "b.service" {
+		t.Errorf("Details[unit] = %v, want b.service", r.Details["unit"])
+	}
+	if r.Details["remediation"] != "vrooli setup" {
+		t.Errorf("Details[remediation] = %v, want \"vrooli setup\"", r.Details["remediation"])
+	}
+	if !strings.Contains(r.Message, "b.service") {
+		t.Errorf("message must name the dead unit, got %q", r.Message)
+	}
 }

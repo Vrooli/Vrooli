@@ -18,6 +18,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/freshness-go/treedigest"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -49,23 +50,27 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 
 	input := execution.SuiteExecutionInput{
 		Request: orchestrator.SuiteExecutionRequest{
-			ScenarioName:           scenario,
-			Target:                 targetExpression(targetRef),
-			Preset:                 strings.TrimSpace(req.Msg.GetPreset()),
-			Phases:                 req.Msg.GetPhases(),
-			Skip:                   req.Msg.GetSkip(),
-			FailFast:               req.Msg.GetFailFast(),
-			DiagnosticsPreset:      strings.TrimSpace(req.Msg.GetDiagnosticsPreset()),
-			CaptureProfile:         strings.TrimSpace(req.Msg.GetCaptureProfile()),
-			UIURL:                  strings.TrimSpace(req.Msg.GetUiUrl()),
-			APIURL:                 strings.TrimSpace(req.Msg.GetApiUrl()),
-			ScenarioPath:           strings.TrimSpace(req.Msg.GetScenarioPath()),
-			LogicalRepoRoot:        strings.TrimSpace(req.Msg.GetLogicalRepoRoot()),
-			LogicalScenarioRelPath: strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
-			RequireGateQuality:     req.Msg.GetRequireGateQuality(),
+			ScenarioName:                     scenario,
+			Target:                           targetExpression(targetRef),
+			Preset:                           strings.TrimSpace(req.Msg.GetPreset()),
+			Phases:                           req.Msg.GetPhases(),
+			Skip:                             req.Msg.GetSkip(),
+			FailFast:                         req.Msg.GetFailFast(),
+			DiagnosticsPreset:                strings.TrimSpace(req.Msg.GetDiagnosticsPreset()),
+			CaptureProfile:                   strings.TrimSpace(req.Msg.GetCaptureProfile()),
+			UIURL:                            strings.TrimSpace(req.Msg.GetUiUrl()),
+			APIURL:                           strings.TrimSpace(req.Msg.GetApiUrl()),
+			ScenarioPath:                     strings.TrimSpace(req.Msg.GetScenarioPath()),
+			LogicalRepoRoot:                  strings.TrimSpace(req.Msg.GetLogicalRepoRoot()),
+			LogicalScenarioRelPath:           strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
+			RequireGateQuality:               req.Msg.GetRequireGateQuality(),
+			CollectionReservationID:          strings.TrimSpace(req.Msg.GetCollectionReservationId()),
+			CollectionReservationMemberCount: int(req.Msg.GetCollectionReservationMemberCount()),
+			RetainForEvidence:                req.Msg.GetRetainForEvidence(),
+			RetentionReason:                  strings.TrimSpace(req.Msg.GetRetentionReason()),
 		},
 	}
-	caller := strings.TrimSpace(req.Header().Get("X-Vrooli-Caller"))
+	caller := strings.TrimSpace(req.Header().Get(cliutil.HeaderCaller))
 	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)
 	if err != nil {
 		return nil, saturationError(err)
@@ -253,11 +258,49 @@ func (s *Service) admissionScenarioDir(req *orchestrator.SuiteExecutionRequest) 
 		}
 		return target.Path, nil
 	}
-	return s.scenarioDir(req.ScenarioName)
+	// scenarioDir resolves the artifact root used for run history. Admission
+	// identity must instead hash the physical source tree that the executor
+	// will validate; hashing ~/.vrooli/test-runs/<scenario> makes every normal
+	// run fail before execution when that artifact directory does not exist.
+	sourceDir := filepath.Join(s.scenariosRoot, strings.TrimSpace(req.ScenarioName))
+	if _, err := os.Stat(filepath.Join(sourceDir, filepath.FromSlash(scenarioManifest))); err != nil {
+		return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("inspect scenario source: %w", err))
+	}
+	return sourceDir, nil
 }
 
 func saturationError(err error) *connect.Error {
-	return connect.NewError(connect.CodeResourceExhausted, err)
+	cerr := connect.NewError(connect.CodeResourceExhausted, err)
+	var saturated *runmanager.SaturatedError
+	if errors.As(err, &saturated) {
+		if detail, derr := connect.NewErrorDetail(&runspb.AdmissionSaturation{
+			LimitKind:         admissionLimitKind(saturated.Limit),
+			Occupancy:         int32(saturated.Occupancy),
+			ConfiguredLimit:   int32(saturated.ConfiguredLimit),
+			FifoPosition:      int32(saturated.FIFOPosition),
+			RetryAfterSeconds: int32(saturated.RetryAfterSeconds),
+		}); derr == nil {
+			cerr.AddDetail(detail)
+		}
+	}
+	return cerr
+}
+
+func admissionLimitKind(limit string) runspb.AdmissionLimitKind {
+	switch limit {
+	case "queued run capacity":
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_GLOBAL_QUEUE
+	case "caller queued run capacity":
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_QUEUE
+	case "reservation queued run capacity":
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_RESERVATION_QUEUE
+	case "preview capacity":
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW
+	case "caller preview capacity":
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_PREVIEW
+	default:
+		return runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_UNSPECIFIED
+	}
 }
 
 // busyError maps a run-admission rejection to a FailedPrecondition carrying a
@@ -447,6 +490,8 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 		ElapsedSeconds:              st.ElapsedSeconds,
 		EstimatedTotalSeconds:       int32(st.EstimatedTotalSeconds),
 		EstimatedRemainingSeconds:   int32(st.EstimatedRemainingSeconds),
+		QueuePosition:               int32(st.QueuePosition),
+		EstimatedQueueWaitSeconds:   int32(st.EstimatedQueueWaitSeconds),
 		EtaKnown:                    st.ETAKnown,
 		RecommendedNextCheckSeconds: int32(st.RecommendedNextCheckSeconds),
 		Verdict:                     st.Verdict,

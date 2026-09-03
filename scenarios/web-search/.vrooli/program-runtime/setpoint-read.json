@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.setpoint-read",
+  "version": "1",
+  "purpose": "Read every row of web-search's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating.",
+  "inputs": {
+    "effectiveness_limit": {
+      "type": "integer",
+      "default": 500,
+      "description": "Max effectiveness rows read (1..1000)."
+    },
+    "decayed_below": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Effective confidence under which a never-surfaced finding counts as decayed."
+    },
+    "count_window": {
+      "type": "string",
+      "default": "TIME_WINDOW_TOKEN_LAST_30D",
+      "description": "TimeWindowToken enum name for findings count."
+    }
+  },
+  "assumptions": [
+    "web-search is running for the ledger rows; search-hub is running for the routing and lifecycle rows",
+    "the caller treats an unavailable row as unknown, never as zero",
+    "cache-hit-rate and budget-exhaustion stay unavailable until web-search declares measures for them"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no row set is materialized; every reading is count, head, or filter",
+    "the envelope is printed exactly once, on every path",
+    "a row whose sensor has no governed binding is reported unavailable with the reason, not computed by hand"
+  ],
+  "bindings": [
+    {
+      "id": "web-search/findings/effectiveness",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "web-search/findings/count",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "search-hub/insights/insights",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "search-hub/providers/list",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one per setpoint row in the improve skill's table order: surfaced-rate, used-rate, never-surfaced-share, live-vs-local-ratio, cache-hit-rate, budget-exhaustion, provider-lifecycle, capture-volume",
+      "readable": "count of rows read from a governed binding",
+      "unavailable": "count of rows not readable in-program"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "sensor command names, one per row"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "web-search",
+        "search-hub"
+      ]
+    },
+    {
+      "id": "bad-window",
+      "inputs": {
+        "count_window": "last_7d"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search-improve"
+}

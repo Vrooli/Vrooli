@@ -10,13 +10,14 @@ import (
 	"net"
 	"os"
 	"strings"
+
+	platformgo "github.com/vrooli/platform-go"
 )
 
 const (
 	protocolVersion = "v1"
 	bridgePort      = 18767
 	bridgeScenario  = "vrooli-bridge"
-	defaultSocket   = "/run/vrooli/privilege-broker.sock"
 )
 
 type Request struct {
@@ -57,7 +58,7 @@ func socketPath() string {
 	if path := strings.TrimSpace(os.Getenv("VROOLI_PRIVILEGE_BROKER_SOCKET")); path != "" {
 		return path
 	}
-	return defaultSocket
+	return platformgo.PrivilegeBrokerSocketPath()
 }
 
 func (c SocketClient) Call(ctx context.Context, request Request) (Result, error) {

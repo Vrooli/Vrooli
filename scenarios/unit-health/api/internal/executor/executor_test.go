@@ -352,6 +352,27 @@ func TestBoundedRunExplicitEnvOverridesScrub(t *testing.T) {
 	}
 }
 
+func TestBoundedRunUsesAndReapsGovernedGoWorkDir(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("VROOLI_HOME", runtimeHome)
+	cmd := helperCommand("print-gotmp")
+	cmd.WorkspaceID, cmd.Name, cmd.TimeoutSeconds = "w", "gotmp", 10
+	res := Bounded{}.Run(context.Background(), cmd)
+	if res.Status != StatusPassed {
+		t.Fatalf("status = %q (%s), want passed", res.Status, res.FailureReason)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(res.Stdout), filepath.Join(runtimeHome, "tmp", "go-work")) {
+		t.Fatalf("GOTMPDIR = %q, want governed runtime-home path", res.Stdout)
+	}
+	entries, err := os.ReadDir(filepath.Join(runtimeHome, "tmp", "go-work"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("reaped Go work directory still has entries: %v", entries)
+	}
+}
+
 func TestScenarioIdentityEnvironmentMatchingIsPortable(t *testing.T) {
 	if !isScenarioIdentityEnv("UI_PORT") || !isScenarioIdentityEnv("SCENARIO_NAME") {
 		t.Fatal("canonical scenario identity variables were not recognized")
@@ -402,6 +423,8 @@ func TestExecutorHelperProcess(t *testing.T) {
 		time.Sleep(30 * time.Second)
 	case "print-tmp":
 		fmt.Fprint(os.Stdout, os.Getenv("TMPDIR"))
+	case "print-gotmp":
+		fmt.Fprint(os.Stdout, os.Getenv("GOTMPDIR"))
 	case "print-env":
 		fmt.Fprintf(os.Stdout, "UI_PORT=[%s] SCENARIO_NAME=[%s] VROOLI_SCENARIO=[%s] KEEP=[%s] CI=[%s]", os.Getenv("UI_PORT"), os.Getenv("SCENARIO_NAME"), os.Getenv("VROOLI_SCENARIO"), os.Getenv("UNIT_HEALTH_TEST_KEEP"), os.Getenv("CI"))
 	case "print-ui-port":

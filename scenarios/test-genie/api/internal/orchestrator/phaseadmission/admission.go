@@ -8,7 +8,6 @@ package phaseadmission
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"test-genie/internal/orchestrator/phasebatch"
@@ -46,11 +45,15 @@ type Deps struct {
 // reason a prefix is short now is that the host is genuinely full, which is a
 // reason to run what fits rather than to run nothing.
 //
+// Every executed phase attempts a claim, including a batch of one. A solo
+// phase is often solo because it is expensive or exclusive, so omitting its
+// claim hides exactly the capacity pressure operators need to measure.
+//
 // The returned length is always at least 1, so the caller always makes
 // progress. A prefix of exactly 1 carries the broker's reason so the run
 // records why it serialized.
 func Admit(ctx context.Context, deps Deps, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, int, int) {
-	if len(batch) <= 1 || deps.Broker == nil || deps.Estimator == nil {
+	if len(batch) == 0 || deps.Broker == nil || deps.Estimator == nil {
 		return nil, "", len(batch), 0
 	}
 	leases := make([]sharedcapacity.Lease, 0, len(batch))
@@ -64,6 +67,7 @@ func Admit(ctx context.Context, deps Deps, scenario, runID string, batch []phase
 	}
 	for _, phase := range batch {
 		ramBytes, cpuMilli, reliable := deps.Estimator.PhaseCostEstimate(ctx, scenario, phase.Name.Key())
+		fallback := false
 		var (
 			lease   sharedcapacity.Lease
 			verdict sharedcapacity.Verdict
@@ -73,9 +77,9 @@ func Admit(ctx context.Context, deps Deps, scenario, runID string, batch []phase
 		if !reliable || ramBytes <= 0 || cpuMilli <= 0 {
 			ramBytes = phasebatch.DefaultReservationRAMBytes
 			cpuMilli = phasebatch.DefaultReservationCPUMilli
-			estimated++
+			fallback = true
 		}
-		ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
+		ownerID := sharedcapacity.OwnerIDFor("test-genie", strings.TrimSpace(runID), phase.Name.Key())
 		lease, verdict, err = deps.Broker.Acquire(ctx, ownerID, ramBytes, cpuMilli)
 		switch {
 		case err != nil:
@@ -96,6 +100,9 @@ func Admit(ctx context.Context, deps Deps, scenario, runID string, batch []phase
 			return nil, reason, 1, 0
 		}
 		leases = append(leases, lease)
+		if fallback {
+			estimated++
+		}
 	}
 	return leases, "", len(leases), estimated
 }

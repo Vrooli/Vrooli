@@ -50,6 +50,24 @@ func (p *processLiveness) IsRunning(ctx context.Context, path string) (bool, err
 		if resolved == target {
 			return true, nil
 		}
+		fds, err := os.ReadDir(filepath.Join("/proc", entry.Name(), "fd"))
+		if err != nil {
+			continue
+		}
+		for _, fd := range fds {
+			link, err := os.Readlink(filepath.Join("/proc", entry.Name(), "fd", fd.Name()))
+			if err != nil {
+				continue
+			}
+			link = strings.TrimSuffix(link, " (deleted)")
+			resolved, err := filepath.EvalSymlinks(link)
+			if err != nil {
+				resolved = filepath.Clean(link)
+			}
+			if resolved == target {
+				return true, nil
+			}
+		}
 	}
 	return false, nil
 }

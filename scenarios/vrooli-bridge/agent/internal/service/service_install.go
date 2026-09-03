@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	platformgo "github.com/vrooli/platform-go"
+
 	"vrooli-bridge/agent/internal/platform"
 )
 
@@ -98,10 +100,17 @@ func systemdArgs(d Definition, command ...string) []string {
 }
 
 func (m systemdManager) Install(ctx context.Context, d Definition) (InstallResult, error) {
-	unit, err := SystemdUnit(d)
+	artifact, err := d.Artifact("linux")
 	if err != nil {
 		return InstallResult{}, err
 	}
+	// Ask systemd whether it would load the render before the unit
+	// directory is touched: a rejected render must never replace a working
+	// unit. An unavailable validator is not a rejection.
+	if verdict := platformgo.ValidateArtifact(artifact, systemdScope(d)); verdict.Rejected() {
+		return InstallResult{}, fmt.Errorf("systemd rejected the rendered %s unit: %s", d.Name, verdict.Output)
+	}
+	unit := artifact.Primary().Content
 	dir, err := m.unitDirFor(d)
 	if err != nil {
 		return InstallResult{}, err
@@ -291,7 +300,7 @@ func currentLaunchdUser() (string, error) {
 }
 
 func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResult, error) {
-	plist, err := LaunchdPlist(d)
+	plist, err := validatedLaunchdPlist(d)
 	if err != nil {
 		return InstallResult{}, err
 	}
@@ -303,13 +312,15 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 		// SSH-only macOS sessions have no gui/<uid> bootstrap. A LaunchAgent
 		// cannot be loaded into the background user domain, so use a
 		// LaunchDaemon and explicitly retain the unprivileged agent identity.
+		// The definition becomes system-scope so the plist carries UserName.
+		d.System = true
 		if strings.TrimSpace(d.User) == "" {
 			d.User, err = currentLaunchdUser()
 			if err != nil {
 				return InstallResult{}, err
 			}
 		}
-		plist, err = LaunchdPlist(d)
+		plist, err = validatedLaunchdPlist(d)
 		if err != nil {
 			return InstallResult{}, err
 		}
@@ -560,4 +571,25 @@ func (unsupportedManager) Status(context.Context, Definition) (StatusResult, err
 
 func (unsupportedManager) Uninstall(context.Context, Definition) (UninstallResult, error) {
 	return UninstallResult{}, errRenderOnly(runtime.GOOS)
+}
+
+// systemdScope maps the Definition's namespace onto the validator's.
+func systemdScope(d Definition) platformgo.Scope {
+	if d.System {
+		return platformgo.ScopeSystem
+	}
+	return platformgo.ScopeUser
+}
+
+// validatedLaunchdPlist renders the plist and runs it through plutil where
+// available; a rejected plist is never written.
+func validatedLaunchdPlist(d Definition) (string, error) {
+	artifact, err := d.Artifact("darwin")
+	if err != nil {
+		return "", err
+	}
+	if verdict := platformgo.ValidateArtifact(artifact, systemdScope(d)); verdict.Rejected() {
+		return "", fmt.Errorf("plutil rejected the rendered %s plist: %s", d.Name, verdict.Output)
+	}
+	return artifact.Primary().Content, nil
 }

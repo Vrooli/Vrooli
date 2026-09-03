@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"workspace-sandbox/internal/rlimitexec"
+	"github.com/vrooli/platform-go/rlimitexec"
 	"workspace-sandbox/internal/types"
 )
 

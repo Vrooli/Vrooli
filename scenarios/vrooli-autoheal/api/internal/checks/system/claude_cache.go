@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -332,7 +333,8 @@ func (c *ClaudeCacheCheck) executeCleanupStale(claudeDir string, start time.Time
 	}
 
 	var output strings.Builder
-	var removed, failed int
+	var removed int64
+	var failed int
 	now := time.Now()
 
 	// Define cleanup targets
@@ -353,24 +355,23 @@ func (c *ClaudeCacheCheck) executeCleanupStale(claudeDir string, start time.Time
 
 		output.WriteString(fmt.Sprintf("=== Cleaning %s (older than %d days) ===\n", target.dir, int(target.maxAge.Hours()/24)))
 
-		cutoff := now.Add(-target.maxAge)
-		err := filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-
-			if info.ModTime().Before(cutoff) {
-				if err := os.Remove(path); err != nil {
-					failed++
-					output.WriteString(fmt.Sprintf("FAILED: %s - %v\n", path, err))
-				} else {
-					removed++
-				}
-			}
-			return nil
+		pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
+			Path: targetDir,
+			Now:  func() time.Time { return now },
 		})
 		if err != nil {
-			output.WriteString(fmt.Sprintf("Error walking %s: %v\n", target.dir, err))
+			failed++
+			output.WriteString(fmt.Sprintf("Error preparing %s: %v\n", target.dir, err))
+			continue
+		}
+		pruned, err := pruner.Prune(context.Background(), coreRetention.Budget{
+			Name:   target.dir,
+			MaxAge: target.maxAge,
+		})
+		removed += pruned.Deleted
+		if err != nil {
+			failed++
+			output.WriteString(fmt.Sprintf("Error pruning %s: %v\n", target.dir, err))
 		}
 	}
 
@@ -393,11 +394,12 @@ func (c *ClaudeCacheCheck) executeCleanupAll(claudeDir string, start time.Time) 
 	}
 
 	var output strings.Builder
-	var removed, failed int
+	var removed int64
+	var failed int
 
 	// Clean all files in these directories (but keep recent 1 day)
 	targets := []string{"todos", "file-history", "shell-snapshots"}
-	cutoff := time.Now().Add(-24 * time.Hour)
+	now := time.Now()
 
 	for _, target := range targets {
 		targetDir := filepath.Join(claudeDir, target)
@@ -407,24 +409,23 @@ func (c *ClaudeCacheCheck) executeCleanupAll(claudeDir string, start time.Time) 
 
 		output.WriteString(fmt.Sprintf("=== Cleaning %s ===\n", target))
 
-		err := filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-
-			// Keep files from the last day
-			if info.ModTime().Before(cutoff) {
-				if err := os.Remove(path); err != nil {
-					failed++
-					output.WriteString(fmt.Sprintf("FAILED: %s - %v\n", path, err))
-				} else {
-					removed++
-				}
-			}
-			return nil
+		pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
+			Path: targetDir,
+			Now:  func() time.Time { return now },
 		})
 		if err != nil {
-			output.WriteString(fmt.Sprintf("Error walking %s: %v\n", target, err))
+			failed++
+			output.WriteString(fmt.Sprintf("Error preparing %s: %v\n", target, err))
+			continue
+		}
+		pruned, err := pruner.Prune(context.Background(), coreRetention.Budget{
+			Name:   target,
+			MaxAge: 24 * time.Hour,
+		})
+		removed += pruned.Deleted
+		if err != nil {
+			failed++
+			output.WriteString(fmt.Sprintf("Error pruning %s: %v\n", target, err))
 		}
 	}
 
@@ -506,7 +507,7 @@ func (c *ClaudeCacheCheck) cleanEmptyDirs(dir string) {
 
 		entries, err := os.ReadDir(path)
 		if err == nil && len(entries) == 0 {
-			_ = os.Remove(path)
+			_ = coreRetention.RemovePath(context.Background(), path)
 		}
 		return nil
 	})

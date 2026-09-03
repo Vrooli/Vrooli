@@ -25,20 +25,23 @@ type WorkspaceInput struct {
 // surface. Validation maps it into its response model and owns no framework
 // selection logic.
 type WorkspaceResolution struct {
-	Framework          string
-	CanonicalFramework string
-	PackageManager     string
-	TestCommand        string
-	CoverageCommand    string
-	CoverageRequested  bool
-	TestExecutable     string
-	TestArgs           []string
-	CoverageExecutable string
-	CoverageArgs       []string
-	TestArtifacts      []Artifact
-	TestPath           string
-	Status             string
-	DegradedReason     string
+	Framework           string
+	CanonicalFramework  string
+	PackageManager      string
+	TestCommand         string
+	CoverageCommand     string
+	CoverageRequested   bool
+	TestExecutable      string
+	TestArgs            []string
+	TypecheckCommand    string
+	TypecheckExecutable string
+	TypecheckArgs       []string
+	CoverageExecutable  string
+	CoverageArgs        []string
+	TestArtifacts       []Artifact
+	TestPath            string
+	Status              string
+	DegradedReason      string
 }
 
 // Diagnostic is an adapter finding before it is normalized into Unit Health's
@@ -98,6 +101,10 @@ func ResolveWorkspace(input WorkspaceInput) (WorkspaceResolution, []Diagnostic) 
 	case "python":
 		resolution.Framework = "pytest"
 		resolution.CanonicalFramework = "pytest"
+		if pythonTypecheckConfigured(input.Surface.RootPath) {
+			resolution.Framework = "mypy"
+			resolution.CanonicalFramework = "mypy"
+		}
 		resolution.Status = "degraded"
 		resolution.DegradedReason = "Code Facts does not yet provide Python parse units; using fallback discovery."
 		add(diagnosticUnsupported, input.Surface.RootPath,
@@ -107,7 +114,12 @@ func ResolveWorkspace(input WorkspaceInput) (WorkspaceResolution, []Diagnostic) 
 			"Track Code Facts Python parse-unit support; until then verify the pytest plan manually.")
 		if input.ResolveExecutable != nil {
 			candidates := []string{"python3", "python"}
-			if runtime.GOOS == "windows" {
+			if pythonTypecheckConfigured(input.Surface.RootPath) {
+				// mypy is declared through the uv workspace. Keep the resolver
+				// aligned with the planner instead of passing a Python launcher to
+				// `uv run mypy .`.
+				candidates = []string{"uv"}
+			} else if runtime.GOOS == "windows" {
 				candidates = []string{"py", "python"}
 			}
 			if executable, ok := input.ResolveExecutable(candidates); ok {
@@ -239,6 +251,30 @@ func resolveNodeWorkspace(input WorkspaceInput, resolution *WorkspaceResolution,
 			add(diagnosticDependency, "Node workspace was discovered but its package manager is not resolvable.", "package manager="+pm+"; executable not found", "The declared package manager installed and resolvable.", "missing "+pm, "Without the package manager the Node test plan cannot execute.", "Install or expose the declared package manager through Scenario Dependency Analyzer, then rerun Unit Health.")
 		}
 	}
+	if manifest.hasScript("type-check") {
+		typecheckExecutable := resolution.TestExecutable
+		if typecheckExecutable == "" && input.ResolveExecutable != nil {
+			if executable, ok := input.ResolveExecutable([]string{pm}); ok {
+				typecheckExecutable = executable
+			}
+		}
+		if typecheckExecutable == "" {
+			return
+		}
+		framework := resolution.Framework
+		if strings.TrimSpace(framework) == "" {
+			framework = "typescript"
+		}
+		plan, err := (typescriptTypecheckPlanner{}).Plan(Facts{
+			Language: input.Language, Framework: framework,
+			PackageManager: pm, Executable: typecheckExecutable,
+		})
+		if err == nil {
+			resolution.TypecheckCommand = plan.Test.Display
+			resolution.TypecheckExecutable = plan.Test.Executable
+			resolution.TypecheckArgs = append([]string(nil), plan.Test.Args...)
+		}
+	}
 }
 
 func resolveBashWorkspace(input WorkspaceInput, resolution *WorkspaceResolution, add func(string, string, string, string, string, string, string, string)) {
@@ -308,6 +344,11 @@ func pythonCoverageConfigured(root string) bool {
 		}
 	}
 	return false
+}
+
+func pythonTypecheckConfigured(root string) bool {
+	raw, err := os.ReadFile(filepath.Join(root, "pyproject.toml"))
+	return err == nil && strings.Contains(string(raw), "[tool.mypy]")
 }
 
 func normalizePackageManager(declared string) string {

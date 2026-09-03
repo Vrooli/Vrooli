@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -728,7 +729,8 @@ func verifyGeneratedResourceGoModules(destination string) error {
 		}
 		cmd := exec.Command("go", "mod", "tidy")
 		cmd.Dir = moduleDir
-		cmd.Env, _ = templateHookEnv(os.Environ(), map[string]string{"GOWORK": "off"})
+		hookEnv, _ := templateHookEnv(os.Environ(), map[string]string{"GOWORK": "off"})
+		cmd.Env = envkit.Toolchain(envkit.Env(hookEnv), envkit.ToolchainOptions{})
 		output, execErr := cmd.CombinedOutput()
 		if execErr != nil {
 			relPath, _ := filepath.Rel(destination, path)

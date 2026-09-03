@@ -112,3 +112,13 @@ Owner providers stay **disabled by default**. Registration makes state visible
 to preview; enabling deletion for another scenario's private data is an
 operator decision, and the autonomous critical-band path deliberately refuses
 `safe_with_owner` providers for the same reason.
+
+## 2026-09-02 decision addendum
+
+The recovery controller now owns the free-space target and the host lock. It
+does not turn the fleet findings above into autonomous deletion authority.
+Standing approvals remain host-local, and declared regenerable owner budgets
+remain the only self-approving R2 path. The typed recovery ledger and the
+`storage writers` feed are the authoritative surfaces for recovery efficacy and
+growth; this audit remains a record of bounded and deferred state, not a second
+cleanup registry.

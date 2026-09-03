@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -84,5 +85,17 @@ func TestValidateProviderRejectsForbiddenEnabledProvider(t *testing.T) {
 	}})
 	if err == nil {
 		t.Fatal("ValidateProvider() expected forbidden provider error")
+	}
+}
+
+func TestValidateProviderRejectsRegenerableWithoutNoLeaseProof(t *testing.T) {
+	err := ValidateProvider(stubProvider{meta: ProviderMetadata{
+		ID: "cache", Name: "Cache", Version: "v1", OwnerScenario: "storage-manager",
+		SafetyTier: SafetyTierRegenerable, DefaultMode: ProviderModeDisabled,
+		DefaultApproval: ApprovalModeNone, SupportedPlatforms: []string{"linux"},
+		IrreversibleEffects: []string{"cache files removed"}, TestSubstitute: "fake",
+	}})
+	if err == nil || !strings.Contains(err.Error(), "NoLease") {
+		t.Fatalf("ValidateProvider() error = %v, want NoLease proof error", err)
 	}
 }

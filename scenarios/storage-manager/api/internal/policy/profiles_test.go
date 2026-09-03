@@ -1,11 +1,22 @@
 package policy
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"storage-manager/internal/cleanup"
 )
+
+func TestProviderPolicyDoesNotPersistControllerOnlyFreshReclaim(t *testing.T) {
+	payload, err := json.Marshal(cleanup.ProviderPolicy{Enabled: true, AllowFreshReclaim: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(payload) != `{"Enabled":true,"MinAge":0,"MaxBytes":0,"ApprovalMode":""}` {
+		t.Fatalf("serialized provider policy = %s, controller-only capability leaked", payload)
+	}
+}
 
 // [REQ:CLN-P0-003]
 func TestBuildProfileKeepsConservativeConditionalProvidersDisabled(t *testing.T) {

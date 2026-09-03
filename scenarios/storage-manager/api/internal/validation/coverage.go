@@ -18,6 +18,11 @@ import (
 // lazy writers and are therefore not a coverage failure.
 type storageCoverage struct{}
 
+// maxWalkEntries bounds the correspondence/coverage walk on very large
+// scenario trees. Keep it package-scoped because the regression test uses the
+// same bound to construct its truncation fixture.
+const maxWalkEntries = 10000
+
 func init() { register(&storageCoverage{}) }
 
 func (storageCoverage) Name() string { return "storage.coverage" }
@@ -74,7 +79,6 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 	var uncovered int64
 	var example string
 	const maxUncoveredFiles = 1000
-	const maxWalkEntries = 10000
 	uncoveredFiles := 0
 	walkedEntries := 0
 	truncated := false

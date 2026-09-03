@@ -38,10 +38,10 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P1 | system-monitor-should-have-alert-routing-to-multiple-channels-webhook-and-email-configured-but-email-not-implemented | Alert routing to multiple channels (w... | 1 |
 | P1 | system-monitor-should-have-resource-prediction-models-not-implemented | Resource prediction models (not imple... | 1 |
 | P1 | system-monitor-should-have-correlation-analysis-between-metrics-not-implemented | Correlation analysis between metrics ... | 1 |
-| P2 | system-monitor-nice-to-have-distributed-tracing-integration | Distributed tracing integration | 0 |
-| P2 | system-monitor-nice-to-have-custom-dashboard-builder | Custom dashboard builder | 0 |
-| P2 | system-monitor-nice-to-have-mobile-monitoring-app | Mobile monitoring app | 0 |
-| P2 | system-monitor-nice-to-have-websocket-real-time-updates-type-defined-but-ui-uses-http-polling | WebSocket real-time updates (type def... | 0 |
+| P2 | system-monitor-nice-to-have-distributed-tracing-integration | Distributed tracing integration | 1 |
+| P2 | system-monitor-nice-to-have-custom-dashboard-builder | Custom dashboard builder | 1 |
+| P2 | system-monitor-nice-to-have-mobile-monitoring-app | Mobile monitoring app | 1 |
+| P2 | system-monitor-nice-to-have-websocket-real-time-updates-type-defined-but-ui-uses-http-polling | WebSocket real-time updates (type def... | 1 |
 
 ## Auto-sync Behavior
 

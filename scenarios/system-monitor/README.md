@@ -170,5 +170,5 @@ Other scenarios can leverage system-monitor for:
 - **No Authentication**: API endpoints have no auth middleware
 - **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
 - **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
-- **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through storage-manager preview/apply rather than system-monitor deletion paths
+- **Disk remediation boundary**: Disk detail is read-only; bounded recovery routes through storage-manager rather than system-monitor deletion paths
 - **UI coverage**: The full production-source denominator remains below the platform's 85% unit policy and is tracked as an open quality gap

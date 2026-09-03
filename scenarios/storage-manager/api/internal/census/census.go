@@ -806,7 +806,23 @@ func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error)
 	if err := s.pruneEntrySamples(ctx, report.ObservedAt.Add(-30*24*time.Hour)); err != nil {
 		return Report{}, err
 	}
+	if err := s.pruneSnapshots(ctx, report.ObservedAt); err != nil {
+		return Report{}, err
+	}
 	return report, nil
+}
+
+// Prune applies the census retention policy without requiring a new filesystem
+// scan. This is used by the low-frequency maintenance scheduler so legacy
+// report blobs cannot remain indefinitely when census collection is disabled.
+func (s *SnapshotStore) Prune(ctx context.Context, now time.Time) error {
+	if s == nil {
+		return nil
+	}
+	if err := s.pruneEntrySamples(ctx, now.UTC().Add(-30*24*time.Hour)); err != nil {
+		return err
+	}
+	return s.pruneSnapshots(ctx, now.UTC())
 }
 
 // pruneEntrySamples keeps the projected read model bounded independently of
@@ -815,6 +831,72 @@ func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error)
 func (s *SnapshotStore) pruneEntrySamples(ctx context.Context, before time.Time) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_entry_samples WHERE observed_at < ?`, before.UTC().Format(time.RFC3339Nano)); err != nil {
 		return fmt.Errorf("prune census entry samples: %w", err)
+	}
+	return nil
+}
+
+// pruneSnapshots keeps recent snapshots densely for growth queries and one
+// daily snapshot for the older forensic window. Snapshot reports are derived
+// evidence; pruning them cannot affect the source filesystem or its budgets.
+func (s *SnapshotStore) pruneSnapshots(ctx context.Context, now time.Time) error {
+	const denseSnapshotLimit = 100
+	cutoff := now.UTC().Add(-365 * 24 * time.Hour).Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshot_metrics WHERE snapshot_id IN (SELECT id FROM census_snapshots WHERE observed_at < ?)`, cutoff); err != nil {
+		return fmt.Errorf("prune expired census metrics: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshots WHERE observed_at < ?`, cutoff); err != nil {
+		return fmt.Errorf("prune expired census snapshots: %w", err)
+	}
+	// SQLite's date() groups RFC3339 timestamps by UTC day. Keep the newest
+	// observed row for each root/day beyond the dense 30-day window. Do not
+	// infer recency from the opaque snapshot ID: callers may use any stable ID.
+	denseCutoff := now.UTC().Add(-30 * 24 * time.Hour).Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshot_metrics WHERE snapshot_id IN (
+		SELECT s.id FROM census_snapshots s
+		WHERE s.observed_at < ? AND EXISTS (
+			SELECT 1 FROM census_snapshots newer
+			WHERE newer.root = s.root AND date(newer.observed_at) = date(s.observed_at)
+			  AND newer.observed_at < ?
+			  AND (newer.observed_at > s.observed_at OR (newer.observed_at = s.observed_at AND newer.id > s.id))
+		)
+	)`, denseCutoff, denseCutoff); err != nil {
+		return fmt.Errorf("prune sparse census metrics: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshots
+		WHERE observed_at < ? AND EXISTS (
+			SELECT 1 FROM census_snapshots newer
+			WHERE newer.root = census_snapshots.root AND date(newer.observed_at) = date(census_snapshots.observed_at)
+			  AND newer.observed_at < ?
+			  AND (newer.observed_at > census_snapshots.observed_at OR (newer.observed_at = census_snapshots.observed_at AND newer.id > census_snapshots.id))
+		)`, denseCutoff, denseCutoff); err != nil {
+		return fmt.Errorf("prune sparse census snapshots: %w", err)
+	}
+	// Keep the dense window bounded as well. A frequent census must not turn
+	// its opaque report blobs into an unbounded database: one report can be
+	// megabytes even though the indexed sample rows are small. The newest rows
+	// remain available for history and growth; older rows are already
+	// represented by the one-per-day forensic retention above.
+	denseCutoff = now.UTC().Add(-30 * 24 * time.Hour).Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshot_metrics WHERE snapshot_id IN (
+		SELECT old.id FROM census_snapshots old
+		WHERE old.observed_at >= ? AND (
+			SELECT COUNT(*) FROM census_snapshots newer
+			WHERE newer.root = old.root AND newer.observed_at >= ?
+			  AND (newer.observed_at > old.observed_at OR (newer.observed_at = old.observed_at AND newer.id >= old.id))
+		) > ?
+	)`, denseCutoff, denseCutoff, denseSnapshotLimit); err != nil {
+		return fmt.Errorf("prune dense census metrics: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_snapshots
+		WHERE observed_at >= ? AND id IN (
+			SELECT old.id FROM census_snapshots old
+			WHERE old.observed_at >= ? AND (
+				SELECT COUNT(*) FROM census_snapshots newer
+				WHERE newer.root = old.root AND newer.observed_at >= ?
+				  AND (newer.observed_at > old.observed_at OR (newer.observed_at = old.observed_at AND newer.id >= old.id))
+			) > ?
+		)`, denseCutoff, denseCutoff, denseCutoff, denseSnapshotLimit); err != nil {
+		return fmt.Errorf("prune dense census snapshots: %w", err)
 	}
 	return nil
 }

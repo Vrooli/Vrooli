@@ -38,6 +38,10 @@ const selfScenario = "test-genie"
 // defaultProbeTimeout bounds the live provider contract probe.
 const defaultProbeTimeout = 30 * time.Second
 
+const codeFactsProbeTimeout = 5 * time.Second
+
+const executionRunnerProbeBudget = 10 * time.Second
+
 type Service struct {
 	RepoRoot string
 	// Probe is the live provider contract seam. Nil disables live checks so
@@ -342,7 +346,9 @@ func (s *Service) validateTargetDeclaration(ctx context.Context, report *Report,
 					report.add(Finding{Code: CodeTargetGlobUnresolvable, Severity: SeverityError, Title: "Provider target kind resolves to no repository targets", Message: fmt.Sprintf("targets.kinds includes %q, but repo-contract enumeration found no targets of that kind.", kind), Location: ".vrooli/repo-contract.json:targets", Remediation: "Fix the target roots/marker or stop declaring an empty target kind."})
 				}
 			}
-			s.validateExecutionRunners(ctx, report, targets, declared)
+			probeCtx, cancel := context.WithTimeout(ctx, executionRunnerProbeBudget)
+			s.validateExecutionRunners(probeCtx, report, targets, declared)
+			cancel()
 		}
 	}
 }
@@ -417,12 +423,17 @@ func (s *Service) validateExecutionRunners(ctx context.Context, report *Report, 
 }
 
 func (s *Service) codeFactsLanguage(ctx context.Context, root string) (string, bool) {
-	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, codeFactsScenarioName)
+	// Code-facts is an enrichment dependency for this guard, not the subject
+	// under test. Bound each lookup so a stale or overloaded provider cannot
+	// turn the complete Test Genie unit suite into an apparent hang.
+	probeCtx, cancel := context.WithTimeout(ctx, codeFactsProbeTimeout)
+	defer cancel()
+	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(probeCtx, codeFactsScenarioName)
 	if err != nil || strings.TrimSpace(baseURL) == "" {
 		return "", false
 	}
-	client := factsconnect.NewCodeFactsServiceClient(http.DefaultClient, baseURL)
-	resp, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+	client := factsconnect.NewCodeFactsServiceClient(&http.Client{Timeout: codeFactsProbeTimeout}, baseURL)
+	resp, err := client.DescribeCodeFacts(probeCtx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
 		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
 		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS}, UseCache: true,
 	}))

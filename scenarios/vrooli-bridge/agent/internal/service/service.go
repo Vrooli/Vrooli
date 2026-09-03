@@ -15,11 +15,13 @@ package service
 
 import (
 	"context"
-	"encoding/xml"
 	"fmt"
 	"strings"
+	"time"
 
 	"vrooli-bridge/agent/internal/platform"
+
+	platformgo "github.com/vrooli/platform-go"
 )
 
 // Definition is the platform-neutral description of a background service to
@@ -83,8 +85,57 @@ func (d Definition) restart() int {
 	return d.RestartSeconds
 }
 
+// ownerPath is the source file the rendered unit's Documentation= points at.
+const ownerPath = "scenarios/vrooli-bridge/agent/internal/service/service.go"
+
+// ServiceDefinition projects the bridge Definition onto the shared
+// platform-go ServiceDefinition every Vrooli native unit renders from. The
+// bridge keeps its own Definition as the install API (trust tiers, System,
+// log paths) and delegates the unit bodies, so a fix to the shared renderer
+// reaches the bridge agent without a second template.
+//
+// Scope follows System: a user-scope unit is wanted by default.target, the
+// only boot target a user manager reaches, and carries no User= because a
+// user manager cannot switch principals; the privileged helper installs
+// system-scope and keeps its principal.
+func (d Definition) ServiceDefinition() (platformgo.ServiceDefinition, error) {
+	if err := d.validate(); err != nil {
+		return platformgo.ServiceDefinition{}, err
+	}
+	scope := platformgo.ScopeUser
+	if d.System {
+		scope = platformgo.ScopeSystem
+	}
+	return platformgo.ServiceDefinition{
+		Name:             d.Name,
+		Label:            LaunchdLabel(d.Name),
+		Description:      fallback(d.Description, d.Name),
+		DocumentationURL: platformgo.DocumentationURL(ownerPath),
+		Executable:       d.ExecPath,
+		Args:             append([]string(nil), d.Args...),
+		WorkingDirectory: d.WorkingDir,
+		Kind:             platformgo.KindDaemon,
+		Restart:          platformgo.RestartPolicy{Mode: platformgo.RestartOnFailure, Delay: time.Duration(d.restart()) * time.Second},
+		Scope:            scope,
+		Username:         d.User,
+		Logs:             platformgo.LogPaths{Stdout: d.StandardOutPath, Stderr: d.StandardErrorPath},
+	}, nil
+}
+
+// Artifact renders the Definition for a target ("linux", "darwin",
+// "windows") through the shared renderer, so the install boundary can hand
+// the result to the native validator before enabling it.
+func (d Definition) Artifact(target string) (platformgo.RenderedArtifact, error) {
+	def, err := d.ServiceDefinition()
+	if err != nil {
+		return platformgo.RenderedArtifact{}, err
+	}
+	return platformgo.RenderDefinition(def, target)
+}
+
 // execLine renders the ExecPath + Args as a single space-joined command line,
-// quoting any token that contains whitespace.
+// quoting any token that contains whitespace. It feeds the Windows SCM
+// binPath, which takes one string.
 func (d Definition) execLine() string {
 	parts := make([]string, 0, len(d.Args)+1)
 	parts = append(parts, quoteIfNeeded(d.ExecPath))
@@ -101,67 +152,26 @@ func quoteIfNeeded(s string) string {
 	return s
 }
 
-// SystemdUnit renders the [Unit]/[Service]/[Install] file for Linux. It restarts
-// on failure, runs as Definition.User when set, and uses only the configured
-// ExecPath/WorkingDir (no hardcoded paths).
+// SystemdUnit renders the [Unit]/[Service]/[Install] file for Linux through
+// the shared renderer: restart on failure, User= only under the system
+// manager, WantedBy=default.target for a user unit so it starts at boot.
 func SystemdUnit(d Definition) (string, error) {
-	if err := d.validate(); err != nil {
+	artifact, err := d.Artifact("linux")
+	if err != nil {
 		return "", err
 	}
-	var b strings.Builder
-	b.WriteString("[Unit]\n")
-	fmt.Fprintf(&b, "Description=%s\n", fallback(d.Description, d.Name))
-	b.WriteString("After=network-online.target\n")
-	b.WriteString("Wants=network-online.target\n\n")
-	b.WriteString("[Service]\n")
-	b.WriteString("Type=simple\n")
-	fmt.Fprintf(&b, "ExecStart=%s\n", d.execLine())
-	if d.User != "" {
-		fmt.Fprintf(&b, "User=%s\n", d.User)
-	}
-	if d.WorkingDir != "" {
-		fmt.Fprintf(&b, "WorkingDirectory=%s\n", d.WorkingDir)
-	}
-	b.WriteString("Restart=on-failure\n")
-	fmt.Fprintf(&b, "RestartSec=%d\n\n", d.restart())
-	b.WriteString("[Install]\n")
-	b.WriteString("WantedBy=multi-user.target\n")
-	return b.String(), nil
+	return artifact.Primary().Content, nil
 }
 
-// LaunchdPlist renders the macOS launchd property list. It keeps the service
-// alive and runs the configured argv; ProgramArguments carries ExecPath + Args
-// as discrete elements (no shell).
+// LaunchdPlist renders the macOS launchd property list through the shared
+// renderer. ProgramArguments carries ExecPath + Args as discrete elements (no
+// shell); KeepAlive follows the restart policy.
 func LaunchdPlist(d Definition) (string, error) {
-	if err := d.validate(); err != nil {
+	artifact, err := d.Artifact("darwin")
+	if err != nil {
 		return "", err
 	}
-	var b strings.Builder
-	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
-	b.WriteString(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">` + "\n")
-	b.WriteString(`<plist version="1.0">` + "\n<dict>\n")
-	fmt.Fprintf(&b, "  <key>Label</key>\n  <string>%s</string>\n", plistValue(LaunchdLabel(d.Name)))
-	b.WriteString("  <key>ProgramArguments</key>\n  <array>\n")
-	for _, arg := range append([]string{d.ExecPath}, d.Args...) {
-		fmt.Fprintf(&b, "    <string>%s</string>\n", plistValue(arg))
-	}
-	b.WriteString("  </array>\n")
-	if d.WorkingDir != "" {
-		fmt.Fprintf(&b, "  <key>WorkingDirectory</key>\n  <string>%s</string>\n", plistValue(d.WorkingDir))
-	}
-	if d.User != "" {
-		fmt.Fprintf(&b, "  <key>UserName</key>\n  <string>%s</string>\n", plistValue(d.User))
-	}
-	if d.StandardOutPath != "" {
-		fmt.Fprintf(&b, "  <key>StandardOutPath</key>\n  <string>%s</string>\n", plistValue(d.StandardOutPath))
-	}
-	if d.StandardErrorPath != "" {
-		fmt.Fprintf(&b, "  <key>StandardErrorPath</key>\n  <string>%s</string>\n", plistValue(d.StandardErrorPath))
-	}
-	b.WriteString("  <key>RunAtLoad</key>\n  <true/>\n")
-	b.WriteString("  <key>KeepAlive</key>\n  <true/>\n")
-	b.WriteString("</dict>\n</plist>\n")
-	return b.String(), nil
+	return artifact.Primary().Content, nil
 }
 
 // LaunchdLabel is the reverse-DNS launchd label for a service name.
@@ -169,21 +179,12 @@ func LaunchdLabel(name string) string {
 	return "com.vrooli.bridge." + name
 }
 
-// plistValue XML-escapes a string for safe interpolation into a plist <string>
-// element. Argv tokens and paths can contain &, <, > (a control-plane URL query
-// string, a WorkingDir with a shell-special segment); without escaping those
-// would produce a malformed plist launchd rejects at load. Mirrors the
-// runtime-supervisor installer's escaping (internal/runtimesupervisor).
-func plistValue(value string) string {
-	var b strings.Builder
-	_ = xml.EscapeText(&b, []byte(value))
-	return b.String()
-}
-
 // WindowsServiceCreateArgs renders the `sc.exe create` argv that registers the
 // service with the Windows Service Control Manager. It is returned as a typed
 // argv (never a shell string); binPath carries the quoted ExecPath + Args, and
-// obj= carries Definition.User when set.
+// obj= carries Definition.User when set. The SCM has no unit document, so this
+// is the one Windows path that derives its arguments from the definition
+// instead of rendering a file.
 func WindowsServiceCreateArgs(d Definition) ([]string, error) {
 	if err := d.validate(); err != nil {
 		return nil, err

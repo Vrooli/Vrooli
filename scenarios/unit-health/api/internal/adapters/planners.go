@@ -101,10 +101,25 @@ func (r *plannerRegistry) ValidateIdentity(identity Identity, match Match) error
 
 func DefaultPlannerRegistry() *plannerRegistry {
 	r := NewPlannerRegistry()
-	for _, planner := range []Planner{goPlanner{}, nodeVitestPlanner{}, nodeJestPlanner{}, pytestPlanner{}, cargoPlanner{}, batsPlanner{}, pesterPlanner{}} {
+	for _, planner := range []Planner{goPlanner{}, nodeVitestPlanner{}, nodeJestPlanner{}, typescriptTypecheckPlanner{}, pytestPlanner{}, pythonMypyPlanner{}, cargoPlanner{}, batsPlanner{}, pesterPlanner{}} {
 		_ = r.Register(planner)
 	}
 	return r
+}
+
+type typescriptTypecheckPlanner struct{}
+
+func (typescriptTypecheckPlanner) Identity() Identity {
+	return Identity{ID: "typescript-typecheck", Version: "1.0.0"}
+}
+func (typescriptTypecheckPlanner) Matches(m Match) bool {
+	return isNodeLanguage(m.Language) && (strings.EqualFold(m.Framework, "vite") || strings.EqualFold(m.Framework, "typescript") || strings.TrimSpace(m.Framework) == "")
+}
+
+func (typescriptTypecheckPlanner) Plan(f Facts) (Plan, error) {
+	pm := packageManager(f.PackageManager)
+	executable := commandExecutable(pm, f.Executable)
+	return Plan{Adapter: (typescriptTypecheckPlanner{}).Identity(), TestKind: "typecheck", Test: Command{Executable: executable, Args: []string{"run", "type-check"}, Display: pm + " run type-check"}}, nil
 }
 
 type goPlanner struct{}
@@ -113,7 +128,11 @@ func (goPlanner) Identity() Identity   { return Identity{ID: "go", Version: "1.0
 func (goPlanner) Matches(m Match) bool { return strings.EqualFold(m.Language, "go") }
 func (goPlanner) Plan(f Facts) (Plan, error) {
 	executable := commandExecutable("go", f.Executable)
-	return Plan{Adapter: (goPlanner{}).Identity(), TestKind: "unit", Test: Command{Executable: executable, Args: []string{"test", "./..."}, Display: "go test ./..."}, Coverage: &Command{Executable: executable, Args: []string{"test", "-covermode=atomic", "-coverprofile=coverage.out", "./..."}, Display: "go test -covermode=atomic -coverprofile=coverage.out ./...", Artifacts: []Artifact{{Label: "go coverage", Kind: "go-cover-profile", Path: "coverage.out"}}}}, nil
+	coverage := (*Command)(nil)
+	if f.CoverageScript {
+		coverage = &Command{Executable: executable, Args: []string{"test", "-trimpath", "-covermode=atomic", "-coverprofile=coverage.out", "./..."}, Display: "go test -trimpath -covermode=atomic -coverprofile=coverage.out ./...", Artifacts: []Artifact{{Label: "go coverage", Kind: "go-cover-profile", Path: "coverage.out"}}}
+	}
+	return Plan{Adapter: (goPlanner{}).Identity(), TestKind: "unit", Test: Command{Executable: executable, Args: []string{"test", "-trimpath", "./..."}, Display: "go test -trimpath ./..."}, Coverage: coverage}, nil
 }
 
 type nodeVitestPlanner struct{}
@@ -171,6 +190,18 @@ type pytestPlanner struct{}
 func (pytestPlanner) Identity() Identity { return Identity{ID: "python-pytest", Version: "1.0.0"} }
 func (pytestPlanner) Matches(m Match) bool {
 	return strings.EqualFold(m.Language, "python") && strings.EqualFold(m.Framework, "pytest")
+}
+
+type pythonMypyPlanner struct{}
+
+func (pythonMypyPlanner) Identity() Identity { return Identity{ID: "python-mypy", Version: "1.0.0"} }
+func (pythonMypyPlanner) Matches(m Match) bool {
+	return strings.EqualFold(m.Language, "python") && strings.EqualFold(m.Framework, "mypy")
+}
+
+func (pythonMypyPlanner) Plan(f Facts) (Plan, error) {
+	executable := commandExecutable("uv", f.Executable)
+	return Plan{Adapter: (pythonMypyPlanner{}).Identity(), TestKind: "typecheck", Test: Command{Executable: executable, Args: []string{"run", "mypy", "."}, Display: executable + " run mypy ."}}, nil
 }
 
 func (pytestPlanner) Plan(f Facts) (Plan, error) {

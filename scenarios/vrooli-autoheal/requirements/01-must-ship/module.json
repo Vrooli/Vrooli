@@ -26,13 +26,21 @@
       "description": "While loop mode is active, vrooli-autoheal shall run due checks at the configured interval until graceful shutdown.",
       "id": "AUTOHEAL-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "planned",
+      "status": "in_progress",
       "title": "CLI loop command",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestBackoffDoublesAndResets",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Backed by CLI-LOOP-001..003 and CLI-ARGV-001..003 (01-cli-interface). Host evidence: loop ticked 19s after a unit restart, /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p03/proof/step1-restart-tick.txt. Loop tests carry no [REQ:AUTOHEAL-P0-002] tag yet."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestSignalDuringSleepExitsZero",
+          "phase": "unit",
+          "status": "implemented"
         }
       ]
     },
@@ -116,13 +124,29 @@
       "description": "The control plane shall idempotently install and verify the platform watchdog that keeps vrooli-autoheal running.",
       "id": "AUTOHEAL-P0-008",
       "prd_ref": "OT-P0-008",
-      "status": "planned",
+      "status": "in_progress",
       "title": "OS watchdog installer",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-008] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestApplyRestartsWhenContentChangedAndReverifies",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Backed by BOOT-RECOVERY-001/002 and WATCH-LINUX-001/002 (07-os-watchdog); idempotent re-apply and verification. Host evidence: /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt and /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/unit-state.txt. macOS and Windows are fixture-verified only (WATCH-MAC-001, WATCH-WIN-001)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario-side verification."
+        },
+        {
+          "type": "manual",
+          "ref": "/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Evidence tier: host-verified on swarminator (Linux, systemd 255, user scope) 2026-09-02."
         }
       ]
     },
@@ -206,13 +230,41 @@
       "description": "If a supervised member exceeds its configured consecutive-failure budget, the supervisor shall suspend retries and raise a durable incident until explicitly resumed.",
       "id": "AUTOHEAL-P0-014",
       "prd_ref": "OT-P0-014",
-      "status": "planned",
+      "status": "in_progress",
       "title": "Bounded retry and escalation",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-014] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "cli/loop/selfheal_test.go::TestSelfHealBudgetExhaustsWithinWindow",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Self-heal budget: attempts inside the window exhaust the budget. Scope note: this evidence covers the loop's own API supervision (retry budget, breaker, exit 3 escalation), not the per-member incident record the OT also names. Failing-before: /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/failing-before-TestUsageErrorIsNonHealableAndExits3.txt; exit-3 capture: /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/exit3.txt. Loop tests carry no [REQ:AUTOHEAL-P0-014] tag yet."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/selfheal_test.go::TestSelfHealSuspensionBlocksEvenInNewWindow",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A suspended breaker stays suspended across windows until explicitly reset."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/selfheal_test.go::TestRecordSelfHealAttemptTripsBreaker",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestUsageErrorIsNonHealableAndExits3",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Non-healable failures escalate with exit 3 after three attempts and a durable status file."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/lifecycle_test.go::TestRunLifecycleWithRecoveryDoesNotSpendBreakerSlotsOnUsageErrors",
+          "phase": "unit",
+          "status": "implemented"
         }
       ]
     },

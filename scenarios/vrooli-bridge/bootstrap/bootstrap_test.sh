@@ -215,8 +215,7 @@ CLI
 #!/usr/bin/env bash
 set -euo pipefail
 [ -n "${FAKE_VROOLI_LOG:-}" ] && printf 'root=%s argv=%s\n' "${VROOLI_SOURCE_ROOT:-}" "$*" >>"$FAKE_VROOLI_LOG"
-[ "${1:-}" = "--no-stale-check" ] || { echo "expected prebuilt stale-check bypass" >&2; exit 2; }
-[ "${2:-}" = "setup" ] || { echo "expected setup" >&2; exit 2; }
+[ "${1:-}" = "setup" ] || { echo "expected setup invocation" >&2; exit 2; }
 result_file=""
 prev=""
 for arg in "$@"; do
@@ -489,8 +488,13 @@ rcpre=$?
 set -e
 check "prebuilt no-Go run exits 0" "$([ "$rcpre" -eq 0 ] && echo 0 || echo 1)"
 check "prebuilt bundle reports received binaries" "$(grep 'step=prebuilt-artifacts' "$OUTPRE" | grep -q 'received prebuilt binaries' && echo 0 || echo 1)"
-check "prebuilt setup invokes transferred vrooli directly" "$(grep -q 'argv=--no-stale-check setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
-check "prebuilt setup bypasses stale self-rebuild before Go exists" "$(grep -q 'argv=--no-stale-check setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt setup invokes transferred vrooli directly" "$(grep -q 'argv=setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt setup passes no global flags" "$(grep -q 'argv=setup' "$FAKE_VROOLI_LOG" && ! grep -q 'argv=--' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+# The exact argv is pinned in argv-fixture.txt so the control plane's invoker
+# registry can parse what this script really runs through the root parser.
+fixture_argv="$(grep -v '^#' "${SCRIPT_DIR}/argv-fixture.txt" | sed -n '1p')"
+recorded_argv="$(sed -n 's/^root=.* argv=//p' "$FAKE_VROOLI_LOG" | head -1 | sed 's#--result-file .*#--result-file <result-file>#')"
+check "prebuilt setup argv matches argv-fixture.txt" "$([ "$recorded_argv" = "$fixture_argv" ] && echo 0 || echo 1)"
 check "prebuilt setup points freshness at shipped tree" "$(grep -q "root=${CHECKOUT}" "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
 check "prebuilt service work-dir follows shipped tree" "$(grep -q -- "--work-dir ${CHECKOUT}" "$FAKE_AGENT_LOG" && echo 0 || echo 1)"
 check "prebuilt run never invokes make" "$([ -s "$FAKE_MAKE_LOG" ] && echo 1 || echo 0)"

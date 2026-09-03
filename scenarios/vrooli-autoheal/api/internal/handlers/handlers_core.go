@@ -607,7 +607,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 				apierrors.LogError("tick", "save_recheck_result:"+result.CheckID, err)
 			}
 			if h.incidentService != nil {
-				if _, _, err := h.incidentService.UpsertFromCheckResult(ctx, result); err != nil {
+				if _, err := h.incidentService.UpsertAllFromCheckResult(ctx, result); err != nil {
 					apierrors.LogError("tick", "upsert_recheck_incident:"+result.CheckID, err)
 				}
 			}

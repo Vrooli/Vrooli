@@ -95,7 +95,7 @@ func TestRealExecutorContextTimeout(t *testing.T) {
 }
 
 // =============================================================================
-// vrooli --no-stale-check injection (Phase 1 of stale-rebuild loop fix)
+// control-plane invocation
 // =============================================================================
 
 // writeFakeVrooliBinary writes a shell script at a path the executor will pick
@@ -112,10 +112,7 @@ func writeFakeVrooliBinary(t *testing.T) string {
 	return path
 }
 
-// TestRealExecutor_PrependsNoStaleCheckForVrooli asserts that every vrooli
-// invocation through RealExecutor is auto-flagged with --no-stale-check, so
-// autoheal subprocesses cannot trigger the buildinfo rebuild path.
-func TestRealExecutor_PrependsNoStaleCheckForVrooli(t *testing.T) {
+func TestRealExecutorLeavesVrooliArgumentsUntouched(t *testing.T) {
 	fake := writeFakeVrooliBinary(t)
 	t.Setenv("VROOLI_CMD_PATH", fake)
 
@@ -125,8 +122,8 @@ func TestRealExecutor_PrependsNoStaleCheckForVrooli(t *testing.T) {
 		t.Fatalf("Output() error = %v", err)
 	}
 	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	if len(lines) == 0 || lines[0] != "--no-stale-check" {
-		t.Fatalf("first arg = %v, want --no-stale-check (full args=%v)", lines[0], lines)
+	if got := strings.Join(lines, " "); got != "scenario status" {
+		t.Fatalf("arguments = %q, want %q", got, "scenario status")
 	}
 }
 
@@ -141,29 +138,6 @@ func TestRealExecutor_LeavesNonVrooliCommandsUntouched(t *testing.T) {
 	}
 	if got := strings.TrimRight(string(out), "\n"); got != "hello world" {
 		t.Fatalf("Output = %q, want %q", got, "hello world")
-	}
-}
-
-// TestRealExecutor_DoesNotDoublePrepend verifies idempotence — an explicit
-// --no-stale-check passed by an upstream caller stays a single occurrence.
-func TestRealExecutor_DoesNotDoublePrepend(t *testing.T) {
-	fake := writeFakeVrooliBinary(t)
-	t.Setenv("VROOLI_CMD_PATH", fake)
-
-	exec := &RealExecutor{}
-	out, err := exec.Output(context.Background(), "vrooli", "--no-stale-check", "scenario", "status")
-	if err != nil {
-		t.Fatalf("Output() error = %v", err)
-	}
-	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	count := 0
-	for _, l := range lines {
-		if l == "--no-stale-check" {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Fatalf("--no-stale-check occurrences = %d, want 1 (args=%v)", count, lines)
 	}
 }
 

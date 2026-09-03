@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"storage-manager/internal/budget"
 	"storage-manager/internal/census"
 	"storage-manager/internal/growth"
 	"storage-manager/internal/module"
+	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/placement"
 	"storage-manager/internal/providers"
 
@@ -39,6 +40,23 @@ func Module(d ModuleDeps) module.Module {
 		store := census.NewSnapshotStore(d.DB)
 		growthStore := growth.NewStore(d.DB)
 		placementService := placement.New(d.DB)
+		var inventoryMu sync.RWMutex
+		var ownerInventory corestorage.OwnerInventory
+		var ownerInventoryErr error
+		inventoryReady := false
+		inventoryReadyCh := make(chan struct{})
+		var infraHealthCacheMu sync.Mutex
+		infraHealthCache := make(map[string]infraHealthCacheEntry)
+		var retentionCacheMu sync.Mutex
+		var retentionCache infraHealthCacheEntry
+		// Inventory is required by every operator read model. Load it before
+		// publishing the module so a healthy storage-manager never advertises a
+		// feed that can only return transient "warming" errors.
+		loaded, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+		inventoryMu.Lock()
+		ownerInventory, ownerInventoryErr, inventoryReady = loaded, err, true
+		inventoryMu.Unlock()
+		close(inventoryReadyCh)
 		snapshotRoot := func(root string) string {
 			if canonical, err := census.DeviceRoot(root); err == nil && strings.TrimSpace(canonical) != "" {
 				return canonical
@@ -165,6 +183,40 @@ func Module(d ModuleDeps) module.Module {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/storage/writers", func(w http.ResponseWriter, req *http.Request) {
+			if d.DB == nil {
+				http.Error(w, "storage database is unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			limit, _ := strconv.Atoi(req.URL.Query().Get("top"))
+			if limit <= 0 {
+				limit = 10
+			}
+			rows, err := orchestrator.NewSQLiteStore(d.DB).ListWriterSnapshots(req.Context(), limit)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(rows)
+		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/recovery/runs", func(w http.ResponseWriter, req *http.Request) {
+			if d.DB == nil {
+				http.Error(w, "storage database is unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
+			if limit <= 0 {
+				limit = 10
+			}
+			rows, err := orchestrator.NewSQLiteStore(d.DB).ListRecoveryRuns(req.Context(), limit)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(rows)
+		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/storage/budget-health", func(w http.ResponseWriter, req *http.Request) {
 			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
 			if inventoryErr != nil {
@@ -179,15 +231,48 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(budget.Aggregate(inventory, capacity))
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/retention/owners", func(w http.ResponseWriter, req *http.Request) {
-			discovery, err := retention.DiscoverOwners(d.RepoRoot)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			retentionCacheMu.Lock()
+			if len(retentionCache.Payload) > 0 && time.Since(retentionCache.ObservedAt) < 30*time.Second {
+				payload := append([]byte(nil), retentionCache.Payload...)
+				retentionCacheMu.Unlock()
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(append(payload, '\n'))
 				return
 			}
-			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			retentionCacheMu.Unlock()
+			// Reuse the inventory loaded during module startup. DiscoverOwners
+			// would perform the same repository-wide manifest census again and
+			// made this read surface take tens of seconds on a large checkout.
+			inventoryMu.RLock()
+			ready, inventoryErr, inventory := inventoryReady, ownerInventoryErr, ownerInventory
+			inventoryMu.RUnlock()
+			if !ready {
+				timer := time.NewTimer(4 * time.Second)
+				select {
+				case <-inventoryReadyCh:
+					timer.Stop()
+				case <-timer.C:
+					http.Error(w, "owner inventory is warming; retry", http.StatusServiceUnavailable)
+					return
+				}
+				inventoryMu.RLock()
+				ready, inventoryErr, inventory = inventoryReady, ownerInventoryErr, ownerInventory
+				inventoryMu.RUnlock()
+				if !ready {
+					http.Error(w, "owner inventory is warming; retry", http.StatusServiceUnavailable)
+					return
+				}
+			}
 			if inventoryErr != nil {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
+			}
+			discovery := retention.OwnerDiscovery{Findings: inventory.Findings}
+			for _, owner := range inventory.Owners {
+				if owner.ID == "" {
+					continue
+				}
+				discovery.Configs = append(discovery.Configs, retention.OwnerConfig{Kind: retention.OwnerKind(owner.Kind), ID: owner.ID, ScenarioConfig: retention.ScenarioConfig{ManifestPath: owner.ManifestPath, Scenario: owner.ID}})
 			}
 			capacity := int64(0)
 			if latest, latestErr := store.Latest(req.Context(), snapshotRoot(d.RepoRoot)); latestErr == nil && latest != nil {
@@ -267,8 +352,6 @@ func Module(d ModuleDeps) module.Module {
 						// not unbounded. Keep the operator-visible distinction explicit.
 						record.EnforcementState = "unenforced"
 					}
-				} else if len(record.Budgets) > 0 && ownerIsRunning(req.Context(), owner.Kind, owner.ID) && len(record.Findings) == 0 {
-					record.EnforcementState = "governed"
 				}
 				if record.LastEnforcementError != "" && record.EnforcementState == "governed" {
 					record.EnforcementState = "enforcement_failed"
@@ -287,8 +370,16 @@ func Module(d ModuleDeps) module.Module {
 					out.Summary.OverBudget++
 				}
 			}
+			payload, marshalErr := json.Marshal(out)
+			if marshalErr != nil {
+				http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			retentionCacheMu.Lock()
+			retentionCache = infraHealthCacheEntry{Payload: append([]byte(nil), payload...), ObservedAt: time.Now()}
+			retentionCacheMu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(out)
+			_, _ = w.Write(append(payload, '\n'))
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/placement", func(w http.ResponseWriter, req *http.Request) {
 			platform := corestorage.NormalizePlatform(req.URL.Query().Get("platform"))
@@ -555,21 +646,58 @@ func Module(d ModuleDeps) module.Module {
 				root = requested
 			}
 			root = snapshotRoot(root)
+			// Infrastructure-manager polls this read-only feed frequently. Serialize
+			// refreshes and reuse a very short-lived response so repeated polling
+			// cannot turn the growth/ledger queries into a CPU loop.
+			infraHealthCacheMu.Lock()
+			defer infraHealthCacheMu.Unlock()
+			if cached, ok := infraHealthCache[root]; ok && time.Since(cached.ObservedAt) < 5*time.Second {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(append(append([]byte(nil), cached.Payload...), '\n'))
+				return
+			}
 			history, err := store.History(req.Context(), root, 1)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			inventoryMu.RLock()
+			ready, inventoryErr, inventory := inventoryReady, ownerInventoryErr, ownerInventory
+			inventoryMu.RUnlock()
+			if !ready {
+				// Startup inventory loading is asynchronous so it does not delay
+				// scenario readiness. Give this read-only projection one bounded
+				// wait for that same load to finish, keeping infra-health callers
+				// from observing a transient all-cells-unavailable result.
+				timer := time.NewTimer(4 * time.Second)
+				select {
+				case <-inventoryReadyCh:
+					timer.Stop()
+				case <-timer.C:
+					http.Error(w, "owner inventory is warming; retry", http.StatusServiceUnavailable)
+					return
+				}
+				inventoryMu.RLock()
+				ready, inventoryErr, inventory = inventoryReady, ownerInventoryErr, ownerInventory
+				inventoryMu.RUnlock()
+				if !ready {
+					http.Error(w, "owner inventory is warming; retry", http.StatusServiceUnavailable)
+					return
+				}
+			}
+			if inventoryErr != nil {
+				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
 			}
 			withCeiling := 0
+			declaredCeilingBytes := int64(0)
 			for _, owner := range inventory.Owners {
 				for _, entry := range owner.StorageEntries {
 					if entry.Budget != nil {
 						withCeiling++
+						if parsed, parseErr := retention.ParseBytes(entry.Budget.MaxBytes); parseErr == nil && parsed > 0 {
+							declaredCeilingBytes += parsed
+						}
 						break
 					}
 				}
@@ -579,7 +707,24 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, countErr.Error(), http.StatusInternalServerError)
 				return
 			}
-			out := infraHealthReport{OwnerCount: len(inventory.Owners), OwnersWithDeclaredCeiling: withCeiling, DeclaredCeilingCoverage: ratio(withCeiling, len(inventory.Owners)), SnapshotCount: snapshotCount, Confidence: "unknown"}
+			out := infraHealthReport{SchemaVersion: "2", OwnerCount: len(inventory.Owners), OwnersWithDeclaredCeiling: withCeiling, DeclaredCeilingCoverage: ratio(withCeiling, len(inventory.Owners)), DeclaredCeilingBytes: declaredCeilingBytes, SnapshotCount: snapshotCount, Confidence: "unknown"}
+			if d.DB != nil {
+				ledger := orchestrator.NewSQLiteStore(d.DB)
+				if writers, writerErr := ledger.ListWriterSnapshots(req.Context(), 10); writerErr == nil {
+					out.TopWriters = writers
+				}
+				if runs, runErr := ledger.ListRecoveryRuns(req.Context(), 10); runErr == nil {
+					for _, run := range runs {
+						out.RecentRecoveryRuns = append(out.RecentRecoveryRuns, recoveryRunSummary{
+							ID: run.ID, Status: run.Status, Trigger: run.Trigger, Partition: run.Partition,
+							Action: run.Action, PlanID: run.PlanID, EstimatedBytes: run.EstimatedBytes,
+							ReclaimedBytes: run.ReclaimedBytes, TargetFreeBytes: run.TargetFreeBytes,
+							StoppedBecause: run.StoppedBecause, Reason: run.Reason,
+							StartedAt: run.StartedAt, CompletedAt: run.CompletedAt,
+						})
+					}
+				}
+			}
 			growthReport, growthErr := growthStore.Build(req.Context(), root, 24*time.Hour, nil)
 			if growthErr == nil && growthReport.Device.SampleCount >= 6 && growthReport.Device.Confidence != "insufficient_samples" {
 				out.GrowthSlopeBytesPerHour = &growthReport.Device.SlopeBytesPerHour
@@ -616,63 +761,41 @@ func Module(d ModuleDeps) module.Module {
 					out.DeclaredCeilingMeasuredCoverage = ratio64(out.MeasuredBytesUnderDeclaredCeiling, history[0].MeasuredBytes)
 				}
 			}
+			if len(out.RecentRecoveryRuns) > 0 {
+				completed, targetMet := 0, 0
+				for _, run := range out.RecentRecoveryRuns {
+					if run.Status != orchestrator.RecoveryRunning {
+						completed++
+						if run.StoppedBecause == "target_met" {
+							targetMet++
+						}
+					}
+				}
+				if completed > 0 {
+					efficacy := ratio(targetMet, completed)
+					out.RecoveryEfficacy = &efficacy
+				}
+			}
+			if out.MeasuredBytesUnderDeclaredCeiling > 0 {
+				truth := ratio64(out.MeasuredBytesUnderEnforcedCeiling, out.MeasuredBytesUnderDeclaredCeiling)
+				if truth > 1 {
+					truth = 1
+				}
+				out.BudgetTruth = &truth
+			}
+			data, err := json.Marshal(out)
+			if err != nil {
+				// Do not return a successful empty feed when a persisted value is
+				// not JSON-representable (for example NaN). The typed reader must
+				// receive either valid JSON or an explicit server error.
+				http.Error(w, fmt.Sprintf("encode infra-health report: %v", err), http.StatusInternalServerError)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(out)
+			infraHealthCache[root] = infraHealthCacheEntry{Payload: append([]byte(nil), data...), ObservedAt: time.Now()}
+			_, _ = w.Write(append(data, '\n'))
 		}).Methods(http.MethodGet)
 	}, Endpoints: Endpoints}
-}
-
-func ownerIsRunning(ctx context.Context, kind retention.OwnerKind, owner string) bool {
-	owner = strings.TrimSpace(owner)
-	if owner == "" || !safeOwnerID(owner) {
-		return false
-	}
-	commandName := "scenario"
-	commandArgs := []string{"status", owner, "--json"}
-	if kind == retention.OwnerResource {
-		commandName = "resource"
-		commandArgs = []string{"status", owner, "--json"}
-	}
-	// owner is restricted to a manifest identifier; exec.CommandContext does
-	// not invoke a shell, so this is not shell interpolation.
-	command := exec.CommandContext(ctx, "vrooli", append([]string{commandName}, commandArgs...)...) // #nosec G204,G702 -- validated owner id and fixed executable/arguments
-	output, err := command.Output()
-	if err != nil {
-		return false
-	}
-	var status struct {
-		Status   string `json:"status"`
-		Scenario struct {
-			Status       string `json:"status"`
-			HealthStatus string `json:"health_status"`
-		} `json:"scenario"`
-	}
-	if json.Unmarshal(output, &status) != nil {
-		return false
-	}
-	current := status.Status
-	if current == "" {
-		current = status.Scenario.Status
-		if current == "" {
-			current = status.Scenario.HealthStatus
-		}
-	}
-	switch strings.ToLower(strings.TrimSpace(current)) {
-	case "running", "healthy", "ready", "started":
-		return true
-	default:
-		return false
-	}
-}
-
-func safeOwnerID(owner string) bool {
-	for _, r := range owner {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 func resourceEnvironmentExports(repoRoot string) map[string]string {
@@ -965,19 +1088,48 @@ func directorySize(path string) int64 {
 	return total
 }
 
+type infraHealthCacheEntry struct {
+	Payload    []byte
+	ObservedAt time.Time
+}
+
 type infraHealthReport struct {
-	OwnerCount                        int            `json:"owner_count"`
-	OwnersWithDeclaredCeiling         int            `json:"owners_with_declared_ceiling"`
-	DeclaredCeilingCoverage           float64        `json:"declared_ceiling_coverage"`
-	SnapshotCount                     int            `json:"snapshot_count"`
-	Confidence                        string         `json:"confidence"`
-	GrowthSlopeBytesPerHour           *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
-	DaysToFull                        *float64       `json:"days_to_full,omitempty"`
-	MeasuredBytesUnderEnforcedCeiling int64          `json:"measured_bytes_under_enforced_ceiling"`
-	EnforcedCeilingCoverage           float64        `json:"enforced_ceiling_coverage"`
-	MeasuredBytesUnderDeclaredCeiling int64          `json:"measured_bytes_under_declared_ceiling"`
-	DeclaredCeilingMeasuredCoverage   float64        `json:"declared_ceiling_measured_coverage"`
-	LatestSnapshot                    *census.Report `json:"latest_snapshot,omitempty"`
+	SchemaVersion                     string                        `json:"schema_version"`
+	OwnerCount                        int                           `json:"owner_count"`
+	OwnersWithDeclaredCeiling         int                           `json:"owners_with_declared_ceiling"`
+	DeclaredCeilingCoverage           float64                       `json:"declared_ceiling_coverage"`
+	DeclaredCeilingBytes              int64                         `json:"declared_ceiling_bytes"`
+	SnapshotCount                     int                           `json:"snapshot_count"`
+	Confidence                        string                        `json:"confidence"`
+	GrowthSlopeBytesPerHour           *float64                      `json:"growth_slope_bytes_per_hour,omitempty"`
+	DaysToFull                        *float64                      `json:"days_to_full,omitempty"`
+	MeasuredBytesUnderEnforcedCeiling int64                         `json:"measured_bytes_under_enforced_ceiling"`
+	EnforcedCeilingCoverage           float64                       `json:"enforced_ceiling_coverage"`
+	MeasuredBytesUnderDeclaredCeiling int64                         `json:"measured_bytes_under_declared_ceiling"`
+	DeclaredCeilingMeasuredCoverage   float64                       `json:"declared_ceiling_measured_coverage"`
+	LatestSnapshot                    *census.Report                `json:"latest_snapshot,omitempty"`
+	TopWriters                        []orchestrator.WriterSnapshot `json:"top_writers,omitempty"`
+	RecentRecoveryRuns                []recoveryRunSummary          `json:"recent_recovery_runs,omitempty"`
+	RecoveryEfficacy                  *float64                      `json:"recovery_efficacy,omitempty"`
+	BudgetTruth                       *float64                      `json:"budget_truth,omitempty"`
+}
+
+// recoveryRunSummary is the read-only wire projection. RecoveryRun also owns
+// a completion channel, which is intentionally never exposed as JSON.
+type recoveryRunSummary struct {
+	ID              string                      `json:"id"`
+	Status          string                      `json:"status"`
+	Trigger         string                      `json:"trigger"`
+	Partition       string                      `json:"partition"`
+	Action          orchestrator.PressureAction `json:"action"`
+	PlanID          string                      `json:"plan_id,omitempty"`
+	EstimatedBytes  int64                       `json:"estimated_bytes"`
+	ReclaimedBytes  int64                       `json:"reclaimed_bytes"`
+	TargetFreeBytes int64                       `json:"target_free_bytes"`
+	StoppedBecause  string                      `json:"stopped_because,omitempty"`
+	Reason          string                      `json:"reason,omitempty"`
+	StartedAt       time.Time                   `json:"started_at"`
+	CompletedAt     time.Time                   `json:"completed_at"`
 }
 
 func parseGrowthWindow(raw string) (time.Duration, error) {
@@ -1076,4 +1228,6 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "storage_declare_suggest", Path: "/api/v1/declare/suggest", Method: http.MethodGet, Summary: "Suggest a storage declaration", Description: "Emits a measured, schema-valid storage block for one owner.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_declare_check", Path: "/api/v1/declare/check", Method: http.MethodGet, Summary: "Check declaration coverage", Description: "Reports declared and budgeted coverage by owner kind.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_infra_health", Path: "/api/v1/infra-health/storage", Method: http.MethodGet, Summary: "Read storage infra-health signal", Description: "Publishes declared-ceiling coverage and the latest persisted census growth signal without rescanning.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_writers", Path: "/api/v1/storage/writers", Method: http.MethodGet, Summary: "Rank writer snapshots", Description: "Reads persisted governed-root growth observations without walking the filesystem.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_recovery_runs", Path: "/api/v1/recovery/runs", Method: http.MethodGet, Summary: "List recovery runs", Description: "Reads recent server-owned recovery runs from the durable ledger.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 }

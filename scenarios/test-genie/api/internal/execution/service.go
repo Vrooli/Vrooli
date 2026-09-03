@@ -156,6 +156,8 @@ func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionRes
 		compact = append(compact, phases.ExecutionResult{
 			Name:                          result.Name,
 			Status:                        result.Status,
+			StartedAt:                     result.StartedAt,
+			CompletedAt:                   result.CompletedAt,
 			DurationSeconds:               result.DurationSeconds,
 			DurationMilliseconds:          result.DurationMilliseconds,
 			PredictedDurationMilliseconds: result.PredictedDurationMilliseconds,

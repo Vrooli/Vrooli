@@ -19,6 +19,9 @@ const (
 	DefaultActionTimeoutRestartSeconds = 300
 	DefaultTimeoutRetrySeconds         = 30
 	DefaultHealInterlockSeconds        = 30
+	// DefaultContainStorm is automatic (plan decision D5): agents only, never
+	// a supervisor or a resource.
+	DefaultContainStorm = "automatic"
 
 	// UI defaults
 	DefaultAutoRefreshSeconds = 30
@@ -42,6 +45,7 @@ func DefaultGlobal() GlobalConfig {
 		ActionTimeoutRestartSeconds: DefaultActionTimeoutRestartSeconds,
 		TimeoutRetrySeconds:         DefaultTimeoutRetrySeconds,
 		HealInterlockSeconds:        DefaultHealInterlockSeconds,
+		ContainStorm:                DefaultContainStorm,
 	}
 }
 
@@ -184,6 +188,17 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 			CriticalPercent: ptr(90.0),
 			Partitions:      []string{"/", "/home"},
 		},
+	},
+	"system-emergency-watchdog-report": {
+		Enabled: true,
+		// The storm authority (plan decision D5): a sustained fork storm the
+		// watchdog attributes to an agent session scope is frozen from the
+		// auto-heal pass. The action only ever targets a scope under
+		// vrooli-agents.slice, and Global.ContainStorm=propose_only marks it
+		// Dangerous so this pass never selects it.
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60,
 	},
 	"system-inode": {
 		Enabled:         true,

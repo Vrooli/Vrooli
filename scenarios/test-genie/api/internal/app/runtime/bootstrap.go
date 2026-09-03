@@ -119,7 +119,8 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	runner.SetPhaseCostEstimator(executionRepo)
-	if capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), ""); capacityErr != nil {
+	capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), "")
+	if capacityErr != nil {
 		log.Printf("[test-genie] phase capacity broker unavailable; scheduler will serialize: %v", capacityErr)
 	} else {
 		runner.SetCapacityBroker(capacityBroker)
@@ -148,7 +149,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// The run manager owns durable run execution decoupled from any client
 	// request: it is the single engine every door (blocking REST, SSE gateway,
 	// Connect run surface) funnels through, so a run survives client cancellation.
-	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot).WithArtifactRootResolver(artifactpaths.ScenarioRoot)
+	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot).WithArtifactRootResolver(artifactpaths.ScenarioRoot).WithRunClaimReleaser(capacityBroker).WithSuiteEnvelopeProvider(executionRepo.SuiteEnvelopeEstimates).SetCapacityBroker(capacityBroker).EnableAdaptiveConcurrency()
 	if swept, err := runManager.Sweep(); err != nil {
 		log.Printf("[test-genie] run-index startup sweep failed: %v", err)
 	} else if swept > 0 {

@@ -20,6 +20,31 @@ func TestResolveWorkspacePlansPolyglotSurfacesThroughAdapters(t *testing.T) {
 	}
 }
 
+func TestResolveWorkspaceUsesMypyWhenConfigured(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "pyproject.toml"), []byte("[tool.mypy]\ncheck_untyped_defs = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolution, _ := ResolveWorkspace(WorkspaceInput{Language: "python", Surface: discovery.Surface{ID: "api", RootPath: root}})
+	if resolution.Framework != "mypy" || resolution.CanonicalFramework != "mypy" {
+		t.Fatalf("python typecheck resolution=%+v", resolution)
+	}
+}
+
+func TestResolveWorkspaceAddsTypecheckPlanForTypeCheckScript(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"scripts":{"test":"vitest run","test:coverage":"vitest run --coverage","type-check":"tsc --noEmit"},"devDependencies":{"vitest":"1"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolution, diagnostics := ResolveWorkspace(WorkspaceInput{
+		Language: "typescript", Surface: discovery.Surface{ID: "ui", RootPath: root, PackageManager: "pnpm"},
+		ResolveExecutable: func([]string) (string, bool) { return filepath.Join(root, "pnpm"), true },
+	})
+	if len(diagnostics) != 0 || resolution.TypecheckCommand != "pnpm run type-check" || resolution.TypecheckExecutable == "" || len(resolution.TypecheckArgs) != 2 {
+		t.Fatalf("resolution=%+v diagnostics=%+v", resolution, diagnostics)
+	}
+}
+
 func TestResolveWorkspaceJestIsExplicitlyDegraded(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"scripts":{"test":"jest"},"devDependencies":{"jest":"1"}}`), 0o644); err != nil {
@@ -106,8 +131,8 @@ func TestResolveWorkspaceNormalizesVersionedPackageManagerForExecution(t *testin
 		return "", false
 	}
 	resolution, diagnostics := ResolveWorkspace(WorkspaceInput{
-		Language: "typescript",
-		Surface: discovery.Surface{ID: "ui", RootPath: root, PackageManager: "pnpm@9.12.1"},
+		Language:          "typescript",
+		Surface:           discovery.Surface{ID: "ui", RootPath: root, PackageManager: "pnpm@9.12.1"},
 		ResolveExecutable: resolve,
 	})
 	if resolution.Status != "ready" || resolution.TestExecutable == "" || len(diagnostics) != 0 {

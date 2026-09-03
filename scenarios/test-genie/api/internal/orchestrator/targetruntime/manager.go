@@ -350,10 +350,7 @@ func (m *Manager) readRecords() ([]processRecord, error) {
 }
 
 func defaultCommandRunner(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error {
-	cmdArgs := args
-	if name == "vrooli" && (len(args) == 0 || args[0] != "--no-stale-check") {
-		cmdArgs = append([]string{"--no-stale-check"}, args...)
-	}
+	cmdArgs := append([]string(nil), args...)
 	cmd := exec.CommandContext(ctx, name, cmdArgs...)
 	if strings.TrimSpace(dir) != "" {
 		cmd.Dir = dir

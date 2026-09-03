@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"test-genie/internal/execution"
+	"test-genie/internal/shared/stats"
 )
 
 // DefaultWindow is the default look-back window for the ledger. It is wider than
@@ -581,34 +582,12 @@ func durationStats(values []int) DurationStats {
 	}
 	return DurationStats{
 		Samples: len(sorted),
-		P50:     percentile(sorted, 0.5),
-		P95:     percentile(sorted, 0.95),
+		P50:     stats.PercentileValue(sorted, 0.5),
+		P95:     stats.PercentileValue(sorted, 0.95),
 		Min:     sorted[0],
 		Max:     sorted[len(sorted)-1],
 		Avg:     int(float64(sum)/float64(len(sorted)) + 0.5),
 	}
-}
-
-// percentile mirrors execution.percentileSeconds: nearest-rank over a presorted
-// ascending slice.
-func percentile(sorted []int, p float64) int {
-	if len(sorted) == 0 {
-		return 0
-	}
-	if len(sorted) == 1 || p <= 0 {
-		return sorted[0]
-	}
-	if p >= 1 {
-		return sorted[len(sorted)-1]
-	}
-	idx := int(p*float64(len(sorted)-1) + 0.5)
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
 }
 
 func ratio(num, den int) float64 {

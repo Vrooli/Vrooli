@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -13,9 +14,11 @@ import (
 	"storage-manager/internal/census"
 	"storage-manager/internal/httpx"
 	"storage-manager/internal/modules"
+	"storage-manager/internal/orchestrator"
 	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
 
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -41,7 +44,18 @@ import (
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
-	if preflight.Run(preflight.Config{ScenarioName: "storage-manager"}) {
+	// The lifecycle already owns freshness checks and builds before launching a
+	// managed process. Running a second source walk and rebuild here can consume
+	// the entire startup health window (and briefly create a competing compiler
+	// workload). Keep the direct-run safety net, but make lifecycle startup
+	// trust the artifact it just built.
+	if preflight.Run(preflight.Config{
+		ScenarioName: "storage-manager",
+		// The lifecycle build step is the freshness authority. A second source
+		// walk here can consume the entire readiness window and duplicate a
+		// compiler workload while the managed API is trying to bind.
+		DisableStaleness: true,
+	}) {
 		return
 	}
 
@@ -61,21 +75,6 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		logger.Fatalf("schema initialization failed: %v", err)
 	}
-	// Upgrade persisted report blobs into the narrow growth read model without
-	// delaying API readiness. The operation is idempotent and resumes safely.
-	if repoRoot, resolveErr := repocontract.ResolveRepoRoot(); resolveErr == nil && repoRoot != "" {
-		go func() {
-			store := census.NewSnapshotStore(db)
-			root, rootErr := census.DeviceRoot(repoRoot)
-			if rootErr != nil {
-				logger.Printf("census sample backfill root resolution failed: %v", rootErr)
-				return
-			}
-			if _, backfillErr := store.BackfillEntrySamples(context.Background(), root, 100); backfillErr != nil {
-				logger.Printf("census sample backfill failed: %v", backfillErr)
-			}
-		}()
-	}
 	repoRoot, repoErr := repocontract.ResolveRepoRoot()
 	if repoErr != nil {
 		logger.Printf("repo root resolution failed; validation will report unresolved targets: %v", repoErr)
@@ -90,6 +89,7 @@ func main() {
 	// API remains fast to ready, while long-lived processes persist immutable
 	// observations for infra-health and the operator console.
 	schedulerContext, stopScheduler := context.WithCancel(context.Background())
+	startCensusBackfill(schedulerContext, logger, db, repoRoot)
 	if repoRoot != "" {
 		snapshotStore := census.NewSnapshotStore(db)
 		storageScheduler := census.NewScheduler(censusInterval(), func(ctx context.Context) error {
@@ -121,14 +121,14 @@ func main() {
 		if retentionLedger, ledgerErr := openRetentionLedger(); ledgerErr != nil {
 			logger.Printf("retention scheduler disabled, nothing will be pruned: %v", ledgerErr)
 		} else {
-			startRetentionScheduler(schedulerContext, logger, repoRoot, retentionLedger)
+			startRetentionScheduler(schedulerContext, logger, repoRoot, retentionLedger, db)
 		}
 	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
-		cleanupH.Module(logger, db, fileRoots),
+		cleanupH.ModuleWithContext(schedulerContext, logger, db, fileRoots),
 		fleetH.Module(logger, repoRoot, db, schedule.System()),
 		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
@@ -169,6 +169,37 @@ func main() {
 	}); err != nil {
 		logger.Fatalf("Server error: %v", err)
 	}
+}
+
+// startCensusBackfill keeps the historical report migration out of the API
+// readiness path. census_snapshots may contain large legacy report_json blobs;
+// with the single-connection SQLite configuration, reading them during main
+// can starve handler initialization and make lifecycle health time out. The
+// migration is an explicit opt-in maintenance action and is delayed even when
+// enabled so the listener is already serving.
+func startCensusBackfill(ctx context.Context, logger *log.Logger, db *database.RoutedDB, repoRoot string) {
+	if strings.TrimSpace(os.Getenv("STORAGE_CENSUS_BACKFILL")) != "1" || strings.TrimSpace(repoRoot) == "" {
+		return
+	}
+	go func() {
+		timer := time.NewTimer(30 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		backfillCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+		root, err := census.DeviceRoot(repoRoot)
+		if err != nil {
+			logger.Printf("census sample backfill root resolution failed: %v", err)
+			return
+		}
+		if _, err := census.NewSnapshotStore(db).BackfillEntrySamples(backfillCtx, root, 100); err != nil {
+			logger.Printf("census sample backfill failed: %v", err)
+		}
+	}()
 }
 
 func scenarioStoragePaths() (storage.Paths, error) {
@@ -227,14 +258,26 @@ func openRetentionLedger() (*artifactledger.Ledger, error) {
 }
 
 // startRetentionScheduler runs declared storage-entry budgets on an interval.
-func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger) {
+func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger, db *database.RoutedDB) {
 	platform := storage.Platform(runtime.GOOS)
+	budgetCycles := map[string]int{}
+	events := eventbus.NewDiscoveredClient(ctx)
 	managerRetention.NewScheduler(retentionInterval(), func(cycleCtx context.Context) error {
 		inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: platform})
 		if err != nil {
 			return err
 		}
-		_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: platform, Ledger: ledger}).Enforce(cycleCtx, inventory)
+		_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: platform, Ledger: ledger, RecoveryLockPath: storageRecoveryLockPath(repoRoot), OverBudgetCycles: budgetCycles, BudgetEvent: func(eventCtx context.Context, eventType string, payload map[string]any) error {
+			return events.PublishDomainEvent(eventCtx, eventbus.DomainEvent{Source: "storage-manager", EventType: eventType, Payload: payload, Occurred: time.Now().UTC()})
+		}}).Enforce(cycleCtx, inventory)
+		if err == nil {
+			// Ledger rows are derived evidence and have their own retention
+			// policy; do not route them through owner filesystem pruning.
+			err = orchestrator.NewSQLiteStore(db).PruneRecoveryLedger(cycleCtx, time.Now().UTC())
+		}
+		if err == nil {
+			err = census.NewSnapshotStore(db).Prune(cycleCtx, time.Now().UTC())
+		}
 		return err
 	}).WithObserver(func(cycle sharedscheduler.Cycle) {
 		if cycle.Err != nil {
@@ -244,4 +287,13 @@ func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot s
 			logger.Printf("retention cycle took %s, at or beyond its %s interval; the next walk waits a full interval", cycle.Duration.Round(time.Second), retentionInterval())
 		}
 	}).Start(ctx)
+}
+
+func storageRecoveryLockPath(repoRoot string) string {
+	if resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto}); err == nil {
+		if state, resolveErr := resolver.Resolve(storage.Options{}); resolveErr == nil && state.StateDir != "" {
+			return filepath.Join(state.StateDir, "recovery.lock")
+		}
+	}
+	return filepath.Join(repoRoot, ".vrooli", "state", "storage-manager", "recovery.lock")
 }

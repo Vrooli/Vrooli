@@ -75,10 +75,10 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 					}
 					findings = append(findings, storageFinding("STORAGE_BUDGET_BELOW_OBSERVED", severity, ac, entry, fmt.Sprintf("observed size %d bytes exceeds max_bytes %s", observed, entry.Budget.MaxBytes), "Raise the ceiling or reclaim data before enforcement."))
 				} else if observed > 0 && float64(budget-observed)/float64(observed) <= 0.10 {
-					findings = append(findings, storageFinding("CEILING_NOT_BINDING", SeverityWarning, ac, entry, fmt.Sprintf("max_bytes %s is only %.1f%% above the measured %d bytes and will not bind before the next measurement", entry.Budget.MaxBytes, 100*float64(budget-observed)/float64(observed), observed), "Set a workload-derived ceiling with headroom for normal operation, and record the workload basis in the rationale."))
+					findings = append(findings, storageFinding("STORAGE_CEILING_NON_BINDING", SeverityError, ac, entry, fmt.Sprintf("max_bytes %s is only %.1f%% above the measured %d bytes and will not bind before the next measurement", entry.Budget.MaxBytes, 100*float64(budget-observed)/float64(observed), observed), "Set a workload-derived ceiling with headroom for normal operation, and record the workload basis in the rationale."))
 				}
 				if strings.Contains(strings.ToLower(entry.Budget.Rationale), "measured and governed on") {
-					findings = append(findings, storageFinding("CEILING_NOT_BINDING", SeverityWarning, ac, entry, "the budget rationale copies a point-in-time measurement rather than a workload-derived ceiling", "Replace the measured-value rationale with the retention or working-set requirement that the ceiling enforces."))
+					findings = append(findings, storageFinding("STORAGE_CEILING_NON_BINDING", SeverityError, ac, entry, "the budget rationale copies a point-in-time measurement rather than a workload-derived ceiling", "Replace the measured-value rationale with a workload-derived ceiling."))
 				}
 			}
 		}

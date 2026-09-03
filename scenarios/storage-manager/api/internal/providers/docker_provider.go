@@ -9,10 +9,15 @@ import (
 
 type DockerProvider struct {
 	client cleanup.DockerClient
+	broker cleanup.BrokerActionClient
 }
 
-func NewDockerProvider(client cleanup.DockerClient) *DockerProvider {
-	return &DockerProvider{client: client}
+func NewDockerProvider(client cleanup.DockerClient, broker ...cleanup.BrokerActionClient) *DockerProvider {
+	var actionClient cleanup.BrokerActionClient
+	if len(broker) > 0 {
+		actionClient = broker[0]
+	}
+	return &DockerProvider{client: client, broker: actionClient}
 }
 
 func (p *DockerProvider) Metadata() cleanup.ProviderMetadata {
@@ -26,7 +31,7 @@ func (p *DockerProvider) Metadata() cleanup.ProviderMetadata {
 		DefaultApproval:     cleanup.ApprovalModeOperator,
 		SupportedPlatforms:  []string{"linux", "darwin"},
 		RequiredPrivileges:  []string{"docker-daemon"},
-		IrreversibleEffects: []string{"dangling images and build cache may be removed; volumes are never pruned by this provider"},
+		IrreversibleEffects: []string{"dangling images may be removed; build cache and volumes are never pruned by this provider"},
 		TestSubstitute:      "fake-docker",
 	}
 }
@@ -42,8 +47,11 @@ func (p *DockerProvider) Estimate(ctx context.Context, req cleanup.EstimateReque
 	if err != nil {
 		return cleanup.Estimate{}, err
 	}
-	bytes := usage.ImagesBytes + usage.BuildCacheBytes
-	return cleanup.Estimate{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version, EstimatedBytes: bytes, ItemCount: 2, RequiresApproval: true, ObservedAt: req.Scope.Now}, nil
+	itemCount := 0
+	if usage.ImagesBytes > 0 {
+		itemCount = 1
+	}
+	return cleanup.Estimate{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version, EstimatedBytes: usage.ImagesBytes, ItemCount: itemCount, RequiresApproval: true, ObservedAt: req.Scope.Now}, nil
 }
 
 func (p *DockerProvider) Preview(ctx context.Context, req cleanup.PreviewRequest) (cleanup.Preview, error) {
@@ -63,9 +71,6 @@ func (p *DockerProvider) Preview(ctx context.Context, req cleanup.PreviewRequest
 	if usage.ImagesBytes > 0 {
 		out.Items = append(out.Items, cleanup.PreviewItem{ID: "docker:dangling-images", Description: "Dangling Docker images", Bytes: usage.ImagesBytes, Action: "docker-prune-dangling-images", SafetyTier: cleanup.SafetyTierConditional})
 	}
-	if usage.BuildCacheBytes > 0 {
-		out.Items = append(out.Items, cleanup.PreviewItem{ID: "docker:build-cache", Description: "Docker build cache", Bytes: usage.BuildCacheBytes, Action: "docker-prune-build-cache", SafetyTier: cleanup.SafetyTierConditional})
-	}
 	if usage.VolumesBytes > 0 {
 		out.Warnings = append(out.Warnings, "docker volumes are excluded by conservative provider defaults")
 	}
@@ -82,11 +87,27 @@ func (p *DockerProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (c
 	if req.ApprovalMode != cleanup.ApprovalModeOperator {
 		return cleanup.ApplyResult{ProviderID: "docker", SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"operator approval required"}}, nil
 	}
-	result, err := p.client.Prune(ctx, cleanup.DockerPruneRequest{DanglingImages: true, BuildCache: true, StoppedOnly: true, Volumes: false})
+	if p.broker == nil {
+		return cleanup.ApplyResult{ProviderID: "docker", SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"privilege broker unavailable; Docker deletion withheld"}}, nil
+	}
+	before, err := p.client.SystemUsage(ctx)
 	if err != nil {
 		return cleanup.ApplyResult{}, err
 	}
-	return cleanup.ApplyResult{ProviderID: "docker", Applied: result.ReclaimedBytes > 0, ReclaimedBytes: result.ReclaimedBytes, Warnings: result.Warnings}, nil
+	brokerResult, err := p.broker.Do(ctx, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
+	if err != nil {
+		return cleanup.ApplyResult{}, err
+	}
+	after, afterErr := p.client.SystemUsage(ctx)
+	reclaimed := int64(0)
+	if afterErr == nil {
+		beforeBytes := before.ImagesBytes
+		afterBytes := after.ImagesBytes
+		if beforeBytes > afterBytes {
+			reclaimed = beforeBytes - afterBytes
+		}
+	}
+	return cleanup.ApplyResult{ProviderID: "docker", Applied: brokerResult.Changed, ReclaimedBytes: reclaimed}, nil
 }
 
 func (p *DockerProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.VerifyResult, error) {

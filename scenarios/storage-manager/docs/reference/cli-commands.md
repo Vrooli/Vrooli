@@ -183,6 +183,41 @@ messages are path-redacted before they are stored.
 storage-manager cleanup audit
 ```
 
+#### `storage-manager cleanup run --trigger <band|floor|rate|manual>`
+
+Start a server-owned recovery run and return its run id. Recovery is bounded by
+the controller's ladder and free-space target.
+
+```bash
+storage-manager cleanup run --trigger manual --partition / --available-bytes 10737418240
+storage-manager cleanup wait --run-id <run-id> --json
+storage-manager cleanup history --limit 5 --json
+```
+
+## Scenario commands — `recovery`
+
+The `recovery` group is the canonical operator surface for the same
+server-owned controller. The older `cleanup run|wait|history` names remain
+compatible aliases.
+
+```bash
+storage-manager recovery run --trigger manual --partition / --dry-run --json
+storage-manager recovery wait --run-id <run-id> --json
+storage-manager recovery history --limit 20 --json
+```
+
+### `storage-manager recovery chaos --root <governed-tmp-root> --rate <bytes>/h [--duration <duration>]`
+
+Run the bounded recovery proof against an existing governed temporary root.
+The root must already be beneath `$VROOLI_HOME/tmp` (or `~/.vrooli/tmp`), and
+the command refuses arbitrary paths. It starts a rate-triggered recovery run
+before writing real blocks, then waits for that server-owned run to finish.
+The default writer duration is eight minutes and the maximum is ten minutes.
+
+```bash
+storage-manager recovery chaos --root "$VROOLI_HOME/tmp/recovery-chaos" --rate 20GiB/h --duration 8m --json
+```
+
 ## Scenario commands — `storage`
 
 ### `storage-manager storage growth [--window <duration>]`
@@ -193,6 +228,17 @@ command reads the indexed census sample table and does not scan the filesystem.
 ```bash
 storage-manager storage growth
 storage-manager storage growth --window 7d --json
+```
+
+### `storage-manager storage infra-health`
+
+Read the projected storage signal, including recent recovery runs and the top
+persisted writers, without scanning the filesystem.
+
+```bash
+storage-manager storage infra-health --json
+storage-manager storage writers --top 10 --json
+storage-manager storage retention --json
 ```
 
 ## Scenario commands — `placement` and `validate`

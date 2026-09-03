@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HealthPage } from "./index";
 import { selectors } from "../../consts/selectors";

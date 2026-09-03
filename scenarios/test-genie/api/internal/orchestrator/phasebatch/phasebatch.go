@@ -114,13 +114,19 @@ func Next(defs []phases.Definition, start int, policy Policy) int {
 // remains below the 2.5x parallelism target.
 const ContentionAllowance = 1.5
 
-// These reservations approximate the fleet p90 of observed phase resource
-// claims. They keep an unmeasured phase eligible for a safe batch without
-// pretending its cost is known. Revisit when durable fallback admissions
-// exceed 10% for two consecutive weeks or the host capacity profile changes.
+// These reservations are the fleet p90 of reliable, operation-scoped phase
+// resource claims measured on 2026-08-28. The RAM query returned 53 samples
+// and 1,995 MiB; the CPU query returned 89 samples and 3,176 millicores. Both
+// queries require MEASUREMENT_SCOPE_OPERATION, RELIABILITY_RELIABLE CPU and
+// memory readings, positive peak RSS, and positive wall-clock time. The
+// nearest-rank p90 values are rounded up to whole MiB/millicores. See
+// scenarios/test-genie/docs/reference/phase-measurement-2026-08.md. Revisit
+// when the operation-scoped population falls below 1,000 samples, durable
+// fallback admissions exceed 10% for two consecutive weeks, or the host
+// capacity profile changes.
 const (
-	DefaultReservationRAMBytes int64 = 512 * 1024 * 1024
-	DefaultReservationCPUMilli int64 = 500
+	DefaultReservationRAMBytes int64 = 1995 * 1024 * 1024
+	DefaultReservationCPUMilli int64 = 3176
 )
 
 // TimeoutRisk reports whether concurrency could push the phase past its

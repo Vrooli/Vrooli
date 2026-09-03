@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS journal_scanned_boots (
 CREATE TABLE IF NOT EXISTS incidents (
     id TEXT PRIMARY KEY,
     fingerprint TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL CHECK (type IN ('host_integrity', 'unclean_boot', 'resource_failure', 'scenario_failure', 'autoheal_failure', 'manual')),
+    type TEXT NOT NULL CHECK (type IN ('host_integrity', 'unclean_boot', 'resource_failure', 'scenario_failure', 'autoheal_failure', 'manual', 'host_pressure')),
     severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
     status TEXT NOT NULL CHECK (status IN ('open', 'acknowledged', 'resolved', 'ignored')),
     title TEXT NOT NULL,

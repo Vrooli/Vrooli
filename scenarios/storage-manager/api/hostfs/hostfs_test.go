@@ -36,6 +36,29 @@ func walkPaths(t *testing.T, f *FS, root string) []string {
 	return got
 }
 
+func TestProcessLivenessDetectsOpenFileHandle(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("/proc file-handle inspection is Unix-specific")
+	}
+	path := filepath.Join(t.TempDir(), "database.sqlite")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	liveness := NewProcessLiveness()
+	open, err := liveness.IsRunning(context.Background(), path)
+	if err != nil || !open {
+		t.Fatalf("open handle liveness = %t, %v; want true", open, err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	open, err = liveness.IsRunning(context.Background(), path)
+	if err != nil || open {
+		t.Fatalf("closed handle liveness = %t, %v; want false", open, err)
+	}
+}
+
 // TestWalk_ReportsFilesAndDirectories asserts directories are visited too.
 // The top-level-entry providers aggregate a subtree by its directory, so a walk
 // that reported only files would under-count an empty directory's existence.

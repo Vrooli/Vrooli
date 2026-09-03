@@ -34,7 +34,7 @@ Each finding caps the capability it names at a rung; only ERROR/BLOCKER severiti
 | `TS_CONFIG_STRICT` | typescript_quality | L2 | ERROR | Yes |
 | `ESLINT_SAFETY_RULES` | typescript_quality | L2 | ERROR | Yes |
 | `ESLINT_TYPED_CONFIG` | typescript_quality | L2 | ERROR | Yes |
-| `NODE_BUILD_TYPECHECK` | typescript_quality | L2 | ERROR | Yes |
+| `TYPECHECK_PLANNER_COVERAGE` | typescript_quality | L2 | ERROR | No |
 | `TS_DANGEROUS_PATTERNS` | typescript_quality | L2 | WARNING | No |
 | `GO_MOD_PRESENT_FOR_API_OR_CLI` | go_quality | L2 | ERROR | Yes |
 | `GO_LINT_CONFIG_PRESENT` | go_quality | L2 | ERROR | Yes |
@@ -44,7 +44,7 @@ Each finding caps the capability it names at a rung; only ERROR/BLOCKER severiti
 
 ## The canonical fix
 
-- **TypeScript config/lint findings** (`TS_CONFIG_STRICT`, `ESLINT_SAFETY_RULES`, `ESLINT_TYPED_CONFIG`, `NODE_BUILD_TYPECHECK`) → these are `fix_class: auto`; preview and apply the deterministic config repair with `quality-health fix-config run <scenario> --dry-run` then `quality-health fix-config apply <scenario>`. Never weaken the strict settings to pass.
+- **TypeScript config/lint findings** (`TS_CONFIG_STRICT`, `ESLINT_SAFETY_RULES`, `ESLINT_TYPED_CONFIG`) → these are `fix_class: auto`; preview and apply the deterministic config repair with `quality-health fix-config run <scenario> --dry-run` then `quality-health fix-config apply <scenario>`. `TYPECHECK_PLANNER_COVERAGE` is a manual planner-input finding. Never weaken the strict settings to pass.
 - **Dangerous-pattern findings** (`TS_DANGEROUS_PATTERNS`, `GO_DANGEROUS_PATTERNS`) → manual: source-semantic suppressions require human intent; remove the suppression and fix the underlying code, or add a written reason where genuinely required.
 - **Go findings** (`GO_MOD_PRESENT_FOR_API_OR_CLI`, `GO_LINT_CONFIG_PRESENT`, `GO_LINT_REQUIRED_LINTERS`) → auto-fixable config repair; add the local `go.mod`, golangci-lint baseline config, and required linters.
 - **Scenario-gate findings** (`TESTING_CONFIG_LINT_STRICT`, `MAKEFILE_QUALITY_GATES`, `SHELL_SYNTAX_LINT`) → declare strict `.vrooli/testing.json` lint policy and Makefile quality gates; fix reported shell syntax by hand.

@@ -607,6 +607,23 @@
           }
         }
       ]
+    },
+    {
+      "name": "provider-contract",
+      "description": "Run provider contract checks",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Check provider contract coverage",
+          "positionals": [
+            {"name": "phase_or_provider", "required": true, "description": "Phase or provider"},
+            {"name": "scenario", "required": true, "description": "Target scenario"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
     }
   ],
   "omitted": [

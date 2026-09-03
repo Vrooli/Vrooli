@@ -63,6 +63,43 @@ func TestEnforceDirectoryBudgetUsesBuiltinProvider(t *testing.T) {
 	}
 }
 
+func TestEnforceEmitsBudgetExceededOnSecondSustainedCycle(t *testing.T) {
+	root := contractFixture(t)
+	resourceDir := filepath.Join(root, "resources", "demo")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	budgeted := filepath.Join(resourceDir, "durable")
+	if err := os.MkdirAll(budgeted, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(budgeted, "data"), []byte("1234567890"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inventory := coreStorage.OwnerInventory{RepoRoot: root, Owners: []coreStorage.OwnerManifest{{
+		Kind: coreStorage.OwnerResource, ID: "demo", ManifestPath: filepath.Join(resourceDir, "resource.json"),
+		StorageEntries: []coreStorage.StorageEntry{{Name: "durable", Path: coreStorage.PortablePath{Value: "durable"}, Kind: "dir", Regenerable: false, Budget: &coreStorage.BudgetDeclaration{MaxBytes: "4B"}}},
+	}}}
+	cycles := map[string]int{}
+	var events []map[string]any
+	e := Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux, OverBudgetCycles: cycles, BudgetEvent: func(_ context.Context, _ string, payload map[string]any) error {
+		events = append(events, payload)
+		return nil
+	}}
+	if _, err := e.Enforce(context.Background(), inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("first over-budget cycle emitted %v, want none", events)
+	}
+	if _, err := e.Enforce(context.Background(), inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0]["owner"] != "demo" || events[0]["entry"] != "durable" {
+		t.Fatalf("budget events = %#v, want one typed second-cycle event", events)
+	}
+}
+
 func TestEnforceSkipsUnsupportedPlatformEntries(t *testing.T) {
 	owner := coreStorage.OwnerManifest{
 		Kind: coreStorage.OwnerResource, ID: "demo", ManifestPath: "/repo/resources/demo/resource.json",

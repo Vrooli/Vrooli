@@ -3026,6 +3026,11 @@
       "service": "DiscoveryService",
       "method": "GetAudioToolsEndpoint",
       "reason": "Service-discovery RPC the web-console UI and integrations use to locate the audio-tools scenario (api/handlers/discovery); not an operator CLI command."
+    },
+    {
+      "service": "StatsService",
+      "method": "GetPortfolioStats",
+      "reason": "Typed portfolio-stats RPC consumed by Command Center integrations; it is a Connect data surface, not an operator CLI command."
     }
   ],
   "measures": {

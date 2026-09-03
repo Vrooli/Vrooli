@@ -1604,6 +1604,58 @@ func TestCopyTemplate_SkipsManifestCopyExcludes(t *testing.T) {
 	}
 }
 
+func TestCopyTemplate_InheritsBaseAndOverlaysChild(t *testing.T) {
+	root := t.TempDir()
+	base := filepath.Join(root, "base")
+	child := filepath.Join(root, "child")
+	for _, dir := range []string{base, child} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(base, "template.json"), []byte(`{"name":"base"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(child, "template.json"), []byte(`{"name":"child","baseTemplate":"base","baseCopyExcludes":["api"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"base.txt":     "base",
+		"api/base.txt": "base-api",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(base, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(base, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(child, "base.txt"), []byte("child"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(child, "child.txt"), []byte("child-only"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	destination := filepath.Join(root, "generated")
+	manifest := scenariocli.TemplateManifest{BaseTemplate: "base", BaseCopyExcludes: []string{"api"}}
+	if err := copyTemplate(child, destination, nil, manifest); err != nil {
+		t.Fatalf("copyTemplate() error = %v", err)
+	}
+	for name, want := range map[string]string{"base.txt": "child", "child.txt": "child-only"} {
+		got, err := os.ReadFile(filepath.Join(destination, name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		if string(got) != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(destination, "api", "base.txt")); !os.IsNotExist(err) {
+		t.Fatalf("base exclusion leaked api/base.txt, err=%v", err)
+	}
+}
+
 func TestCleanupRelocationTargets_RemovesProtoGeneratedArtifacts(t *testing.T) {
 	repoRoot := t.TempDir()
 	scenarioID := "template-validation-react-vite"

@@ -16,7 +16,7 @@ _None at initialization_
 
 ### Not In Scope (Intentionally Excluded)
 - **Full metrics collection**: system-monitor handles detailed metrics; autoheal focuses on health/recovery
-- **Alerting/paging**: Use dedicated alerting scenarios for notifications
+- **Outbound alert delivery (email, webhook, chat)**: findings become autoheal incidents and the typed readiness projection (`system-boot-recovery-readiness`, `system-emergency-watchdog-report`); delivery stays with notification-hub, whose absence `coverage-delivery-reach` reports honestly
 - **Non-Vrooli service management**: Only manages Vrooli resources, scenarios, and OS watchdog
 
 ### Future Consideration
@@ -24,6 +24,46 @@ _None at initialization_
 - **Custom check plugins** (OT-P2-004): Allow external health check definitions
 - **Certificate monitoring** (OT-P2-001): Check SSL cert expiration
 - **Display manager health** (OT-P2-002): GDM/lightdm/sddm monitoring
+
+## Postmortems
+
+Each entry names the trigger, the gap that let it go undetected, the fix, and
+the test that now guards it.
+
+### 2026-08-01: The loop blocked forever on a pipe its child inherited
+
+- **Trigger**: on boot the loop ran `vrooli scenario start vrooli-autoheal` through `exec.Cmd.CombinedOutput`. The start spawned the long-lived runtime supervisor, which inherited the output pipe as its stderr and held it open. `CombinedOutput` reads until every write end closes, so `Wait` never returned. The loop never reached its first tick and started nothing. Observed directly: the loop parked in `futex_do_wait` holding the read end of `pipe:[623670]` while the supervisor held the write end as fd 2.
+- **Detection gap**: the loop logged "starting scenario" and then nothing; no heartbeat existed, so "silent" and "healthy" looked the same from outside.
+- **Fix**: every `vrooli` subprocess now runs through `repo-contract-go/cliinvoke.Run`, which sets a deadline and `WaitDelay` so an inherited pipe delays a result by seconds instead of ending the supervisor's life. The loop writes a heartbeat to its status file on every tick.
+- **Guard**: `TestRunReturnsWhenDescendantHoldsThePipe` in `packages/repo-contract-go/cliinvoke`.
+
+### 2026-09-01: Dependency drift took the loop's recovery path down with it
+
+- **Trigger**: a shared package change reached the loop's module graph through api-core, so the binary that exists to recover from build drift could not itself be rebuilt.
+- **Detection gap**: nothing checked what the loop depended on; the failure surfaced only when a rebuild was needed.
+- **Fix**: the loop's module depends on repo-contract-go, envkit-go and langrecover only; the invoker it shares with the control plane lives inside repo-contract-go so no proto or api-core edge can reach it.
+- **Guard**: `go mod graph` in `cli/loop` shows no `packages/proto` or `api-core` entry (asserted by the loop's module tests) and the recovery floor's tests in `langrecover`.
+
+### 2026-09-02: The runtime supervisor exited 1 silently after every restart
+
+- **Trigger**: every CLI reinstall or unit stop left a `running` supervisor session row with a dead PID and an unexpired 45-second lease. The successor skipped it (PID dead), the claim refused it (any running row), the process exited 1, and systemd retried every 5 seconds until the lease lapsed: 1,070 restarts in 12 hours, none explained in the journal because the unit sends stdout and stderr to `runtime-supervisor.log`.
+- **Detection gap**: `NRestarts` was read by nothing, and the lease-honouring reaper was the only cleanup path.
+- **Fix**: the successor retires any running row whose PID is dead before it claims; under the native unit it takes over a live peer instead of exiting; the start failure is logged in the supervisor's own log format. The `runtime_supervisor` safeguard records `NRestarts` and `Result` as evidence on every setup and readiness inspection.
+- **Guard**: `TestServiceEnsureStartedRetiresDeadPredecessorWithLiveLease` (`internal/runtimesupervisor`), `TestInspectReportsCrashLoopingUnit` (`internal/safeguards/runtime-supervisor`).
+
+### 2026-09-02: A retired CLI flag turned every supervisor into a no-op at boot
+
+- **Trigger**: the `--no-stale-check` global was removed from the CLI at 03:06 and the CLI reinstalled at 03:07. The loop binary (built 23:58), the on-disk runtime-supervisor unit (rendered 2026-08-18), the autoheal API's command runner, the bridge bootstrap and CI still passed the flag. After the 04:50 freeze and 07:35 reboot every `vrooli` call exited 1 with `Unknown command: --no-stale-check`; the loop retried identically every three minutes and the supervisor crash-looped 495 times. The emergency watchdog saw the dead unit 20 seconds after boot and printed it to a journal nobody read.
+- **Detection gap**: the CLI's argv surface was an untested contract; no test parsed any supervisor's argv against the real parser, no check evaluated boot readiness while the host was healthy, and the loop could not tell "healing" from "cannot heal".
+- **Fix**: retired globals are tolerated with a warning (`rootcli.retiredGlobals`); every argv producer is registered in `internal/cli/rootcli/invokers` and parsed through `rootcli.ResolveArgv`; supervisors pass no global flags; native units render from one `platformgo.ServiceDefinition`; the loop classifies usage errors as non-healable and exits 3 so the scheduler escalates; `system-boot-recovery-readiness` evaluates every boot precondition hourly (not yet built: plan phase 10); `make install` refuses to install a CLI while a supervisory module does not build.
+- **Guard**: `TestParseArgsRetiredGlobalIsToleratedWithWarning` and `TestResolveArgvAcceptsEveryRegisteredCommand` (`internal/cli/rootcli`), `TestEveryInvokerResolvesThroughTheRootParser` and `TestEveryDirectSpawnIsRegistered` (`internal/cli/rootcli/invokers`), `TestRunClassifiesUsageError` (`cliinvoke`), `TestUsageErrorIsNonHealableAndExits3` (`cli/loop`).
+
+### 2026-09-02: Three agent sessions built the repository at once and took the host to load 1,499
+
+- **Trigger**: at about 10:14 three coding-agent sessions ran wide builds in one checkout: a root-module `go build ./...`, a four-target cross-compile and a module test sweep. Go starts one compile or link per core, so 32 cores and three sessions became roughly a hundred linkers; memory filled, 70 GB of swap absorbed the overflow, linkers were OOM-killed, and the host was unresponsive for about twenty minutes. The autoheal loop kept its 60-second ticks and restarted its own API at 10:34.
+- **Detection gap**: builds had no width cap (the lifecycle budgets admission by memory only; three Scenario Dependency Analyzer sites erased `GOFLAGS`); agent sessions ran in `user-1000.slice` with `MemoryMax=infinity` and `ManagedOOMPreference=omit`, so systemd-oomd protected the desktop and never touched the storm; the emergency watchdog's fork-rate finding went to stdout only, its sustain window reset itself on every not-yet-sustained tick (so it could never fire), three components read the setpoint separately, incidents could not name a parent, and no CLI could say which sessions were in the tree.
+- **Fix**: `envkit.Toolchain` and the `BuildWidth` lever put a floor under every toolchain spawn, `mk/toolchain.mk` under every Makefile, and the `no-raw-toolchain-spawn` rule keeps it true; `agent_session_containment` converges `vrooli-agents.slice` and every session is born in a scope under it; `internal/setpoint` is the one bar reader with the authored 10-minute sustain; the watchdog writes `last-report.json` with attribution and `system-emergency-watchdog-report` opens one incident per finding titled by the parent; `contain-storm` freezes an attributed agent scope through the recovery gate and `vrooli agent thaw` reverses it; editor leases make every session visible in `vrooli agent list`.
+- **Guard**: `TestToolchainAppendsWidthToInheritedGoflags` (`packages/envkit-go`), `TestLifecycleStepEnvCarriesToolchainFloor` (`internal/lifecycle`), `TestScenarioMakefilesIncludeToolchainMk` (`internal/cli/rootcli/invokers`), `TestContainedCommandLandsInScopeOnLinux` and `TestFreezeAndThawScope` (`packages/platform-go`), `TestSetpointRejectsDuplicateCellRef` (`internal/setpoint`), `TestWatchdogUsesAuthoredSustain` (`cmd/vrooli-watchdog`), `TestHostPressureCheckUsesAuthoredSustain` and `TestIncidentFingerprintSeparatesPressureFindings` (autoheal api), `TestContainStormRefusesPidOutsideAgentSlice` (autoheal api), `TestEditorLeaseExpiresOnlyOnProofOfDeath` (`internal/scenarioruntime`).
 
 ## Architecture Decisions
 

@@ -23,6 +23,7 @@ package main
 // answering".
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -44,17 +45,18 @@ const identityProbeBodyCap = 64 * 1024
 //
 // A bare 200 is not proof: any HTTP server answers 200 to something. Adoption
 // requires the service to name itself.
-func isAutohealAPI(port string) bool {
+func isAutohealAPI(ctx context.Context, port string) bool {
 	healthURL, err := localHealthEndpoint(port)
 	if err != nil {
 		return false
 	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, healthURL, nil) //nolint:gosec // validated loopback-only health probe
+	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, healthURL, nil) //nolint:gosec // validated loopback-only health probe
 	if err != nil {
 		return false
 	}
-	resp, err := client.Do(req) //nolint:gosec // validated loopback-only health probe
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // validated loopback-only health probe
 	if err != nil {
 		return false
 	}
@@ -86,9 +88,9 @@ func bodyIdentifiesAutoheal(body []byte) bool {
 // degraded one -- a 503 from a service reporting its own busy database is a
 // live process a restart cannot improve. An answer from anything else does
 // not count at all.
-func autohealIsAlive(port string) bool {
+func autohealIsAlive(ctx context.Context, port string) bool {
 	if port == "" {
 		return false
 	}
-	return isAutohealAPI(port)
+	return isAutohealAPI(ctx, port)
 }

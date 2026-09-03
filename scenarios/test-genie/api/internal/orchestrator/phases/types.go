@@ -345,16 +345,18 @@ func (s Spec) ToDefinition() Definition {
 
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
-	Name                          string `json:"name"`
-	Status                        string `json:"status"`
-	DurationSeconds               int    `json:"durationSeconds"`
-	DurationMilliseconds          int64  `json:"durationMilliseconds,omitempty"`
-	PredictedDurationMilliseconds int64  `json:"predictedDurationMilliseconds,omitempty"`
-	LogPath                       string `json:"logPath"`
-	Error                         string `json:"error,omitempty"`
-	Classification                string `json:"classification,omitempty"`
-	ClassificationSource          string `json:"classificationSource,omitempty"`
-	Remediation                   string `json:"remediation,omitempty"`
+	Name                          string    `json:"name"`
+	Status                        string    `json:"status"`
+	StartedAt                     time.Time `json:"startedAt,omitempty"`
+	CompletedAt                   time.Time `json:"completedAt,omitempty"`
+	DurationSeconds               int       `json:"durationSeconds"`
+	DurationMilliseconds          int64     `json:"durationMilliseconds,omitempty"`
+	PredictedDurationMilliseconds int64     `json:"predictedDurationMilliseconds,omitempty"`
+	LogPath                       string    `json:"logPath"`
+	Error                         string    `json:"error,omitempty"`
+	Classification                string    `json:"classification,omitempty"`
+	ClassificationSource          string    `json:"classificationSource,omitempty"`
+	Remediation                   string    `json:"remediation,omitempty"`
 	// RunnabilityVerdict records the runnability gate's decision for this phase
 	// ("run", "run_degraded", or "skip") and RunnabilityReason its rationale.
 	// For a skipped phase these explain why it could not run in this

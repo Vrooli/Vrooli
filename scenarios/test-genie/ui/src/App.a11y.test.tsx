@@ -6,7 +6,8 @@
  * on the shell's rendered accessibility semantics rather than network state.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { renderWithProviders as render } from "./test-utils";
 
 vi.mock("./hooks/useExecutions", () => ({
   useExecutions: () => ({ executions: [], lastFailedExecution: null }),

@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/coverage"
+
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	hostchecks "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/host"
@@ -37,6 +39,11 @@ type CheckFactory interface {
 // DefaultCheckFactory is the production implementation of CheckFactory.
 // It creates real checks using the check packages.
 type DefaultCheckFactory struct {
+	// containStormMode is the operator's contain_storm switch; empty means the default (automatic).
+	containStormMode string
+	// deliveryReader is the notification-hub delivery projection the
+	// coverage-delivery-reach check reads; nil keeps the honest unavailable reader.
+	deliveryReader         coverage.DeliveryReader
 	networkTarget          string
 	dnsDomain              string
 	externalDNSServer      string
@@ -78,6 +85,10 @@ func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *Defa
 func NewCheckFactoryFromConfigManager(mgr *userconfig.Manager) *DefaultCheckFactory {
 	monitoring := mgr.GetMonitoring()
 	factory := NewCheckFactoryFromMonitoring(monitoring)
+	if cfg := mgr.Get(); cfg != nil {
+		// The storm authority's mode (automatic | propose_only) is operator config.
+		factory.containStormMode = cfg.Global.ContainStorm
+	}
 
 	cloudflaredCfg := mgr.GetCheck("infra-cloudflared")
 	if cloudflaredCfg.Settings.TunnelTestURL != "" {
@@ -188,15 +199,17 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewZombieCheck(),
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
-		system.NewGPUCheck(),                // GPU health for AI/ML workloads
-		system.NewLoadCheck(),               // System load average monitoring
-		system.NewPstoreEvidenceCheck(),     // Kernel crash dumps in /sys/fs/pstore
-		system.NewPanicEvidenceCheck(),      // Kernel panics captured by kdump
-		system.NewStaleServiceBinaryCheck(), // Supervised services running replaced binaries
-		system.NewBootHistoryCheck(),        // Unclean shutdown detection
-		system.NewMCERecentCheck(),          // Recent hardware errors via rasdaemon
-		system.NewPMRuntimeHogCheck(),       // Kernel pm_runtime CPU hogs
+		system.NewGPUCheck(),                   // GPU health for AI/ML workloads
+		system.NewLoadCheck(),                  // System load average monitoring
+		system.NewPstoreEvidenceCheck(),        // Kernel crash dumps in /sys/fs/pstore
+		system.NewPanicEvidenceCheck(),         // Kernel panics captured by kdump
+		system.NewStaleServiceBinaryCheck(),    // Supervised services running replaced binaries
+		system.NewBootRecoveryReadinessCheck(), // Would the autoheal boot path work right now (observation-only)
+		system.NewBootHistoryCheck(),           // Unclean shutdown detection
+		system.NewMCERecentCheck(),             // Recent hardware errors via rasdaemon
+		system.NewPMRuntimeHogCheck(),          // Kernel pm_runtime CPU hogs
 		system.NewHostPressureCheck(system.WithReclaimer(system.NewProductionHostPressureReclaimer())), // CPU, memory, swap, process and fork pressure
+		system.NewEmergencyWatchdogReportCheck(system.WithContainStormMode(f.containStormMode)),        // watchdog sink: one incident per sustained finding, titled by the attributed parent
 	}
 	collector := hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
 	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)
@@ -270,3 +283,6 @@ func SetDefaultFactory(f CheckFactory) CheckFactory {
 	defaultFactory = f
 	return prev
 }
+
+// DeliveryReader is the notification-hub delivery projection wired at startup.
+func (f *DefaultCheckFactory) DeliveryReader() coverage.DeliveryReader { return f.deliveryReader }

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
@@ -62,6 +63,7 @@ type ThresholdStatus struct {
 	LastRunAt     time.Time
 	LastError     string
 	LastUsage     collectors.DiskUsage
+	LastWriters   []WriterSnapshot
 	LastViolation *models.ThresholdViolation
 	Violations    int64
 	NextInterval  time.Duration
@@ -105,14 +107,16 @@ type RemediationResult struct {
 // re-read every tick, optional run-on-startup, stop channel) rather than
 // inventing a second scheduling idiom in the same package.
 type ThresholdScheduler struct {
-	settings  *SettingsManager
-	alerts    *AlertService
-	repo      repository.ThresholdRepository
-	source    DiskUsageSource
-	cpuSource CPUObservationSource
-	reporter  PressureReporter
-	log       *slog.Logger
-	clock     Clock
+	settings      *SettingsManager
+	alerts        *AlertService
+	repo          repository.ThresholdRepository
+	source        DiskUsageSource
+	cpuSource     CPUObservationSource
+	reporter      PressureReporter
+	writerSampler *WriterSampler
+	events        eventPublisher
+	log           *slog.Logger
+	clock         Clock
 
 	mu             sync.Mutex
 	bands          bandTracker
@@ -120,15 +124,20 @@ type ThresholdScheduler struct {
 	lastRunAt      time.Time
 	lastErr        error
 	lastUsage      collectors.DiskUsage
+	lastWriters    []WriterSnapshot
 	lastViolation  *models.ThresholdViolation
 	violations     int64
 	previousValue  float64
 	hasPrevious    bool
+	previousBytes  int64
+	previousAt     time.Time
+	fillWindow     *fillRateWindow
 	lastBand       PressureBand
 	lastRemedy     *RemediationResult
 	cpuConsecutive int
 	cpuLastBand    PressureBand
 	cpuLastEmit    time.Time
+	hotEpisodes    map[string]bool
 
 	// evaluated is signalled after every completed evaluation when non-nil.
 	// Tests use it to synchronise with the loop rather than sleeping.
@@ -177,6 +186,19 @@ func WithPressureReporter(r PressureReporter) ThresholdSchedulerOption {
 	}
 }
 
+// WithWriterSampler adds bounded governed-root sensing to pressure reports.
+func WithWriterSampler(sampler *WriterSampler) ThresholdSchedulerOption {
+	return func(s *ThresholdScheduler) { s.writerSampler = sampler }
+}
+
+type eventPublisher interface {
+	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
+}
+
+func WithWriterEventPublisher(p eventPublisher) ThresholdSchedulerOption {
+	return func(s *ThresholdScheduler) { s.events = p }
+}
+
 // WithEvaluationSignal sets a channel signalled after each evaluation.
 func WithEvaluationSignal(ch chan struct{}) ThresholdSchedulerOption {
 	return func(s *ThresholdScheduler) { s.evaluated = ch }
@@ -195,13 +217,18 @@ func NewThresholdScheduler(
 		log = slog.Default()
 	}
 	s := &ThresholdScheduler{
-		settings: settings,
-		alerts:   alerts,
-		repo:     repo,
-		source:   RootDiskUsageSource{},
-		log:      log,
-		clock:    RealClock{},
+		settings:    settings,
+		alerts:      alerts,
+		repo:        repo,
+		source:      RootDiskUsageSource{},
+		log:         log,
+		clock:       RealClock{},
+		hotEpisodes: make(map[string]bool),
 	}
+	// Resolve vrooli-events lazily. The threshold scheduler is constructed
+	// during API startup, while discovery may require a peer lookup; event
+	// delivery must never delay the health listener.
+	s.events = eventbus.NewDiscoveredClient(context.Background())
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -265,10 +292,24 @@ func (s *ThresholdScheduler) RunOnce(ctx context.Context) {
 		s.evaluateCPU(ctx, settings)
 		return
 	}
+	usage = s.withFillRate(usage, s.clock.Now())
+	var writerSnapshots []WriterSnapshot
+	if s.writerSampler != nil {
+		writerSnapshots = s.writerSampler.Sample(ctx, s.clock.Now())
+		if writerSnapshots != nil {
+			s.mu.Lock()
+			s.lastWriters = append([]WriterSnapshot(nil), writerSnapshots...)
+			s.mu.Unlock()
+		}
+		s.publishWriterEvents(ctx, writerSnapshots)
+	}
 
 	violation, decision := s.evaluate(settings, usage)
 	s.recordRun(usage, nil, violation, decision)
 	if violation == nil {
+		if hasHotWriter(writerSnapshots) {
+			s.escalate(ctx, bandDecision{Band: BandWarning}, usage, writerSnapshots)
+		}
 		// CPU is evaluated independently of disk. A missing/refused CPU source
 		// is not a passing sample and therefore cannot clear its window.
 		s.evaluateCPU(ctx, settings)
@@ -282,7 +323,7 @@ func (s *ThresholdScheduler) RunOnce(ctx context.Context) {
 		s.log.Error("send threshold violation failed", "error", err)
 	}
 
-	s.escalate(ctx, decision, usage)
+	s.escalate(ctx, decision, usage, writerSnapshots)
 
 	s.log.Warn("disk pressure band recorded",
 		"band", decision.Band.String(),
@@ -293,6 +334,59 @@ func (s *ThresholdScheduler) RunOnce(ctx context.Context) {
 		"available_bytes", usage.AvailableBytes,
 	)
 	s.evaluateCPU(ctx, settings)
+}
+
+func (s *ThresholdScheduler) publishWriterEvents(ctx context.Context, snapshots []WriterSnapshot) {
+	if s.events == nil {
+		return
+	}
+	now := s.clock.Now()
+	for _, snapshot := range snapshots {
+		s.mu.Lock()
+		wasHot := s.hotEpisodes[snapshot.Root]
+		if snapshot.Hot {
+			s.hotEpisodes[snapshot.Root] = true
+		} else {
+			delete(s.hotEpisodes, snapshot.Root)
+		}
+		s.mu.Unlock()
+		if snapshot.Hot && !wasHot {
+			_ = s.events.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "system-monitor", EventType: "storage.writer.hot", Occurred: now, Payload: map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "window_seconds": int64(snapshot.DeltaHours * 3600), "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}})
+		}
+		if !snapshot.Hot && wasHot {
+			_ = s.events.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "system-monitor", EventType: "storage.writer.cooled", Occurred: now, Payload: map[string]any{"root": snapshot.Root, "root_id": snapshot.RootID, "mount": snapshot.Mount, "current_bytes": snapshot.Bytes, "bytes_per_hour": snapshot.BytesPerHour, "sampled_at": snapshot.ObservedAt.UTC().Format(time.RFC3339Nano)}})
+		}
+	}
+}
+
+// withFillRate turns the monotonic used-byte counter into an hourly rate. A
+// decrease is reported as zero: cleanup should not infer growth from a
+// reclaim event or a filesystem resize.
+func (s *ThresholdScheduler) withFillRate(usage collectors.DiskUsage, now time.Time) collectors.DiskUsage {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.fillWindow == nil {
+		s.fillWindow = newFillRateWindow(6)
+	}
+	rate, _, ok := s.fillWindow.Add(now, usage.UsedBytes)
+	if ok {
+		usage.FillRateBytesPerHour = rate
+	}
+	if s.previousAt.IsZero() || now.Before(s.previousAt) || usage.UsedBytes < s.previousBytes {
+		s.previousBytes = usage.UsedBytes
+		s.previousAt = now
+		return usage
+	}
+	seconds := now.Sub(s.previousAt).Seconds()
+	if seconds > 0 {
+		rate := float64(usage.UsedBytes-s.previousBytes) * 3600 / seconds
+		if rate > 0 {
+			usage.FillRateBytesPerHour = int64(rate)
+		}
+	}
+	s.previousBytes = usage.UsedBytes
+	s.previousAt = now
+	return usage
 }
 
 func (s *ThresholdScheduler) evaluateCPU(ctx context.Context, settings Settings) {
@@ -361,6 +455,7 @@ func classifyCPUBand(value float64, settings Settings) PressureBand {
 		return BandNormal
 	}
 }
+
 func cpuBandBoundary(band PressureBand, settings Settings) float64 {
 	switch band {
 	case BandCritical:
@@ -378,7 +473,7 @@ func cpuBandBoundary(band PressureBand, settings Settings) float64 {
 // A failed report is logged and recorded, never fatal: storage-manager being
 // unreachable must not stop the monitor from continuing to observe. The
 // warning band is forwarded so storage-manager can apply its bounded safe tier.
-func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision, usage collectors.DiskUsage) {
+func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision, usage collectors.DiskUsage, writerSnapshots []WriterSnapshot) {
 	if s.reporter == nil || decision.Band < BandWarning {
 		return
 	}
@@ -396,12 +491,29 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 		Band: decision.Band.String(),
 	}
 
+	reportBand := band
+	trigger := "PRESSURE_TRIGGER_BAND"
+	if hasHotWriter(writerSnapshots) {
+		trigger = "PRESSURE_TRIGGER_RATE"
+		if decision.Band < BandWarning {
+			reportBand = cleanupmanager.BandWarning
+		}
+	}
+	hotWriters := make([]cleanupmanager.HotWriter, 0)
+	for _, snapshot := range writerSnapshots {
+		if snapshot.Hot {
+			hotWriters = append(hotWriters, cleanupmanager.HotWriter{Root: snapshot.Root, CurrentBytes: snapshot.Bytes, BytesPerHour: snapshot.BytesPerHour, WindowSeconds: int64(snapshot.DeltaHours * 3600)})
+		}
+	}
 	outcome, err := s.reporter.ReportPressure(ctx, cleanupmanager.Report{
-		SourceScenario: "system-monitor",
-		Partition:      collectors.RootMountPath(),
-		UsedPercent:    usage.UsedPercent,
-		Band:           band,
-		AvailableBytes: usage.AvailableBytes,
+		SourceScenario:       "system-monitor",
+		Partition:            collectors.RootMountPath(),
+		UsedPercent:          usage.UsedPercent,
+		Band:                 reportBand,
+		AvailableBytes:       usage.AvailableBytes,
+		FillRateBytesPerHour: usage.FillRateBytesPerHour,
+		HotWriters:           hotWriters,
+		Trigger:              trigger,
 	})
 	if err != nil {
 		result.Error = err.Error()
@@ -414,7 +526,6 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 		result.ProvidersApplied = outcome.ProvidersApplied
 		result.ProvidersWithheld = outcome.ProvidersWithheld
 		result.BugReference = outcome.BugReference
-		result.BugReference = outcome.BugReference
 		s.log.Info("disk pressure escalated to storage-manager",
 			"band", decision.Band.String(),
 			"action", outcome.Action,
@@ -426,6 +537,15 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 	s.mu.Lock()
 	s.lastRemedy = result
 	s.mu.Unlock()
+}
+
+func hasHotWriter(snapshots []WriterSnapshot) bool {
+	for _, snapshot := range snapshots {
+		if snapshot.Hot {
+			return true
+		}
+	}
+	return false
 }
 
 // evaluate classifies the sample into a band and decides whether it warrants a
@@ -521,6 +641,7 @@ func (s *ThresholdScheduler) Status() ThresholdStatus {
 		HasRun:          s.hasRun,
 		LastRunAt:       s.lastRunAt,
 		LastUsage:       s.lastUsage,
+		LastWriters:     append([]WriterSnapshot(nil), s.lastWriters...),
 		LastViolation:   s.lastViolation,
 		Violations:      s.violations,
 		NextInterval:    s.currentInterval(),

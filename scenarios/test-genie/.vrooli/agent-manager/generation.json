@@ -11,5 +11,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_PROTECTED"
   },
-  "createdBy": "test-genie"
+  "createdBy": "test-genie",
+  "effort": "medium"
 }

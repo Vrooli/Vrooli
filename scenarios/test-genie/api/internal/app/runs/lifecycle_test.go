@@ -2,7 +2,9 @@ package runs
 
 import (
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -97,6 +99,30 @@ func TestPreparationStageKeepsPreparingLifecycle(t *testing.T) {
 	if got != "preparing" {
 		t.Fatalf("lifecycle = %q, want preparing", got)
 	}
+}
+
+func TestSaturationErrorCarriesTypedAdmissionDetail(t *testing.T) {
+	err := saturationError(&runmanager.SaturatedError{
+		Limit: "caller queued run capacity", Occupancy: 4, ConfiguredLimit: 4, RetryAfterSeconds: 30,
+	})
+	if connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("code = %v, want resource exhausted", connect.CodeOf(err))
+	}
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("error = %T, want connect error", err)
+	}
+	for _, detail := range connectErr.Details() {
+		msg, detailErr := detail.Value()
+		if detailErr != nil {
+			continue
+		}
+		admission, ok := msg.(*runspb.AdmissionSaturation)
+		if ok && admission.GetLimitKind() == runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_QUEUE && admission.GetRetryAfterSeconds() == 30 {
+			return
+		}
+	}
+	t.Fatal("typed admission saturation detail missing")
 }
 
 func TestCanonicalPresentationUsesItsOwnWireField(t *testing.T) {
@@ -337,6 +363,25 @@ func TestPrepareAdmissionUsesCustomScenarioPathForTreeDigest(t *testing.T) {
 	}
 	if req.AdmissionTreeDigest != want {
 		t.Fatalf("admission digest = %q, want custom scenario digest %q", req.AdmissionTreeDigest, want)
+	}
+}
+
+func TestPrepareAdmissionUsesPhysicalSourceForBareScenario(t *testing.T) {
+	root := newFleetRoot(t)
+	artifactRoot := filepath.Join(t.TempDir(), "artifacts")
+	svc := NewService(root, nil, nil, nil).SetArtifactRootResolver(func(string) (string, error) {
+		return artifactRoot, nil
+	})
+	req := &orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}
+	if _, _, err := svc.prepareAdmission(context.Background(), req); err != nil {
+		t.Fatalf("prepareAdmission: %v", err)
+	}
+	want, err := treedigest.Compute(filepath.Join(root, "demo"))
+	if err != nil {
+		t.Fatalf("compute source digest: %v", err)
+	}
+	if req.AdmissionTreeDigest != want {
+		t.Fatalf("admission digest = %q, want physical source digest %q", req.AdmissionTreeDigest, want)
 	}
 }
 

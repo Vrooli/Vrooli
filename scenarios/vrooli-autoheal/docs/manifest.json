@@ -250,6 +250,26 @@
           "completion": "required"
         },
         {
+          "id": "check-reference-system-boot-recovery-readiness",
+          "path": "reference/checks/system-boot-recovery-readiness.md",
+          "docType": "check-reference-system-boot-recovery-readiness",
+          "title": "Boot Recovery Readiness Check",
+          "description": "Hourly proof that the autoheal boot path would work, with six named preconditions and no actions",
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "id": "check-reference-system-emergency-watchdog-report",
+          "path": "reference/checks/system-emergency-watchdog-report.md",
+          "docType": "check-reference-system-emergency-watchdog-report",
+          "title": "Emergency Watchdog Report Check",
+          "description": "Reads the emergency watchdog's last report and opens one incident per finding",
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
           "id": "check-reference-system-host-pressure",
           "path": "reference/checks/system-host-pressure.md",
           "docType": "check-reference-system-host-pressure",

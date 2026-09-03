@@ -1,15 +1,17 @@
 package watchdog
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
+	"time"
 
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -93,12 +95,24 @@ func Install(core *cliapp.ScenarioApp, args []string) error {
 	if *enableLinger {
 		fmt.Fprintln(os.Stdout, "autoheal watchdog installation is owned by project setup; the dedicated boot policy enables lingering there")
 	}
-	cmd := exec.Command("vrooli", "setup")
-	if *jsonOutput {
-		cmd.Args = append(cmd.Args, "--json")
+	return runVrooli(cliinvoke.Setup(*jsonOutput)...)
+}
+
+// runVrooli streams one control-plane command to the operator through the
+// shared invoker; setup can prompt, so it gets a long deadline.
+func runVrooli(args ...string) error {
+	home, _ := os.UserHomeDir()
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+	if err != nil {
+		return err
 	}
-	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
-	return cmd.Run()
+	return cliinvoke.Run(context.Background(), cliinvoke.Invocation{
+		Binary:  binary,
+		Args:    args,
+		Timeout: time.Hour,
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
+	}).Error()
 }
 
 func Uninstall(core *cliapp.ScenarioApp, args []string) error {

@@ -31,7 +31,7 @@ func (r *cleanupRunner) Run(_ context.Context, argv []string, _ string, onLog fu
 	r.mu.Lock()
 	r.argvs = append(r.argvs, append([]string(nil), argv...))
 	r.mu.Unlock()
-	if len(argv) >= 5 && argv[1] == "--no-stale-check" && argv[2] == "break-glass" && argv[3] == "status" {
+	if len(argv) >= 4 && argv[1] == "break-glass" && argv[2] == "status" {
 		if r.statusComplete {
 			onLog(`{"complete":true}`)
 		} else {

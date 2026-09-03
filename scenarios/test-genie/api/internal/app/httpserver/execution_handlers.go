@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type suiteExecutionPayload struct {
@@ -52,7 +53,7 @@ func (s *Server) handleAdmissionStatus(w http.ResponseWriter, _ *http.Request) {
 // gateways may attach X-Vrooli-Caller; absent identity is handled by the
 // runmanager's conservative anonymous bucket.
 func admissionCaller(r *http.Request) string {
-	return strings.TrimSpace(r.Header.Get("X-Vrooli-Caller"))
+	return strings.TrimSpace(r.Header.Get(cliutil.HeaderCaller))
 }
 
 func decodeSuiteExecutionInput(r *http.Request) (execution.SuiteExecutionInput, error) {

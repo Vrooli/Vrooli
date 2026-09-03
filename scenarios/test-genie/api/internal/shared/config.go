@@ -56,6 +56,22 @@ func EnvInt(key string, defaultVal int) int {
 	return i
 }
 
+// EnvIntMin reads an integer environment variable with a default and floor.
+// Unset, unparseable, or below-floor values return defaultVal. The floor keeps
+// admission levers usable: a zero concurrency cap would wedge the manager
+// without a running slot or a useful error.
+func EnvIntMin(key string, defaultVal, min int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil || i < min {
+		return defaultVal
+	}
+	return i
+}
+
 // EnvInt64 reads an int64 environment variable with a default.
 // Returns defaultVal if the variable is not set or cannot be parsed.
 func EnvInt64(key string, defaultVal int64) int64 {

@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // TestingRunner executes scenario testing commands described by TestingCapabilities.
@@ -75,9 +77,14 @@ func (r TestingRunner) RunWithArgs(ctx context.Context, caps TestingCapabilities
 	}
 	defer os.RemoveAll(skipDir)
 	skipPath := filepath.Join(skipDir, "platform-skips.jsonl")
+	goWorkDir, err := createGoWorkDir("test-genie-")
+	if err != nil {
+		return nil, fmt.Errorf("create Go work directory: %w", err)
+	}
+	defer os.RemoveAll(goWorkDir)
 
 	command := exec.CommandContext(runCtx, name, args...)
-	command.Env = append(os.Environ(), "VROOLI_SKIP_RECORD_PATH="+skipPath)
+	command.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_SKIP_RECORD_PATH=" + skipPath, "GOTMPDIR=" + goWorkDir}), envkit.ToolchainOptions{})
 	if cmdSpec.WorkingDir != "" {
 		command.Dir = cmdSpec.WorkingDir
 	}
@@ -119,6 +126,22 @@ func (r TestingRunner) RunWithArgs(ctx context.Context, caps TestingCapabilities
 		LogPath:     logPath,
 		SkipSummary: summary,
 	}, nil
+}
+
+func createGoWorkDir(prefix string) (string, error) {
+	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+	if base == "" {
+		if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+			base = filepath.Join(home, ".vrooli")
+		} else {
+			base = os.TempDir()
+		}
+	}
+	root := filepath.Join(base, "tmp", "go-work")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", err
+	}
+	return os.MkdirTemp(root, prefix)
 }
 
 type skipRecord struct {

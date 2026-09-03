@@ -30,6 +30,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 				return support.GetJSON(core, "onboarding control", args, "/v2/host-requirements")
 			}},
 			{Name: "set-config", Description: "Set one safeguard configuration value", Run: func(args []string) error { return setConfig(core, args) }},
+			{Name: "set-recipient", Description: "Set the recipient subject this host's notifications go to", Run: func(args []string) error { return setRecipient(core, args) }},
 		}},
 	}
 }
@@ -91,4 +92,20 @@ func setConfig(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Host safeguard configuration committed"}, NextCommand: []string{support.CLIName + " host list"}})
+}
+
+func setRecipient(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("host set-recipient")
+	subject := fs.String("subject", "", "Recipient subject registered with notification-hub")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*subject) == "" {
+		return fmt.Errorf("--subject is required")
+	}
+	body, _ := json.Marshal(map[string]any{"notifications": map[string]any{"recipient": strings.TrimSpace(*subject)}})
+	if _, err := core.Request("PATCH", "/v2/operator-state", nil, body); err != nil {
+		return err
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Notification recipient committed to operator state"}, NextCommand: []string{"notification-hub recipients address-upsert --help"}})
 }

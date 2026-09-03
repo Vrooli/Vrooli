@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/setpoint"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
@@ -34,7 +35,11 @@ func NewProductionHostPressureReclaimer() func(context.Context) (string, error) 
 			return "", fmt.Errorf("control-plane resource lifecycle is unavailable")
 		}
 	}
-	return NewHostPressureReclaimer(resources.NewController(root, home), readHostPressureThresholds().CPUPercent)
+	sp, err := resolveSetpoint()
+	if err != nil {
+		sp = setpoint.Fallback()
+	}
+	return NewHostPressureReclaimer(resources.NewController(root, home), barsFrom(sp).CPUPercent)
 }
 
 // NewHostPressureReclaimer builds the policy around an injected lifecycle
@@ -48,7 +53,7 @@ func NewHostPressureReclaimer(controller resourceLifecycle, cpuThresholdPercent 
 
 func newHostPressureReclaimer(controller resourceLifecycle, cpuThresholdPercent float64, collect func(context.Context) hostpressure.PressureSnapshot) func(context.Context) (string, error) {
 	if cpuThresholdPercent <= 0 {
-		cpuThresholdPercent = fallbackHostPressureThresholds.CPUPercent
+		cpuThresholdPercent = barsFrom(setpoint.Fallback()).CPUPercent
 	}
 	if collect == nil {
 		collect = func(ctx context.Context) hostpressure.PressureSnapshot {
@@ -82,7 +87,7 @@ func newHostPressureReclaimer(controller resourceLifecycle, cpuThresholdPercent 
 		}
 		decision, err := hostpressure.ReclaimOne(ctx, snapshot.Processes, candidates, hostpressure.ReclaimPolicy{
 			SwapToResident: 2,
-			MinimumSwapped: 500 * 1024 * 1024,
+			MinimumSwapped: setpoint.ReclaimMinimumSwapped,
 			Saturated: func(context.Context) (bool, error) {
 				value, ok := snapshot.CPUPressure.Number()
 				return ok && value >= cpuThresholdPercent, nil

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-27T12:06:25-04:00"
+    "last_validated_at": "2026-09-02T09:47:16-04:00"
   },
   "requirements": [
     {
       "id": "CLI-TICK-001",
       "title": "Tick command executes single health cycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "vrooli-autoheal tick runs platform detection, bootstrap, watchdog verification, and all health checks once",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-TICK-002",
       "title": "Tick command emits structured output",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Tick outputs JSON-formatted health results when --json flag is provided",
@@ -31,63 +31,159 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-LOOP-001",
       "title": "Loop command runs continuously",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "vrooli-autoheal loop repeatedly calls tick logic at configurable interval",
+      "description": "While loop mode is active, vrooli-autoheal loop shall run the tick lifecycle repeatedly, backing off on healable failures and resetting the wait on the first healthy tick, until a shutdown signal arrives.",
       "validation": [
         {
           "type": "test",
-          "ref": "cli/loop/main_test.go",
+          "ref": "cli/loop/loop_test.go::TestBackoffDoublesAndResets",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Continuous run test pending"
+          "notes": "Healable failures back off from one minute doubling to fifteen; the first healthy tick resets. Loop tests carry no [REQ:CLI-LOOP-*] tag (cli/loop is outside this phase's edit set), so sync cannot earn this status from live evidence until the tests are tagged."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestSignalDuringSleepExitsZero",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A signal during the inter-tick sleep ends the loop with exit 0."
         }
       ]
     },
     {
       "id": "CLI-LOOP-002",
       "title": "Loop interval is configurable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "--interval-seconds flag allows setting loop interval (default 60s)",
+      "description": "vrooli-autoheal loop shall read --interval (seconds, default 60) into Config.TickInterval and shall pause exactly one tick interval between non-healable retries.",
       "validation": [
         {
           "type": "test",
-          "ref": "cli/loop/main_test.go",
+          "ref": "cli/loop/loop_test.go::TestUsageErrorIsNonHealableAndExits3",
           "phase": "unit",
-          "status": "implemented"
+          "status": "implemented",
+          "notes": "Asserts every non-healable retry sleeps exactly config.TickInterval. No test exercises parseFlags(--interval) itself; that gap is real. Loop tests carry no [REQ:CLI-LOOP-*] tag (cli/loop is outside this phase's edit set), so sync cannot earn this status from live evidence until the tests are tagged."
         }
       ]
     },
     {
       "id": "CLI-LOOP-003",
       "title": "Loop handles errors gracefully",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "Transient errors are logged and loop continues; only fatal errors cause exit",
+      "description": "If a tick or preflight fails, then vrooli-autoheal loop shall classify the failure: healable failures degrade and retry with backoff, alive-but-failing ticks degrade without restarting the API, and non-healable (usage) failures write the status file and exit 3 after three attempts.",
       "validation": [
         {
           "type": "test",
-          "ref": "cli/loop/main_test.go",
+          "ref": "cli/loop/loop_test.go::TestUsageErrorIsNonHealableAndExits3",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Usage errors exit 3 after three attempts, status file names the class, no breaker slot spent. Loop tests carry no [REQ:CLI-LOOP-*] tag (cli/loop is outside this phase's edit set), so sync cannot earn this status from live evidence until the tests are tagged."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestPreflightFailureDegradesAndCountsTowardExit",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestAliveButFailingTicksDegradeInsteadOfRestarting",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestStatusFileWrittenBeforeExit",
           "phase": "unit",
           "status": "implemented"
         }
       ]
     },
     {
+      "id": "CLI-ARGV-001",
+      "title": "Boolean global flags consume one argv token",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "When the vrooli CLI is invoked with --no-color, the root argv parser shall consume exactly that one token and, with no command following, shall fall through to help without panicking.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestParseArgsNoColorConsumesOneToken",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence lives in the control plane (internal/cli/rootcli), verified by `go test ./internal/cli/rootcli/`; test-genie's scenario suite does not run it, so sync cannot earn this status. Phase 1 of the boot-recovery plan; failing-before capture at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p01/failing-before.txt."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestParseArgsNoColorAloneShowsHelp",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CLI-ARGV-002",
+      "title": "Retired globals are tolerated, unknown flags rejected",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "If a supervisor unit invokes vrooli with a retired global flag (such as --no-stale-check before its removal date), then the CLI shall consume it with one warning and never a usage error; an unknown leading flag shall remain a hard error.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestParseArgsRetiredGlobalIsToleratedWithWarning",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence lives in the control plane (internal/cli/rootcli), verified by `go test ./internal/cli/rootcli/`; test-genie's scenario suite does not run it, so sync cannot earn this status. Phase 1 of the boot-recovery plan; failing-before capture at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p01/failing-before.txt."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestRetiredGlobalsTableCarriesNoStaleCheckUntilRemoval",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestResolveArgvRejectsUnknownCommand",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CLI-ARGV-003",
+      "title": "Every registered command path resolves",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "The vrooli CLI shall resolve every registered command path through the root argv parser without executing it, so a supervisor's argv (`vrooli scenario start`, `vrooli-autoheal tick`) can be checked before a unit is installed.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/cli/rootcli/argv_contract_test.go::TestResolveArgvAcceptsEveryRegisteredCommand",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence lives in the control plane (internal/cli/rootcli), verified by `go test ./internal/cli/rootcli/`; test-genie's scenario suite does not run it, so sync cannot earn this status. Phase 1 of the boot-recovery plan; failing-before capture at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p01/failing-before.txt."
+        }
+      ]
+    },
+    {
       "id": "CLI-STATUS-001",
       "title": "Status command shows health summary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "vrooli-autoheal status displays last-known health results from persisted data",
@@ -96,14 +192,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-STATUS-002",
       "title": "Status supports JSON output",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "--json flag outputs machine-readable health summary",
@@ -112,7 +208,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

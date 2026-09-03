@@ -114,9 +114,9 @@ Every boundary is settings-driven; none is hardcoded.
 | Band | Default | Action |
 | --- | --- | --- |
 | normal | below `disk_threshold` | Record the sample. No alert. |
-| warning | `disk_threshold` (80) | Forward to storage-manager; it applies only the safe tier and files a growth bug when needed. |
-| high | `disk_high_percent` (90) | Ask storage-manager for a conservative preview. Nothing is deleted. |
-| critical | `disk_critical_percent` (95) | storage-manager applies safe-tier providers with no operator present. |
+| warning | `disk_threshold` (80) | Forward to storage-manager; it records the observation and files a growth bug when needed. An explicit RATE or FLOOR trigger starts bounded recovery. |
+| high | `disk_high_percent` (90) | Start bounded storage-manager recovery through safe/regenerable providers. |
+| critical | `disk_critical_percent` (95) | Start bounded storage-manager recovery with no operator present. |
 
 `disk_threshold` *is* the warning boundary — there is deliberately not a
 separate setting meaning the same thing.
@@ -217,3 +217,17 @@ vrooli scenario status system-monitor
 Do not use `pkill`, `killall`, or a broad command-line pattern. Process
 ownership belongs to the control plane and the structure-health validator flags
 unscoped stop commands.
+# Storage pressure and writer rate
+
+System Monitor samples governed storage roots on its normal sensor tick. It
+stores the byte delta and elapsed hours, then reports bytes per hour through
+the shared pressure contract. A root above its declared hot-writer limit for a
+complete sensor window emits `storage.writer.hot` with the root and measured
+rate. A later cooled observation emits `storage.writer.cooled`.
+
+Pressure classification is shared with the other senders. Do not map a
+percentage to a different band in a scenario-specific fallback. The pressure
+payload carries `fill_rate_bytes_per_hour`, `hot_writers`, and `trigger`.
+
+Use `storage-manager storage writers --top 10 --json` to inspect persisted
+writer snapshots. The storage-manager recovery controller owns deletion.

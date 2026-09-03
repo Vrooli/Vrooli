@@ -232,7 +232,9 @@ func TestDetect_Linux(t *testing.T) {
 	probe.currentUserValue = &user.User{Username: "tester"}
 	probe.env["HOME"] = "/home/tester"
 	probe.stats["/etc/systemd/system/vrooli-autoheal.service"] = nil
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = nil
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("4242\n"),
+	}
 	probe.commandOutputs[commandKey("systemctl", "is-enabled", "vrooli-autoheal")] = fakeCommandResult{
 		output: []byte("enabled\n"),
 	}
@@ -265,23 +267,28 @@ func TestDetect_Linux(t *testing.T) {
 	}
 }
 
-func TestDetect_LinuxLoopFallbackToProc(t *testing.T) {
-	plat := &platform.Capabilities{
-		Platform:        "linux",
-		SupportsSystemd: false,
-	}
+// The loop's presence comes from the service manager's MainPID, never from a
+// command-line pattern: a `pgrep -f` matched the grepping shell itself.
+func TestLoopRunningReadsUnitMainPID(t *testing.T) {
+	plat := &platform.Capabilities{Platform: "linux", SupportsSystemd: true}
 
 	probe := newFakeProbe()
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = errors.New("no match")
-	probe.dirEntries["/proc"] = []os.DirEntry{
-		fakeDirEntry{name: "not-pid", isDir: true},
-		fakeDirEntry{name: "1234", isDir: true},
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("0\n"),
 	}
-	probe.files["/proc/1234/cmdline"] = []byte("/usr/bin/vrooli-autoheal\x00loop")
+	probe.commandOutputs[commandKey("systemctl", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("0\n"),
+	}
+	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = nil
+	if detectorWithProbe(plat, probe).isLoopRunning() {
+		t.Error("MainPID=0 in both scopes must read as not running even when pgrep would match")
+	}
 
-	d := detectorWithProbe(plat, probe)
-	if !d.isLoopRunning() {
-		t.Error("expected proc fallback to detect running loop")
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("116451\n"),
+	}
+	if !detectorWithProbe(plat, probe).isLoopRunning() {
+		t.Error("a positive MainPID must read as running")
 	}
 }
 
@@ -296,7 +303,6 @@ func TestDetect_LinuxUserServiceWithLingering(t *testing.T) {
 	probe.env["HOME"] = "/home/tester"
 	probe.stats["/home/tester/.config/systemd/user/vrooli-autoheal.service"] = nil
 	probe.stats["/var/lib/systemd/linger/tester"] = os.ErrNotExist
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = errors.New("no match")
 	probe.commandOutputs[commandKey("systemctl", "--user", "is-enabled", "vrooli-autoheal")] = fakeCommandResult{
 		output: []byte("enabled\n"),
 	}
@@ -463,6 +469,16 @@ func TestCalculateProtectionLevel(t *testing.T) {
 			expected: ProtectionPartial,
 		},
 		{
+			name: "partial protection - unit active but loop process gone",
+			status: Status{
+				LoopRunning:       false,
+				WatchdogInstalled: true,
+				WatchdogEnabled:   true,
+				WatchdogRunning:   true,
+			},
+			expected: ProtectionPartial,
+		},
+		{
 			name: "no protection",
 			status: Status{
 				LoopRunning:       false,
@@ -502,8 +518,10 @@ func TestGetServiceTemplate_Linux(t *testing.T) {
 	if !strings.Contains(template, "[Service]") {
 		t.Error("expected [Service] section in systemd template")
 	}
-	if !strings.Contains(template, "Restart=always") {
-		t.Error("expected Restart=always in systemd template")
+	// The shared definition restarts on failure under a start limit; a
+	// Restart=always unit restarted a loop that exited deliberately.
+	if !strings.Contains(template, "Restart=on-failure") {
+		t.Error("expected Restart=on-failure in systemd template")
 	}
 }
 

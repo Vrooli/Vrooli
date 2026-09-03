@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-27T01:52:36-04:00"
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-008",
       "title": "Investigation Script System",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "api",
       "description": "The system shall expose and execute the predefined investigation catalog through API endpoints, selecting native execution or an explicitly declared shell-gated path with honest unsupported results.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/investigations/catalog_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test catalog loading, native execution, shell JSON validation, and durable run persistence"
         },
         {
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "ui/src/features/investigations/components/operator-panels.test.tsx",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Operator panel renders catalog metadata and executes entries through the API"
         }
       ]

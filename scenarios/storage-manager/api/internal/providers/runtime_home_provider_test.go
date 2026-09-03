@@ -33,6 +33,10 @@ func TestRuntimeHomeProviderNeverBroadensContractRetention(t *testing.T) {
 		ID: "runtime-home-artifacts", Name: "Runtime artifacts", Roots: []string{"/fake/runtime"},
 		TopLevelEntries: true, RetentionMaxAge: 30 * 24 * time.Hour, RetentionMaxBytes: 150,
 	})
+	meta := provider.Metadata()
+	if meta.SafetyTier != cleanup.SafetyTierRegenerable || !meta.NoLease {
+		t.Fatalf("runtime-home metadata = %#v, want regenerable with NoLease proof", meta)
+	}
 
 	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Policy: cleanup.ProviderPolicy{
 		Enabled: true, MinAge: 24 * time.Hour, MaxBytes: 1000, ApprovalMode: cleanup.ApprovalModeOwner,

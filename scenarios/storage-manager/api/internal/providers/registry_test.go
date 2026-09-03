@@ -71,6 +71,12 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 	if _, ok := registry.Get("docker"); !ok {
 		t.Fatal("Get(\"docker\") missing built-in provider")
 	}
+	if _, ok := registry.Get("log-volume-force-rotate"); !ok {
+		t.Fatal("Get(\"log-volume-force-rotate\") missing brokered log provider")
+	}
+	if _, ok := registry.Get("docker-unused-volumes"); !ok {
+		t.Fatal("Get(\"docker-unused-volumes\") missing brokered volume provider")
+	}
 	// agent-scratch reaps a Vrooli-owned path inside the repository checkout,
 	// which every other file provider deliberately avoids, so pin its posture:
 	// operator approval, and disabled until someone turns it on.
@@ -82,6 +88,13 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		meta.DefaultMode != cleanup.ProviderModeDisabled ||
 		meta.DefaultApproval != cleanup.ApprovalModeOperator {
 		t.Fatalf("agent-scratch metadata = %#v, want disabled safe operator-approval", meta)
+	}
+	trash, ok := registry.Get("trash")
+	if !ok {
+		t.Fatal("Get(\"trash\") missing built-in provider")
+	}
+	if meta := trash.Metadata(); meta.SafetyTier != cleanup.SafetyTierRegenerable || meta.DefaultMode != cleanup.ProviderModeDisabled || meta.DefaultApproval != cleanup.ApprovalModeNone {
+		t.Fatalf("trash metadata = %#v, want disabled regenerable no-approval", meta)
 	}
 	for _, id := range []string{"workspace-sandbox-retention", "test-genie-run-retention", "web-console-sessions", "architecture-cartographer-snapshots", "browser-automation-studio-recordings"} {
 		provider, ok := registry.Get(id)

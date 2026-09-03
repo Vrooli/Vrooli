@@ -40,11 +40,14 @@ func (r *fakeRunner) argvStrings() []string {
 	return out
 }
 
+// installDef names a real executable because Install runs the rendered
+// unit through the native validator (systemd-analyze verify), which rejects
+// an ExecStart that does not exist on the test host.
 func installDef() Definition {
 	return Definition{
 		Name:        "vrooli-bridge-agent",
 		Description: "Vrooli Bridge node agent",
-		ExecPath:    "/opt/vrooli/bin/vrooli-bridge-agent",
+		ExecPath:    "/bin/sh",
 		Args:        []string{"--control-plane-url", "https://cp.example", "--node-id", "n1"},
 		User:        "vrooli-agent",
 	}
@@ -71,7 +74,7 @@ func TestSystemdInstall_WritesUnitAndConvergesState(t *testing.T) {
 	// The unit file on disk carries the rendered content.
 	content, err := os.ReadFile(unitPath)
 	require.NoError(t, err)
-	require.Contains(t, string(content), "ExecStart=/opt/vrooli/bin/vrooli-bridge-agent --control-plane-url https://cp.example --node-id n1")
+	require.Contains(t, string(content), "ExecStart=\"/bin/sh\" --control-plane-url https://cp.example --node-id n1")
 	require.Contains(t, string(content), "Restart=on-failure")
 
 	// Exact argv sequence: reload picks up the write, enable sets auto-start,

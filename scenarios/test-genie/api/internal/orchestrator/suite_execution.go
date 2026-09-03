@@ -239,8 +239,14 @@ type SuiteExecutionRequest struct {
 	AdmissionQueued bool `json:"admissionQueued,omitempty"`
 	// AdmissionResources is populated from selected phase descriptors so the
 	// durable run manager can serialize suites sharing a singleton service.
-	AdmissionResources                  []string         `json:"admissionResources,omitempty"`
-	RequireGateQuality                  bool             `json:"requireGateQuality,omitempty"`
+	AdmissionResources               []string `json:"admissionResources,omitempty"`
+	RequireGateQuality               bool     `json:"requireGateQuality,omitempty"`
+	CollectionReservationID          string   `json:"collectionReservationId,omitempty"`
+	CollectionReservationMemberCount int      `json:"collectionReservationMemberCount,omitempty"`
+	// RetainForEvidence requests a server-owned expiring lease before the run
+	// starts, preserving calibration measurements through ordinary retention.
+	RetainForEvidence                   bool             `json:"retainForEvidence,omitempty"`
+	RetentionReason                     string           `json:"retentionReason,omitempty"`
 	PredictedPhaseDurationsMilliseconds map[string]int64 `json:"predictedPhaseDurationsMilliseconds,omitempty"`
 	// ResolvedPhases is the phase set the planner selected for this request —
 	// notably an adaptive profile's budget-trimmed subset, which the executor
@@ -310,6 +316,7 @@ type SuiteExecutionResult struct {
 	// could silently drift back to guessed capacity forever.
 	SchedulerAdmissionAttempts   int            `json:"schedulerAdmissionAttempts,omitempty"`
 	SchedulerEstimatedAdmissions int            `json:"schedulerEstimatedAdmissions,omitempty"`
+	SchedulerPhaseAdmissions     int            `json:"schedulerPhaseAdmissions,omitempty"`
 	Warnings                     []string       `json:"warnings,omitempty"`
 	WarningSummary               WarningSummary `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
@@ -622,6 +629,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	})
 	prepared.result.SchedulerAdmissionAttempts = loopMetrics.AdmissionAttempts
 	prepared.result.SchedulerEstimatedAdmissions = loopMetrics.EstimatedAdmissions
+	prepared.result.SchedulerPhaseAdmissions = loopMetrics.PhaseAdmissions
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
 }
@@ -1357,6 +1365,8 @@ type phaseLoopMetrics struct {
 	// BatchCount counts the batches actually executed after capacity admission
 	// may have shortened the proposed batch.
 	BatchCount int
+	// PhaseAdmissions counts phases for which the broker granted a lease.
+	PhaseAdmissions int
 	// MaxBatchSize is the largest admitted batch in this execution.
 	MaxBatchSize int
 }
@@ -1441,6 +1451,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		metrics.AdmissionAttempts++
 		leases, admissionReason, admitted, estimated := phaseadmission.Admit(ctx, phaseadmission.Deps{Broker: o.capacity, Estimator: o.costEstimator}, env.ScenarioName, runID, batch)
 		metrics.EstimatedAdmissions += estimated
+		metrics.PhaseAdmissions += len(leases)
 		if admitted < len(batch) {
 			// The host granted a shorter prefix than the batcher proposed. The
 			// phases past it are re-proposed on the next iteration rather than
@@ -1989,6 +2000,8 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	result := PhaseExecutionResult{
 		Name:                 run.definition.Name.String(),
 		Status:               status,
+		StartedAt:            run.start.UTC(),
+		CompletedAt:          time.Now().UTC(),
 		DurationSeconds:      duration,
 		DurationMilliseconds: durationMs,
 		LogPath:              displayLogPath,

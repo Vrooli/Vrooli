@@ -639,7 +639,7 @@ step_setup() {
     # The transfer fingerprint has already verified this exact binary against
     # the shipped tree.  Setup intentionally runs before Go is available, so
     # its own stale-binary guard must not attempt a node-side rebuild here.
-    cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" --no-stale-check setup)
+    cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" setup)
     # A Linux control plane can only ship a cgo-free Darwin bootstrap CLI. It
     # is limited to host requirement installation; after Go is available,
     # step_build_native_vrooli creates the real Keychain-enabled binary and
@@ -829,7 +829,7 @@ step_finalize_setup() {
   sentinel="${BOOTSTRAP_STATE_DIR}/setup-${REVISION_SHA}-${profile_token}.done"
   setup_result="$(mktemp "${BOOTSTRAP_STATE_DIR}/setup-final-result.XXXXXX")"
   out="$(mktemp)"
-  local -a cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$RUNTIME_VROOLI_BIN" --no-stale-check setup)
+  local -a cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$RUNTIME_VROOLI_BIN" setup)
   [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
   # An empty onboarding selection must not inherit the target checkout's
   # enabled-resource defaults during finalization. Resource/scenario selection

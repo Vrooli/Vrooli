@@ -3,18 +3,18 @@
 package checks
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
 // CommandExecutor abstracts command execution for testability.
@@ -71,79 +71,54 @@ func RunAuthorizedServiceWithOutcome(ctx context.Context, executor CommandExecut
 // It delegates to os/exec for actual command execution.
 type RealExecutor struct{}
 
-// vrooliInvocation prepends --no-stale-check to args when invoking the vrooli
-// CLI from autoheal. Autoheal runs as a child of the user's working tree, so
-// the embedded fingerprint frequently differs from current sources; without
-// this flag every check would enter buildinfo.RebuildAndReexec and contend on
-// .vrooli/build/vrooli with sibling autoheal subprocesses, tripping the
-// rebuild-loop guard. Idempotent.
-func vrooliInvocation(args []string) []string {
-	if len(args) > 0 && args[0] == "--no-stale-check" {
-		return args
+// vrooliBinaryOverrideEnv is a retired override kept as the explicit path
+// for callers that already ship it. Retired 2026-09-02 with the move onto
+// cli-invoke-go; remove after 2026-12-01. New callers set VROOLI_BIN, which
+// every invoker honors.
+const vrooliBinaryOverrideEnv = "VROOLI_CMD_PATH"
+
+// resolveVrooliBinary finds the control-plane CLI through the one invoker
+// seam. There is no newest-mtime selection between repo candidates: freshness
+// is the lifecycle engine's job, not the caller's.
+func resolveVrooliBinary() string {
+	home, _ := os.UserHomeDir()
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
+		Explicit:    strings.TrimSpace(os.Getenv(vrooliBinaryOverrideEnv)),
+		RuntimeHome: home,
+	})
+	if err != nil {
+		return "vrooli"
 	}
-	out := make([]string, 0, len(args)+1)
-	out = append(out, "--no-stale-check")
-	out = append(out, args...)
-	return out
+	return path
 }
 
-func resolveCommandArgs(name string, args []string) []string {
-	if strings.TrimSpace(name) == "vrooli" {
-		return vrooliInvocation(args)
-	}
-	return args
-}
-
-func resolveCommandPath(name string) string {
-	if strings.TrimSpace(name) != "vrooli" {
-		return name
-	}
-	if override := strings.TrimSpace(os.Getenv("VROOLI_CMD_PATH")); override != "" {
-		return override
-	}
-	root := reporoot.ResolveFromOS()
-	candidates := []string{}
-	if path, err := exec.LookPath("vrooli"); err == nil {
-		candidates = append(candidates, path)
-	}
-	if root != "" {
-		candidates = append(candidates,
-			filepath.Join(root, ".vrooli", "build", "vrooli"),
-			filepath.Join(root, ".vrooli", "build", "vrooli.exe"),
-			filepath.Join(root, "vrooli"),
-			filepath.Join(root, "vrooli.exe"),
-		)
-	}
-	var newest string
-	var newestTime time.Time
-	for _, candidate := range candidates {
-		info, err := os.Stat(candidate)
-		if err != nil || info.IsDir() {
-			continue
-		}
-		if newest == "" || info.ModTime().After(newestTime) {
-			newest, newestTime = candidate, info.ModTime()
-		}
-	}
-	if newest != "" {
-		return newest
-	}
-	return name
-}
+func isVrooli(name string) bool { return strings.TrimSpace(name) == "vrooli" }
 
 // Output runs the command and returns stdout.
 func (e *RealExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).Output()
+	if isVrooli(name) {
+		res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: args})
+		return res.Stdout, res.Error()
+	}
+	return exec.CommandContext(ctx, name, args...).Output()
 }
 
 // CombinedOutput runs the command and returns combined stdout/stderr.
 func (e *RealExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).CombinedOutput()
+	if isVrooli(name) {
+		var combined bytes.Buffer
+		res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: args, Stdout: &combined, Stderr: &combined})
+		return combined.Bytes(), res.Error()
+	}
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
 }
 
 // Run executes the command without capturing output.
 func (e *RealExecutor) Run(ctx context.Context, name string, args ...string) error {
-	return exec.CommandContext(ctx, resolveCommandPath(name), resolveCommandArgs(name, args)...).Run()
+	if isVrooli(name) {
+		return cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: args}).Error()
+	}
+	return exec.CommandContext(ctx, name, args...).Run()
 }
 
 // DefaultExecutor is the global executor instance used when none is injected.

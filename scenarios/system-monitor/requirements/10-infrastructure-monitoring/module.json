@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-27T01:52:36-04:00"
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-010",
       "title": "Infrastructure Monitoring",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "core",
       "description": "System must monitor infrastructure components including database pools, HTTP pools, message queues, and storage I/O",
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test infrastructure collectors"
         },
         {
@@ -32,7 +32,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Infrastructure metrics in dashboard"
         }
       ]

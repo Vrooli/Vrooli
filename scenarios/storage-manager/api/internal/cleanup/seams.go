@@ -31,6 +31,8 @@ type FileSystem interface {
 	ReadDir(ctx context.Context, path string) ([]FileInfo, error)
 
 	Walk(ctx context.Context, root string, visit func(FileInfo) error) error
+	MkdirAll(ctx context.Context, path string) error
+	Rename(ctx context.Context, oldPath, newPath string) error
 	RemoveAll(ctx context.Context, path string) error
 }
 
@@ -108,6 +110,17 @@ type JournalVacuumResult struct {
 type JournalClient interface {
 	DiskUsage(ctx context.Context) (int64, error)
 	Vacuum(ctx context.Context, req JournalVacuumRequest) (JournalVacuumResult, error)
+}
+
+// BrokerActionClient is the narrow seam for root-owned cleanup. Providers
+// supply only a typed action name and subject; the broker owns validation and
+// execution and no provider may fall back to sudo.
+type BrokerActionClient interface {
+	Do(context.Context, string, map[string]any) (BrokerActionResult, error)
+}
+
+type BrokerActionResult struct {
+	Changed bool
 }
 
 type ScenarioCleanupRequest struct {

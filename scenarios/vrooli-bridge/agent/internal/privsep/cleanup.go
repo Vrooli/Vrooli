@@ -303,7 +303,7 @@ func (h *Helper) runCLI(ctx context.Context, args []string, input []byte) ([]byt
 	// rebuild from the very tree this command is deleting. The helper already
 	// carries the exact installed executable, so maintenance commands must opt
 	// out of that developer convenience and remain fixed-argv operations.
-	argv := append([]string{h.vrooliBin, "--no-stale-check"}, args...)
+	argv := append([]string{h.vrooliBin}, args...)
 	var output strings.Builder
 	onLog := func(chunk string) { output.WriteString(chunk) }
 	var code int

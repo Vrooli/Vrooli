@@ -16,7 +16,7 @@ func TestSystemMonitorDiskPressureReaderReadsTypedObservation(t *testing.T) {
 			t.Fatalf("path = %q, want /api/v1/disk-pressure", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"observed":true,"band":"critical","mount_path":"/data","used_percent":96.5,"available_bytes":42}`))
+		_, _ = w.Write([]byte(`{"observed":true,"band":"critical","mount_path":"/data","used_percent":96.5,"available_bytes":42,"fill_rate_bytes_per_hour":200,"hot_writers":[{"root":"/tmp/hot","current_bytes":300,"bytes_per_hour":400,"window_seconds":60}]}`))
 	}))
 	defer server.Close()
 
@@ -25,7 +25,7 @@ func TestSystemMonitorDiskPressureReaderReadsTypedObservation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Band != "critical" || got.MountPath != "/data" || got.UsedPercent != 96.5 {
+	if got.Band != "critical" || got.MountPath != "/data" || got.UsedPercent != 96.5 || got.FillRateBytesPerHour != 200 || len(got.HotWriters) != 1 || got.HotWriters[0].CurrentBytes != 300 {
 		t.Fatalf("observation = %+v", got)
 	}
 }

@@ -134,3 +134,12 @@ func TestPhaseTimeoutRiskIsQuietWithoutAnyInput(t *testing.T) {
 		t.Fatal("reported deadline risk with no measurement and no prediction")
 	}
 }
+
+func TestPhaseTimeoutRiskUsesPredictionWhenMeasuredHistoryIsWithheld(t *testing.T) {
+	def := phases.Definition{Name: phases.Name("unit"), Timeout: time.Minute}
+	predicted := map[string]int64{"unit": 50_000}
+	measured := func(phases.Definition) (int64, bool) { return 0, false }
+	if !TimeoutRisk(def, predicted, measured) {
+		t.Fatal("did not use planner prediction after measured history was withheld")
+	}
+}

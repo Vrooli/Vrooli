@@ -14,6 +14,8 @@ type OwnerProviderConfig struct {
 	SafetyTier      cleanup.SafetyTier
 	DefaultMode     cleanup.ProviderMode
 	DefaultApproval cleanup.ApprovalMode
+	StorageEntries  []string
+	OwnerBudget     bool
 }
 
 type OwnerScenarioProvider struct {
@@ -37,6 +39,7 @@ func (p *OwnerScenarioProvider) Metadata() cleanup.ProviderMetadata {
 		SupportedPlatforms:  []string{"linux", "darwin"},
 		IrreversibleEffects: []string{"owner scenario deletes private data after preview approval"},
 		TestSubstitute:      "fake-owner-provider",
+		OwnerBudget:         p.cfg.OwnerBudget,
 	}
 }
 
@@ -71,7 +74,7 @@ func (p *OwnerScenarioProvider) Apply(ctx context.Context, req cleanup.ApplyRequ
 	if req.IdempotencyKey == "" {
 		return cleanup.ApplyResult{}, fmt.Errorf("owner scenario provider %s apply requires idempotency key", p.cfg.ID)
 	}
-	if p.cfg.SafetyTier == cleanup.SafetyTierSafeWithOwner && req.ApprovalMode != cleanup.ApprovalModeOwner && req.ApprovalMode != cleanup.ApprovalModeOperator {
+	if p.cfg.SafetyTier == cleanup.SafetyTierSafeWithOwner && !p.cfg.OwnerBudget && req.ApprovalMode != cleanup.ApprovalModeOwner && req.ApprovalMode != cleanup.ApprovalModeOperator {
 		return cleanup.ApplyResult{ProviderID: p.cfg.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"owner or operator approval required"}}, nil
 	}
 	if p.cfg.SafetyTier == cleanup.SafetyTierConditional && req.ApprovalMode != cleanup.ApprovalModeOperator {

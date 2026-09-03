@@ -2,6 +2,7 @@ package templateengine
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -19,6 +20,21 @@ var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 func copyTemplate(templateDir, destination string, values map[string]string, manifest templatecontracts.TemplateManifest) error {
 	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return err
+	}
+	if base := strings.TrimSpace(manifest.BaseTemplate); base != "" {
+		baseDir := filepath.Join(filepath.Dir(templateDir), base)
+		baseData, err := os.ReadFile(filepath.Join(baseDir, "template.json"))
+		if err != nil {
+			return fmt.Errorf("read base template %q: %w", base, err)
+		}
+		var baseManifest templatecontracts.TemplateManifest
+		if err := json.Unmarshal(baseData, &baseManifest); err != nil {
+			return fmt.Errorf("decode base template %q: %w", base, err)
+		}
+		baseManifest.CopyExcludes = append(baseManifest.CopyExcludes, manifest.BaseCopyExcludes...)
+		if err := copyTemplate(baseDir, destination, values, baseManifest); err != nil {
+			return fmt.Errorf("copy base template %q: %w", base, err)
+		}
 	}
 	return walkTemplateEmissions(templateDir, manifest, func(relPath, absPath string, entry fs.DirEntry) error {
 		targetPath := filepath.Join(destination, renderTemplateString(relPath, values))

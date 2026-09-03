@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"unit-health/internal/runhistory"
 
 	"github.com/vrooli/api-core/metrics"
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/maturity-go/assessment"
 )
 
@@ -45,7 +47,8 @@ type Service struct {
 	// Executor runs planned commands when execution is requested. Defaults to a
 	// bounded os/exec runner when nil; tests inject a fake.
 	Executor executor.Runner
-	// MaxConcurrency bounds parallel command execution. Defaults to NumCPU/2.
+	// MaxConcurrency bounds parallel command execution. Defaults to the
+	// build-width lever so admission and width stop multiplying.
 	MaxConcurrency int
 	Admission      *executor.Admission
 	// History persists executed runs and supplies cross-run timing/status
@@ -196,6 +199,9 @@ type Workspace struct {
 	CoverageCommand        string
 	TestExecutable         string
 	TestArgs               []string
+	TypecheckCommand       string
+	TypecheckExecutable    string
+	TypecheckArgs          []string
 	CoverageExecutable     string
 	CoverageArgs           []string
 	TestArtifacts          []Artifact
@@ -743,9 +749,7 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 	}
 	concurrency := s.MaxConcurrency
 	if concurrency < 1 {
-		if concurrency = runtime.NumCPU() / 2; concurrency < 1 {
-			concurrency = 1
-		}
+		concurrency = envkit.BuildWidthFrom(envkit.Env(os.Environ()))
 	}
 	for _, command := range plan.Commands {
 		if command.Resource.MaxWorkers > 0 && command.Resource.MaxWorkers < concurrency {

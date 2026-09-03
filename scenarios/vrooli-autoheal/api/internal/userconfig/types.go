@@ -23,6 +23,10 @@ type GlobalConfig struct {
 	ActionTimeoutRestartSeconds int `json:"actionTimeoutRestartSeconds,omitempty"`
 	TimeoutRetrySeconds         int `json:"timeoutRetrySeconds,omitempty"`
 	HealInterlockSeconds        int `json:"healInterlockSeconds,omitempty"`
+	// ContainStorm is the storm authority's mode: "automatic" freezes an
+	// attributed agent session scope from the auto-heal pass after a
+	// sustained finding; "propose_only" keeps the action operator-only.
+	ContainStorm string `json:"containStorm,omitempty"`
 }
 
 // Check contains per-check configuration

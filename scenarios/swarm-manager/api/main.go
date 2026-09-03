@@ -1231,6 +1231,7 @@ func main() {
 	// they do not replace the richer Stats product.
 	if srv.statsEngine != nil {
 		stats.NewHandler(srv.statsEngine).RegisterRoutes(srv.router)
+		stats.RegisterConnectRoutes(srv.router, srv.statsEngine)
 	}
 
 	// Register the granular measures surface (requires the event log): the

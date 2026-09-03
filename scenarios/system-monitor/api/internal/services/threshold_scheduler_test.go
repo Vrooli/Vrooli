@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
@@ -14,6 +15,30 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/cleanupmanager"
 )
+
+type capturedDomainEvent struct{ events []eventbus.DomainEvent }
+
+func (c *capturedDomainEvent) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	c.events = append(c.events, event)
+	return nil
+}
+
+func TestPublishWriterEventsUsesStructSafeTimestamp(t *testing.T) {
+	capture := &capturedDomainEvent{}
+	clock := NewStubClock(time.Date(2026, 9, 3, 3, 0, 0, 0, time.UTC))
+	scheduler := &ThresholdScheduler{clock: clock, events: capture, hotEpisodes: make(map[string]bool)}
+	scheduler.publishWriterEvents(context.Background(), []WriterSnapshot{{
+		Root: "/tmp/proof", RootID: "proof", Mount: "/", Bytes: 10,
+		BytesPerHour: 20, DeltaHours: 1, Hot: true,
+		ObservedAt: time.Date(2026, 9, 3, 2, 59, 0, 0, time.UTC),
+	}})
+	if len(capture.events) != 1 || capture.events[0].EventType != "storage.writer.hot" {
+		t.Fatalf("events = %#v, want one hot event", capture.events)
+	}
+	if _, ok := capture.events[0].Payload["sampled_at"].(string); !ok {
+		t.Fatalf("sampled_at = %#v, want RFC3339 string", capture.events[0].Payload["sampled_at"])
+	}
+}
 
 // fakeDiskSource is the fault-injection seam. Filling a real filesystem is not
 // an option in a unit test, so pressure is simulated here.
@@ -425,5 +450,22 @@ func TestThresholdScheduler_SurvivesUnreachableCleanupManager(t *testing.T) {
 	h.tick(t, 20*time.Second)
 	if !h.scheduler.Status().HasRun {
 		t.Error("the loop stopped after a failed escalation")
+	}
+}
+
+func TestThresholdSchedulerReportsPositiveFillRateFromSamples(t *testing.T) {
+	scheduler := &ThresholdScheduler{}
+	firstAt := time.Unix(100, 0)
+	first := scheduler.withFillRate(collectors.DiskUsage{UsedBytes: 10_000}, firstAt)
+	if first.FillRateBytesPerHour != 0 {
+		t.Fatalf("first sample rate = %d, want 0 without a predecessor", first.FillRateBytesPerHour)
+	}
+	second := scheduler.withFillRate(collectors.DiskUsage{UsedBytes: 11_000}, firstAt.Add(10*time.Minute))
+	if second.FillRateBytesPerHour != 6_000 {
+		t.Fatalf("second sample rate = %d, want 6000 bytes/hour", second.FillRateBytesPerHour)
+	}
+	decrease := scheduler.withFillRate(collectors.DiskUsage{UsedBytes: 9_000}, firstAt.Add(20*time.Minute))
+	if decrease.FillRateBytesPerHour != 0 {
+		t.Fatalf("decreasing sample rate = %d, want 0", decrease.FillRateBytesPerHour)
 	}
 }

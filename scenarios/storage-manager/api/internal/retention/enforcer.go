@@ -18,6 +18,7 @@ import (
 	coreStorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/artifactledger"
+	"storage-manager/internal/recoverylock"
 )
 
 // Enforcer applies directory budgets from the normalized owner inventory.
@@ -27,10 +28,20 @@ import (
 type Enforcer struct {
 	RepoRoot string
 	Platform coreStorage.Platform
+	// RecoveryLockPath serializes retention deletion with recovery and other
+	// deleters. Tests may leave it nil; production supplies the host lock.
+	RecoveryLockPath string
 	// Ledger receives one removal receipt per pruned entry. A nil Ledger keeps
 	// the pruner's default unrecorded os.RemoveAll, which is acceptable only in
 	// tests: production wiring supplies one.
 	Ledger *artifactledger.Ledger
+	// BudgetEvent is optional because vrooli-events is an independently
+	// deployable observer. A failed publisher must never fail cleanup.
+	BudgetEvent func(context.Context, string, map[string]any) error
+	// OverBudgetCycles is shared by the scheduler's successive Enforcer
+	// values. A map keeps the adapter copyable while retaining the two-cycle
+	// sustained-breach rule.
+	OverBudgetCycles map[string]int
 }
 
 // Result records the outcome for one owner entry. A successful result means
@@ -65,6 +76,11 @@ type budgetPruner interface {
 // owner IDs. A failure is returned immediately: retention status must not call
 // an owner governed when one of its declared directories could not be checked.
 func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInventory) (map[string]Result, error) {
+	release, err := recoverylock.Acquire(e.RecoveryLockPath)
+	if err != nil {
+		return nil, fmt.Errorf("acquire retention recovery lock: %w", err)
+	}
+	defer release()
 	platform := e.Platform
 	if platform == "" {
 		platform = coreStorage.Platform(runtime.GOOS)
@@ -155,6 +171,7 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				if budget.MaxBytes > 0 && usage.Bytes > budget.MaxBytes {
 					result.OverBytes = usage.Bytes - budget.MaxBytes
 				}
+				e.recordBudgetBreach(ctx, owner.ID, entry.Name, usage.Bytes, budget.MaxBytes, result.OverBytes > 0, entry.Regenerable)
 				addResult(results, owner.ID, result)
 				continue
 			}
@@ -171,6 +188,8 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				})
 				continue
 			}
+			over := budget.MaxBytes > 0 && out.After.Bytes > budget.MaxBytes
+			e.recordBudgetBreach(ctx, owner.ID, entry.Name, out.After.Bytes, budget.MaxBytes, over, entry.Regenerable)
 			addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes})
 		}
 		var ownerErr error
@@ -182,6 +201,25 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 		}
 	}
 	return results, nil
+}
+
+func (e Enforcer) recordBudgetBreach(ctx context.Context, owner, entry string, measured, budget int64, overage bool, regenerable bool) {
+	if e.OverBudgetCycles == nil {
+		return
+	}
+	key := owner + "/" + entry
+	if !overage {
+		e.OverBudgetCycles[key] = 0
+		return
+	}
+	e.OverBudgetCycles[key]++
+	if e.OverBudgetCycles[key] != 2 || e.BudgetEvent == nil {
+		return
+	}
+	_ = e.BudgetEvent(ctx, "storage.budget.exceeded", map[string]any{
+		"owner": owner, "entry": entry, "measured_bytes": measured,
+		"budget_bytes": budget, "cycles_over": 2, "regenerable": regenerable,
+	})
 }
 
 // protectedRuntimeRoots returns every runtime-home entry the repository

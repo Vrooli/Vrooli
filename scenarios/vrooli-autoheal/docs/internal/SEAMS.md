@@ -165,28 +165,82 @@ vrooli-autoheal follows a layered architecture with clear responsibility separat
 
 ## Key Design Decisions
 
-### `vrooli` CLI Invocation Seam — `--no-stale-check` injection
+### `vrooli` CLI Invocation Seam — `repo-contract-go/cliinvoke`
 
-`api/internal/checks/executor.go` is the single seam for every `vrooli` CLI
-invocation issued by autoheal (27+ call sites across `checks/vrooli/*.go`,
-`checks/infra/cloudflared.go`, `internal/healing/strategies/vrooli.go`,
-`internal/integrations/vrooli/command_runner.go`). When `name == "vrooli"`,
-`RealExecutor.Output` / `CombinedOutput` / `Run` automatically prepend
-`--no-stale-check` (idempotent — `vrooliInvocation` no-ops when the flag is
-already present).
+`github.com/vrooli/repo-contract-go/cliinvoke` is the only place that
+resolves, runs and classifies a `vrooli` subprocess, for the whole repository.
+Inside autoheal, `api/internal/checks/executor.go` (`RealExecutor`) routes
+every `name == "vrooli"` invocation through it, and the loop's `invokeVrooli`
+wrapper does the same; the argv comes from the `cliinvoke` catalog
+(`ScenarioLifecycle`, `ScenarioStatusJSON`, `ScenarioPort`, `AgentRecover`,
+`Setup`, `SetupStatusReadiness`, `DiagnosePort`, `VersionJSON`).
 
-Why: autoheal subprocesses run against the user's working tree, where
-`internal/` source frequently differs from the embedded build fingerprint.
-Without this flag, every check would enter `internal/buildinfo.RebuildAndReexec`
-and contend on `.vrooli/build/vrooli`, tripping the rebuild-loop guard.
+Why: the CLI's argv surface is a contract every supervisor consumes. On
+2026-09-02 a retired global flag left every supervisor unable to call the CLI
+after a reboot. The seam passes no global flags, resolves the binary one way
+(explicit path, `VROOLI_BIN`, the runtime home's bin entry, `PATH`), applies
+the deadline and `WaitDelay` discipline from the 2026-08-01 inherited-pipe
+outage, and classifies failures (`usage`, `binary-missing`, `timeout`,
+`refusal`, `lifecycle`) so a caller never retries a usage error identically.
 
-How to apply: add or modify `vrooli` invocations through the
-`CommandExecutor` interface only. Direct `exec.Command(..., "vrooli", ...)`
-in any file under `scenarios/vrooli-autoheal/` bypasses the seam and
-reintroduces the loop class.
+How to apply: build the argv with a catalog function and run it through
+`cliinvoke.Run` (or the `CommandExecutor` interface inside the API). Register
+new argv producers in `internal/cli/rootcli/invokers`; the conformance test in
+`cliinvoke` fails on any direct `exec.Command(..., "vrooli", ...)` under
+`scenarios/vrooli-autoheal/`, and the registry test fails when a registered
+argv no longer parses or relies on the retired-globals tolerance table.
 
-Reference: `docs/reference/staleness-and-rebuild.md` documents the full
-fingerprint / lock / sidecar contract on the buildinfo side.
+Reference: `docs/reference/cli-invokers.md` (generated registry page) and
+`docs/reference/staleness-and-rebuild.md` (why no stale-check flag exists).
+
+### Loop Freshness Seam — the lifecycle engine builds, the safeguard verifies
+
+The boot-recovery loop (`cli/loop`, a nested Go module) is declared as the
+`loop` component in `.vrooli/service.json` (`build.kind: go_module`,
+`build.dir: cli/loop`, `build.output: cli/vrooli-autoheal-loop`). `vrooli
+scenario setup vrooli-autoheal` builds it with the same engine that builds the
+API and stamps `cli/vrooli-autoheal-loop.freshness.json` next to it; the
+component's `go list` closure (the loop module, `langrecover`,
+`packages/repo-contract-go`, `packages/envkit-go`) is the recorded input set.
+
+`internal/safeguards/autoheal-watchdog` (project control plane) never builds
+the loop. `loopBinaryVerdict` reads that manifest through the engine's public
+reader (`cli-core/cliutil.ReadFreshnessManifest` + `EvaluateFreshness`) and
+reports `fresh`, `stale` (manifest disagrees with the sources, or the binary is
+missing) or `unknown` (no manifest: the engine never built this binary). Stale
+and unknown are both not-applied; `Apply` then runs `vrooli scenario setup
+vrooli-autoheal` through `repo-contract-go/cliinvoke` and restarts the unit
+when the binary's sha256 changed. `Inspect` also compares the unit's main
+process executable (`/proc/<MainPID>/exe` on Linux) with the binary on disk
+and reports "process older than binary" until the unit is restarted; evidence
+lands in `loop_freshness` and `process_identity` of `vrooli setup status
+--json --phase readiness`.
+
+Why: the safeguard used to rebuild from an mtime walk and its own `go build`,
+a second freshness engine that reported "Already present" over a binary months
+older than its source (2026-09-01), and a rebuilt file never reached the
+running process without a restart. One engine, one manifest, one verdict.
+
+Declaration note: the engine skips building a component whose `run.condition`
+is unmet and launches every component that has no `supervised_by`, so the loop
+is declared `supervised_by: api` to be built-but-not-launched. The API does
+not supervise it; the native scheduler unit does. A build-only component kind
+is the missing contract (recorded in the boot-recovery plan's p09 evidence).
+
+How to apply: change loop sources, run `make loop-build` (which is `vrooli
+scenario setup vrooli-autoheal`), never `go build` the loop by hand; the next
+`vrooli setup` restarts the unit onto the new binary.
+
+### Recovery Floor Command Seam — `selfHealRunner`
+
+`cli/loop/selfheal.go` routes every command the dependency-drift recovery
+floor executes (`go mod tidy`, `pnpm install`, the recovery scripts in
+`langrecover`) through `selfHealRunner`, a `langrecover.Runner`. Production
+uses `langrecover.DefaultRunner`; tests inject a recording runner and assert
+the exact argv, working directory and ordering the floor would run, without
+touching a real module. Recovery decisions (`decideFromSources`) are pure over
+the failure output and the signatures, so a wrong recovery is a unit-test failure,
+not a host mutation.
 
 ### System Event Timeline Collection Seam
 
@@ -320,11 +374,14 @@ This change:
 
 ### Adding a New Health Check
 
-1. Create check in `api/internal/checks/infra/` or `checks/vrooli/`
-2. Implement the `Check` interface
-3. If platform-dependent, accept `*platform.Capabilities` in constructor
-4. Register in `bootstrap/checks.go:RegisterDefaultChecks()`
-5. Add tests in the same package
+Follow `docs/guides/adding-checks.md`; the steps are:
+
+1. Add the check file under `api/internal/checks/<category>/` with its desired-behavior tests.
+2. Add it to the appropriate `DefaultCheckFactory` slice in `api/internal/bootstrap/`.
+3. If it heals, add its action to the allowlists in `checks/registry.go`. A check that only reports (for example `system-boot-recovery-readiness`) declares no actions.
+4. Add or update the corresponding space-doc cell.
+5. Add a setpoint bar with a unit and threshold.
+6. Add the check to `docs/reference/check-catalog.md`, write its `docs/reference/checks/<id>.md` page, and register that page in `docs/manifest.json`.
 
 ### Adding a New API Endpoint
 

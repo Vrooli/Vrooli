@@ -2,7 +2,11 @@ package cleanup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -14,6 +18,111 @@ import (
 
 type handlers struct {
 	client cleanupconnect.CleanupServiceClient
+}
+
+type rootInfo struct {
+	ID           string `json:"id"`
+	DeclaredRoot string `json:"declared_root"`
+	ResolvedRoot string `json:"resolved_root"`
+	Tier         string `json:"tier"`
+	MaxAge       string `json:"max_age,omitempty"`
+	MaxBytes     string `json:"max_bytes,omitempty"`
+	Applicable   bool   `json:"applicable"`
+	Present      bool   `json:"present"`
+}
+
+func (h *handlers) rootsCall(cliapp.OperationContext) ([]rootInfo, error) {
+	repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	if repoRoot == "" {
+		repoRoot, _ = os.Getwd()
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(repoRoot, ".vrooli", "repo-contract.json")); err == nil {
+			break
+		}
+		parent := filepath.Dir(repoRoot)
+		if parent == repoRoot {
+			return nil, fmt.Errorf("cannot locate .vrooli/repo-contract.json from %s", repoRoot)
+		}
+		repoRoot = parent
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Storage struct {
+			Roots []struct {
+				ID        string   `json:"id"`
+				Root      string   `json:"root"`
+				Tier      string   `json:"tier"`
+				MaxAge    string   `json:"max_age"`
+				MaxBytes  string   `json:"max_bytes"`
+				Platforms []string `json:"platforms"`
+			} `json:"roots"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	home, _ := os.UserHomeDir()
+	vrooliHome := filepath.Join(home, ".vrooli")
+	platform := runtime.GOOS
+	if platform == "darwin" {
+		platform = "macos"
+	}
+	result := make([]rootInfo, 0, len(doc.Storage.Roots))
+	for _, root := range doc.Storage.Roots {
+		applicable := false
+		for _, candidate := range root.Platforms {
+			if candidate == platform {
+				applicable = true
+				break
+			}
+		}
+		resolved := strings.ReplaceAll(root.Root, "$USER_HOME", home)
+		resolved = strings.ReplaceAll(resolved, "$VROOLI_HOME", vrooliHome)
+		resolved = strings.ReplaceAll(resolved, "$TMPDIR", os.TempDir())
+		if strings.HasPrefix(resolved, "~/") {
+			resolved = filepath.Join(home, strings.TrimPrefix(resolved, "~/"))
+		}
+		resolved = filepath.Clean(resolved)
+		_, statErr := os.Stat(resolved)
+		result = append(result, rootInfo{ID: root.ID, DeclaredRoot: root.Root, ResolvedRoot: resolved, Tier: root.Tier, MaxAge: root.MaxAge, MaxBytes: root.MaxBytes, Applicable: applicable, Present: statErr == nil})
+	}
+	return result, nil
+}
+
+func rootsReport(_ cliapp.OperationContext, roots []rootInfo) cliapp.MutationReport {
+	rows := make([]string, 0, len(roots))
+	for _, root := range roots {
+		rows = append(rows, fmt.Sprintf("%s %s tier=%s applicable=%t present=%t", root.ID, root.ResolvedRoot, root.Tier, root.Applicable, root.Present))
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Found %d governed root(s).", len(rows))}, Changes: rows}
+}
+
+type tierInfo struct {
+	Tier          string `json:"tier"`
+	Autonomous    bool   `json:"autonomous"`
+	ProofRequired bool   `json:"proof_required"`
+}
+
+func (h *handlers) tiersCall(cliapp.OperationContext) ([]tierInfo, error) {
+	return []tierInfo{
+		{Tier: "safe", Autonomous: true},
+		{Tier: "regenerable", Autonomous: true, ProofRequired: true},
+		{Tier: "safe_with_owner", ProofRequired: false},
+		{Tier: "conditional", ProofRequired: false},
+		{Tier: "forbidden", ProofRequired: false},
+	}, nil
+}
+
+func tiersReport(_ cliapp.OperationContext, tiers []tierInfo) cliapp.MutationReport {
+	rows := make([]string, 0, len(tiers))
+	for _, tier := range tiers {
+		rows = append(rows, fmt.Sprintf("%s autonomous=%t proof_required=%t", tier.Tier, tier.Autonomous, tier.ProofRequired))
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Found %d recovery safety tier(s).", len(rows))}, Changes: rows}
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -173,6 +282,7 @@ func (h *handlers) reportPressureCall(ctx cliapp.OperationContext) (*cleanupv1.R
 		UsedPercent:    usedPercent,
 		Band:           band,
 		AvailableBytes: availableBytes,
+		Trigger:        cleanupv1.PressureTrigger_PRESSURE_TRIGGER_BAND,
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("report disk pressure", err, nil)
@@ -209,6 +319,67 @@ func (h *handlers) reportPressureReport(_ cliapp.OperationContext, msg *cleanupv
 	}
 }
 
+func (h *handlers) startRecoveryCall(ctx cliapp.OperationContext) (*cleanupv1.RecoveryRunResponse, error) {
+	trigger := parsePressureTriggerFlag(ctx.Flag("trigger"))
+	used, err := parseOptionalFloat(ctx.Flag("used-percent"), "used-percent")
+	if err != nil {
+		return nil, err
+	}
+	available, err := parseOptionalInt(ctx.Flag("available-bytes"), "available-bytes")
+	if err != nil {
+		return nil, err
+	}
+	target, err := parseOptionalFloat(ctx.Flag("target-percent"), "target-percent")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.StartRecovery(context.Background(), connect.NewRequest(&cleanupv1.RecoveryRunRequest{Trigger: trigger, Partition: ctx.Flag("partition"), UsedPercent: used, AvailableBytes: available, TargetFreePercent: target, DryRun: ctx.BoolFlag("dry-run")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("start recovery", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) waitRecoveryCall(ctx cliapp.OperationContext) (*cleanupv1.RecoveryRunResponse, error) {
+	resp, err := h.client.WaitRecovery(context.Background(), connect.NewRequest(&cleanupv1.RecoveryWaitRequest{RunId: ctx.Flag("run-id")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("wait for recovery", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) listRecoveryCall(ctx cliapp.OperationContext) (*cleanupv1.RecoveryHistoryResponse, error) {
+	limit := int32(0)
+	if raw := ctx.Flag("limit"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("limit: %w", err)
+		}
+		limit = int32(parsed)
+	}
+	resp, err := h.client.ListRecovery(context.Background(), connect.NewRequest(&cleanupv1.RecoveryHistoryRequest{Limit: limit}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list recovery history", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) recoveryReport(_ cliapp.OperationContext, msg *cleanupv1.RecoveryRunResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Recovery %s started (%s).", msg.GetRunId(), msg.GetStatus())}, NextCommand: []string{"`cleanup wait --run-id " + msg.GetRunId() + "`"}}
+}
+
+func (h *handlers) recoveryRunReport(_ cliapp.OperationContext, msg *cleanupv1.RecoveryRunResponse) cliapp.OperationalReport {
+	return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Recovery %s is %s; action=%s reclaimed=%d reason=%s", msg.GetRunId(), msg.GetStatus(), msg.GetAction(), msg.GetReclaimedBytes(), msg.GetReason())}}
+}
+
+func (h *handlers) listRecoveryReport(_ cliapp.OperationContext, msg *cleanupv1.RecoveryHistoryResponse) cliapp.ListReport {
+	rows := make([]string, 0, len(msg.GetRuns()))
+	for _, run := range msg.GetRuns() {
+		rows = append(rows, fmt.Sprintf("%s %s trigger=%s reclaimed=%d", run.GetRunId(), run.GetStatus(), run.GetTrigger(), run.GetReclaimedBytes()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d recovery run(s).", len(rows))}, ResultsHeading: "Recovery history", Results: rows}
+}
+
 // parsePressureBandFlag maps the operator-facing band name onto the proto enum.
 func parsePressureBandFlag(raw string) (cleanupv1.PressureBand, error) {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
@@ -221,6 +392,19 @@ func parsePressureBandFlag(raw string) (cleanupv1.PressureBand, error) {
 	default:
 		return cleanupv1.PressureBand_PRESSURE_BAND_UNSPECIFIED,
 			fmt.Errorf("unknown band %q: expected warning, high, or critical", raw)
+	}
+}
+
+func parsePressureTriggerFlag(raw string) cleanupv1.PressureTrigger {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "floor":
+		return cleanupv1.PressureTrigger_PRESSURE_TRIGGER_FLOOR
+	case "rate":
+		return cleanupv1.PressureTrigger_PRESSURE_TRIGGER_RATE
+	case "manual":
+		return cleanupv1.PressureTrigger_PRESSURE_TRIGGER_MANUAL
+	default:
+		return cleanupv1.PressureTrigger_PRESSURE_TRIGGER_BAND
 	}
 }
 

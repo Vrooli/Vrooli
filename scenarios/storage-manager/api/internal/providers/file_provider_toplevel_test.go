@@ -14,6 +14,75 @@ import (
 
 const tmpRoot = "/tmp"
 
+func TestIntersectRootsRestrictsToScopedChild(t *testing.T) {
+	got := intersectRoots([]string{"/tmp/go-work-dirs"}, []string{"/tmp/go-work-dirs/chaos"})
+	if len(got) != 1 || got[0] != "/tmp/go-work-dirs/chaos" {
+		t.Fatalf("intersectRoots = %v, want scoped child", got)
+	}
+}
+
+func TestIntersectRootsRootPartitionIncludesConfiguredRoots(t *testing.T) {
+	got := intersectRoots([]string{"/tmp", "/home/vrooli/cache"}, []string{"/"})
+	if len(got) != 2 || got[0] != "/tmp" || got[1] != "/home/vrooli/cache" {
+		t.Fatalf("intersectRoots(root partition) = %v, want configured roots", got)
+	}
+}
+
+func TestFileProviderHonorsConfiguredRetentionByteCeiling(t *testing.T) {
+	root := filepath.Join(tmpRoot, "bounded-cache")
+	fsys := &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		root:                     dir(root, at(1, 0)),
+		filepath.Join(root, "a"): file(filepath.Join(root, "a"), 80, at(1, 0)),
+		filepath.Join(root, "b"): file(filepath.Join(root, "b"), 80, at(1, 0)),
+	}, AllowRemove: true}
+	provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+		ID: "spec-bounded", Name: "Bounded cache", Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable,
+		RetentionMaxBytes: 100,
+	})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope: cleanup.ObservationScope{Now: now}, Policy: cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sumPreviewBytes(preview.Items); got > 100 {
+		t.Fatalf("preview bytes = %d, exceeded configured ceiling", got)
+	}
+	if len(preview.Items) != 1 || preview.Items[0].Path != filepath.Join(root, "a") {
+		t.Fatalf("cap preview = %#v, want oldest single overshoot candidate", preview.Items)
+	}
+}
+
+func TestFileProviderHonorsAgeCeilingUnlessFreshReclaimIsAuthorized(t *testing.T) {
+	root := filepath.Join(tmpRoot, "age-bounded-cache")
+	path := filepath.Join(root, "fresh")
+	fsys := &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		root: dir(root, now.Add(-6*time.Hour)), path: file(path, 80, now.Add(-6*time.Hour)),
+	}, AllowRemove: true}
+	provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+		ID: "spec-age-bounded", Name: "Age bounded cache", Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable,
+		RetentionMaxAge: 24 * time.Hour,
+	})
+	ordinary, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope: cleanup.ObservationScope{Now: now}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: time.Hour, ApprovalMode: cleanup.ApprovalModeNone},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ordinary.Items) != 0 {
+		t.Fatalf("ordinary preview selected a younger-than-contract item: %#v", ordinary.Items)
+	}
+	fresh, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope: cleanup.ObservationScope{Now: now}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 0, ApprovalMode: cleanup.ApprovalModeNone, AllowFreshReclaim: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fresh.Items) != 1 || fresh.Items[0].Path != path {
+		t.Fatalf("fresh-reclaim preview = %#v, want %q", fresh.Items, path)
+	}
+}
+
 func at(day int, hour int) time.Time {
 	return time.Date(2026, 7, day, hour, 0, 0, 0, time.UTC)
 }

@@ -19,9 +19,11 @@ These are normally provided by the Vrooli lifecycle system:
 | Variable | Scope | Default | Purpose |
 |----------|-------|---------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
-| `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `2` | GLOBAL cap on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the cap are admitted as `queued` and promoted FIFO as slots free (not rejected). Floor 1. |
+| `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `4` | GLOBAL hard ceiling on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the effective cap are admitted as `queued` and promoted FIFO as slots free. Floor 1. |
+| `TEST_GENIE_MIN_CONCURRENT_RUNS` | Run manager | `2` | Adaptive-concurrency floor. The measured effective cap never falls below this value or rises above the max ceiling. Floor 1; if configured above the ceiling, both use the ceiling. |
 | `TEST_GENIE_MAX_QUEUED_RUNS` | Run manager | `16` | Hard global cap on durable queued runs. Once full, a new divergent scenario request receives retryable saturation rather than adding another queued record. Floor 1. |
 | `TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER` | Run manager | `4` | Fair-share cap on queued runs for one caller identity. Requests without `X-Vrooli-Caller` share the conservative anonymous bucket. Floor 1. |
+| `TEST_GENIE_MAX_QUEUED_RUNS_PER_RESERVATION` | Run manager | `12` | Queue slice for a declared collection reservation. Reserved members use this bucket instead of the per-caller limit; reservations expire after all declared members terminate or one hour. Floor 1. |
 | `TEST_GENIE_MAX_PREVIEW_RUNS` | Run manager | `2` | Non-blocking admission cap on expensive plan previews. Requests beyond it receive retryable saturation before preview work or queued-record allocation. Floor 1. |
 | `TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER` | Run manager | `1` | Fair-share cap on concurrent expensive previews for one caller identity. Floor 1. |
 | `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
@@ -29,6 +31,7 @@ These are normally provided by the Vrooli lifecycle system:
 | `TEST_GENIE_EVENT_REPLAY_MAX_BYTES` | Run manager | `1048576` | Maximum approximate bytes retained in the compact event replay tail. Floor 1. |
 | `FollowRun.after_sequence` | Runs API | `0` | Resume strictly after a received event sequence. A non-zero cursor older than the bounded tail is rejected; fetch durable evidence/detail instead of retrying the stream without bounds. |
 | Pin lease TTL | Runs API | `30 days` | `PinRun` grants a finite evidence-retention lease. Renew it by pinning the same run and owner again; `UnpinRun` revokes it. This is intentionally not an indefinite index pin. |
+| `test-genie execute --retain-for-evidence` | CLI/API run admission | off | Grants a server-owned 30-day retention lease before execution so calibration evidence survives asynchronous cleanup. Pair with `--retention-reason` for the audit explanation. |
 | `TEST_GENIE_SELFHEALTH_SWEEP_DISABLED` | API runtime | `false` | Disables advisory self-health snapshots. It does not affect lifecycle health or test execution. |
 | `TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL` | API runtime | `1h` | Minimum interval between advisory self-health sweeps. |
 | `TEST_GENIE_SELFHEALTH_SWEEP_START_DELAY` | API runtime | `30s` | Minimum delay after the HTTP listener is live before the first advisory sweep. |
@@ -41,10 +44,24 @@ These are normally provided by the Vrooli lifecycle system:
 ## Admission diagnosis
 
 `GET /api/v1/admission` reports current running, queued, and preview occupancy,
-their configured limits, and process-lifetime rejection/coalescing counters.
+their configured limits, adaptive effective concurrency, process-lifetime rejection/coalescing counters, and
+the cumulative `phaseAdmissionsTotal` and `fallbackAdmissionsTotal` counters.
+`suiteEnvelope` contains only scenario/preset reservations with at least five
+timestamped reliable runs. `shadowWouldAdmit`, `shadowWouldDefer`, and
+`shadowErrors` summarize the non-authoritative suite-level capacity probe.
+The fallback rate is `fallbackAdmissionsTotal / phaseAdmissionsTotal`; use it
+to evaluate whether the measured fallback reservation needs review.
 Use it before raising a limit: a full preview gate points to planning pressure,
 while a full queue points to execution throughput. Saturation responses are
 retryable; clients should back off rather than repeatedly submitting work.
+The Connect saturation reply also carries an `AdmissionSaturation` detail with
+the limit kind, current occupancy, configured limit, FIFO position, and a
+`retry_after_seconds` hint. The existing prose remains for compatibility with
+older clients.
+Queued `GetRunStatus` responses expose `queue_position` and
+`estimated_queue_wait_seconds` separately from execution ETA. When no running
+suite has a usable duration estimate, the queue wait is explicitly unknown
+instead of being reported as zero.
 
 Trusted gateways may set `X-Vrooli-Caller` on REST or Connect requests to make
 the per-caller limits fair. It is an admission label, never written into run

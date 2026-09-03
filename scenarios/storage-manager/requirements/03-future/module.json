@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P2 operational targets.",
-    "last_validated_at": "2026-08-06T04:18:20-04:00",
+    "last_validated_at": "2026-09-02T22:29:11-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -72,7 +72,7 @@
     {
       "id": "CLN-P2-005",
       "title": "Attributed storage growth and owner cleanup contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Fit per-owner storage velocity from persisted census samples, project declared ceilings, and delegate preview-first cleanup to owner scenarios with explicit approval and idempotency.",
@@ -81,7 +81,7 @@
           "type": "test",
           "ref": "api/internal/growth/growth_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Least-squares owner fits, six-sample device projection, ceiling status, owner contract transport, and cleanup idempotency are covered."
         }
       ]
@@ -89,7 +89,7 @@
     {
       "id": "CLN-P2-006",
       "title": "Provider policy reconciliation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Reconcile every registered cleanup provider into the active policy row while preserving deliberate operator disables and auditing additions.",
@@ -98,7 +98,7 @@
           "type": "test",
           "ref": "api/internal/policy/profiles_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Reconciliation adds missing providers without changing existing policy choices."
         }
       ]
@@ -106,7 +106,7 @@
     {
       "id": "CLN-P2-007",
       "title": "Explicit regenerable storage declarations",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Require every storage entry to state regenerable and report unbounded regenerable entries or non-binding ceilings.",
@@ -115,7 +115,7 @@
           "type": "test",
           "ref": "api/internal/validation/conformance_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Conformance tests cover CEILING_NOT_BINDING and RETENTION_CEILING_UNBOUNDED; repository declarations pass the hidden-manifest audit."
         }
       ]
@@ -123,7 +123,7 @@
     {
       "id": "CLN-P2-008",
       "title": "Owner cleanup contract conformance",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Provide a shared estimate, preview, apply, and verify owner cleanup contract with protected-item and idempotency guarantees.",
@@ -132,7 +132,7 @@
           "type": "test",
           "ref": "api/internal/cleanup/ownercontract_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "HTTP transport tests cover blocked reasons, protected preview filtering, approval mode, and idempotent apply."
         }
       ]
@@ -140,7 +140,7 @@
     {
       "id": "CLN-P2-009",
       "title": "Warning pressure growth feedback",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Forward warning pressure, run only the safe tier, and rate-limit a Scenario QA bug for the fastest unbounded owner.",
@@ -149,7 +149,7 @@
           "type": "test",
           "ref": "api/internal/orchestrator/pressure_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Warning action, daily owner rate limit, and autonomous kill-switch behavior are covered; system-monitor forwards warning bands."
         }
       ]

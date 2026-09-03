@@ -86,7 +86,7 @@ func TestValidateGoSurfaceIsReady(t *testing.T) {
 		t.Fatalf("workspaces = %+v", resp.Workspaces)
 	}
 	ws := resp.Workspaces[0]
-	if ws.Status != "ready" || ws.TestCommand != "go test ./..." || ws.CoverageCommand == "" {
+	if ws.Status != "ready" || ws.TestCommand != "go test -trimpath ./..." || ws.CoverageCommand == "" {
 		t.Errorf("go workspace not ready: %+v", ws)
 	}
 	if len(resp.Plan.Commands) != 1 {

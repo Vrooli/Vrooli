@@ -57,11 +57,14 @@ func TestStorageEntryConformanceFlagsNonBindingCeiling(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, finding := range got {
-		if finding.Code == "CEILING_NOT_BINDING" {
+		if finding.Code == "STORAGE_CEILING_NON_BINDING" {
+			if finding.Severity != SeverityError {
+				t.Fatalf("finding severity = %v, want SeverityError", finding.Severity)
+			}
 			return
 		}
 	}
-	t.Fatalf("findings = %#v, want CEILING_NOT_BINDING", got)
+	t.Fatalf("findings = %#v, want STORAGE_CEILING_NON_BINDING", got)
 }
 
 func TestStorageEntryConformanceAcceptsFrameworkOwnedEntry(t *testing.T) {

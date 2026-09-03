@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/storage/sqliteutil"
 
 	"github.com/google/uuid"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -15,17 +16,17 @@ import (
 
 const insertPhaseHistorySQL = `
 INSERT INTO suite_execution_phases (
-	execution_id, ordinal, phase_name, status, duration_ms, predicted_duration_ms, duration_seconds, error_text,
+	execution_id, ordinal, phase_name, status, started_at, completed_at, duration_ms, predicted_duration_ms, duration_seconds, error_text,
 	classification, classification_source, remediation, runnability_verdict, runnability_reason,
 	finding_source, metrics_present, findings_blockers, findings_errors,
 	findings_warnings, findings_infos, findings_total, wall_clock_ms, cpu_user_ms,
-	cpu_sys_ms, peak_rss_bytes, cpu_reliability, memory_reliability, gpu_reliability,
+	cpu_sys_ms, peak_rss_bytes, cpu_reliability, memory_reliability, gpu_reliability, measurement_scope,
 	cache_hit, cache_source_run_id, cache_audit, cache_audit_mismatch, cache_no_saving
 ) VALUES (
-		 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+ ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
- ?)`
+ ?, ?, ?)`
 
 // insertPhaseHistory persists the compact, normalized history projection. It
 // intentionally excludes rich findings, metrics, logs, and presentation data:
@@ -40,7 +41,7 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 		if summary == nil {
 			summary = &runspb.PhaseFindingsSummary{}
 		}
-		wallClock, cpuUser, cpuSys, peakRSS, cpuReliability, memoryReliability, gpuReliability := metricColumns(result.Metrics)
+		wallClock, cpuUser, cpuSys, peakRSS, cpuReliability, memoryReliability, gpuReliability, measurementScope := metricColumns(result.Metrics)
 		durationMs := result.DurationMilliseconds
 		if durationMs < 0 {
 			durationMs = 0
@@ -58,11 +59,11 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 			predicted = predictedMs
 		}
 		if _, err := tx.ExecContext(ctx, insertPhaseHistorySQL,
-			executionID.String(), ordinal, name, strings.ToLower(strings.TrimSpace(result.Status)), durationMs, predicted, durationSeconds,
+			executionID.String(), ordinal, name, strings.ToLower(strings.TrimSpace(result.Status)), sqliteutil.FormatTimestamp(result.StartedAt), sqliteutil.FormatTimestamp(result.CompletedAt), durationMs, predicted, durationSeconds,
 			result.Error, result.Classification, result.ClassificationSource, result.Remediation, result.RunnabilityVerdict,
 			result.RunnabilityReason, result.FindingSource, boolToInt(metricsAreMeasured(result.Metrics)), summary.GetBlockers(), summary.GetErrors(),
 			summary.GetWarnings(), summary.GetInfos(), summary.GetTotal(), wallClock, cpuUser, cpuSys,
-			peakRSS, cpuReliability, memoryReliability, gpuReliability, boolToInt(result.CacheHit), result.CacheSourceRunID,
+			peakRSS, cpuReliability, memoryReliability, gpuReliability, measurementScope, boolToInt(result.CacheHit), result.CacheSourceRunID,
 			boolToInt(result.CacheAudit), boolToInt(result.CacheAuditMismatch), boolToInt(result.CacheNoSaving),
 		); err != nil {
 			return fmt.Errorf("insert compact phase history: %w", err)
@@ -97,13 +98,13 @@ func metricsAreMeasured(metrics *commonv1.ExecutionMetrics) bool {
 		resources.GetGpu() != commonv1.Reliability_RELIABILITY_UNSPECIFIED
 }
 
-func metricColumns(metrics *commonv1.ExecutionMetrics) (any, any, any, any, any, any, any) {
+func metricColumns(metrics *commonv1.ExecutionMetrics) (any, any, any, any, any, any, any, any) {
 	if metrics == nil {
-		return nil, nil, nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
 	resources := metrics.GetResources()
 	if resources == nil {
-		return metrics.GetWallClockMs(), nil, nil, nil, nil, nil, nil
+		return metrics.GetWallClockMs(), nil, nil, nil, nil, nil, nil, nil
 	}
 	var cpuUser, cpuSys, peak any
 	if resources.GetCpu() != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
@@ -112,7 +113,7 @@ func metricColumns(metrics *commonv1.ExecutionMetrics) (any, any, any, any, any,
 	if resources.GetMemory() != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
 		peak = resources.GetPeakRssBytes()
 	}
-	return metrics.GetWallClockMs(), cpuUser, cpuSys, peak, resources.GetCpu().String(), resources.GetMemory().String(), resources.GetGpu().String()
+	return metrics.GetWallClockMs(), cpuUser, cpuSys, peak, resources.GetCpu().String(), resources.GetMemory().String(), resources.GetGpu().String(), resources.GetMeasurementScope().String()
 }
 
 func (r *SuiteExecutionRepository) loadPhaseHistory(ctx context.Context, executionID uuid.UUID) ([]phases.ExecutionResult, error) {

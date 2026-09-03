@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/packages/artifactledger"
 
 	"storage-manager/hostfs"
@@ -30,6 +31,7 @@ import (
 	"storage-manager/internal/providers"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/schedule"
 
@@ -49,6 +51,13 @@ import (
 // is what the endpoint-codegen binary and unit tests want — neither has a live
 // database, and neither needs the operator's policy to survive anything.
 func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots) module.Module {
+	return ModuleWithContext(context.Background(), logger, db, fileRoots)
+}
+
+// ModuleWithContext gives server-owned cleanup workers the API process
+// lifetime. Request contexts still control how long callers wait, but do not
+// detach recovery work from orderly service shutdown.
+func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots) module.Module {
 	registry, err := defaultRegistry(fileRoots)
 	if err != nil {
 		if logger == nil {
@@ -61,7 +70,23 @@ func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.Ro
 	if db != nil {
 		store = orchestrator.NewSQLiteStore(db)
 	}
-	service := orchestrator.NewService(registry, store, nil)
+	service := orchestrator.NewServiceWithContext(serviceContext, registry, store, nil)
+	if baseURL := strings.TrimSpace(os.Getenv("VROOLI_MEMORY_API_BASE")); baseURL != "" {
+		service.SetJournalAppender(orchestrator.NewJournalAppender(baseURL))
+	}
+	if resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{}); err == nil {
+		if stateRoot, resolveErr := resolver.Resolve(corestorage.Options{}); resolveErr == nil {
+			service.SetRecoveryLockPath(filepath.Join(stateRoot.StateDir, "recovery.lock"))
+		}
+	}
+	if err := service.ReconcileInterruptedRecoveryRuns(context.Background()); err != nil && logger != nil {
+		logger.Printf("recovery ledger reconciliation failed: %v", err)
+	}
+	// Resolve vrooli-events lazily only after startup reconciliation. Recovery
+	// reconciliation can publish records; resolving a peer during that path
+	// would consume the API readiness window. The client resolves once when the
+	// first live event is emitted and degrades cleanly if events are unavailable.
+	service.SetEventPublisher(eventbus.NewDiscoveredClient(context.Background()))
 	wireWarningPressure(service, db)
 	return ModuleWithService(service)
 }
@@ -172,9 +197,53 @@ func ModuleWithService(service Service) module.Module {
 		Name: "cleanup",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			if approvals, ok := service.(standingApprovalService); ok {
+				r.HandleFunc("/api/v1/cleanup/approvals", func(w http.ResponseWriter, req *http.Request) {
+					policy, err := service.CurrentPolicy(req.Context())
+					if err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(policy.StandingApprovals)
+				}).Methods(http.MethodGet)
+				r.HandleFunc("/api/v1/cleanup/approvals/{provider}", func(w http.ResponseWriter, req *http.Request) {
+					provider := mux.Vars(req)["provider"]
+					if req.Method == http.MethodDelete {
+						if _, err := approvals.RevokeStandingApproval(req.Context(), provider); err != nil {
+							http.Error(w, err.Error(), http.StatusBadRequest)
+							return
+						}
+						w.WriteHeader(http.StatusNoContent)
+						return
+					}
+					var input struct {
+						ApprovedAt         time.Time         `json:"approved_at"`
+						ApprovedBy         string            `json:"approved_by"`
+						HostID             string            `json:"host_id"`
+						SubjectConstraints map[string]string `json:"subject_constraints"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
+						http.Error(w, "invalid approval body", http.StatusBadRequest)
+						return
+					}
+					policy, err := approvals.SetStandingApproval(req.Context(), provider, orchestrator.StandingApproval{ApprovedAt: input.ApprovedAt, ApprovedBy: input.ApprovedBy, HostID: input.HostID, SubjectConstraints: input.SubjectConstraints})
+					if err != nil {
+						http.Error(w, err.Error(), http.StatusBadRequest)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(policy.StandingApprovals[provider])
+				}).Methods(http.MethodPost, http.MethodDelete)
+			}
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type standingApprovalService interface {
+	SetStandingApproval(context.Context, string, orchestrator.StandingApproval) (orchestrator.Policy, error)
+	RevokeStandingApproval(context.Context, string) (orchestrator.Policy, error)
 }
 
 // defaultRegistry builds the production provider registry.
@@ -223,6 +292,10 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		return nil, fmt.Errorf("resolve removal ledger: %w", err)
 	}
 	ollama := providers.NewHTTPOllamaModelInventory(resolveOllamaBaseURL())
+	governedSpecs, err := governedRootSpecs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
 		ProcessLiveness:   hostfs.NewProcessLiveness(),
@@ -236,25 +309,144 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 			schedule.System(),
 		),
 
-		TrashRoots:           roots.Trash,
-		TmpRoots:             roots.Tmp,
-		ScratchRoots:         hostpaths.ScratchRoots(repoRoot),
-		GoBuildCacheRoots:    roots.GoBuildCache,
-		PlaywrightCacheRoots: roots.PlaywrightCache,
-		ScenarioBinariesRoot: binRoot,
-		RemovalLedger:        removalLedger,
-		RuntimeHomeProviders: runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
-		Saturated:            autohealSaturationProbe(http.DefaultClient),
+		TrashRoots:               roots.Trash,
+		TmpRoots:                 roots.Tmp,
+		ScratchRoots:             hostpaths.ScratchRoots(repoRoot),
+		GoBuildCacheRoots:        roots.GoBuildCache,
+		PlaywrightCacheRoots:     roots.PlaywrightCache,
+		ScenarioBinariesRoot:     binRoot,
+		RemovalLedger:            removalLedger,
+		RuntimeHomeProviders:     runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
+		GovernedRootSpecs:        governedSpecs,
+		OrphanedDatabaseProvider: providers.NewOrphanedDatabaseProviderWithVerifier(files, hostfs.NewProcessLiveness(), schedule.System(), filepath.Join(home, ".local", "share", "vrooli", "vrooli-autoheal", "autoheal.sqlite"), autohealLiveDatabasePath(home), 30*24*time.Hour, providers.VerifySQLiteQuickCheck, filepath.Join(home, ".vrooli", "state", "storage-manager", "quarantine")),
+		Saturated:                autohealSaturationProbe(http.DefaultClient),
 		OwnerScenarioClient: &cleanupcore.HTTPScenarioProviderClient{
 			ResolveURL: discovery.ResolveScenarioURLDefault,
 			HTTPClient: http.DefaultClient,
 		},
 		OwnerProviderConfigs: ownerScenarioProviderConfigs(repoRoot),
+		Broker:               providers.NewPrivilegeBrokerClient(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+func autohealLiveDatabasePath(home string) string {
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err == nil {
+		// This control-plane process has its own lifecycle-injected storage
+		// namespace (storage-manager). Do not let that namespace redirect the
+		// path of the separate autoheal scenario; the explicit scenario ID is the
+		// authority for this cross-scenario diagnostic.
+		if path, pathErr := resolver.Path(corestorage.Options{ScenarioID: "vrooli-autoheal"}, corestorage.ClassData, "autoheal.sqlite"); pathErr == nil {
+			return path
+		}
+	}
+	return filepath.Join(home, ".vrooli", "data", "vrooli", "vrooli-autoheal", "autoheal.sqlite")
+}
+
+func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Storage struct {
+			Roots []providers.RootSpec `json:"roots"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	out := make([]providers.RootSpec, 0, len(doc.Storage.Roots))
+	for _, spec := range doc.Storage.Roots {
+		if !spec.Applicable() || (spec.Tier != cleanupcore.SafetyTierSafe && spec.Tier != cleanupcore.SafetyTierRegenerable) {
+			continue
+		}
+		if err := providers.ValidateRootSpec(spec); err != nil {
+			return nil, err
+		}
+		out = append(out, spec)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// governedRootProviderConfigs adapts declarative cache roots to the generic
+// file provider. Adding a root is therefore a contract change, not a new Go
+// registry branch. Owner-leased roots remain withheld until the owner-budget
+// authority is available.
+func governedRootProviderConfigs(repoRoot, home string) []providers.FileProviderConfig {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil
+	}
+	var doc struct {
+		Storage struct {
+			Roots []struct {
+				ID         string `json:"id"`
+				Root       string `json:"root"`
+				Tier       string `json:"tier"`
+				MaxAge     string `json:"max_age"`
+				MaxBytes   string `json:"max_bytes"`
+				LeaseCheck string `json:"lease_check"`
+			} `json:"roots"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil
+	}
+	configs := make([]providers.FileProviderConfig, 0, len(doc.Storage.Roots))
+	for _, spec := range doc.Storage.Roots {
+		if spec.ID == "" || spec.Root == "" || (spec.Tier != string(cleanupcore.SafetyTierSafe) && spec.Tier != string(cleanupcore.SafetyTierRegenerable)) || spec.LeaseCheck != "none" {
+			continue
+		}
+		maxAge, maxBytes, parseErr := parseGovernedRootLimits(spec.MaxAge, spec.MaxBytes)
+		if parseErr != nil {
+			continue
+		}
+		tier := cleanupcore.SafetyTier(spec.Tier)
+		configs = append(configs, providers.FileProviderConfig{
+			ID: "spec-" + spec.ID, Name: "Governed " + spec.ID,
+			Roots:       []string{expandGovernedRoot(spec.Root, repoRoot, home)},
+			Description: "Declarative governed root", Tier: tier,
+			RetentionMaxAge: maxAge, RetentionMaxBytes: maxBytes,
+		})
+	}
+	sort.Slice(configs, func(i, j int) bool { return configs[i].ID < configs[j].ID })
+	return configs
+}
+
+func parseGovernedRootLimits(maxAge, maxBytes string) (time.Duration, int64, error) {
+	var age time.Duration
+	var bytes int64
+	var err error
+	if maxAge != "" {
+		age, err = coreRetention.ParseAge(maxAge)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	if maxBytes != "" {
+		bytes, err = coreRetention.ParseBytes(maxBytes)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	return age, bytes, nil
+}
+
+func expandGovernedRoot(raw, repoRoot, home string) string {
+	value := strings.TrimSpace(raw)
+	value = strings.ReplaceAll(value, "$USER_HOME", home)
+	value = strings.ReplaceAll(value, "$VROOLI_HOME", filepath.Join(home, ".vrooli"))
+	value = strings.ReplaceAll(value, "$REPO_ROOT", repoRoot)
+	if strings.HasPrefix(value, "~/") {
+		value = filepath.Join(home, strings.TrimPrefix(value, "~/"))
+	}
+	return filepath.Clean(value)
 }
 
 func ownerScenarioProviderConfigs(repoRoot string) []providers.OwnerProviderConfig {
@@ -267,12 +459,20 @@ func ownerScenarioProviderConfigs(repoRoot string) []providers.OwnerProviderConf
 		}
 		var manifest struct {
 			Storage struct {
+				Entries map[string]struct {
+					Regenerable bool `json:"regenerable"`
+					Budget      *struct {
+						MaxAge   string `json:"max_age"`
+						MaxBytes string `json:"max_bytes"`
+					} `json:"budget"`
+				} `json:"entries"`
 				CleanupProviders []struct {
-					ID              string `json:"id"`
-					Name            string `json:"name"`
-					SafetyTier      string `json:"safety_tier"`
-					DefaultMode     string `json:"default_mode"`
-					DefaultApproval string `json:"default_approval"`
+					ID              string   `json:"id"`
+					Name            string   `json:"name"`
+					SafetyTier      string   `json:"safety_tier"`
+					DefaultMode     string   `json:"default_mode"`
+					DefaultApproval string   `json:"default_approval"`
+					StorageEntries  []string `json:"storage_entries"`
 				} `json:"cleanup_providers"`
 			} `json:"storage"`
 		}
@@ -281,9 +481,26 @@ func ownerScenarioProviderConfigs(repoRoot string) []providers.OwnerProviderConf
 		}
 		owner := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
 		for _, declaration := range manifest.Storage.CleanupProviders {
+			linkedEntries := make(map[string]struct{}, len(declaration.StorageEntries))
+			for _, name := range declaration.StorageEntries {
+				linkedEntries[name] = struct{}{}
+			}
+			ownerBudget := false
+			// A provider can self-approve only a declared regenerable budget
+			// that it explicitly owns. Missing or unknown links do not confer
+			// authority, even when another entry in the manifest is budgeted.
+			for name := range linkedEntries {
+				entry, exists := manifest.Storage.Entries[name]
+				if exists && entry.Regenerable && entry.Budget != nil && (entry.Budget.MaxAge != "" || entry.Budget.MaxBytes != "") {
+					ownerBudget = true
+					break
+				}
+			}
 			configs = append(configs, providers.OwnerProviderConfig{
 				ID: declaration.ID, Name: declaration.Name, OwnerScenario: owner,
 				SafetyTier: cleanupcore.SafetyTier(declaration.SafetyTier), DefaultMode: cleanupcore.ProviderMode(declaration.DefaultMode), DefaultApproval: cleanupcore.ApprovalMode(declaration.DefaultApproval),
+				StorageEntries: append([]string(nil), declaration.StorageEntries...),
+				OwnerBudget:    ownerBudget,
 			})
 		}
 	}
@@ -342,16 +559,21 @@ type runtimeHomeBrokerRepairer struct {
 }
 
 func newRuntimeHomeBrokerRepairer() cleanupcore.OwnershipRepairer {
+	socket := privilegeBrokerSocketPath()
 	current, err := user.Current()
 	if err != nil {
-		return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock"}
+		return &runtimeHomeBrokerRepairer{socket: socket}
 	}
 	uid, uidErr := strconv.ParseUint(current.Uid, 10, 32)
 	gid, gidErr := strconv.ParseUint(current.Gid, 10, 32)
 	if uidErr != nil || gidErr != nil {
-		return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock"}
+		return &runtimeHomeBrokerRepairer{socket: socket}
 	}
-	return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock", uid: uint32(uid), gid: uint32(gid)}
+	return &runtimeHomeBrokerRepairer{socket: socket, uid: uint32(uid), gid: uint32(gid)}
+}
+
+func privilegeBrokerSocketPath() string {
+	return platformgo.PrivilegeBrokerSocketPath()
 }
 
 func (r *runtimeHomeBrokerRepairer) Repair(ctx context.Context, class string) (cleanupcore.OwnershipRepairResult, error) {
@@ -576,5 +798,37 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Returns immutable cleanup policy, plan, apply, and replay audit events with redacted messages.",
 		Category:    "cleanup",
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"events": "array<AuditEvent>"}},
+	},
+	{
+		ID:          "cleanup_recovery_start",
+		Path:        cleanupconnect.CleanupServiceStartRecoveryProcedure,
+		Method:      "POST",
+		Summary:     "Start recovery run",
+		Description: "Starts a server-owned recovery run and returns its id without waiting for filesystem work.",
+		Category:    "cleanup",
+	},
+	{
+		ID:          "cleanup_recovery_wait",
+		Path:        cleanupconnect.CleanupServiceWaitRecoveryProcedure,
+		Method:      "POST",
+		Summary:     "Wait for recovery run",
+		Description: "Waits for one server-owned recovery run to reach a terminal result.",
+		Category:    "cleanup",
+	},
+	{
+		ID:          "cleanup_recovery_history",
+		Path:        cleanupconnect.CleanupServiceListRecoveryProcedure,
+		Method:      "POST",
+		Summary:     "List recovery history",
+		Description: "Lists recent server-owned recovery runs.",
+		Category:    "cleanup",
+	},
+	{
+		ID:          "cleanup_standing_approvals",
+		Path:        "/api/v1/cleanup/approvals",
+		Method:      http.MethodGet,
+		Summary:     "List standing approvals",
+		Description: "Returns host-local approvals for conditional recovery providers.",
+		Category:    "cleanup",
 	},
 }

@@ -111,7 +111,7 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]string, error) {
 	}
 
 	// The typed client owns the timeout (30s default when ctx has no deadline),
-	// the --no-stale-check flag, and decoding the vrooli.cli.v1 contract.
+	// and decoding the vrooli.cli.v1 contract.
 	resp, err := sl.client.ScenarioStatuses(ctx)
 	if err != nil {
 		return nil, err

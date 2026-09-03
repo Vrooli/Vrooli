@@ -1,42 +1,15 @@
 package main
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"strings"
 	"testing"
-	"time"
-
-	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
-
-func TestBuildVrooliCmd_InjectsNoStaleCheck(t *testing.T) {
-	cases := [][]string{
-		{"scenario", "port", "vrooli-autoheal", "API_PORT"},
-		{"scenario", "status", "vrooli-autoheal", "--json"},
-		{"scenario", "start", "vrooli-autoheal", "--best-effort"},
-		{"scenario", "restart", "vrooli-autoheal", "--best-effort"},
-	}
-	for _, sub := range cases {
-		cmd := buildVrooliCmd("/tmp/vrooli", sub...)
-		joined := strings.Join(cmd.Args, " ")
-		if !strings.Contains(joined, "--no-stale-check") {
-			t.Errorf("argv missing --no-stale-check for %v: %v", sub, cmd.Args)
-			continue
-		}
-		idxFlag := indexOf(cmd.Args, "--no-stale-check")
-		idxSub := indexOf(cmd.Args, sub[0])
-		if idxFlag < 0 || idxSub < 0 || idxFlag > idxSub {
-			t.Errorf("--no-stale-check must precede %q in %v", sub[0], cmd.Args)
-		}
-	}
-	_ = runtime.GOOS
-}
 
 func TestInstallExecutableReplacesTargetAtomically(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "installed-loop")
@@ -103,15 +76,6 @@ func TestLocalHealthEndpointValidatesPort(t *testing.T) {
 	}
 }
 
-func indexOf(s []string, want string) int {
-	for i, v := range s {
-		if v == want {
-			return i
-		}
-	}
-	return -1
-}
-
 func TestRunTick_RequestsCompactResponse(t *testing.T) {
 	t.Helper()
 
@@ -127,7 +91,7 @@ func TestRunTick_RequestsCompactResponse(t *testing.T) {
 	defer ts.Close()
 
 	cfg := &Config{TickEndpoint: ts.URL + "/api/v1/tick"}
-	result, err := runTick(cfg)
+	result, err := runTick(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("runTick() error = %v", err)
 	}
@@ -163,7 +127,7 @@ func TestAutohealIsAliveTreatsAnyAutohealAnswerAsAlive(t *testing.T) {
 			defer srv.Close()
 
 			port := srv.Listener.Addr().(*net.TCPAddr).Port
-			if !autohealIsAlive(strconv.Itoa(port)) {
+			if !autohealIsAlive(context.Background(), strconv.Itoa(port)) {
 				t.Errorf("status %d reported as not alive; a process that answers is not the failure a restart fixes", tc.status)
 			}
 		})
@@ -176,10 +140,10 @@ func TestAutohealIsAliveReportsNothingListeningAsDead(t *testing.T) {
 	port := srv.Listener.Addr().(*net.TCPAddr).Port
 	srv.Close()
 
-	if autohealIsAlive(strconv.Itoa(port)) {
+	if autohealIsAlive(context.Background(), strconv.Itoa(port)) {
 		t.Error("a closed port reported as alive; a genuinely dead API would never be restarted")
 	}
-	if autohealIsAlive("") {
+	if autohealIsAlive(context.Background(), "") {
 		t.Error("an undetected port reported as alive")
 	}
 }
@@ -195,10 +159,10 @@ func TestAutohealIsAliveRejectsForeignProcess(t *testing.T) {
 	defer srv.Close()
 
 	port := srv.Listener.Addr().(*net.TCPAddr).Port
-	if autohealIsAlive(strconv.Itoa(port)) {
+	if autohealIsAlive(context.Background(), strconv.Itoa(port)) {
 		t.Fatal("a foreign service answering 200 must not be adopted as autoheal")
 	}
-	if isAutohealAPI(strconv.Itoa(port)) {
+	if isAutohealAPI(context.Background(), strconv.Itoa(port)) {
 		t.Error("identity probe must reject a foreign service")
 	}
 }
@@ -222,73 +186,5 @@ func TestBodyIdentifiesAutoheal(t *testing.T) {
 				t.Errorf("body %q -> %v, want %v", tc.body, got, tc.want)
 			}
 		})
-	}
-}
-
-// The 2026-08-01 deadlock, reproduced.
-//
-// exec.Cmd.CombinedOutput reads the child's pipe until EOF, and EOF requires
-// every write end to be closed — not merely that the child exited. `vrooli
-// scenario start` spawns the runtime supervisor, which inherits that pipe and
-// holds it for as long as it runs. The loop's first act on boot blocked forever
-// in Wait, never reached its tick loop, and never started anything.
-//
-// This test builds exactly that shape: a command that exits promptly after
-// spawning a descendant which keeps the inherited output pipe open. The helper
-// must return the command's output on the command's own timescale.
-func TestVrooliCommandReturnsWhenADescendantHoldsThePipe(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		repocontracttest.SkipPlatform(t, "shell fixture is POSIX-specific")
-	}
-	script := filepath.Join(t.TempDir(), "fake-vrooli")
-	// Echoes, then leaves a background child holding stdout/stderr for far
-	// longer than this test is willing to wait.
-	body := "#!/bin/sh\necho started\nsleep 300 &\nexit 0\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
-		t.Fatalf("write fixture: %v", err)
-	}
-
-	config := &Config{VrooliCmdPath: script, VrooliRoot: t.TempDir()}
-
-	done := make(chan struct{})
-	var out []byte
-	var err error
-	go func() {
-		out, err = runVrooliCommand(config, "scenario", "start", "x")
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(vrooliOutputGrace + 20*time.Second):
-		t.Fatal("runVrooliCommand blocked on a pipe held by a descendant; this is the deadlock that stopped the supervisor from ever ticking")
-	}
-
-	if err != nil {
-		t.Fatalf("runVrooliCommand: %v", err)
-	}
-	if !strings.Contains(string(out), "started") {
-		t.Errorf("output = %q, want it to contain the command's own output", out)
-	}
-}
-
-// The tolerance for inherited pipes must not swallow a genuine failure: a
-// command that exits non-zero still has to be reported as an error.
-func TestVrooliCommandStillReportsFailure(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		repocontracttest.SkipPlatform(t, "shell fixture is POSIX-specific")
-	}
-	script := filepath.Join(t.TempDir(), "fake-vrooli")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\necho boom >&2\nexit 3\n"), 0o755); err != nil {
-		t.Fatalf("write fixture: %v", err)
-	}
-	config := &Config{VrooliCmdPath: script, VrooliRoot: t.TempDir()}
-
-	out, err := runVrooliCommand(config, "scenario", "start", "x")
-	if err == nil {
-		t.Fatal("a command exiting 3 was reported as success")
-	}
-	if !strings.Contains(string(out), "boom") {
-		t.Errorf("output = %q, want the failing command's diagnostics", out)
 	}
 }

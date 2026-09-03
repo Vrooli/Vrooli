@@ -50,6 +50,7 @@ read as OK.
 | SB15 | Do host memory and swap stay in band, with evicted services reclaimed? | vrooli-autoheal | NOW | | `system-host-pressure` joins memory and swap; stranded memory is distinct from total swap used. |
 | SB16 | Do process count and process-creation rate stay below the operator bar? | vrooli-autoheal | NOW | | `system-host-pressure` joins process count and fork rate; fork rate is unread on darwin and windows by decision. |
 | SB17 | Is every workload accounted for under the declared host workload posture? | vrooli-autoheal | NOW | | `system-host-pressure` joins workload ownership reporting. `host_workload_posture` changes reporting, grading, and recorded detail, never classification. |
+| SB20 | Does the runtime supervisor refuse to start a recovery while host memory is stalling? | vrooli-autoheal | NOW | | The runtime supervisor's pressure gate reads memory PSI `some.avg10` against the setpoint bar for this cell (`internal/setpoint`, the one reader); the bar is instantaneous by design because a recovery attempted into a stalling host deepens the stall. |
 
 ## Reading Contract
 

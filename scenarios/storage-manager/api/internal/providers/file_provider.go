@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	"storage-manager/internal/cleanup"
 )
 
@@ -20,6 +21,9 @@ type FileProviderConfig struct {
 	Name        string
 	Roots       []string
 	Description string
+	// Tier is supplied by the governed root specification. Empty preserves the
+	// historical conditional cache default for callers that have not migrated.
+	Tier cleanup.SafetyTier
 
 	// TopLevelEntries makes each immediate child of a root the unit of
 	// cleanup, instead of each individual file.
@@ -51,7 +55,9 @@ type FileProviderConfig struct {
 	// providers leave these zero and continue to use the active policy only.
 	RetentionMaxAge   time.Duration
 	RetentionMaxBytes int64
+	ProtectedGlobs    []string
 	ProtectActive     bool
+	LeaseCheck        string
 	RepairClass       string
 	OwnershipRepairer cleanup.OwnershipRepairer
 }
@@ -67,17 +73,22 @@ type FileProviderConfig struct {
 const defaultMeasureBudget = 10 * time.Second
 
 type FileProvider struct {
-	meta            cleanup.ProviderMetadata
-	files           cleanup.FileSystem
-	clock           cleanup.Clock
-	roots           []string
-	description     string
-	action          string
-	topLevelEntries bool
-	measureBudget   time.Duration
-	protectActive   bool
-	repairClass     string
-	repairer        cleanup.OwnershipRepairer
+	meta              cleanup.ProviderMetadata
+	files             cleanup.FileSystem
+	clock             cleanup.Clock
+	roots             []string
+	description       string
+	action            string
+	topLevelEntries   bool
+	recoveryTopLevel  bool
+	measureBudget     time.Duration
+	retentionMaxAge   time.Duration
+	retentionMaxBytes int64
+	protectActive     bool
+	protectedGlobs    []string
+	leaseCheck        string
+	repairClass       string
+	repairer          cleanup.OwnershipRepairer
 
 	// memo holds the most recent measurement so a single plan does not walk
 	// the same trees twice. See previewMemo.
@@ -125,7 +136,9 @@ var desktopPlatforms = []string{"linux", "darwin", "windows"}
 var trashPlatforms = []string{"linux", "darwin"}
 
 func NewTrashProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
-	return newFileProvider(files, clock, cfg, cleanup.SafetyTierSafeWithOwner, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOwner, "trash-remove", trashPlatforms)
+	// Trash is already an explicit user discard. It has no owner lease or
+	// durable scenario state, so it belongs to the autonomous regenerable rung.
+	return newFileProvider(files, clock, cfg, cleanup.SafetyTierRegenerable, cleanup.ProviderModeDisabled, cleanup.ApprovalModeNone, "trash-remove", trashPlatforms)
 }
 
 func NewTmpProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
@@ -144,7 +157,15 @@ func NewScratchProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileP
 }
 
 func NewCacheProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
-	return newFileProvider(files, clock, cfg, cleanup.SafetyTierConditional, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "cache-remove", desktopPlatforms)
+	tier := cfg.Tier
+	if tier == "" {
+		tier = cleanup.SafetyTierConditional
+	}
+	approval := cleanup.ApprovalModeOperator
+	if tier == cleanup.SafetyTierRegenerable {
+		approval = cleanup.ApprovalModeNone
+	}
+	return newFileProvider(files, clock, cfg, tier, cleanup.ProviderModeDisabled, approval, "cache-remove", desktopPlatforms)
 }
 
 func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig, tier cleanup.SafetyTier, mode cleanup.ProviderMode, approval cleanup.ApprovalMode, action string, platforms []string) *FileProvider {
@@ -160,17 +181,27 @@ func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProv
 			SupportedPlatforms:  append([]string(nil), platforms...),
 			IrreversibleEffects: []string{"filesystem entries are removed from configured cleanup roots"},
 			TestSubstitute:      "fake-filesystem",
+			NoLease:             tier == cleanup.SafetyTierRegenerable,
+			RegenerableProof: cleanup.RegenerableProof{
+				Derived: true, ToolRecreates: true, ExactRoot: true,
+				NoLease: tier == cleanup.SafetyTierRegenerable,
+			},
 		},
-		files:           files,
-		clock:           clock,
-		roots:           cleanRoots(cfg.Roots),
-		description:     cfg.Description,
-		action:          action,
-		topLevelEntries: cfg.TopLevelEntries,
-		measureBudget:   cfg.MeasureBudget,
-		protectActive:   cfg.ProtectActive,
-		repairClass:     cfg.RepairClass,
-		repairer:        cfg.OwnershipRepairer,
+		files:             files,
+		clock:             clock,
+		roots:             cleanRoots(cfg.Roots),
+		description:       cfg.Description,
+		action:            action,
+		topLevelEntries:   cfg.TopLevelEntries,
+		recoveryTopLevel:  tier == cleanup.SafetyTierRegenerable && cfg.RetentionMaxBytes > 0,
+		measureBudget:     cfg.MeasureBudget,
+		retentionMaxAge:   cfg.RetentionMaxAge,
+		retentionMaxBytes: cfg.RetentionMaxBytes,
+		protectedGlobs:    append([]string(nil), cfg.ProtectedGlobs...),
+		leaseCheck:        strings.TrimSpace(cfg.LeaseCheck),
+		protectActive:     cfg.ProtectActive,
+		repairClass:       cfg.RepairClass,
+		repairer:          cfg.OwnershipRepairer,
 	}
 }
 
@@ -218,6 +249,11 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 		}
 		if !p.withinConfiguredRoot(item.Path) {
 			skipped = append(skipped, item.ID)
+			continue
+		}
+		if p.isProtectedPath(item.Path) {
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: protected path", item.ID))
 			continue
 		}
 		if _, err := p.files.Stat(ctx, item.Path); err != nil {
@@ -314,13 +350,26 @@ func (p *FileProvider) preview(ctx context.Context, scope cleanup.ObservationSco
 
 // memoKey identifies a measurement by everything that changes its result.
 func memoKey(scope cleanup.ObservationScope, policy cleanup.ProviderPolicy) string {
-	return fmt.Sprintf("%v|%v|%v|%v|%v|%v|%v",
-		scope.Now.UnixNano(), scope.RootPaths, scope.CompleteCensus,
-		policy.Enabled, policy.MinAge, policy.MaxBytes, policy.ApprovalMode)
+	return fmt.Sprintf("%v|%v|%v|%v|%v|%v|%v|%v|%v",
+		scope.Now.UnixNano(), scope.RootPaths, scope.CompleteCensus, scope.Recovery,
+		policy.Enabled, policy.MinAge, policy.MaxBytes, policy.ApprovalMode, policy.AllowFreshReclaim)
 }
 
 func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationScope, policy cleanup.ProviderPolicy) (cleanup.Preview, error) {
 	out := cleanup.Preview{ProviderID: p.meta.ID, ProviderVersion: p.meta.Version}
+	if scope.Recovery && p.meta.SafetyTier == cleanup.SafetyTierRegenerable {
+		// Regenerable roots are explicitly safe to recreate. Under pressure the
+		// declared byte budget is the authority, so fresh entries may be
+		// reclaimed; waiting for the normal age horizon defeats the R1 rung.
+		policy.AllowFreshReclaim = true
+		policy.MinAge = 0
+	}
+	if p.retentionMaxAge > 0 && !policy.AllowFreshReclaim && (policy.MinAge == 0 || policy.MinAge < p.retentionMaxAge) {
+		policy.MinAge = p.retentionMaxAge
+	}
+	if p.retentionMaxBytes > 0 && (policy.MaxBytes == 0 || policy.MaxBytes > p.retentionMaxBytes) {
+		policy.MaxBytes = p.retentionMaxBytes
+	}
 	if !policy.Enabled {
 		out.BlockedReason = "provider disabled by policy"
 		return out, nil
@@ -335,6 +384,12 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 		roots = intersectRoots(p.roots, cleanRoots(scope.RootPaths))
 	}
 	now := p.now(scope)
+	measureCtx := ctx
+	var cancel context.CancelFunc
+	if !scope.CompleteCensus {
+		measureCtx, cancel = context.WithTimeout(ctx, p.budget())
+		defer cancel()
+	}
 	// One budget for the whole provider, not one per root. A per-root budget
 	// would scale the worst case with however many roots a provider happens to
 	// have — the trash alone has two (files/ and info/), which doubled its
@@ -345,10 +400,10 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 	}
 	for _, root := range roots {
 		var err error
-		if p.topLevelEntries {
-			err = p.collectTopLevelEntries(ctx, root, now, deadline, policy, &out)
+		if p.topLevelEntries || (scope.Recovery && p.recoveryTopLevel) {
+			err = p.collectTopLevelEntries(measureCtx, root, now, deadline, policy, &out)
 		} else {
-			err = p.collectFiles(ctx, root, now, policy, &out)
+			err = p.collectFiles(measureCtx, root, now, policy, &out)
 		}
 		if err != nil {
 			return cleanup.Preview{}, err
@@ -360,19 +415,73 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 
 // collectFiles adds one candidate per individual file beneath root.
 func (p *FileProvider) collectFiles(ctx context.Context, root string, now time.Time, policy cleanup.ProviderPolicy, out *cleanup.Preview) error {
-	return p.files.Walk(ctx, root, func(info cleanup.FileInfo) error {
-		if info.Path == root || info.IsDir || !p.withinConfiguredRoot(info.Path) || p.isActivePath(info.Path) {
+	remaining := policy.MaxBytes
+	if p.retentionMaxBytes > 0 {
+		used, err := p.rootBytes(ctx, root)
+		if err != nil {
+			return err
+		}
+		remaining = used - p.retentionMaxBytes
+		if remaining <= 0 {
 			return nil
 		}
-		if policy.MinAge > 0 && now.Sub(info.ModTime) < policy.MinAge {
-			return nil
+		if policy.MaxBytes > 0 && policy.MaxBytes < remaining {
+			remaining = policy.MaxBytes
 		}
-		if policy.MaxBytes > 0 && sumPreviewBytes(out.Items)+info.Size > policy.MaxBytes {
+		// A declared byte ceiling is an enforced size policy, not an age
+		// policy. Once a regenerable root exceeds its ceiling, its oldest
+		// entries are eligible even when they are newer than the ordinary
+		// retention horizon; otherwise a fresh cache can remain permanently
+		// over budget and pressure recovery cannot make progress.
+		policy.MinAge = 0
+	}
+	if remaining > 0 {
+		remaining -= sumPreviewBytes(out.Items)
+		if remaining <= 0 {
 			out.Warnings = append(out.Warnings, "max reclaim limit reached")
 			return nil
 		}
-		out.Items = append(out.Items, p.previewItem(info.Path, info.Size))
+	}
+	selected, err := coreRetention.SelectFiles(ctx, cleanupFileWalker{files: p.files}, coreRetention.FileSelectionConfig{
+		Root:                 root,
+		Now:                  now,
+		MinAge:               policy.MinAge,
+		MaxBytes:             remaining,
+		AllowSingleOvershoot: p.retentionMaxBytes > 0,
+		IsActive:             p.activePredicate(root),
+		ProtectedGlobs:       p.protectedGlobs,
+	})
+	if err != nil {
+		return err
+	}
+	for _, candidate := range selected {
+		out.Items = append(out.Items, p.previewItem(candidate.Path, candidate.Bytes))
+	}
+	if policy.MaxBytes > 0 && sumPreviewBytes(out.Items) >= policy.MaxBytes {
+		out.Warnings = append(out.Warnings, "max reclaim limit reached")
+	}
+	return nil
+}
+
+func (p *FileProvider) rootBytes(ctx context.Context, root string) (int64, error) {
+	var total int64
+	err := p.files.Walk(ctx, root, func(info cleanup.FileInfo) error {
+		if !info.IsDir && info.Size > 0 {
+			total += info.Size
+		}
 		return nil
+	})
+	return total, err
+}
+
+// cleanupFileWalker adapts storage-manager's injected filesystem, including
+// its privileged host implementation and test fakes, to the engine-neutral
+// retention selector. The adapter carries facts only; it cannot delete.
+type cleanupFileWalker struct{ files cleanup.FileSystem }
+
+func (w cleanupFileWalker) Walk(ctx context.Context, root string, visit func(coreRetention.FileEntry) error) error {
+	return w.files.Walk(ctx, root, func(info cleanup.FileInfo) error {
+		return visit(coreRetention.FileEntry{Path: info.Path, Size: info.Size, Mode: info.Mode, ModTime: info.ModTime, IsDir: info.IsDir})
 	})
 }
 
@@ -401,6 +510,7 @@ type entryAggregate struct {
 // estimated, so a partially-traversed subtree is never judged stale on the
 // strength of whichever files the walk happened to reach first.
 func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, now time.Time, deadline time.Time, policy cleanup.ProviderPolicy, out *cleanup.Preview) error {
+	isActive := p.activePredicate(root)
 	entries, err := p.files.ReadDir(ctx, root)
 	if err != nil {
 		return err
@@ -423,7 +533,7 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !p.withinConfiguredRoot(entry.Path) || p.isActivePath(entry.Path) {
+		if !p.withinConfiguredRoot(entry.Path) || isActive(entry.Path) || p.isProtectedPath(entry.Path) {
 			continue
 		}
 		// The newest mtime in a subtree is at least as new as its top-level
@@ -578,6 +688,60 @@ func (p *FileProvider) isActivePath(path string) bool {
 	return activePath(path) || (p.protectActive && activeLeasePath(path))
 }
 
+// activePredicate builds the lease-aware safety filter once per measured root.
+// In particular, open-handle discovery must not scan /proc once per file in a
+// large cache. Unsupported lease mechanisms fail closed: the provider reports
+// protected candidates instead of treating unverifiable bytes as reclaimable.
+func (p *FileProvider) activePredicate(root string) func(string) bool {
+	base := p.isActivePath
+	switch p.leaseCheck {
+	case "lease_file":
+		return func(path string) bool {
+			return base(path) || hasLeaseFile(path, root)
+		}
+	case "open_handle":
+		handles, verified := openHandlePaths(root)
+		if !verified {
+			return func(string) bool { return true }
+		}
+		return func(path string) bool {
+			if base(path) {
+				return true
+			}
+			clean := filepath.Clean(path)
+			for held := range handles {
+				if clean == held || pathContains(held, clean) {
+					return true
+				}
+			}
+			return false
+		}
+	case "model_pin":
+		// Pin indexes are owner-specific. Until the owner lease feed is
+		// available, protecting the complete root is the only safe answer.
+		return func(string) bool { return true }
+	default:
+		return base
+	}
+}
+
+func (p *FileProvider) isProtectedPath(path string) bool {
+	cleanPath := filepath.Clean(path)
+	for _, pattern := range p.protectedGlobs {
+		pattern = filepath.Clean(strings.TrimSpace(pattern))
+		if pattern == "." || pattern == "" {
+			continue
+		}
+		if matched, _ := filepath.Match(pattern, filepath.Base(cleanPath)); matched {
+			return true
+		}
+		if matched, _ := filepath.Match(pattern, filepath.ToSlash(cleanPath)); matched {
+			return true
+		}
+	}
+	return false
+}
+
 func cleanRoots(roots []string) []string {
 	out := make([]string, 0, len(roots))
 	for _, root := range roots {
@@ -593,13 +757,31 @@ func intersectRoots(configured []string, scoped []string) []string {
 	var out []string
 	for _, root := range configured {
 		for _, scope := range scoped {
-			if root == scope || strings.HasPrefix(root, scope+string(filepath.Separator)) || strings.HasPrefix(scope, root+string(filepath.Separator)) {
+			if pathContains(root, scope) {
+				// A rate-triggered signal names a governed child. Restrict the
+				// provider to that child instead of scanning/deleting siblings.
+				out = append(out, scope)
+				break
+			}
+			if pathContains(scope, root) {
 				out = append(out, root)
 				break
 			}
 		}
 	}
 	return out
+}
+
+func pathContains(ancestor, path string) bool {
+	ancestor = filepath.Clean(ancestor)
+	path = filepath.Clean(path)
+	if ancestor == path {
+		return true
+	}
+	if ancestor == string(filepath.Separator) {
+		return filepath.IsAbs(path)
+	}
+	return strings.HasPrefix(path, ancestor+string(filepath.Separator))
 }
 
 func activePath(path string) bool {

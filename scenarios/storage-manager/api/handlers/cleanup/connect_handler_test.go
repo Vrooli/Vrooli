@@ -13,6 +13,7 @@ import (
 	"storage-manager/internal/policy"
 
 	"connectrpc.com/connect"
+	corestorage "github.com/vrooli/api-core/storage"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup"
 )
 
@@ -42,8 +43,8 @@ func TestConnectHandlerListsProviderMetadataAndPolicy(t *testing.T) {
 
 func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testing.T) {
 	configs := runtimeHomeProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
-	if len(configs) != 7 {
-		t.Fatalf("runtime-home provider count = %d, want seven regenerable cleanup entries (bin is an install root)", len(configs))
+	if len(configs) != 6 {
+		t.Fatalf("runtime-home provider count = %d, want six regenerable cleanup entries (bin and artifacts are protected install roots)", len(configs))
 	}
 	for _, cfg := range configs {
 		if cfg.ProtectActive != true || cfg.RetentionMaxAge <= 0 {
@@ -52,16 +53,42 @@ func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testin
 		if cfg.ID == "runtime-home-bin" {
 			t.Fatalf("control-plane install root registered for generic cleanup: %#v", cfg)
 		}
+		if cfg.ID == "runtime-home-artifacts" {
+			t.Fatalf("managed artifact root registered for generic cleanup: %#v", cfg)
+		}
 		if cfg.ID == "runtime-home-backups" || cfg.ID == "runtime-home-secrets" || cfg.ID == "runtime-home-data" {
 			t.Fatalf("protected runtime-home entry registered for cleanup: %#v", cfg)
 		}
 	}
 }
 
+func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testing.T) {
+	configs := governedRootProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
+	if len(configs) == 0 {
+		t.Fatal("governed root provider configs are empty")
+	}
+	seen := map[string]bool{}
+	for _, cfg := range configs {
+		if cfg.Tier != cleanupcore.SafetyTierSafe && cfg.Tier != cleanupcore.SafetyTierRegenerable || len(cfg.Roots) != 1 || cfg.RetentionMaxAge <= 0 {
+			t.Fatalf("governed config = %#v, want safe or regenerable root with age bound", cfg)
+		}
+		if seen[cfg.ID] {
+			t.Fatalf("duplicate governed root provider %q", cfg.ID)
+		}
+		seen[cfg.ID] = true
+		if cfg.ID == "spec-browser-recordings" || cfg.ID == "spec-browser-captures" {
+			t.Fatalf("owner-leased root was admitted to autonomous provider set: %q", cfg.ID)
+		}
+	}
+	if !seen["spec-uv-cache"] || !seen["spec-go-build-cache"] || !seen["spec-go-module-cache"] || !seen["spec-go-work-dirs"] {
+		t.Fatalf("expected declarative cache roots, got %v", seen)
+	}
+}
+
 func TestOwnerScenarioProviderConfigsComeFromDeclarations(t *testing.T) {
 	repoRoot := t.TempDir()
-	writeOwnerProviderManifest(t, repoRoot, "z-owner", `{"storage":{"cleanup_providers":[{"id":"z-retention","name":"Z retained data","safety_tier":"safe_with_owner","default_mode":"disabled","default_approval":"owner"}]}}`)
-	writeOwnerProviderManifest(t, repoRoot, "a-owner", `{"storage":{"cleanup_providers":[{"id":"a-retention","name":"A retained data","safety_tier":"conditional","default_mode":"enabled","default_approval":"operator"}]}}`)
+	writeOwnerProviderManifest(t, repoRoot, "z-owner", `{"storage":{"entries":{"cache":{"regenerable":true,"budget":{"max_age":"7d"}}},"cleanup_providers":[{"id":"z-retention","name":"Z retained data","safety_tier":"safe_with_owner","default_mode":"disabled","default_approval":"owner"}]}}`)
+	writeOwnerProviderManifest(t, repoRoot, "a-owner", `{"storage":{"entries":{"cache":{"regenerable":true,"budget":{"max_age":"7d"}}},"cleanup_providers":[{"id":"a-retention","name":"A retained data","safety_tier":"conditional","default_mode":"enabled","default_approval":"operator","storage_entries":["cache"]}]}}`)
 	writeOwnerProviderManifest(t, repoRoot, "undeclared", `{"storage":{"entries":{}}}`)
 
 	configs := ownerScenarioProviderConfigs(repoRoot)
@@ -71,8 +98,14 @@ func TestOwnerScenarioProviderConfigsComeFromDeclarations(t *testing.T) {
 	if configs[0].ID != "a-retention" || configs[0].OwnerScenario != "a-owner" || configs[0].SafetyTier != cleanupcore.SafetyTierConditional || configs[0].DefaultApproval != cleanupcore.ApprovalModeOperator {
 		t.Fatalf("first declaration = %#v", configs[0])
 	}
+	if !configs[0].OwnerBudget || len(configs[0].StorageEntries) != 1 || configs[0].StorageEntries[0] != "cache" {
+		t.Fatalf("linked owner budget = %#v, want explicit cache authority", configs[0])
+	}
 	if configs[1].ID != "z-retention" || configs[1].OwnerScenario != "z-owner" || configs[1].DefaultMode != cleanupcore.ProviderModeDisabled {
 		t.Fatalf("second declaration = %#v", configs[1])
+	}
+	if configs[1].OwnerBudget {
+		t.Fatalf("unlinked budget incorrectly granted authority: %#v", configs[1])
 	}
 }
 
@@ -189,6 +222,23 @@ func TestDefaultRegistryWiresContractResolvedScenarioBinaryRoot(t *testing.T) {
 	}
 	if preview.BlockedReason != "" {
 		t.Fatalf("scenario-binaries provider is not wired to a usable contract root: %q", preview.BlockedReason)
+	}
+}
+
+func TestAutohealLiveDatabasePathIgnoresCallerStorageNamespace(t *testing.T) {
+	t.Setenv(corestorage.EnvStorageNamespace, "storage-manager")
+
+	got := autohealLiveDatabasePath("/home/matthalloran8")
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		t.Fatalf("NewResolver() error = %v", err)
+	}
+	want, err := resolver.Path(corestorage.Options{ScenarioID: "vrooli-autoheal"}, corestorage.ClassData, "autoheal.sqlite")
+	if err != nil {
+		t.Fatalf("resolver.Path() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("autohealLiveDatabasePath() = %q, want explicit autoheal path %q", got, want)
 	}
 }
 

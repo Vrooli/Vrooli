@@ -48,6 +48,25 @@ func TestTestingRunnerFallsBackToLegacy(t *testing.T) {
 	}
 }
 
+func TestTestingRunnerUsesAndReapsGovernedGoWorkDir(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("VROOLI_HOME", runtimeHome)
+	dir := t.TempDir()
+	script := filepath.Join(dir, "run.sh")
+	writeExecutable(t, script, "test -n \"$GOTMPDIR\"; test -d \"$GOTMPDIR\"")
+	caps := TestingCapabilities{Phased: true, Commands: []TestingCommand{{Type: "phased", Command: []string{script}, WorkingDir: dir}}}
+	if _, err := (TestingRunner{Timeout: time.Second}).Run(context.Background(), caps, ""); err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(runtimeHome, "tmp", "go-work"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("reaped Go work directory still has entries: %v", entries)
+	}
+}
+
 func TestTestingRunnerErrorsWhenMissingCommands(t *testing.T) {
 	runner := TestingRunner{}
 	if _, err := runner.Run(context.Background(), TestingCapabilities{}, ""); err == nil {

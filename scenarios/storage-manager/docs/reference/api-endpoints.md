@@ -123,7 +123,25 @@ pass `platform` to select the target platform. The response includes
 
 Returns declared-ceiling coverage and the latest persisted census confidence and
 growth slope, sample count, and `days_to_full` from the fitted device series.
-This endpoint never triggers a host scan.
+The response also includes `schema_version`, `top_writers`, and
+`recent_recovery_runs` when the durable ledger is available. This endpoint
+never triggers a host scan.
+
+### `GET /api/v1/storage/writers?top=N`
+
+Returns the highest-rate persisted governed-root writer snapshots. The default
+is ten rows and the endpoint reads only the typed ledger.
+
+### `GET /api/v1/recovery/runs?limit=N`
+
+Returns recent server-owned recovery runs, including trigger, target,
+reclaimed bytes, terminal result, and stop reason. The default is ten rows.
+
+### `GET|POST|DELETE /api/v1/cleanup/approvals[/{provider}]`
+
+Reads, records, or revokes host-local standing approvals for conditional
+recovery providers. `POST` accepts `approved_at`, `approved_by`, `host_id`, and
+optional `subject_constraints`; it never accepts a command or arbitrary path.
 
 ### Owner cleanup contract
 

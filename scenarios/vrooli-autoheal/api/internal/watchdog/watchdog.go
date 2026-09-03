@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -123,45 +124,82 @@ func (d *Detector) GetCached() *Status {
 	return cached
 }
 
-func (d *Detector) invalidate() {
+// Invalidate drops the cached status so the next GetCached re-detects.
+func (d *Detector) Invalidate() {
 	d.mu.Lock()
 	d.cached = nil
 	d.mu.Unlock()
 }
 
+// isLoopRunning asks the service manager for the unit's main process. Before
+// 2026-09-02 this was `pgrep -f vrooli-autoheal.*loop`, which matched any
+// process whose command line contained the pattern -- including the shell of
+// whoever was grepping for it -- and so reported a dead loop as running. The
+// service manager is the only party that knows which process is the unit's.
 func (d *Detector) isLoopRunning() bool {
-	if d.probe.goos() == "windows" {
-		// tasklist can identify an image but cannot inspect its arguments, so it
-		// cannot distinguish the API process from the loop. Query the native
-		// process command line first; retain the tasklist fallback for hosts
-		// where PowerShell process inspection is unavailable.
-		output, err := d.probe.commandOutput("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Get-CimInstance Win32_Process | Select-Object -ExpandProperty CommandLine")
-		if err == nil {
-			return strings.Contains(strings.ToLower(string(output)), "vrooli-autoheal") && strings.Contains(strings.ToLower(string(output)), "loop")
-		}
-		output, err = d.probe.commandOutput("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")
-		return err == nil && strings.Contains(strings.ToLower(string(output)), "vrooli-autoheal") && strings.Contains(strings.ToLower(string(output)), "loop")
-	}
-	if d.probe.commandRun("pgrep", "-f", "vrooli-autoheal.*loop") == nil {
-		return true
-	}
-	if d.probe.goos() != "linux" {
+	unit, ok := platformgo.CoreUnitByID(platformgo.CoreUnitAutohealLoop)
+	if !ok {
 		return false
 	}
-	entries, err := d.probe.readDir("/proc")
-	if err != nil {
+	switch d.probe.goos() {
+	case "linux":
+		for _, scope := range [][]string{{"--user"}, {}} {
+			args := append(append([]string{}, scope...), "show", "-p", "MainPID", "--value", unit.Systemd)
+			output, err := d.probe.commandOutput("systemctl", args...)
+			if err != nil {
+				continue
+			}
+			if pid, convErr := strconv.Atoi(strings.TrimSpace(string(output))); convErr == nil && pid > 0 {
+				return true
+			}
+		}
+		return false
+	case "darwin":
+		uid := strconv.Itoa(os.Getuid())
+		for _, domain := range []string{"gui/" + uid, "user/" + uid, "system"} {
+			output, err := d.probe.commandOutput("launchctl", "print", domain+"/"+unit.Launchd)
+			if err != nil {
+				continue
+			}
+			if pid, found := launchdPID(string(output)); found && pid > 0 {
+				return true
+			}
+		}
+		return false
+	case "windows":
+		output, err := d.probe.commandOutput("sc.exe", "queryex", unit.Windows)
+		if err != nil {
+			return false
+		}
+		pid, found := scmPID(string(output))
+		return found && pid > 0
+	default:
 		return false
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() || entry.Name() == "" || entry.Name()[0] < '0' || entry.Name()[0] > '9' {
-			continue
-		}
-		cmdline, err := d.probe.readFile(filepath.Join("/proc", entry.Name(), "cmdline"))
-		if err == nil && strings.Contains(string(cmdline), "vrooli-autoheal") && strings.Contains(string(cmdline), "loop") {
-			return true
+}
+
+// launchdPID reads the `pid = N` line launchctl print emits for a running job.
+func launchdPID(output string) (int, bool) {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && fields[0] == "pid" && fields[1] == "=" {
+			pid, err := strconv.Atoi(fields[2])
+			return pid, err == nil
 		}
 	}
-	return false
+	return 0, false
+}
+
+// scmPID reads the `PID : N` line sc.exe queryex emits.
+func scmPID(output string) (int, bool) {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && strings.EqualFold(fields[0], "PID") && fields[1] == ":" {
+			pid, err := strconv.Atoi(fields[2])
+			return pid, err == nil
+		}
+	}
+	return 0, false
 }
 
 func (d *Detector) canInstall() bool {
@@ -270,11 +308,14 @@ func (d *Detector) detectWindows(status *Status) {
 	status.WatchdogEnabled, status.WatchdogRunning = evidence.Enabled, evidence.State == platformgo.ServiceStateRunning
 }
 
+// calculateProtectionLevel is honest about "full": the unit must be
+// installed, enabled and active, and the loop process must actually exist.
+// An active unit whose main process is gone is partial protection at best.
 func (d *Detector) calculateProtectionLevel(status *Status) ProtectionLevel {
-	if status.WatchdogInstalled && status.WatchdogEnabled && status.WatchdogRunning {
+	if status.WatchdogInstalled && status.WatchdogEnabled && status.WatchdogRunning && status.LoopRunning {
 		return ProtectionFull
 	}
-	if status.LoopRunning {
+	if status.LoopRunning || (status.WatchdogInstalled && status.WatchdogEnabled) {
 		return ProtectionPartial
 	}
 	return ProtectionNone

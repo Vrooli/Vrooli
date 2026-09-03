@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "ab890bf6ee7a31d7189897a669a00c4ce61b84070ed1906638e1d2fe0042122a",
+  "manifest_hash": "6aa73d290677a7fd758d4357ed2c15325efa38f5a658eb886a8c64f2dbad80ee",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -405,6 +405,13 @@
       "command": "unarchive",
       "binding": "GoalService.UnarchiveGoal",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "goals unwired",
+      "group": "goals",
+      "command": "unwired",
+      "binding": "GoalService.ListUnwiredGoals",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "goals update",

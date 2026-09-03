@@ -11,7 +11,10 @@ import (
 type SafetyTier string
 
 const (
-	SafetyTierSafe          SafetyTier = "safe"
+	SafetyTierSafe SafetyTier = "safe"
+	// SafetyTierRegenerable is autonomous only when the provider also proves
+	// that its root is contained, derived, and not protected by a lease.
+	SafetyTierRegenerable   SafetyTier = "regenerable"
 	SafetyTierSafeWithOwner SafetyTier = "safe_with_owner"
 	SafetyTierConditional   SafetyTier = "conditional"
 	SafetyTierForbidden     SafetyTier = "forbidden"
@@ -47,6 +50,24 @@ type ProviderMetadata struct {
 	RequiredPrivileges  []string
 	IrreversibleEffects []string
 	TestSubstitute      string
+	// NoLease is an explicit provider proof required for the regenerable tier.
+	// A provider must not claim regenerability while a live handle can protect
+	// or mutate the same bytes.
+	NoLease          bool
+	RegenerableProof RegenerableProof
+	// OwnerBudget is an explicit owner declaration that authorizes bounded
+	// pressure cleanup for a safe_with_owner provider.
+	OwnerBudget bool
+}
+
+// RegenerableProof records why an autonomous cache deletion is safe. All four
+// properties are required; NoLease alone is not enough to establish that a
+// tool can recreate the bytes or that the configured root is contained.
+type RegenerableProof struct {
+	Derived       bool
+	ToolRecreates bool
+	ExactRoot     bool
+	NoLease       bool
 }
 
 func (m ProviderMetadata) Validate() error {
@@ -93,6 +114,24 @@ func (m ProviderMetadata) validateDefaults() error {
 }
 
 func (m ProviderMetadata) validateSafetyPolicy() error {
+	if m.SafetyTier == SafetyTierRegenerable && !m.NoLease {
+		return fmt.Errorf("regenerable provider %q must declare NoLease proof", m.ID)
+	}
+	if m.SafetyTier == SafetyTierRegenerable {
+		proof := m.RegenerableProof
+		if !proof.Derived {
+			return fmt.Errorf("regenerable provider %q missing Derived proof", m.ID)
+		}
+		if !proof.ToolRecreates {
+			return fmt.Errorf("regenerable provider %q missing ToolRecreates proof", m.ID)
+		}
+		if !proof.ExactRoot {
+			return fmt.Errorf("regenerable provider %q missing ExactRoot proof", m.ID)
+		}
+		if !proof.NoLease {
+			return fmt.Errorf("regenerable provider %q missing NoLease proof", m.ID)
+		}
+	}
 	if m.SafetyTier == SafetyTierConditional && m.DefaultApproval != ApprovalModeOperator && m.DefaultApproval != ApprovalModeDisabled {
 		return fmt.Errorf("conditional provider %q must require operator approval or be disabled", m.ID)
 	}
@@ -117,7 +156,7 @@ func (m ProviderMetadata) validateDeclarations() error {
 
 func validSafetyTier(t SafetyTier) bool {
 	switch t {
-	case SafetyTierSafe, SafetyTierSafeWithOwner, SafetyTierConditional, SafetyTierForbidden:
+	case SafetyTierSafe, SafetyTierRegenerable, SafetyTierSafeWithOwner, SafetyTierConditional, SafetyTierForbidden:
 		return true
 	default:
 		return false
@@ -151,6 +190,11 @@ type ObservationScope struct {
 	// cancellation and safety filters; this only removes the HTTP-timeout
 	// ceiling from a tracked job.
 	CompleteCensus bool
+
+	// Recovery selects the bounded pressure path. Providers may use a
+	// recovery-specific, coarse-grained measurement strategy so the first
+	// deletion does not wait for an exhaustive census of a large cache.
+	Recovery bool
 }
 
 type EstimateRequest struct {
@@ -197,6 +241,10 @@ type Preview struct {
 	MinAge    time.Duration
 	KeepCount int
 	MaxBytes  int64
+	// AllowSingleOvershoot permits one indivisible, provider-owned item to
+	// exceed the controller batch cap. It is for atomic operations such as a
+	// same-filesystem quarantine rename; ordinary file batches remain capped.
+	AllowSingleOvershoot bool
 }
 
 type ApplyRequest struct {
@@ -235,6 +283,10 @@ type ProviderPolicy struct {
 	MinAge       time.Duration
 	MaxBytes     int64
 	ApprovalMode ApprovalMode
+	// AllowFreshReclaim is an internal controller capability used only for a
+	// named hot child of the governed temporary root. It is never operator
+	// configurable and is not part of any wire contract.
+	AllowFreshReclaim bool `json:"-"`
 }
 
 // Provider is intentionally preview-first. Apply-only implementations cannot

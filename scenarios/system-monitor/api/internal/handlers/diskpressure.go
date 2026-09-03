@@ -41,21 +41,30 @@ func NewDiskPressureHandler(scheduler *services.ThresholdScheduler, history viol
 
 // DiskPressureResponse is the operator-facing shape.
 type DiskPressureResponse struct {
-	Observed        bool                         `json:"observed"`
-	ObservedAt      time.Time                    `json:"observed_at,omitempty"`
-	MountPath       string                       `json:"mount_path,omitempty"`
-	Band            string                       `json:"band"`
-	UsedPercent     float64                      `json:"used_percent"`
-	UsedBytes       int64                        `json:"used_bytes"`
-	AvailableBytes  int64                        `json:"available_bytes"`
-	TotalBytes      int64                        `json:"total_bytes"`
-	CheckInterval   string                       `json:"check_interval"`
-	Violations      int64                        `json:"violations_recorded"`
-	LastViolation   *models.ThresholdViolation   `json:"last_violation,omitempty"`
-	LastTransition  *services.BandObservation    `json:"last_band_transition,omitempty"`
-	LastRemediation *services.RemediationResult  `json:"last_remediation,omitempty"`
-	RecentHistory   []*models.ThresholdViolation `json:"recent_violations,omitempty"`
-	LastError       string                       `json:"last_error,omitempty"`
+	Observed             bool                         `json:"observed"`
+	ObservedAt           time.Time                    `json:"observed_at,omitempty"`
+	MountPath            string                       `json:"mount_path,omitempty"`
+	Band                 string                       `json:"band"`
+	UsedPercent          float64                      `json:"used_percent"`
+	UsedBytes            int64                        `json:"used_bytes"`
+	AvailableBytes       int64                        `json:"available_bytes"`
+	TotalBytes           int64                        `json:"total_bytes"`
+	FillRateBytesPerHour int64                        `json:"fill_rate_bytes_per_hour"`
+	HotWriters           []DiskPressureWriter         `json:"hot_writers,omitempty"`
+	CheckInterval        string                       `json:"check_interval"`
+	Violations           int64                        `json:"violations_recorded"`
+	LastViolation        *models.ThresholdViolation   `json:"last_violation,omitempty"`
+	LastTransition       *services.BandObservation    `json:"last_band_transition,omitempty"`
+	LastRemediation      *services.RemediationResult  `json:"last_remediation,omitempty"`
+	RecentHistory        []*models.ThresholdViolation `json:"recent_violations,omitempty"`
+	LastError            string                       `json:"last_error,omitempty"`
+}
+
+type DiskPressureWriter struct {
+	Root          string `json:"root"`
+	CurrentBytes  int64  `json:"current_bytes"`
+	BytesPerHour  int64  `json:"bytes_per_hour"`
+	WindowSeconds int64  `json:"window_seconds"`
 }
 
 // Handle serves GET /api/v1/disk-pressure.
@@ -63,20 +72,26 @@ func (h *DiskPressureHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	status := h.scheduler.Status()
 
 	resp := DiskPressureResponse{
-		Observed:        status.HasRun,
-		ObservedAt:      status.LastRunAt,
-		MountPath:       status.LastUsage.MountPath,
-		Band:            status.Band.String(),
-		UsedPercent:     status.LastUsage.UsedPercent,
-		UsedBytes:       status.LastUsage.UsedBytes,
-		AvailableBytes:  status.LastUsage.AvailableBytes,
-		TotalBytes:      status.LastUsage.TotalBytes,
-		CheckInterval:   status.NextInterval.String(),
-		Violations:      status.Violations,
-		LastViolation:   status.LastViolation,
-		LastTransition:  status.LastTransition,
-		LastRemediation: status.LastRemediation,
-		LastError:       status.LastError,
+		Observed:             status.HasRun,
+		ObservedAt:           status.LastRunAt,
+		MountPath:            status.LastUsage.MountPath,
+		Band:                 status.Band.String(),
+		UsedPercent:          status.LastUsage.UsedPercent,
+		UsedBytes:            status.LastUsage.UsedBytes,
+		AvailableBytes:       status.LastUsage.AvailableBytes,
+		TotalBytes:           status.LastUsage.TotalBytes,
+		FillRateBytesPerHour: status.LastUsage.FillRateBytesPerHour,
+		CheckInterval:        status.NextInterval.String(),
+		Violations:           status.Violations,
+		LastViolation:        status.LastViolation,
+		LastTransition:       status.LastTransition,
+		LastRemediation:      status.LastRemediation,
+		LastError:            status.LastError,
+	}
+	for _, writer := range status.LastWriters {
+		if writer.Hot {
+			resp.HotWriters = append(resp.HotWriters, DiskPressureWriter{Root: writer.Root, CurrentBytes: writer.Bytes, BytesPerHour: writer.BytesPerHour, WindowSeconds: int64(writer.DeltaHours * 3600)})
+		}
 	}
 
 	if h.history != nil {

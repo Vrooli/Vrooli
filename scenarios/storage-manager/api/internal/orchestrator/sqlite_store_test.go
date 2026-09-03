@@ -184,3 +184,94 @@ func TestPlansAndAppliesStayInMemory(t *testing.T) {
 		t.Error("plan survived a restart; plans are intentionally transient")
 	}
 }
+
+func TestRecoveryLedgerSurvivesRestartAndKeepsByteAccountingTyped(t *testing.T) {
+	t.Parallel()
+	store, done := newStore(t)
+	defer done()
+	ctx := context.Background()
+	started := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	run := RecoveryRun{ID: "recovery-1", Status: RecoveryComplete, Trigger: "RATE", Partition: "/", TargetFreeBytes: 100, ReclaimedBytes: 250, StartedAt: started, CompletedAt: started.Add(time.Second), StoppedBecause: "target_met"}
+	if err := store.SaveRecoveryRun(ctx, run); err != nil {
+		t.Fatalf("SaveRecoveryRun: %v", err)
+	}
+	updated := run
+	updated.TargetFreeBytes = 200
+	if err := store.SaveRecoveryRun(ctx, updated); err != nil {
+		t.Fatalf("SaveRecoveryRun update: %v", err)
+	}
+	if err := store.SaveRecoveryActionMetrics(ctx, run.ID, "tmp", "R0", 250, 50, 300, 1, 1250*time.Millisecond, cleanup.ApplyResult{AppliedItems: []string{"tmp/item"}}); err != nil {
+		t.Fatalf("SaveRecoveryAction: %v", err)
+	}
+
+	var reclaimed, freeBefore, freeAfter int64
+	if err := NewSQLiteStore(store.db).db.QueryRowContext(ctx, `SELECT reclaimed_bytes, target_free_bytes FROM recovery_runs WHERE id = ?`, run.ID).Scan(&reclaimed, &freeBefore); err != nil {
+		t.Fatalf("read recovery run after restart: %v", err)
+	}
+	if reclaimed != 250 || freeBefore != 200 {
+		t.Fatalf("durable run bytes = %d/%d, want 250/200", reclaimed, freeBefore)
+	}
+	if err := NewSQLiteStore(store.db).db.QueryRowContext(ctx, `SELECT free_before, free_after FROM recovery_actions WHERE run_id = ?`, run.ID).Scan(&freeBefore, &freeAfter); err != nil {
+		t.Fatalf("read recovery action after restart: %v", err)
+	}
+	if freeBefore != 50 || freeAfter != 300 {
+		t.Fatalf("durable action free space = %d/%d, want 50/300", freeBefore, freeAfter)
+	}
+	var filesRemoved, durationMS int
+	if err := NewSQLiteStore(store.db).db.QueryRowContext(ctx, `SELECT files_removed, duration_ms FROM recovery_actions WHERE run_id = ?`, run.ID).Scan(&filesRemoved, &durationMS); err != nil {
+		t.Fatalf("read recovery action metrics after restart: %v", err)
+	}
+	if filesRemoved != 1 || durationMS != 1250 {
+		t.Fatalf("durable action metrics = %d/%d, want 1/1250", filesRemoved, durationMS)
+	}
+}
+
+func TestListWriterSnapshotsReturnsNewestObservationPerRoot(t *testing.T) {
+	t.Parallel()
+	store, done := newStore(t)
+	defer done()
+	ctx := context.Background()
+	old := time.Now().UTC().Add(-3 * time.Hour).Format(time.RFC3339Nano)
+	newest := time.Now().UTC().Add(-30 * time.Minute).Format(time.RFC3339Nano)
+	if err := store.SaveWriterSnapshot(ctx, "old", old, "/", "/cache", 1, 1, 1, 999, false, true); err != nil {
+		t.Fatalf("save old writer snapshot: %v", err)
+	}
+	if err := store.SaveWriterSnapshot(ctx, "new", newest, "/", "/cache", 2, 1, 1, 10, false, false); err != nil {
+		t.Fatalf("save newest writer snapshot: %v", err)
+	}
+	if err := store.SaveWriterSnapshot(ctx, "other", old, "/", "/other", 3, 1, 1, 20, false, true); err != nil {
+		t.Fatalf("save other writer snapshot: %v", err)
+	}
+	rows, err := store.ListWriterSnapshots(ctx, 10)
+	if err != nil {
+		t.Fatalf("list writer snapshots: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("writer rows = %d, want only the one fresh root", len(rows))
+	}
+	for _, row := range rows {
+		if row.Root == "/cache" && (row.ID != "new" || row.BytesPerHour != 10 || row.Hot) {
+			t.Fatalf("stale cache row was returned: %#v", row)
+		}
+	}
+}
+
+func TestMarkWritersCooledReconcilesAbsentHotRoots(t *testing.T) {
+	t.Parallel()
+	store, done := newStore(t)
+	defer done()
+	ctx := context.Background()
+	if err := store.SaveWriterSnapshot(ctx, "hot", time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano), "/", "/cache", 42, 42, 1, 999, false, true); err != nil {
+		t.Fatalf("save hot snapshot: %v", err)
+	}
+	if err := store.MarkWritersCooled(ctx, time.Now().UTC().Format(time.RFC3339Nano), map[string]struct{}{}); err != nil {
+		t.Fatalf("mark cooled: %v", err)
+	}
+	rows, err := store.ListWriterSnapshots(ctx, 10)
+	if err != nil {
+		t.Fatalf("list writer snapshots: %v", err)
+	}
+	if len(rows) != 1 || rows[0].Root != "/cache" || rows[0].Hot {
+		t.Fatalf("cooled writer rows = %#v", rows)
+	}
+}

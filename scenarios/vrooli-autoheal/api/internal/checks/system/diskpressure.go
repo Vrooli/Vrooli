@@ -9,25 +9,35 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/cleanupmanager"
 )
 
 // DiskPressure is the typed observation published by system-monitor.
 type DiskPressure struct {
-	Observed       bool
-	ObservedAt     time.Time
-	Band           string
-	MountPath      string
-	UsedPercent    float64
-	UsedBytes      int64
-	AvailableBytes int64
-	TotalBytes     int64
-	LastError      string
+	Observed             bool
+	ObservedAt           time.Time
+	Band                 string
+	MountPath            string
+	UsedPercent          float64
+	UsedBytes            int64
+	AvailableBytes       int64
+	TotalBytes           int64
+	FillRateBytesPerHour int64
+	HotWriters           []cleanupmanager.HotWriter
+	LastError            string
 }
 
 // DiskPressureReader is the ownership boundary between observation and
 // remediation. Autoheal consumes the band; it does not reclassify usage.
 type DiskPressureReader interface {
 	ReadDiskPressure(ctx context.Context) (DiskPressure, error)
+}
+
+type diskPressureWriter struct {
+	Root          string `json:"root"`
+	CurrentBytes  int64  `json:"current_bytes"`
+	BytesPerHour  int64  `json:"bytes_per_hour"`
+	WindowSeconds int64  `json:"window_seconds"`
 }
 
 type systemMonitorDiskPressureReader struct {
@@ -64,24 +74,31 @@ func (r *systemMonitorDiskPressureReader) ReadDiskPressure(ctx context.Context) 
 	}
 
 	var payload struct {
-		Observed       bool      `json:"observed"`
-		ObservedAt     time.Time `json:"observed_at"`
-		Band           string    `json:"band"`
-		MountPath      string    `json:"mount_path"`
-		UsedPercent    float64   `json:"used_percent"`
-		UsedBytes      int64     `json:"used_bytes"`
-		AvailableBytes int64     `json:"available_bytes"`
-		TotalBytes     int64     `json:"total_bytes"`
-		LastError      string    `json:"last_error"`
+		Observed             bool                 `json:"observed"`
+		ObservedAt           time.Time            `json:"observed_at"`
+		Band                 string               `json:"band"`
+		MountPath            string               `json:"mount_path"`
+		UsedPercent          float64              `json:"used_percent"`
+		UsedBytes            int64                `json:"used_bytes"`
+		AvailableBytes       int64                `json:"available_bytes"`
+		TotalBytes           int64                `json:"total_bytes"`
+		FillRateBytesPerHour int64                `json:"fill_rate_bytes_per_hour"`
+		HotWriters           []diskPressureWriter `json:"hot_writers"`
+		LastError            string               `json:"last_error"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
 		return DiskPressure{}, fmt.Errorf("decode system-monitor disk pressure: %w", err)
+	}
+	hotWriters := make([]cleanupmanager.HotWriter, 0, len(payload.HotWriters))
+	for _, writer := range payload.HotWriters {
+		hotWriters = append(hotWriters, cleanupmanager.HotWriter{Root: writer.Root, CurrentBytes: writer.CurrentBytes, BytesPerHour: writer.BytesPerHour, WindowSeconds: writer.WindowSeconds})
 	}
 	return DiskPressure{
 		Observed: payload.Observed, ObservedAt: payload.ObservedAt,
 		Band: strings.ToLower(strings.TrimSpace(payload.Band)), MountPath: payload.MountPath,
 		UsedPercent: payload.UsedPercent, UsedBytes: payload.UsedBytes,
 		AvailableBytes: payload.AvailableBytes, TotalBytes: payload.TotalBytes,
+		FillRateBytesPerHour: payload.FillRateBytesPerHour, HotWriters: hotWriters,
 		LastError: payload.LastError,
 	}, nil
 }

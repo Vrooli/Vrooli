@@ -108,10 +108,15 @@ func parseFirstInt64(text string) int64 {
 
 type JournalProvider struct {
 	client cleanup.JournalClient
+	broker cleanup.BrokerActionClient
 }
 
-func NewJournalProvider(client cleanup.JournalClient) *JournalProvider {
-	return &JournalProvider{client: client}
+func NewJournalProvider(client cleanup.JournalClient, broker ...cleanup.BrokerActionClient) *JournalProvider {
+	var actionClient cleanup.BrokerActionClient
+	if len(broker) > 0 {
+		actionClient = broker[0]
+	}
+	return &JournalProvider{client: client, broker: actionClient}
 }
 
 func (p *JournalProvider) Metadata() cleanup.ProviderMetadata {
@@ -169,8 +174,28 @@ func (p *JournalProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (
 	if req.IdempotencyKey == "" {
 		return cleanup.ApplyResult{}, fmt.Errorf("journald apply requires idempotency key")
 	}
-	if req.ApprovalMode != cleanup.ApprovalModeOperator {
+	if req.ApprovalMode != cleanup.ApprovalModeOperator && p.broker == nil {
 		return cleanup.ApplyResult{ProviderID: "journald", SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"operator approval required"}}, nil
+	}
+	if p.broker != nil {
+		var before int64
+		for _, item := range req.Preview.Items {
+			before += item.Bytes
+		}
+		// Keep the journal bounded to the same one-gigabyte class as the
+		// managed flat-log safeguard. The estimate is evidence, not a target:
+		// passing it back would make vacuum a no-op.
+		brokerResult, err := p.broker.Do(ctx, "journald.vacuum", map[string]any{"journal": map[string]any{"max_use_bytes": int64(1 << 30)}})
+		if err != nil {
+			return cleanup.ApplyResult{}, err
+		}
+		reclaimed := int64(0)
+		if brokerResult.Changed {
+			if after, statErr := p.client.DiskUsage(ctx); statErr == nil && before > after {
+				reclaimed = before - after
+			}
+		}
+		return cleanup.ApplyResult{ProviderID: "journald", Applied: brokerResult.Changed, ReclaimedBytes: reclaimed}, nil
 	}
 	result, err := p.client.Vacuum(ctx, cleanup.JournalVacuumRequest{})
 	if err != nil {

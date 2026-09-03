@@ -82,9 +82,8 @@ func TestPhaseDurationEstimateUsesBestEffortSamples(t *testing.T) {
 
 	insertDurationSample(t, db, "demo", "experience", "passed", 4_000, bestEffort())
 
-	estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "experience")
-	if !ok || estimate != 4_000 {
-		t.Fatalf("estimate = %d ms ok=%t, want 4000 ms from a best-effort sample", estimate, ok)
+	if _, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "experience"); ok {
+		t.Fatal("reported a p90 from fewer than ten duration samples")
 	}
 }
 
@@ -101,9 +100,69 @@ func TestPhaseDurationEstimateExcludesCacheHits(t *testing.T) {
 		t.Fatalf("mark cache hit: %v", err)
 	}
 
-	estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "structure")
-	if !ok || estimate != 30_000 {
-		t.Fatalf("estimate = %d ms ok=%t, want the executed 30000 ms sample only", estimate, ok)
+	if _, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "structure"); ok {
+		t.Fatal("reported a p90 from fewer than ten executed samples")
+	}
+}
+
+func insertEnvelopeRun(t *testing.T, db *sql.DB, scenario, preset string, base time.Time, phases ...[6]any) {
+	t.Helper()
+	ctx := context.Background()
+	execID := uuid.New().String()
+	stamp := base.Add(30 * time.Second).Format(time.RFC3339Nano)
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO suite_executions (id, run_id, scenario_name, preset_used, success, started_at, completed_at)
+VALUES (?, ?, ?, ?, 1, ?, ?)`, execID, "run-"+execID[:8], scenario, preset, base.Format(time.RFC3339Nano), stamp); err != nil {
+		t.Fatalf("insert envelope execution: %v", err)
+	}
+	for ordinal, p := range phases {
+		if _, err := db.ExecContext(ctx, `
+INSERT INTO suite_execution_phases (execution_id, ordinal, phase_name, status, started_at, completed_at, wall_clock_ms, cpu_user_ms, peak_rss_bytes, cpu_reliability, memory_reliability)
+VALUES (?, ?, ?, 'passed', ?, ?, ?, ?, ?, 'RELIABILITY_RELIABLE', 'RELIABILITY_RELIABLE')`, execID, ordinal, p[0], p[1], p[2], p[3], p[4], p[5]); err != nil {
+			t.Fatalf("insert envelope phase: %v", err)
+		}
+	}
+}
+
+func TestSuiteEnvelopeEstimateRequiresFiveRuns(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	estimate, err := repo.SuiteEnvelopeEstimate(context.Background(), "missing", "full")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if estimate.Reliable {
+		t.Fatalf("estimate = %#v, want honest unknown", estimate)
+	}
+}
+
+func TestSuiteEnvelopeEstimateUsesMaximumOverlapNotSum(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	base := time.Now().UTC().Add(-time.Minute)
+	for i := 0; i < 5; i++ {
+		start := base.Add(time.Duration(i) * time.Second)
+		insertEnvelopeRun(t, db, "demo", "full", start,
+			[6]any{"first", start.Format(time.RFC3339Nano), start.Add(10 * time.Second).Format(time.RFC3339Nano), int64(10_000), int64(1_000), int64(100)},
+			[6]any{"second", start.Add(5 * time.Second).Format(time.RFC3339Nano), start.Add(15 * time.Second).Format(time.RFC3339Nano), int64(10_000), int64(1_000), int64(200)})
+	}
+	estimate, err := repo.SuiteEnvelopeEstimate(context.Background(), "demo", "full")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !estimate.Reliable || estimate.RAMBytes != 300 {
+		t.Fatalf("estimate = %#v, want reliable overlapping maximum of 300 bytes", estimate)
+	}
+}
+
+func TestMaxConcurrentEnvelopeUsesLargestSinglePhaseWhenDisjoint(t *testing.T) {
+	base := time.Now().UTC()
+	ram, _, ok := maxConcurrentEnvelope([]envelopeInterval{
+		{start: base, end: base.Add(time.Second), ram: 100, cpu: 1},
+		{start: base.Add(time.Second), end: base.Add(2 * time.Second), ram: 200, cpu: 2},
+	})
+	if !ok || ram != 200 {
+		t.Fatalf("max concurrent RAM = %d ok=%t, want 200,true", ram, ok)
 	}
 }
 
@@ -115,7 +174,7 @@ func TestPhaseDurationEstimatePrefersScenarioHistory(t *testing.T) {
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		insertDurationSample(t, db, "demo", "security", "passed", 10_000, reliable())
 	}
 	for i := 0; i < 20; i++ {
@@ -136,9 +195,31 @@ func TestPhaseDurationEstimateFallsBackToFleetHistory(t *testing.T) {
 
 	insertDurationSample(t, db, "other", "security", "passed", 120_000, reliable())
 
-	estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "security")
-	if !ok || estimate != 120_000 {
-		t.Fatalf("estimate = %d ms ok=%t, want the fleet fallback", estimate, ok)
+	if _, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "security"); ok {
+		t.Fatal("reported a fleet p90 from fewer than ten duration samples")
+	}
+}
+
+func TestPhaseDurationEstimateWithholdsNineSamples(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	for i := 0; i < 9; i++ {
+		insertDurationSample(t, db, "demo", "unit", "passed", 5_000, reliable())
+	}
+	if _, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "unit"); ok {
+		t.Fatal("reported a deadline estimate with only nine samples")
+	}
+}
+
+func TestPhaseDurationEstimateUsesTenSamples(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	for i := 0; i < 10; i++ {
+		insertDurationSample(t, db, "demo", "unit", "passed", 5_000, reliable())
+	}
+	estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "unit")
+	if !ok || estimate != 5_000 {
+		t.Fatalf("estimate = %d ms ok=%t, want a measured p90 at ten samples", estimate, ok)
 	}
 }
 

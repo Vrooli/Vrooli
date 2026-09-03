@@ -80,7 +80,7 @@ func TestDiskCheck_HealActionBandMatchesThresholds(t *testing.T) {
 	}{
 		{50, "", false}, // healthy: never asks for cleanup
 		{79, "", false}, // just below warning
-		{85, cleanupmanager.BandHigh, true},
+		{85, cleanupmanager.BandWarning, true},
 		{95, cleanupmanager.BandCritical, true},
 	}
 

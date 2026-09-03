@@ -16,7 +16,7 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <target> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--fail-fast] [--wait] [--json] [--jsonl]"
+const UsageLine = "test-genie execute <target> [phases...] [--preset quick] [--skip performance] [--capture-profile baseline] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--fail-fast] [--wait] [--json] [--jsonl]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
@@ -45,6 +45,7 @@ Examples:
   test-genie execute swarm-manager --skip performance --json
   test-genie execute swarm-manager --jsonl           # newline-delimited phase events for TUIs
   test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --preset comprehensive
+  test-genie execute demo structure --capture-profile baseline --wait
   test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --logical-repo-root /workspace/Vrooli --logical-scenario-relpath scenarios/demo --preset comprehensive`
 }
 
@@ -60,7 +61,10 @@ func Run(client *Client, args []string) error {
 		}
 	}
 
-	scenarioPath := parsed.ScenarioPath
+	scenarioPath, err := resolveWorkspacePaths(&parsed)
+	if err != nil {
+		return err
+	}
 	if scenarioPath == "" && !strings.Contains(parsed.Scenario, ":") {
 		// Resolve the physical scenario directory from the scenario name.
 		// cliutil owns local environment details; the execute request only
@@ -76,6 +80,9 @@ func Run(client *Client, args []string) error {
 		Skip:                   parsed.Skip,
 		FailFast:               parsed.FailFast,
 		DiagnosticsPreset:      parsed.DiagnosticsPreset,
+		CaptureProfile:         parsed.CaptureProfile,
+		RetainForEvidence:      parsed.RetainForEvidence,
+		RetentionReason:        parsed.RetentionReason,
 		UIURL:                  parsed.UIURL,
 		APIURL:                 parsed.APIURL,
 		ScenarioPath:           scenarioPath,
@@ -146,6 +153,27 @@ func Run(client *Client, args []string) error {
 	return RunDurable(baseURL, req, DurableOptions{Wait: parsed.Wait, Printer: pr})
 }
 
+func resolveWorkspacePaths(parsed *Args) (string, error) {
+	scenarioPath := parsed.ScenarioPath
+	if scenarioPath == "" {
+		if hostMerged := strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED_HOST")); hostMerged != "" {
+			scenarioPath = filepath.Join(hostMerged, "scenarios", parsed.Scenario)
+		}
+	}
+	if scenarioPath != "" {
+		if _, err := os.Stat(scenarioPath); err != nil {
+			return "", fmt.Errorf("physical scenario root %q is unreachable: %w", scenarioPath, err)
+		}
+	}
+	if parsed.LogicalRepoRoot == "" && parsed.LogicalScenarioRelPath == "" {
+		if repoRoot := strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_REPO_ROOT")); repoRoot != "" {
+			parsed.LogicalRepoRoot = repoRoot
+			parsed.LogicalScenarioRelPath = filepath.Join("scenarios", parsed.Scenario)
+		}
+	}
+	return scenarioPath, nil
+}
+
 func targetExpression(value string) string {
 	if strings.Contains(value, ":") {
 		return value
@@ -171,6 +199,9 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.PhasesCSV, "phases", "", "Comma-separated phases to run")
 	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
 	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Workflow diagnostics capture: none|light|full (overrides testing.json)")
+	fs.StringVar(&out.CaptureProfile, "capture-profile", "", "Capture depth: baseline disables phase-cache reuse for measurement runs")
+	fs.BoolVar(&out.RetainForEvidence, "retain-for-evidence", false, "Retain this run's measurements under an expiring server-owned lease")
+	fs.StringVar(&out.RetentionReason, "retention-reason", "", "Reason recorded for an evidence-retention lease")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Wait, "wait", false, "Block to completion inline; never auto-background (CI / scripted use)")
 	fs.BoolVar(&out.JSONL, "jsonl", false, "Stream canonical newline-delimited phase events (run_started…run_completed) for TUIs")

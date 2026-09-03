@@ -9,6 +9,7 @@ package langrecover
 import (
 	"context"
 	"os/exec"
+	"runtime"
 )
 
 // Kind identifies which language-level recovery strategy applies.
@@ -55,9 +56,15 @@ type Result struct {
 type Runner func(ctx context.Context, dir, name string, args ...string) ([]byte, error)
 
 // DefaultRunner is the production implementation of Runner. It delegates to
-// os/exec.CommandContext and respects the supplied working directory.
+// os/exec.CommandContext and respects the supplied working directory. The
+// tool is resolved through PATH and then the per-OS toolchain table, because
+// the scheduler unit this runs under does not carry the operator's PATH.
 func DefaultRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	resolved, err := ResolveTool(name, runtime.GOOS)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, resolved, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-27T01:52:36-04:00"
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-001",
       "title": "Real-time System Metrics Collection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with \u003c 100ms latency",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/collectors/cpu_catalog_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CPU signal catalog, typed states, and platform refusal contract"
         },
         {
@@ -28,13 +28,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test metric collector functions"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify all metric types are collected"
         },
         {
@@ -58,14 +58,14 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Metrics visible in dashboard within 5s"
         },
         {
           "type": "test",
           "ref": "api/internal/collectors/forkrate_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Paging and fragmentation flow counters use explicit measured/pending/unsupported states"
         }
       ]

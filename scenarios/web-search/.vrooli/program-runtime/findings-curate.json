@@ -1,0 +1,130 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.findings-curate",
+  "version": "1",
+  "purpose": "Read the findings effectiveness ledger, the dry-run GC report, and open disputes; propose gc, flag, supersede, and dispute-resolution moves with evidence. Report only, no mutation.",
+  "inputs": {
+    "limit": {
+      "type": "integer",
+      "default": 100,
+      "description": "Max effectiveness rows read (1..500)."
+    },
+    "include_disputed": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include disputed findings in the effectiveness read."
+    },
+    "decayed_below": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Effective confidence under which a finding counts as decayed for proposals."
+    }
+  },
+  "assumptions": [
+    "web-search is running and its FindingsService bindings are reachable from the kernel",
+    "findings gc with dry_run=true mutates nothing; the binding's declared effect is write because the same RPC can mutate without the flag",
+    "the caller executes proposals with the cited CLI verb; this program never executes them"
+  ],
+  "invariants": [
+    "findings gc is called only with dry_run=true",
+    "no flag, supersede, edit, prune, or resolve binding is called",
+    "no row set is materialized beyond head(limit); proposals are capped at 12 rows so the envelope fits the 4 KB stdout bound",
+    "the envelope is printed exactly once, on every path",
+    "findings/gc (effect write) is called only in act and only with dry_run=True; the program retires nothing"
+  ],
+  "bindings": [
+    {
+      "id": "web-search/findings/effectiveness",
+      "effect": "read"
+    },
+    {
+      "id": "web-search/findings/gc",
+      "effect": "write"
+    },
+    {
+      "id": "web-search/disputes/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "findings_read": "effectiveness rows read",
+      "surfaced": "rows with surfaced_count > 0",
+      "used": "rows with used_count > 0",
+      "never_surfaced": "rows with surfaced_count == 0",
+      "never_surfaced_decayed": "never-surfaced rows with effective_confidence below decayed_below",
+      "disputed_open": "open disputes from disputes list",
+      "gc_dry_run": "counts of {superseded_decayed, cold_archive_candidates, stale_disputes, orphans} from findings gc --dry-run",
+      "proposals": "at most 12 of {kind, finding_id, verb, evidence}; kind in gc, review-unused, resolve-dispute, supersede-stale; proposal_counts carries the totals",
+      "proposal_counts": "count per proposal kind over every row read"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "finding ids named in proposals"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 500
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "bad-limit",
+      "inputs": {
+        "limit": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search-improve"
+}

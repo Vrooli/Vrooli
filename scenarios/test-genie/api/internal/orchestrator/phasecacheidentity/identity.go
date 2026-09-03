@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"test-genie/internal/captureprofile"
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/providerreadiness"
@@ -80,6 +81,12 @@ func Identity(env workspacepkg.Environment, phase phases.Definition, readiness m
 // package holds no orchestrator state and its contract is visible in its
 // signature.
 func Load(projectRoot string, env workspacepkg.Environment, runID, logPath string, phase phases.Definition, readiness map[string]providerreadiness.Outcome) (phases.ExecutionResult, bool, bool, int64) {
+	// Baseline captures are measurement runs. Reusing a cached phase would
+	// erase its execution interval and resource sample, leaving the envelope
+	// estimator with an apparently reliable but unmeasurable row.
+	if strings.EqualFold(strings.TrimSpace(env.CaptureProfile), captureprofile.NameBaseline) {
+		return phases.ExecutionResult{}, false, false, 0
+	}
 	identity, ok := Identity(env, phase, readiness)
 	if !ok {
 		return phases.ExecutionResult{}, false, false, 0

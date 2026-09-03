@@ -100,6 +100,10 @@ func (c *HTTPScenarioProviderClient) endpoint(ctx context.Context, scenario, pat
 }
 
 func (c *HTTPScenarioProviderClient) request(ctx context.Context, method, url string, body any, out any, timeout time.Duration) (int, error) {
+	return c.requestWithHeaders(ctx, method, url, body, out, timeout, nil)
+}
+
+func (c *HTTPScenarioProviderClient) requestWithHeaders(ctx context.Context, method, url string, body any, out any, timeout time.Duration, headers http.Header) (int, error) {
 	var reader io.Reader
 	if body != nil {
 		payload, err := json.Marshal(body)
@@ -114,6 +118,11 @@ func (c *HTTPScenarioProviderClient) request(ctx context.Context, method, url st
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
 	}
 	resp, err := c.client(timeout).Do(req)
 	if err != nil {
@@ -147,7 +156,7 @@ func (c *HTTPScenarioProviderClient) Estimate(ctx context.Context, scenario stri
 		url = parsed.String()
 	}
 	var response OwnerEstimateResponse
-	status, err := c.request(ctx, http.MethodGet, url, nil, &response, 30*time.Second)
+	status, err := c.requestWithHeaders(ctx, http.MethodGet, url, nil, &response, 30*time.Second, http.Header{"X-Vrooli-Recovery-Only": []string{"true"}})
 	if err != nil {
 		if status == http.StatusNotFound {
 			return Estimate{BlockedReason: "owner scenario does not implement cleanup"}, nil
@@ -163,7 +172,7 @@ func (c *HTTPScenarioProviderClient) Preview(ctx context.Context, scenario strin
 		return Preview{BlockedReason: blockedReason(err)}, nil
 	}
 	var response OwnerPreviewResponse
-	_, err = c.request(ctx, http.MethodPost, url, OwnerPreviewRequest{Estimate: OwnerEstimateResponse{ProviderID: estimate.ProviderID, EstimatedBytes: estimate.EstimatedBytes, ItemCount: estimate.ItemCount, BlockedReason: estimate.BlockedReason, ObservedAt: estimate.ObservedAt, MinAgeSeconds: int64(estimate.MinAge / time.Second), KeepCount: estimate.KeepCount, MaxBytes: estimate.MaxBytes}}, &response, 30*time.Second)
+	_, err = c.requestWithHeaders(ctx, http.MethodPost, url, OwnerPreviewRequest{Estimate: OwnerEstimateResponse{ProviderID: estimate.ProviderID, EstimatedBytes: estimate.EstimatedBytes, ItemCount: estimate.ItemCount, BlockedReason: estimate.BlockedReason, ObservedAt: estimate.ObservedAt, MinAgeSeconds: int64(estimate.MinAge / time.Second), KeepCount: estimate.KeepCount, MaxBytes: estimate.MaxBytes}}, &response, 30*time.Second, http.Header{"X-Vrooli-Recovery-Only": []string{"true"}})
 	if err != nil {
 		return Preview{BlockedReason: blockedReason(err)}, nil
 	}
@@ -193,7 +202,7 @@ func (c *HTTPScenarioProviderClient) Apply(ctx context.Context, req ScenarioClea
 		wirePreview.Items = append(wirePreview.Items, OwnerPreviewItem{ID: item.ID, Path: item.Path, Bytes: item.Bytes})
 	}
 	var response OwnerApplyResponse
-	_, err = c.request(ctx, http.MethodPost, url, OwnerApplyRequest{ProviderID: req.ProviderID, Preview: wirePreview, IdempotencyKey: req.IdempotencyKey, ApprovalMode: req.ApprovalMode}, &response, 10*time.Minute)
+	_, err = c.requestWithHeaders(ctx, http.MethodPost, url, OwnerApplyRequest{ProviderID: req.ProviderID, Preview: wirePreview, IdempotencyKey: req.IdempotencyKey, ApprovalMode: req.ApprovalMode}, &response, 10*time.Minute, http.Header{"X-Vrooli-Recovery-Lock": []string{"held-by-storage-manager"}, "X-Vrooli-Recovery-Only": []string{"true"}})
 	if err != nil {
 		return ApplyResult{}, err
 	}

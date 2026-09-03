@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,8 @@ import (
 	"strings"
 
 	"vrooli-autoheal/cli/internal/support"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 func (a *App) runLoop(args []string) error {
@@ -52,13 +55,15 @@ func (a *App) diagnosePort(args []string) error {
 		return fmt.Errorf("port must be an integer")
 	}
 
-	commandArgs := []string{"diagnose-port", port}
-	if scenario != "" {
-		commandArgs = append(commandArgs, scenario)
+	home, _ := os.UserHomeDir()
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+	if err != nil {
+		return err
 	}
-	cmd := exec.Command("vrooli", commandArgs...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return cliinvoke.Run(context.Background(), cliinvoke.Invocation{
+		Binary: binary,
+		Args:   cliinvoke.DiagnosePort(port, scenario),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}).Error()
 }

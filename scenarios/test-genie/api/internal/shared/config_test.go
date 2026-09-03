@@ -7,6 +7,32 @@ import (
 	"time"
 )
 
+func TestEnvIntMinPreservesAdmissionFloor(t *testing.T) {
+	const key = "TEST_GENIE_TEST_ENV_INT_MIN"
+	t.Cleanup(func() { _ = os.Unsetenv(key) })
+
+	tests := []struct {
+		name  string
+		value string
+		want  int
+	}{
+		{name: "zero", value: "0", want: 2},
+		{name: "negative", value: "-1", want: 2},
+		{name: "invalid", value: "abc", want: 2},
+		{name: "valid", value: "3", want: 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := os.Setenv(key, tt.value); err != nil {
+				t.Fatalf("setenv: %v", err)
+			}
+			if got := EnvIntMin(key, 2, 1); got != tt.want {
+				t.Fatalf("EnvIntMin(%q) = %d, want %d", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 type phaseConfigFixture struct {
 	Enabled *bool  `json:"enabled"`
 	Timeout string `json:"timeout"`

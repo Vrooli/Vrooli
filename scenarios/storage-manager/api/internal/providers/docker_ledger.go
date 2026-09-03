@@ -221,10 +221,15 @@ func (l *FileDockerUsageLedger) Eligible(id string, now time.Time, window time.D
 type DockerUnusedImagesProvider struct {
 	client cleanup.DockerClient
 	ledger imageUsageLedger
+	broker cleanup.BrokerActionClient
 }
 
-func NewDockerUnusedImagesProvider(client cleanup.DockerClient, ledger imageUsageLedger) *DockerUnusedImagesProvider {
-	return &DockerUnusedImagesProvider{client: client, ledger: ledger}
+func NewDockerUnusedImagesProvider(client cleanup.DockerClient, ledger imageUsageLedger, broker ...cleanup.BrokerActionClient) *DockerUnusedImagesProvider {
+	var actionClient cleanup.BrokerActionClient
+	if len(broker) > 0 {
+		actionClient = broker[0]
+	}
+	return &DockerUnusedImagesProvider{client: client, ledger: ledger, broker: actionClient}
 }
 
 func (p *DockerUnusedImagesProvider) Metadata() cleanup.ProviderMetadata {
@@ -302,12 +307,28 @@ func (p *DockerUnusedImagesProvider) Apply(ctx context.Context, req cleanup.Appl
 	if req.IdempotencyKey == "" {
 		return cleanup.ApplyResult{}, fmt.Errorf("provider docker-unused-images requires idempotency key")
 	}
-	if req.ApprovalMode != cleanup.ApprovalModeOperator {
+	if req.ApprovalMode != cleanup.ApprovalModeOperator && p.broker == nil {
 		return cleanup.ApplyResult{ProviderID: p.Metadata().ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"operator approval required"}}, nil
 	}
 	pruner, ok := p.client.(DockerImagePruner)
 	if !ok {
 		return cleanup.ApplyResult{ProviderID: p.Metadata().ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"docker image removal seam unavailable"}}, nil
+	}
+	if p.broker != nil {
+		before, usageErr := p.client.SystemUsage(ctx)
+		if usageErr != nil {
+			return cleanup.ApplyResult{}, usageErr
+		}
+		brokerResult, brokerErr := p.broker.Do(ctx, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
+		if brokerErr != nil {
+			return cleanup.ApplyResult{}, brokerErr
+		}
+		after, afterErr := p.client.SystemUsage(ctx)
+		reclaimed := int64(0)
+		if afterErr == nil && before.ImagesBytes > after.ImagesBytes {
+			reclaimed = before.ImagesBytes - after.ImagesBytes
+		}
+		return cleanup.ApplyResult{ProviderID: p.Metadata().ID, Applied: brokerResult.Changed, ReclaimedBytes: reclaimed}, nil
 	}
 	ids := make([]string, 0, len(req.Preview.Items))
 	for _, item := range req.Preview.Items {

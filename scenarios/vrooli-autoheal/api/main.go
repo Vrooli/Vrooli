@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/bootstrap"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/coverage"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
@@ -34,6 +34,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
@@ -110,13 +111,16 @@ func run() error {
 	registry := checks.NewRegistry(plat)
 	registry.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
 		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
-		cmd := exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "vrooli-autoheal")
-		cmd.Env = childEnv
-		output, err := cmd.CombinedOutput()
-		fields := strings.Fields(string(output))
-		if err != nil {
-			return "", fmt.Errorf("agent recovery: %w: %s", err, strings.TrimSpace(string(output)))
+		home, _ := os.UserHomeDir()
+		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		if resolveErr != nil {
+			return "", fmt.Errorf("agent recovery: %w", resolveErr)
 		}
+		res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: cliinvoke.AgentRecover(scenario, reason, "vrooli-autoheal"), Env: childEnv})
+		if err := res.Error(); err != nil {
+			return "", fmt.Errorf("agent recovery: %w", err)
+		}
+		fields := strings.Fields(string(res.Combined()))
 		if len(fields) < 3 {
 			return "", fmt.Errorf("agent recovery returned no request id")
 		}
@@ -175,9 +179,14 @@ func run() error {
 	}()
 
 	// Register health checks using user's monitoring config (delegated to bootstrap module)
-	supervisionController, err := bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
+	deliveryReader := coverage.NotificationHubDeliveryReader(store, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
+	}, nil)
+	supervisionController, err := bootstrap.RegisterChecksFromConfig(registry, plat, configMgr, deliveryReader)
 	if err != nil {
 		close(checksRegistered)
+		cancelStartup()
+		startupWG.Wait()
 		return fmt.Errorf("initialize canonical supervision set: %w", err)
 	}
 	close(checksRegistered)
@@ -240,6 +249,8 @@ func run() error {
 	// scheduler, and no cleanup loop lives in this scenario.
 	retentionManager, retentionDB, err := startRetention(context.Background(), fileRoots)
 	if err != nil {
+		cancelStartup()
+		startupWG.Wait()
 		return fmt.Errorf("start retention: %w", err)
 	}
 	log.Printf("startup stage=retention-ready")
@@ -383,6 +394,7 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/approve", h.ApproveIncidentRemediation).Methods("POST")
 	router.HandleFunc("/api/v1/incidents/{incidentId}/{action:acknowledge|resolve|ignore|keep-open}", h.MutateIncidentStatus).Methods("POST")
 	router.HandleFunc("/api/v1/transitions", h.Transitions).Methods("GET")
+	router.HandleFunc("/api/v1/storm/status", h.StormStatus).Methods("GET") // [REQ:STORM-002]
 
 	// Watchdog endpoints [REQ:WATCH-DETECT-001] [REQ:WATCH-INSTALL-001]
 	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")

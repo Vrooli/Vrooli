@@ -21,6 +21,9 @@ type DiskUsage struct {
 	UsedBytes      int64
 	AvailableBytes int64
 	UsedPercent    float64
+	// FillRateBytesPerHour is derived by the threshold scheduler from two
+	// samples. A zero value means no usable predecessor exists yet.
+	FillRateBytesPerHour int64
 }
 
 // diskUsedPercent reports capacity the way `df` reports it: used over

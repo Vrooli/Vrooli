@@ -19,7 +19,7 @@ type RuntimeHomeProvider struct {
 }
 
 func NewRuntimeHomeProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) cleanup.Provider {
-	return &RuntimeHomeProvider{inner: newFileProvider(files, clock, cfg, cleanup.SafetyTierSafeWithOwner, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOwner, "runtime-home-remove", desktopPlatforms), maxAge: cfg.RetentionMaxAge, maxByte: cfg.RetentionMaxBytes}
+	return &RuntimeHomeProvider{inner: newFileProvider(files, clock, cfg, cleanup.SafetyTierRegenerable, cleanup.ProviderModeDisabled, cleanup.ApprovalModeNone, "runtime-home-remove", desktopPlatforms), maxAge: cfg.RetentionMaxAge, maxByte: cfg.RetentionMaxBytes}
 }
 
 // RuntimeHomeRetentionConfig carries the contract's parsed limits without
@@ -51,7 +51,7 @@ func (p *RuntimeHomeProvider) Verify(ctx context.Context, req cleanup.VerifyRequ
 
 func (p *RuntimeHomeProvider) boundPolicy(in cleanup.ProviderPolicy) cleanup.ProviderPolicy {
 	out := in
-	if p.maxAge > 0 && (out.MinAge == 0 || out.MinAge < p.maxAge) {
+	if p.maxAge > 0 && !out.AllowFreshReclaim && (out.MinAge == 0 || out.MinAge < p.maxAge) {
 		out.MinAge = p.maxAge
 	}
 	if p.maxByte > 0 && (out.MaxBytes == 0 || out.MaxBytes > p.maxByte) {

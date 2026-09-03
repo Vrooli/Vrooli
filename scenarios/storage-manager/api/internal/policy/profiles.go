@@ -48,7 +48,7 @@ func BuildProfile(name ProfileName, providers []cleanup.ProviderMetadata) (Profi
 		defaultPolicy := DefaultForProvider(meta)
 		switch name {
 		case ProfileBalanced:
-			if meta.SafetyTier == cleanup.SafetyTierSafe || meta.SafetyTier == cleanup.SafetyTierSafeWithOwner {
+			if meta.SafetyTier == cleanup.SafetyTierSafe || meta.SafetyTier == cleanup.SafetyTierRegenerable || meta.SafetyTier == cleanup.SafetyTierSafeWithOwner {
 				defaultPolicy.Enabled = true
 				defaultPolicy.MinAge = 3 * 24 * time.Hour
 			}
@@ -64,6 +64,9 @@ func BuildProfile(name ProfileName, providers []cleanup.ProviderMetadata) (Profi
 			if meta.SafetyTier == cleanup.SafetyTierConditional {
 				defaultPolicy.ApprovalMode = cleanup.ApprovalModeOperator
 			}
+		}
+		if meta.SafetyTier == cleanup.SafetyTierRegenerable && name == ProfileAggressive {
+			defaultPolicy.MinAge = time.Hour
 		}
 		out.Defaults[meta.ID] = defaultPolicy
 	}

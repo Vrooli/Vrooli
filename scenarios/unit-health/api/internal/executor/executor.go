@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/metrics"
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 )
 
@@ -233,6 +234,14 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 
 	var c *exec.Cmd
 	var temporaryRoot string
+	goWorkDir, err := createGoWorkDir("unit-health-")
+	if err != nil {
+		res.Status = StatusError
+		res.FailureClass = ClassSystem
+		res.FailureReason = "create Go work directory: " + err.Error()
+		return res
+	}
+	defer os.RemoveAll(goWorkDir)
 	if cmd.Hermetic.TemporaryRoot || cmd.Hermetic.Filesystem == "temporary_root" {
 		temporaryRoot, err = os.MkdirTemp("", "unit-health-test-")
 		if err != nil {
@@ -264,7 +273,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	if cmd.Dir != "" {
 		c.Dir = cmd.Dir
 	}
-	c.Env = append(scrubbedEnviron(path), "GOWORK=off", "CI=1")
+	c.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(scrubbedEnviron(path)), envkit.SameScenario, envkit.Env{"GOWORK=off", "CI=1", "GOTMPDIR=" + goWorkDir}), envkit.ToolchainOptions{})
 	keys := make([]string, 0, len(cmd.Env))
 	canonicalEnv := make(map[string]string, len(cmd.Env))
 	for key, value := range cmd.Env {
@@ -531,6 +540,22 @@ func killGroup(cmd *exec.Cmd) {
 		return
 	}
 	_ = platform.KillProcess(cmd.Process.Pid, true)
+}
+
+func createGoWorkDir(prefix string) (string, error) {
+	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+	if base == "" {
+		if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+			base = filepath.Join(home, ".vrooli")
+		} else {
+			base = os.TempDir()
+		}
+	}
+	root := filepath.Join(base, "tmp", "go-work")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", err
+	}
+	return os.MkdirTemp(root, prefix)
 }
 
 // scenarioIdentityEnvVars are the launch-time variables that bind a process to

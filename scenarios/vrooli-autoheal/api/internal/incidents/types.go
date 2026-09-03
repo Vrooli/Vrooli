@@ -11,7 +11,10 @@ const (
 	TypeResourceFailure Type = "resource_failure"
 	TypeScenarioFailure Type = "scenario_failure"
 	TypeAutohealFailure Type = "autoheal_failure"
-	TypeManual          Type = "manual"
+	// TypeHostPressure is a sustained host-pressure finding from the emergency
+	// watchdog: one incident per finding, titled with the attributed parent.
+	TypeHostPressure Type = "host_pressure"
+	TypeManual       Type = "manual"
 )
 
 type Severity string
@@ -196,7 +199,7 @@ func ValidSeverity(value string) bool {
 
 func ValidType(value string) bool {
 	switch Type(value) {
-	case "", TypeHostIntegrity, TypeUncleanBoot, TypeResourceFailure, TypeScenarioFailure, TypeAutohealFailure, TypeManual:
+	case "", TypeHostIntegrity, TypeUncleanBoot, TypeResourceFailure, TypeScenarioFailure, TypeAutohealFailure, TypeManual, TypeHostPressure:
 		return true
 	default:
 		return false

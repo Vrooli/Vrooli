@@ -19,20 +19,21 @@
 ### 🔴 P0 – Must ship for viability
 
 - [ ] OT-P0-001 | CLI tick command | When an operator requests one cycle, vrooli-autoheal shall bootstrap dependencies and execute the due health checks once.
-- [ ] OT-P0-002 | CLI loop command | While loop mode is active, vrooli-autoheal shall run due checks at the configured interval until graceful shutdown.
+- [ ] OT-P0-002 | CLI loop command | While loop mode is active, vrooli-autoheal shall run due checks at the configured interval until graceful shutdown. | Evidence (2026-09-02): /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/proof/1-tests.txt (loop state-machine tests) and /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p03/proof/step1-restart-tick.txt (loop ticked 19s after a unit restart on the host)
 - [ ] OT-P0-003 | Platform detection | The supervisor shall detect Linux, Windows, macOS, WSL, and the host capabilities needed by platform-specific checks.
 - [ ] OT-P0-004 | Health check registry | The supervisor shall register and execute typed health checks with intervals, platform filters, and shared action handling.
 - [ ] OT-P0-005 | Core bootstrap | When starting from cold state, the supervisor shall bootstrap its durable store, core resources, and critical scenarios.
 - [ ] OT-P0-006 | Resource health checks | The supervisor shall monitor and repair every resource in the computed supervision set without treating a serving resource as failed.
 - [ ] OT-P0-007 | Scenario health checks | The supervisor shall monitor and repair every scenario in the computed supervision set.
-- [ ] OT-P0-008 | OS watchdog installer | The control plane shall idempotently install and verify the platform watchdog that keeps vrooli-autoheal running.
+- [ ] OT-P0-008 | OS watchdog installer | The control plane shall idempotently install and verify the platform watchdog that keeps vrooli-autoheal running. | Evidence (2026-09-02): /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt (five units verified against their rendered definitions) and /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/unit-state.txt (units active and enabled after `vrooli setup`); macOS and Windows are fixture-verified only (packages/platform-go/testdata/servicedef/)
 - [ ] OT-P0-009 | Health result persistence | The supervisor shall durably store bounded health, action, outage, and incident records for operator queries.
 - [ ] OT-P0-010 | CLI status command | When an operator requests status, vrooli-autoheal shall report the last-known health summary and degraded dependencies.
 - [ ] OT-P0-011 | Single supervision authority | The supervisor shall derive resource and scenario targets from one operator-declared, database-free dependency closure with attribution.
 - [ ] OT-P0-012 | Cross-check heal interlock | If one check requests a destructive action against a target another check started inside the configured window, the supervisor shall refuse and durably record the action.
 - [ ] OT-P0-013 | Availability ledger | When a supervised member becomes unavailable and later recovers, the supervisor shall persist one outage interval and the matching repair actions.
-- [ ] OT-P0-014 | Bounded retry and escalation | If a supervised member exceeds its configured consecutive-failure budget, the supervisor shall suspend retries and raise a durable incident until explicitly resumed.
+- [ ] OT-P0-014 | Bounded retry and escalation | If a supervised member exceeds its configured consecutive-failure budget, the supervisor shall suspend retries and raise a durable incident until explicitly resumed. | Evidence (2026-09-02): /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/exit3.txt and /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/proof/1-tests.txt (self-heal budget, breaker suspension, exit-3 escalation; covers the loop's own API supervision, not per-member incidents)
 - [ ] OT-P0-015 | Storage retention | The supervisor shall enforce retention and size bounds on its durable history and use one canonical database location.
+- [ ] OT-P0-017 | Storm authority | When a sustained fork storm is attributed to an agent session scope, vrooli-autoheal shall freeze that scope within one check interval and open an incident naming it, and shall never freeze a supervisor or a resource.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -44,7 +45,7 @@
 - [ ] OT-P1-006 | Health history window | The supervisor should expose retained health and availability history for dashboards and trend analysis.
 - [ ] OT-P1-007 | Web UI dashboard | The web UI should present current health, recent events, repair actions, outages, and incidents accessibly.
 - [ ] OT-P1-008 | Configurable check intervals | The supervisor should schedule each check using its configured interval and avoid running it before it is due.
-- [ ] OT-P1-009 | Graceful shutdown | When receiving SIGINT or SIGTERM, the supervisor should stop scheduling work and shut down cleanly.
+- [ ] OT-P1-009 | Graceful shutdown | When receiving SIGINT or SIGTERM, the supervisor should stop scheduling work and shut down cleanly. | Evidence (2026-09-02): /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/failing-before-TestSigtermDuringLifecycleCancelsChildWithinWaitDelay.txt and /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/proof/1-tests.txt (SIGTERM cancels the child within the wait delay; signal during sleep exits 0)
 
 ### 🟢 P2 – Future / expansion
 

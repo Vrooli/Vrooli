@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/shared/stats"
 )
 
 type EstimateSource string
@@ -209,8 +210,9 @@ func EstimateComparableRun(samples []RunSample) Estimate {
 	if len(durations) == 0 {
 		return Estimate{Source: EstimateSourceUnknown, Confidence: EstimateConfidenceLow, Unknown: true}
 	}
+	sort.Ints(durations)
 	return Estimate{
-		DurationSeconds:  percentileSeconds(durations, historyPercentile),
+		DurationSeconds:  stats.PercentileValue(durations, historyPercentile),
 		Source:           EstimateSourceScenarioHistory,
 		Confidence:       confidenceFor(EstimateSourceScenarioHistory, len(durations), 0, 0),
 		SampleSize:       len(durations),
@@ -372,20 +374,20 @@ func estimatePhase(timeoutSeconds int, scenario, global sampleBucket) Estimate {
 	base := Estimate{CensoredSampleCount: censored, ExcludedSampleCount: excluded}
 	switch {
 	case scenarioCount >= primaryScenarioSamples:
-		base.DurationSeconds = percentileSeconds(scenarioDurations, historyPercentile)
+		base.DurationSeconds = stats.PercentileValue(scenarioDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
 		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case scenarioCount > 0 && globalCount > 0:
 		globalWeight := minInt(globalCount, primaryScenarioSamples)
-		base.DurationSeconds = weightedBlend(percentileSeconds(scenarioDurations, historyPercentile), scenarioCount, percentileSeconds(globalDurations, historyPercentile), globalWeight)
+		base.DurationSeconds = weightedBlend(stats.PercentileValue(scenarioDurations, historyPercentile), scenarioCount, stats.PercentileValue(globalDurations, historyPercentile), globalWeight)
 		base.Source, base.SampleSize = EstimateSourceBlendedHistory, scenarioCount+globalWeight
 		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case scenarioCount > 0:
-		base.DurationSeconds = percentileSeconds(scenarioDurations, historyPercentile)
+		base.DurationSeconds = stats.PercentileValue(scenarioDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
 		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case globalCount > 0:
-		base.DurationSeconds = percentileSeconds(globalDurations, historyPercentile)
+		base.DurationSeconds = stats.PercentileValue(globalDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceGlobalHistory, globalCount
 		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	default:
@@ -396,10 +398,14 @@ func estimatePhase(timeoutSeconds int, scenario, global sampleBucket) Estimate {
 }
 
 func usableDurations(bucket sampleBucket, reliableOnly bool) []int {
+	var values []int
 	if reliableOnly {
-		return append([]int(nil), bucket.reliablePointDurations...)
+		values = append([]int(nil), bucket.reliablePointDurations...)
+	} else {
+		values = append([]int(nil), bucket.bestEffortPointDurations...)
 	}
-	return append([]int(nil), bucket.bestEffortPointDurations...)
+	sort.Ints(values)
+	return values
 }
 
 func finishReliability(estimate Estimate, reliable, declaredBestEffort bool) Estimate {
@@ -521,31 +527,6 @@ func confidenceFor(source EstimateSource, scenarioCount, globalCount, censored i
 		return EstimateConfidenceLow
 	}
 	return confidence
-}
-
-func percentileSeconds(values []int, percentile float64) int {
-	if len(values) == 0 {
-		return 0
-	}
-	sorted := append([]int(nil), values...)
-	sort.Ints(sorted)
-	if len(sorted) == 1 {
-		return sorted[0]
-	}
-	if percentile <= 0 {
-		return sorted[0]
-	}
-	if percentile >= 1 {
-		return sorted[len(sorted)-1]
-	}
-	index := int(math.Round(percentile * float64(len(sorted)-1)))
-	if index < 0 {
-		index = 0
-	}
-	if index >= len(sorted) {
-		index = len(sorted) - 1
-	}
-	return sorted[index]
 }
 
 func weightedBlend(left, leftWeight, right, rightWeight int) int {

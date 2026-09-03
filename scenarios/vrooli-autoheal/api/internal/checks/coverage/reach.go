@@ -121,36 +121,54 @@ func (c *remediationReachCheck) ExecuteAction(context.Context, string) checks.Ac
 	return checks.ActionResult{ActionID: "observe", CheckID: c.ID(), Success: false, Message: "coverage checks are read-only"}
 }
 
+// OutcomeDelivered is the only attempt outcome that counts as reach.
+const OutcomeDelivered = "delivered"
+
 // EvaluateDeliveryReach joins the incident identity emitted by autoheal to
-// durable notification intake attempts. Any attempt proves the dispatch path
-// ran; the attempt outcome remains visible in the returned details.
+// durable delivery attempts and counts an incident as reached only when an
+// attempt was delivered. An 'unroutable' or 'failed' row proves intake ran,
+// not that a person saw anything; those incidents are listed with their last
+// outcome so the gap names its cause.
 func EvaluateDeliveryReach(snapshot DeliverySnapshot) checks.Result {
 	result := checks.Result{CheckID: DeliveryReachCheckID, Timestamp: time.Now().UTC(), Details: map[string]interface{}{
 		"projection": "substrate",
 		"question":   "did a critical finding reach a human channel?",
 	}}
-	attempted := make(map[string]DeliveryAttempt, len(snapshot.Attempts))
+	delivered := make(map[string]bool, len(snapshot.Attempts))
+	lastOutcome := make(map[string]string, len(snapshot.Attempts))
 	for _, attempt := range snapshot.Attempts {
-		if attempt.IncidentID != "" {
-			attempted[attempt.IncidentID] = attempt
+		if attempt.IncidentID == "" {
+			continue
+		}
+		lastOutcome[attempt.IncidentID] = attempt.Outcome
+		if attempt.Outcome == OutcomeDelivered {
+			delivered[attempt.IncidentID] = true
 		}
 	}
 	missing := make([]string, 0)
+	undelivered := map[string]string{}
 	for _, incident := range snapshot.Incidents {
-		if _, ok := attempted[incident.ID]; !ok {
-			missing = append(missing, incident.ID)
+		if delivered[incident.ID] {
+			continue
+		}
+		missing = append(missing, incident.ID)
+		if outcome, ok := lastOutcome[incident.ID]; ok {
+			undelivered[incident.ID] = outcome
+		} else {
+			undelivered[incident.ID] = "no attempt"
 		}
 	}
 	result.Details["criticalIncidents"] = len(snapshot.Incidents)
-	result.Details["attemptedIncidents"] = len(snapshot.Incidents) - len(missing)
+	result.Details["deliveredIncidents"] = len(snapshot.Incidents) - len(missing)
 	result.Details["missingIncidentIds"] = missing
+	result.Details["undeliveredOutcomes"] = undelivered
 	if len(missing) > 0 {
 		result.Status = checks.StatusCritical
-		result.Message = fmt.Sprintf("%d of %d critical incidents have no delivery attempt", len(missing), len(snapshot.Incidents))
+		result.Message = fmt.Sprintf("%d of %d critical incidents were not delivered to a person", len(missing), len(snapshot.Incidents))
 		return result
 	}
 	result.Status = checks.StatusOK
-	result.Message = fmt.Sprintf("all %d critical incidents have a delivery attempt", len(snapshot.Incidents))
+	result.Message = fmt.Sprintf("all %d critical incidents were delivered", len(snapshot.Incidents))
 	return result
 }
 

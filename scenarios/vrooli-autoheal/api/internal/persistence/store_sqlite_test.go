@@ -785,3 +785,53 @@ func seedHealthResults(t *testing.T, db *sql.DB, now time.Time) {
 		}
 	}
 }
+
+// [REQ:STORM-002] A host_pressure incident (the storm authority's) is storable
+// on a fresh database, and a legacy database whose CHECK constraint predates
+// the type is rebuilt in place with its rows intact.
+func TestIncidentTypeConstraintAdmitsHostPressureAndMigratesLegacyTables(t *testing.T) {
+	ctx := context.Background()
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	if _, err := store.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-storm", Type: incidents.TypeHostPressure, Severity: incidents.SeverityCritical, Title: "fork storm from sh pid 1 in scope vrooli-agent-x.scope", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "system-emergency-watchdog-report"}); err != nil {
+		t.Fatalf("fresh database refused host_pressure: %v", err)
+	}
+
+	legacy := openSQLiteTestDB(t)
+	legacyStore := NewStore(legacy)
+	if _, err := legacyStore.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-old", Type: incidents.TypeScenarioFailure, Severity: incidents.SeverityWarning, Title: "old", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "scenario-x"}); err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the table the way the pre-2026-09-02 schema declared it.
+	legacyDDL, _ := incidentsTableDDL()
+	legacyDDL = strings.Replace(legacyDDL, ", 'host_pressure'", "", 1)
+	for _, statement := range []string{
+		"PRAGMA foreign_keys = OFF",
+		strings.Replace(legacyDDL, "CREATE TABLE IF NOT EXISTS incidents (", "CREATE TABLE incidents_legacy (", 1),
+		"INSERT INTO incidents_legacy SELECT * FROM incidents",
+		"DROP TABLE incidents",
+		"ALTER TABLE incidents_legacy RENAME TO incidents",
+	} {
+		if _, err := legacy.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+	}
+	var ddl string
+	if err := legacy.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='incidents'`).Scan(&ddl); err != nil || strings.Contains(ddl, "host_pressure") {
+		t.Fatalf("legacy table setup: %q %v", ddl, err)
+	}
+	migrated := NewStore(legacy)
+	if err := legacy.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='incidents'`).Scan(&ddl); err != nil || !strings.Contains(ddl, "host_pressure") {
+		t.Fatalf("legacy table was not rebuilt: %q %v", ddl, err)
+	}
+	listed, err := migrated.ListIncidents(ctx, incidents.ListFilters{Limit: 10})
+	if err != nil || len(listed.Incidents) != 1 || listed.Incidents[0].Fingerprint != "fp-old" {
+		t.Fatalf("rows lost in rebuild: %+v %v", listed, err)
+	}
+	if _, err := migrated.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-storm-2", Type: incidents.TypeHostPressure, Severity: incidents.SeverityCritical, Title: "storm", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "system-emergency-watchdog-report"}); err != nil {
+		t.Fatalf("rebuilt table refused host_pressure: %v", err)
+	}
+	if !incidents.ValidType(string(incidents.TypeHostPressure)) {
+		t.Fatal("host_pressure must be a valid list filter")
+	}
+}

@@ -201,9 +201,15 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Name("api"):          architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Name("quality"):      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Name("architecture"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
-		Name("dependencies"): architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
-		Name("docs"):         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
-		Name("business"):     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+		// Code-facts and the language-graph providers emit architecture findings
+		// through the validation-provider bridge, so their descriptor-owned
+		// finding source is intentional rather than a phantom source.
+		Name("code-facts"):            architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("go-code-graph"):         architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("typescript-code-graph"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("dependencies"):          architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
+		Name("docs"):                  architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+		Name("business"):              architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
 		// After the hard cutover the unit phase delegates to unit-health and
 		// emits coverage findings into the COVERAGE channel (the separate
 		// `coverage` phase is retired), so it is now a COVERAGE producer.

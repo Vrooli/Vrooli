@@ -606,6 +606,67 @@ workload ownership. It offers evidence reporting, one-service reclaim, and
 operator disposal preview actions. It never kills unmanaged work and never
 uses `swapoff`.
 
+## Emergency Watchdog Report
+
+| Field | Value |
+|-------|-------|
+| ID | `system-emergency-watchdog-report` |
+| Interval | 60 seconds |
+| Category | System |
+| Platforms | All (undetermined where the watchdog does not run) |
+| Importance | The watchdog senses host pressure but cannot act; a finding that never reaches autoheal is a finding nobody answers |
+
+This check reads the emergency watchdog's last report
+(`~/.vrooli/state/emergency-watchdog/last-report.json`) and opens one incident
+per sustained finding, titled with the attributed parent of a fork storm. A
+missing or stale report is undetermined, never healthy.
+
+[Detailed documentation](checks/system-emergency-watchdog-report.md)
+
+---
+
+## Boot Recovery Readiness
+
+| Field | Value |
+|-------|-------|
+| ID | `system-boot-recovery-readiness` |
+| Interval | 3600 seconds |
+| Category | System |
+| Platforms | All (lingering is Linux-only) |
+| Importance | Critical: a boot path only tested by rebooting fails at the one moment nobody is watching |
+
+Proves seven preconditions while the host is healthy: the three boot safeguards
+applied (`vrooli setup status --json --phase readiness`), the loop's
+`--self-test` preflight, each core unit active with zero restarts, the loop's
+heartbeat and on-disk binary, lingering under a dedicated boot policy, an
+`accepted` native-validator verdict, and the agent-session containment slice. Any failed precondition is critical and
+names `vrooli setup`; an unprobeable one is undetermined, never ok. It offers
+no recovery actions.
+
+[Detailed documentation](checks/system-boot-recovery-readiness.md)
+
+---
+
+## Emergency Watchdog Report
+
+| Field | Value |
+|-------|-------|
+| ID | `system-emergency-watchdog-report` |
+| Interval | 60 seconds |
+| Category | System |
+| Platforms | All |
+| Importance | The watchdog senses host pressure and unit liveness but cannot act; a finding that never reaches autoheal is a finding nobody answers |
+
+Reads `~/.vrooli/state/emergency-watchdog/last-report.json`, written by the
+`vrooli-watchdog` timer on every run. Any finding is critical with the finding
+copied verbatim (fork-rate and CPU-pressure findings carry the attributed
+parent); a missing or stale report (older than three timer intervals) is
+undetermined.
+
+[Detailed documentation](checks/system-emergency-watchdog-report.md)
+
+---
+
 ## Check Intervals Summary
 
 | Interval | Checks | Use Case |
@@ -613,7 +674,8 @@ uses `swapoff`.
 | 30s | Network | Critical connectivity, fast detection |
 | 60s | DNS, Vrooli API, Resources | Core services |
 | 120s | Docker, Cloudflared | Services that recover slowly |
-| 300s | Disk, Inode, Swap, Zombies, Ports, Display | Slow-changing metrics |
+| 300s | Disk, Inode, Swap, Zombies, Ports, Display, Stale service binary | Slow-changing metrics |
+| 3600s | Boot recovery readiness | Proof of the boot path; runs `vrooli setup status` |
 
 ## Check Categories Summary
 
@@ -621,8 +683,8 @@ uses `swapoff`.
 |----------|-------|-------------|
 | Infrastructure | 9 | Network, DNS, Docker, Cloudflared, RDP, NTP, Resolved, Certificate, Display |
 | Resource | 5 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG |
-| System | 7 | Disk, Inode, Swap, Zombies, Ports, Claude Cache, Host Pressure |
-| **Total** | **21** | |
+| System | 8 | Disk, Inode, Swap, Zombies, Ports, Claude Cache, Host Pressure, Emergency Watchdog Report |
+| **Total** | **22** | |
 
 ## Adding Custom Checks
 

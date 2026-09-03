@@ -874,11 +874,17 @@
             "duplication_line_debt": {"type": "integer", "minimum": 0},
             "baseline_duplication_line_debt": {"type": "integer", "minimum": 0, "description": "Recorded duplication-line-debt baseline enforced when ratchet is true."},
             "long_files": {"type": "integer", "minimum": 0},
+            "baseline_long_files": {"type": "integer", "minimum": 0},
             "complexity_over_threshold": {"type": "integer", "minimum": 0},
+            "baseline_complexity_over_threshold": {"type": "integer", "minimum": 0},
             "coupling_over_threshold": {"type": "integer", "minimum": 0},
+            "baseline_coupling_over_threshold": {"type": "integer", "minimum": 0},
             "debt_markers": {"type": "integer", "minimum": 0},
+            "baseline_debt_markers": {"type": "integer", "minimum": 0},
             "error_findings": {"type": "integer", "minimum": 0, "description": "Maximum blocking security findings allowed for the target; zero is an explicit clean budget."},
             "baseline_error_findings": {"type": "integer", "minimum": 0, "description": "Recorded blocking-security-finding baseline enforced when ratchet is true."},
+            "reserve": {"type": "integer", "minimum": 0, "default": 0, "description": "Explicit temporary allowance above a declared budget."},
+            "reserve_reason": {"type": "string", "minLength": 40, "description": "Required justification when reserve is non-zero."},
             "ratchet": {"type": "boolean", "default": false, "description": "Budget updates may only tighten recorded values."}
           }
         }

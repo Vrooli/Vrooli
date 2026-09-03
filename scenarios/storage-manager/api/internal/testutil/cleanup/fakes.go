@@ -23,6 +23,7 @@ type FileSystem struct {
 	Files        map[string]cleanup.FileInfo
 	Contents     map[string][]byte
 	Removed      []string
+	Renamed      [][2]string
 	AllowRemove  bool
 	RemoveErrors []error
 }
@@ -121,6 +122,31 @@ func (fsys *FileSystem) RemoveAll(_ context.Context, path string) error {
 	}
 	fsys.Removed = append(fsys.Removed, path)
 	delete(fsys.Files, path)
+	return nil
+}
+
+func (fsys *FileSystem) MkdirAll(_ context.Context, path string) error {
+	if fsys.Root == "" || !strings.HasPrefix(filepath.Clean(path), filepath.Clean(fsys.Root)+string(filepath.Separator)) {
+		return fmt.Errorf("mkdir outside fake root blocked: %s", path)
+	}
+	return nil
+}
+
+func (fsys *FileSystem) Rename(_ context.Context, oldPath, newPath string) error {
+	if !fsys.AllowRemove {
+		return fmt.Errorf("rename blocked by fake filesystem: %s", oldPath)
+	}
+	info, ok := fsys.Files[oldPath]
+	if !ok {
+		return nil
+	}
+	if fsys.Root == "" || !strings.HasPrefix(filepath.Clean(newPath), filepath.Clean(fsys.Root)+string(filepath.Separator)) {
+		return fmt.Errorf("rename outside fake root blocked: %s", newPath)
+	}
+	info.Path = newPath
+	fsys.Files[newPath] = info
+	delete(fsys.Files, oldPath)
+	fsys.Renamed = append(fsys.Renamed, [2]string{oldPath, newPath})
 	return nil
 }
 

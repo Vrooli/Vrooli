@@ -34,6 +34,30 @@ func TestPlanIDStableForSamePolicyProviderVersionsAndPreview(t *testing.T) {
 	}
 }
 
+func TestSetStandingApprovalRejectsApprovalFromAnotherHost(t *testing.T) {
+	provider := &tierProvider{id: "conditional", tier: cleanup.SafetyTierConditional, approval: cleanup.ApprovalModeOperator}
+	registry, err := providers.NewRegistry(provider)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	svc := NewService(registry, NewMemoryStore(), cleanupfakes.Clock{Time: time.Now()})
+	svc.hostID = func() string { return "current-host" }
+	if err := svc.store.SavePolicy(context.Background(), Policy{
+		Version:   "policy-test",
+		Profile:   policy.ProfileConservative,
+		Providers: map[string]cleanup.ProviderPolicy{"conditional": {Enabled: true, ApprovalMode: cleanup.ApprovalModeOperator}},
+	}); err != nil {
+		t.Fatalf("SavePolicy: %v", err)
+	}
+
+	_, err = svc.SetStandingApproval(context.Background(), "conditional", StandingApproval{
+		ApprovedAt: time.Now(), ApprovedBy: "operator", HostID: "other-host",
+	})
+	if err == nil || !strings.Contains(err.Error(), "does not match current host") {
+		t.Fatalf("SetStandingApproval error = %v, want host mismatch", err)
+	}
+}
+
 func TestCensusContinuesAfterCallerStopsWaiting(t *testing.T) {
 	t.Parallel()
 

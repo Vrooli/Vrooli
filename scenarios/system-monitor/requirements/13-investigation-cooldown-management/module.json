@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-27T01:52:36-04:00"
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-003",
       "title": "Investigation Cooldown Management",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-013",
       "category": "core",
       "description": "Develop investigation cooldown system with configurable periods and manual reset capability to prevent investigation flooding and resource exhaustion.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test cooldown period enforcement"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify reset functionality"
         },
         {
@@ -38,7 +38,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Prevents investigation system overload"
         }
       ]

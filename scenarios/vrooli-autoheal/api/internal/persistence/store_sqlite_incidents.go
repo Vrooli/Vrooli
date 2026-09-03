@@ -504,3 +504,107 @@ func nonEmptyUnique(values []string) []string {
 	}
 	return out
 }
+
+// ensureIncidentTypeConstraint rebuilds a legacy incidents table whose CHECK
+// constraint predates the host_pressure incident type. SQLite cannot alter a
+// CHECK in place, so this is the documented twelve-step rebuild: create the
+// table from the embedded schema under a temporary name, copy every row,
+// drop the old table, rename, recreate the indexes. Foreign keys from
+// incident_observations and remediation rows reference incidents(id); the
+// rows keep their ids, so the references stay valid. A store whose table
+// already admits host_pressure returns before touching anything.
+func (s *Store) ensureIncidentTypeConstraint(ctx context.Context) error {
+	var ddl string
+	if err := s.db.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='incidents'`).Scan(&ddl); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("read incidents table definition: %w", err)
+	}
+	if strings.Contains(ddl, "'"+string(incidents.TypeHostPressure)+"'") {
+		return nil
+	}
+	create, ok := incidentsTableDDL()
+	if !ok {
+		return fmt.Errorf("embedded schema has no incidents table")
+	}
+	columns, err := s.incidentColumns(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+		return fmt.Errorf("disable foreign keys for incidents rebuild: %w", err)
+	}
+	defer func() { _, _ = s.db.ExecContext(ctx, `PRAGMA foreign_keys = ON`) }()
+	// ALTER TABLE ... RENAME re-validates every view in the database, and a
+	// production database on this host carries a dangling view
+	// (latest_health_results over a health_results_legacy table an earlier
+	// migration dropped). The rename must not fail on debt it did not create,
+	// so it runs with the pre-3.26 rename semantics that skip that check.
+	if _, err := s.db.ExecContext(ctx, `PRAGMA legacy_alter_table = ON`); err != nil {
+		return fmt.Errorf("enable legacy rename for incidents rebuild: %w", err)
+	}
+	defer func() { _, _ = s.db.ExecContext(ctx, `PRAGMA legacy_alter_table = OFF`) }()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	statements := []string{
+		strings.Replace(create, "CREATE TABLE IF NOT EXISTS incidents (", "CREATE TABLE incidents_rebuild (", 1),
+		fmt.Sprintf("INSERT INTO incidents_rebuild (%s) SELECT %s FROM incidents", columns, columns),
+		"DROP TABLE incidents",
+		"ALTER TABLE incidents_rebuild RENAME TO incidents",
+		"CREATE INDEX IF NOT EXISTS idx_incidents_status_updated ON incidents (status, updated_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_incidents_type_severity ON incidents (type, severity, updated_at DESC)",
+	}
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("rebuild incidents table for host_pressure: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// incidentsTableDDL extracts the incidents CREATE statement from the
+// embedded schema so the rebuild and a fresh database agree byte for byte.
+func incidentsTableDDL() (string, bool) {
+	const head = "CREATE TABLE IF NOT EXISTS incidents ("
+	start := strings.Index(schemaSQL, head)
+	if start < 0 {
+		return "", false
+	}
+	end := strings.Index(schemaSQL[start:], "\n);")
+	if end < 0 {
+		return "", false
+	}
+	return schemaSQL[start : start+end+len("\n);")], true
+}
+
+// incidentColumns lists the live table's columns that the embedded schema
+// also declares, in table order, so a rebuild copies only shared columns.
+func (s *Store) incidentColumns(ctx context.Context) (string, error) {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(incidents)`)
+	if err != nil {
+		return "", fmt.Errorf("read incidents columns: %w", err)
+	}
+	defer rows.Close()
+	create, _ := incidentsTableDDL()
+	var names []string
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notNull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dflt, &pk); err != nil {
+			return "", err
+		}
+		if strings.Contains(create, "\n    "+name+" ") {
+			names = append(names, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	return strings.Join(names, ", "), nil
+}

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -39,9 +40,12 @@ type SupervisedUnit struct {
 // defaultSupervisedUnits are the long-lived services that keep Vrooli healthy.
 // They are the ones whose staleness matters: a stale short-lived process fixes
 // itself on its next invocation.
-var defaultSupervisedUnits = []SupervisedUnit{
-	{Unit: "vrooli-runtime-supervisor.service"},
-	{Unit: "vrooli-autoheal.service"},
+func defaultSupervisedUnits() []SupervisedUnit {
+	var units []SupervisedUnit
+	for _, name := range platformgo.CoreDaemonUnits() {
+		units = append(units, SupervisedUnit{Unit: name})
+	}
+	return units
 }
 
 // ProcessExeResolver resolves a unit's running executable. It is the OS seam:
@@ -60,7 +64,8 @@ type ProcessExeResolver interface {
 	Resolve(ctx context.Context, unit string) (path string, deleted bool, found bool)
 }
 
-// StaleServiceBinaryCheck reports supervised services running a replaced binary.
+// StaleServiceBinaryCheck reports supervised services running a replaced
+// binary, and core units that are not running at all.
 type StaleServiceBinaryCheck struct {
 	units    []SupervisedUnit
 	resolver ProcessExeResolver
@@ -88,7 +93,7 @@ func WithUnitRestarter(fn func(ctx context.Context, unit string) (string, error)
 // NewStaleServiceBinaryCheck builds the check with production defaults.
 func NewStaleServiceBinaryCheck(opts ...StaleServiceBinaryOption) *StaleServiceBinaryCheck {
 	c := &StaleServiceBinaryCheck{
-		units:    defaultSupervisedUnits,
+		units:    defaultSupervisedUnits(),
 		resolver: linuxProcResolver{},
 		restart:  restartUserUnit,
 	}
@@ -125,14 +130,17 @@ func (c *StaleServiceBinaryCheck) Run(ctx context.Context) (r checks.Result) {
 		return r
 	}
 
-	var stale []string
+	var stale, dead []string
 	checked := 0
 	for _, unit := range c.units {
 		path, deleted, found := c.resolver.Resolve(ctx, unit.Unit)
 		if !found {
-			// A unit that is not running is a liveness problem, which the
-			// emergency watchdog and the unit checks already own. Silence here
-			// keeps one condition from being reported by two checks.
+			// A core unit with no main process is not running. Before
+			// 2026-09-02 this was skipped as "somebody else's liveness
+			// problem"; nobody else named the unit until the emergency
+			// watchdog's ten-minute sustain elapsed, so a dead supervisor
+			// read as healthy here for the whole window.
+			dead = append(dead, unit.Unit)
 			continue
 		}
 		checked++
@@ -144,9 +152,21 @@ func (c *StaleServiceBinaryCheck) Run(ctx context.Context) (r checks.Result) {
 
 	r.Details["unitsChecked"] = checked
 	r.Details["staleUnits"] = stale
+	r.Details["deadUnits"] = dead
 	// The evidence dimension the incident fingerprint keys on: one unit going
 	// stale repeatedly is one incident, not a new one every five minutes.
-	r.Details["findingKey"] = strings.Join(stale, ",")
+	r.Details["findingKey"] = strings.Join(append(append([]string{}, dead...), stale...), ",")
+
+	if len(dead) > 0 {
+		r.Status = checks.StatusCritical
+		r.Details["unit"] = strings.Join(dead, ",")
+		r.Details["remediation"] = "vrooli setup"
+		r.Message = fmt.Sprintf("Core unit is not running: %s — run `vrooli setup` to reinstall and start it", strings.Join(dead, ", "))
+		if len(stale) > 0 {
+			r.Message += fmt.Sprintf("; also running a replaced binary: %s", strings.Join(stale, ", "))
+		}
+		return r
+	}
 
 	if len(stale) == 0 {
 		r.Status = checks.StatusOK

@@ -24,6 +24,16 @@ type Service interface {
 	ReportPressure(context.Context, orchestrator.PressureSignal) (orchestrator.PressureOutcome, error)
 }
 
+type recoveryService interface {
+	StartRecovery(context.Context, string, string, float64, int64, float64, bool) (orchestrator.RecoveryRun, error)
+	WaitRecovery(context.Context, string) (orchestrator.RecoveryRun, error)
+	ListRecovery(int) []orchestrator.RecoveryRun
+}
+
+type durableRecoveryService interface {
+	ListRecoveryContext(context.Context, int) ([]orchestrator.RecoveryRun, error)
+}
+
 type connectHandler struct {
 	service Service
 }
@@ -102,13 +112,28 @@ func (h *connectHandler) ReportPressure(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	outcome, err := h.service.ReportPressure(ctx, orchestrator.PressureSignal{
-		SourceScenario: req.Msg.GetSourceScenario(),
-		Partition:      req.Msg.GetPartition(),
-		UsedPercent:    req.Msg.GetUsedPercent(),
-		Band:           band,
-		AvailableBytes: req.Msg.GetAvailableBytes(),
-	})
+	signal := orchestrator.PressureSignal{
+		SourceScenario:       req.Msg.GetSourceScenario(),
+		Partition:            req.Msg.GetPartition(),
+		UsedPercent:          req.Msg.GetUsedPercent(),
+		Band:                 band,
+		AvailableBytes:       req.Msg.GetAvailableBytes(),
+		FillRateBytesPerHour: req.Msg.GetFillRateBytesPerHour(),
+		Trigger:              req.Msg.GetTrigger().String(),
+	}
+	for _, writer := range req.Msg.GetHotWriters() {
+		if writer == nil {
+			continue
+		}
+		signal.HotWriters = append(signal.HotWriters, orchestrator.HotWriter{
+			Root:          writer.GetRoot(),
+			CurrentBytes:  writer.GetCurrentBytes(),
+			BytesPerHour:  writer.GetBytesPerHour(),
+			WindowSeconds: writer.GetWindowSeconds(),
+		})
+	}
+
+	outcome, err := h.service.ReportPressure(ctx, signal)
 	if err != nil {
 		// Only a malformed signal is the caller's fault. Everything reachable
 		// past validation — a failed plan, an unreachable owner scenario — is
@@ -140,7 +165,63 @@ func (h *connectHandler) ReportPressure(ctx context.Context, req *connect.Reques
 		Reason:                 reason,
 		AutonomousApplyEnabled: outcome.AutonomousApplyEnabled,
 		BugReference:           outcome.BugReference,
+		RunId:                  outcome.RunID,
 	}), nil
+}
+
+func (h *connectHandler) StartRecovery(ctx context.Context, req *connect.Request[cleanupv1.RecoveryRunRequest]) (*connect.Response[cleanupv1.RecoveryRunResponse], error) {
+	svc, ok := h.service.(recoveryService)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("recovery runs are unavailable"))
+	}
+	run, err := svc.StartRecovery(ctx, req.Msg.GetTrigger().String(), req.Msg.GetPartition(), req.Msg.GetUsedPercent(), req.Msg.GetAvailableBytes(), req.Msg.GetTargetFreePercent(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(recoveryRunToProto(run)), nil
+}
+
+func (h *connectHandler) WaitRecovery(ctx context.Context, req *connect.Request[cleanupv1.RecoveryWaitRequest]) (*connect.Response[cleanupv1.RecoveryRunResponse], error) {
+	svc, ok := h.service.(recoveryService)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("recovery runs are unavailable"))
+	}
+	run, err := svc.WaitRecovery(ctx, req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(recoveryRunToProto(run)), nil
+}
+
+func (h *connectHandler) ListRecovery(ctx context.Context, req *connect.Request[cleanupv1.RecoveryHistoryRequest]) (*connect.Response[cleanupv1.RecoveryHistoryResponse], error) {
+	svc, ok := h.service.(recoveryService)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("recovery runs are unavailable"))
+	}
+	var runs []orchestrator.RecoveryRun
+	var err error
+	if durable, ok := h.service.(durableRecoveryService); ok {
+		runs, err = durable.ListRecoveryContext(ctx, int(req.Msg.GetLimit()))
+	} else {
+		runs = svc.ListRecovery(int(req.Msg.GetLimit()))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp := &cleanupv1.RecoveryHistoryResponse{}
+	for _, run := range runs {
+		resp.Runs = append(resp.Runs, recoveryRunToProto(run))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func recoveryRunToProto(run orchestrator.RecoveryRun) *cleanupv1.RecoveryRunResponse {
+	return &cleanupv1.RecoveryRunResponse{
+		RunId: run.ID, Status: run.Status, Trigger: run.Trigger, Partition: run.Partition,
+		Action: string(run.Action), EstimatedBytes: run.EstimatedBytes, ReclaimedBytes: run.ReclaimedBytes,
+		PlanId: run.PlanID, Reason: run.Reason, StartedAt: timestamppb.New(run.StartedAt), CompletedAt: timestamppb.New(run.CompletedAt),
+		TargetFreeBytes: run.TargetFreeBytes, StoppedBecause: run.StoppedBecause,
+	}
 }
 
 // bandFromProto maps the wire enum onto the domain band, refusing UNSPECIFIED

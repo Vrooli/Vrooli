@@ -17,11 +17,13 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/shared"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
@@ -31,6 +33,32 @@ import (
 // always supplies an emit that fans events into the run's broadcaster.
 type Executor interface {
 	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
+}
+
+// RunClaimReleaser releases all phase-capacity claims owned by a terminal run.
+// It is optional so the manager remains usable in isolated tests and degraded
+// deployments where the shared capacity ledger is unavailable.
+type RunClaimReleaser interface {
+	ReleaseRun(context.Context, string, string) error
+}
+
+// SuiteEnvelopeProvider supplies measured scenario/preset reservations to the
+// operator admission surface without moving estimation policy into the manager.
+type SuiteEnvelopeProvider func(context.Context) ([]execution.SuiteEnvelopeEstimate, error)
+
+type SuiteCapacityBroker interface {
+	Acquire(context.Context, string, int64, int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error)
+}
+
+// SuiteHostObserver is an optional read-only seam for shadow evidence.
+type SuiteHostObserver interface {
+	ObserveHostState(context.Context) (sharedcapacity.HostObservation, error)
+}
+
+type suiteAdmissionProbe struct {
+	lease    sharedcapacity.Lease
+	estimate execution.SuiteEnvelopeEstimate
+	known    bool
 }
 
 // Heartbeat cadence (quiet-phase keep-alive). Tunable lever, shared with the
@@ -57,17 +85,6 @@ const retireGrace = 60 * time.Second
 // when per-run isolation lands; >1 is documented-unsafe until then.
 const defaultMaxRunsPerScenario = 1
 
-// maxRunsPerScenarioFromEnv resolves the configured per-scenario cap, never
-// returning less than 1.
-func maxRunsPerScenarioFromEnv() int {
-	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_MAX_RUNS_PER_SCENARIO")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
-			return n
-		}
-	}
-	return defaultMaxRunsPerScenario
-}
-
 // defaultMaxConcurrentRuns is the GLOBAL cap on simultaneously-executing runs
 // across ALL scenarios. Unlike the per-scenario cap (which is a correctness
 // invariant), this is a load governor: every run brings a scenario's full stack
@@ -81,33 +98,15 @@ func maxRunsPerScenarioFromEnv() int {
 // shared budget for BOTH manually-started runs and the background fleet sweep,
 // because the fleet scheduler launches through this same Manager.Start path.
 const (
-	defaultMaxConcurrentRuns   = 2
-	defaultMaxQueuedRuns       = 16
-	defaultMaxPreviewRuns      = 2
-	defaultMaxQueuedPerCaller  = 4
-	defaultMaxPreviewPerCaller = 1
+	defaultMaxConcurrentRuns       = 4
+	defaultMinConcurrentRuns       = 2
+	defaultMaxQueuedRuns           = 16
+	defaultMaxPreviewRuns          = 2
+	defaultMaxQueuedPerCaller      = 4
+	defaultMaxQueuedPerReservation = 12
+	defaultMaxPreviewPerCaller     = 1
+	reservationTTL                 = time.Hour
 )
-
-// maxConcurrentRunsFromEnv resolves the configured global concurrency cap from
-// TEST_GENIE_MAX_CONCURRENT_RUNS (the env lever; a settings-domain UI control is
-// a planned follow-on), never returning less than 1.
-func maxConcurrentRunsFromEnv() int {
-	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_MAX_CONCURRENT_RUNS")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
-			return n
-		}
-	}
-	return defaultMaxConcurrentRuns
-}
-
-func boundedIntFromEnv(name string, fallback int) int {
-	if raw := strings.TrimSpace(os.Getenv(name)); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
-			return n
-		}
-	}
-	return fallback
-}
 
 // HeartbeatInterval resolves the configured quiet-phase heartbeat cadence.
 func HeartbeatInterval() time.Duration {
@@ -121,19 +120,29 @@ func HeartbeatInterval() time.Duration {
 
 // Manager owns durable run execution decoupled from any client request.
 type Manager struct {
-	base                context.Context
-	cancelBase          context.CancelFunc
-	exec                Executor
-	scenariosRoot       string
-	artifactRoot        func(string) (string, error)
-	heartbeat           time.Duration
-	maxRunsPerScenario  int
-	maxConcurrentRuns   int
-	maxQueuedRuns       int
-	maxQueuedPerCaller  int
-	maxPreviewPerCaller int
-	previewTokens       chan struct{}
-	previewByCaller     map[string]int
+	base                    context.Context
+	cancelBase              context.CancelFunc
+	exec                    Executor
+	scenariosRoot           string
+	artifactRoot            func(string) (string, error)
+	claimReleaser           RunClaimReleaser
+	suiteEnvelopes          SuiteEnvelopeProvider
+	suiteCapacity           SuiteCapacityBroker
+	heartbeat               time.Duration
+	maxRunsPerScenario      int
+	maxConcurrentRuns       int
+	minConcurrentRuns       int
+	effectiveConcurrent     int
+	adaptiveEnabled         bool
+	consecutiveGrants       int
+	lastConcurrencyVerdict  string
+	maxQueuedRuns           int
+	maxQueuedPerCaller      int
+	maxQueuedPerReservation int
+	maxPreviewPerCaller     int
+	previewTokens           chan struct{}
+	previewByCaller         map[string]int
+	reservations            map[string]*reservationState
 
 	// wg tracks live drive goroutines so Shutdown can wait for in-flight runs to
 	// finalize their durable records before returning.
@@ -142,10 +151,15 @@ type Manager struct {
 	mu   sync.Mutex
 	runs map[string]*activeRun
 
-	previewRejectedTotal  uint64
-	queueRejectedTotal    uint64
-	scenarioRejectedTotal uint64
-	coalescedTotal        uint64
+	previewRejectedTotal    uint64
+	queueRejectedTotal      uint64
+	scenarioRejectedTotal   uint64
+	coalescedTotal          uint64
+	fallbackAdmissionsTotal uint64
+	phaseAdmissionsTotal    uint64
+	shadowWouldAdmit        uint64
+	shadowWouldDefer        uint64
+	shadowErrors            uint64
 }
 
 // activeRun is the in-memory state for a run currently tracked by the manager.
@@ -156,9 +170,11 @@ type activeRun struct {
 	// admissionKey is the deterministic coalescing identity for this run (see
 	// admissionKey). Immutable after construction, so it is safe to read under
 	// the manager lock during admission.
-	admissionKey string
-	caller       string
-	resources    []string
+	admissionKey           string
+	caller                 string
+	resources              []string
+	reservationID          string
+	reservationMemberCount int
 	// requestedAt is stamped once at admission and NEVER re-stamped. startedAt
 	// is re-stamped when a concurrency slot opens so elapsed/ETA measure
 	// execution; the difference between the two is the queue wait, which was
@@ -172,8 +188,12 @@ type activeRun struct {
 	// runCtx and input are retained so a run admitted in StatusQueued can be
 	// driven later by the dispatcher when a global concurrency slot frees. They
 	// are unused for runs that start immediately.
-	runCtx context.Context
-	input  execution.SuiteExecutionInput
+	runCtx             context.Context
+	input              execution.SuiteExecutionInput
+	shadowSwapPeak     float64
+	suiteLease         sharedcapacity.Lease
+	suiteEstimate      execution.SuiteEnvelopeEstimate
+	suiteEstimateKnown bool
 
 	mu          sync.Mutex
 	status      string
@@ -184,6 +204,13 @@ type activeRun struct {
 	etaTotal    int
 	result      *orchestrator.SuiteExecutionResult
 	err         error
+}
+
+type reservationState struct {
+	declaredMembers int
+	terminalMembers int
+	createdAt       time.Time
+	lastActivityAt  time.Time
 }
 
 // LiveStatus is a point-in-time snapshot of a run, sourced from the in-memory
@@ -200,6 +227,9 @@ type LiveStatus struct {
 	ElapsedSeconds              float64
 	EstimatedTotalSeconds       int
 	EstimatedRemainingSeconds   int
+	QueuePosition               int
+	EstimatedQueueWaitSeconds   int
+	QueueWaitKnown              bool
 	ETAKnown                    bool
 	RecommendedNextCheckSeconds int
 	Verdict                     string
@@ -240,18 +270,32 @@ type StartOptions struct {
 // counters are process-lifetime totals while the occupancy fields are sampled
 // at the instant this snapshot is read.
 type AdmissionSnapshot struct {
-	Running                 int    `json:"running"`
-	Queued                  int    `json:"queued"`
-	MaxConcurrentRuns       int    `json:"maxConcurrentRuns"`
-	MaxQueuedRuns           int    `json:"maxQueuedRuns"`
-	MaxQueuedRunsPerCaller  int    `json:"maxQueuedRunsPerCaller"`
-	PreviewInFlight         int    `json:"previewInFlight"`
-	MaxPreviewRuns          int    `json:"maxPreviewRuns"`
-	MaxPreviewRunsPerCaller int    `json:"maxPreviewRunsPerCaller"`
-	PreviewRejectedTotal    uint64 `json:"previewRejectedTotal"`
-	QueueRejectedTotal      uint64 `json:"queueRejectedTotal"`
-	ScenarioRejectedTotal   uint64 `json:"scenarioRejectedTotal"`
-	CoalescedTotal          uint64 `json:"coalescedTotal"`
+	Running                 int                               `json:"running"`
+	Queued                  int                               `json:"queued"`
+	MaxConcurrentRuns       int                               `json:"maxConcurrentRuns"`
+	EffectiveConcurrency    int                               `json:"effectiveConcurrency"`
+	ConcurrencyFloor        int                               `json:"concurrencyFloor"`
+	ConcurrencyCeiling      int                               `json:"concurrencyCeiling"`
+	LastConcurrencyVerdict  string                            `json:"lastConcurrencyVerdict,omitempty"`
+	MaxQueuedRuns           int                               `json:"maxQueuedRuns"`
+	MaxQueuedRunsPerCaller  int                               `json:"maxQueuedRunsPerCaller"`
+	PreviewInFlight         int                               `json:"previewInFlight"`
+	MaxPreviewRuns          int                               `json:"maxPreviewRuns"`
+	MaxPreviewRunsPerCaller int                               `json:"maxPreviewRunsPerCaller"`
+	PreviewRejectedTotal    uint64                            `json:"previewRejectedTotal"`
+	QueueRejectedTotal      uint64                            `json:"queueRejectedTotal"`
+	ScenarioRejectedTotal   uint64                            `json:"scenarioRejectedTotal"`
+	CoalescedTotal          uint64                            `json:"coalescedTotal"`
+	FallbackAdmissionsTotal uint64                            `json:"fallbackAdmissionsTotal"`
+	PhaseAdmissionsTotal    uint64                            `json:"phaseAdmissionsTotal"`
+	SuiteEnvelope           []execution.SuiteEnvelopeEstimate `json:"suiteEnvelope"`
+	ShadowDecisions         ShadowDecisionSummary             `json:"shadowDecisions"`
+}
+
+type ShadowDecisionSummary struct {
+	WouldAdmit uint64 `json:"wouldAdmit"`
+	WouldDefer uint64 `json:"wouldDefer"`
+	Errors     uint64 `json:"errors"`
 }
 
 // New constructs a Manager driving exec, resolving scenario indexes under
@@ -259,20 +303,30 @@ type AdmissionSnapshot struct {
 // any request.
 func New(exec Executor, scenariosRoot string) *Manager {
 	base, cancel := context.WithCancel(context.Background())
+	ceiling := shared.EnvIntMin("TEST_GENIE_MAX_CONCURRENT_RUNS", defaultMaxConcurrentRuns, 1)
+	floor := shared.EnvIntMin("TEST_GENIE_MIN_CONCURRENT_RUNS", defaultMinConcurrentRuns, 1)
+	if floor > ceiling {
+		log.Printf("TEST_GENIE_MIN_CONCURRENT_RUNS=%d exceeds ceiling=%d; using ceiling for both", floor, ceiling)
+		floor = ceiling
+	}
 	return &Manager{
-		base:                base,
-		cancelBase:          cancel,
-		exec:                exec,
-		scenariosRoot:       strings.TrimSpace(scenariosRoot),
-		heartbeat:           HeartbeatInterval(),
-		maxRunsPerScenario:  maxRunsPerScenarioFromEnv(),
-		maxConcurrentRuns:   maxConcurrentRunsFromEnv(),
-		maxQueuedRuns:       boundedIntFromEnv("TEST_GENIE_MAX_QUEUED_RUNS", defaultMaxQueuedRuns),
-		maxQueuedPerCaller:  boundedIntFromEnv("TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER", defaultMaxQueuedPerCaller),
-		maxPreviewPerCaller: boundedIntFromEnv("TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER", defaultMaxPreviewPerCaller),
-		previewTokens:       make(chan struct{}, boundedIntFromEnv("TEST_GENIE_MAX_PREVIEW_RUNS", defaultMaxPreviewRuns)),
-		previewByCaller:     make(map[string]int),
-		runs:                make(map[string]*activeRun),
+		base:                    base,
+		cancelBase:              cancel,
+		exec:                    exec,
+		scenariosRoot:           strings.TrimSpace(scenariosRoot),
+		heartbeat:               HeartbeatInterval(),
+		maxRunsPerScenario:      shared.EnvIntMin("TEST_GENIE_MAX_RUNS_PER_SCENARIO", defaultMaxRunsPerScenario, 1),
+		maxConcurrentRuns:       ceiling,
+		minConcurrentRuns:       floor,
+		effectiveConcurrent:     ceiling,
+		maxQueuedRuns:           shared.EnvIntMin("TEST_GENIE_MAX_QUEUED_RUNS", defaultMaxQueuedRuns, 1),
+		maxQueuedPerCaller:      shared.EnvIntMin("TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER", defaultMaxQueuedPerCaller, 1),
+		maxQueuedPerReservation: shared.EnvIntMin("TEST_GENIE_MAX_QUEUED_RUNS_PER_RESERVATION", defaultMaxQueuedPerReservation, 1),
+		maxPreviewPerCaller:     shared.EnvIntMin("TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER", defaultMaxPreviewPerCaller, 1),
+		previewTokens:           make(chan struct{}, shared.EnvIntMin("TEST_GENIE_MAX_PREVIEW_RUNS", defaultMaxPreviewRuns, 1)),
+		previewByCaller:         make(map[string]int),
+		reservations:            make(map[string]*reservationState),
+		runs:                    make(map[string]*activeRun),
 	}
 }
 
@@ -286,7 +340,59 @@ func (m *Manager) WithArtifactRootResolver(resolve func(string) (string, error))
 	return m
 }
 
-type SaturatedError struct{ Limit string }
+// WithRunClaimReleaser wires the shared capacity ledger's run cleanup into the
+// terminal lifecycle. Claims are released before a run is retired or a queued
+// successor is promoted.
+func (m *Manager) WithRunClaimReleaser(releaser RunClaimReleaser) *Manager {
+	if m != nil {
+		m.claimReleaser = releaser
+	}
+	return m
+}
+
+// WithSuiteEnvelopeProvider wires measured suite envelopes into admission
+// status. Provider failures are omitted from the bounded status response.
+func (m *Manager) WithSuiteEnvelopeProvider(provider SuiteEnvelopeProvider) *Manager {
+	if m != nil {
+		m.suiteEnvelopes = provider
+	}
+	return m
+}
+
+// SetCapacityBroker enables suite-level shadow admission. The verdict is
+// released immediately and does not alter the integer admission rule.
+func (m *Manager) SetCapacityBroker(broker SuiteCapacityBroker) *Manager {
+	if m != nil {
+		m.suiteCapacity = broker
+	}
+	return m
+}
+
+// EnableAdaptiveConcurrency activates the floor/ceiling controller after its
+// shadow-evidence gate has been accepted. It is intentionally opt-in so the
+// Phase 12 probe cannot change scheduling behavior.
+func (m *Manager) EnableAdaptiveConcurrency() *Manager {
+	if m != nil {
+		m.mu.Lock()
+		m.adaptiveEnabled = true
+		// Start from the safety floor when the evidence gate enables the
+		// controller. The controller can earn capacity through three clean
+		// grants; it must never inherit an unearned configured ceiling.
+		m.effectiveConcurrent = m.minConcurrentRuns
+		m.consecutiveGrants = 0
+		m.lastConcurrencyVerdict = "enabled at floor"
+		m.mu.Unlock()
+	}
+	return m
+}
+
+type SaturatedError struct {
+	Limit             string
+	Occupancy         int
+	ConfiguredLimit   int
+	FIFOPosition      int
+	RetryAfterSeconds int
+}
 
 func (e *SaturatedError) Error() string {
 	return fmt.Sprintf("test-genie admission is saturated (%s); retry after an active run advances or completes", e.Limit)
@@ -306,9 +412,11 @@ func (m *Manager) TryAcquirePreviewFor(caller string) (func(), error) {
 	caller = normalizedCaller(caller)
 	m.mu.Lock()
 	if m.previewByCaller[caller] >= m.maxPreviewPerCaller {
+		occupancy := m.previewByCaller[caller]
+		limit := m.maxPreviewPerCaller
 		m.mu.Unlock()
 		atomic.AddUint64(&m.previewRejectedTotal, 1)
-		return nil, &SaturatedError{Limit: "caller preview capacity"}
+		return nil, &SaturatedError{Limit: "caller preview capacity", Occupancy: occupancy, ConfiguredLimit: limit, RetryAfterSeconds: 30}
 	}
 	select {
 	case m.previewTokens <- struct{}{}:
@@ -327,9 +435,11 @@ func (m *Manager) TryAcquirePreviewFor(caller string) (func(), error) {
 			})
 		}, nil
 	default:
+		occupancy := len(m.previewTokens)
+		limit := cap(m.previewTokens)
 		m.mu.Unlock()
 		atomic.AddUint64(&m.previewRejectedTotal, 1)
-		return nil, &SaturatedError{Limit: "preview capacity"}
+		return nil, &SaturatedError{Limit: "preview capacity", Occupancy: occupancy, ConfiguredLimit: limit, RetryAfterSeconds: 30}
 	}
 }
 
@@ -358,12 +468,34 @@ func (m *Manager) AdmissionStatus() AdmissionSnapshot {
 		PreviewInFlight:         len(m.previewTokens),
 		MaxPreviewRuns:          cap(m.previewTokens),
 		MaxPreviewRunsPerCaller: m.maxPreviewPerCaller,
+		EffectiveConcurrency:    m.effectiveConcurrent,
+		ConcurrencyFloor:        m.minConcurrentRuns,
+		ConcurrencyCeiling:      m.maxConcurrentRuns,
+		LastConcurrencyVerdict:  m.lastConcurrencyVerdict,
 	}
 	m.mu.Unlock()
 	snapshot.PreviewRejectedTotal = atomic.LoadUint64(&m.previewRejectedTotal)
 	snapshot.QueueRejectedTotal = atomic.LoadUint64(&m.queueRejectedTotal)
 	snapshot.ScenarioRejectedTotal = atomic.LoadUint64(&m.scenarioRejectedTotal)
 	snapshot.CoalescedTotal = atomic.LoadUint64(&m.coalescedTotal)
+	snapshot.FallbackAdmissionsTotal = atomic.LoadUint64(&m.fallbackAdmissionsTotal)
+	snapshot.PhaseAdmissionsTotal = atomic.LoadUint64(&m.phaseAdmissionsTotal)
+	snapshot.ShadowDecisions = ShadowDecisionSummary{
+		WouldAdmit: atomic.LoadUint64(&m.shadowWouldAdmit),
+		WouldDefer: atomic.LoadUint64(&m.shadowWouldDefer),
+		Errors:     atomic.LoadUint64(&m.shadowErrors),
+	}
+	if snapshot.SuiteEnvelope == nil {
+		snapshot.SuiteEnvelope = []execution.SuiteEnvelopeEstimate{}
+	}
+	if m.suiteEnvelopes != nil {
+		if envelopes, err := m.suiteEnvelopes(context.Background()); err == nil {
+			snapshot.SuiteEnvelope = envelopes
+		}
+	}
+	if snapshot.SuiteEnvelope == nil {
+		snapshot.SuiteEnvelope = []execution.SuiteEnvelopeEstimate{}
+	}
 	return snapshot
 }
 
@@ -383,6 +515,147 @@ func (m *Manager) CoalescedRunID(req orchestrator.SuiteExecutionRequest) string 
 		}
 	}
 	return ""
+}
+
+// evaluateSuiteAdmission performs the suite-level capacity probe. While the
+// adaptive controller is disabled it is a pure shadow and releases its lease;
+// once enabled, a granted lease is returned for the run lifecycle.
+func (m *Manager) evaluateSuiteAdmission(ctx context.Context, req orchestrator.SuiteExecutionRequest, runID string) suiteAdmissionProbe {
+	if m.suiteCapacity == nil || m.suiteEnvelopes == nil {
+		return suiteAdmissionProbe{}
+	}
+	m.mu.Lock()
+	running, queued := m.runningCountLocked(), m.queuedCountLocked()
+	m.mu.Unlock()
+	host := sharedcapacity.HostObservation{}
+	if observer, ok := m.suiteCapacity.(SuiteHostObserver); ok {
+		if observed, observeErr := observer.ObserveHostState(ctx); observeErr == nil {
+			host = observed
+		} else {
+			log.Printf("suite shadow host observation unavailable for %s: %v", runID, observeErr)
+		}
+	}
+	estimates, err := m.suiteEnvelopes(ctx)
+	if err != nil {
+		atomic.AddUint64(&m.shadowErrors, 1)
+		m.applyShadowVerdict("error")
+		m.recordShadowDecision(runID, req, "error", "envelope provider: "+err.Error(), execution.SuiteEnvelopeEstimate{}, running, queued, host)
+		return suiteAdmissionProbe{}
+	}
+	var estimate execution.SuiteEnvelopeEstimate
+	for _, candidate := range estimates {
+		if candidate.Scenario == strings.TrimSpace(req.ScenarioName) && candidate.Preset == strings.TrimSpace(req.Preset) {
+			estimate = candidate
+			break
+		}
+	}
+	if !estimate.Reliable {
+		m.applyShadowVerdict("unknown")
+		m.recordShadowDecision(runID, req, "unknown", "no reliable scenario/preset envelope", estimate, running, queued, host)
+		return suiteAdmissionProbe{estimate: estimate}
+	}
+	owner := sharedcapacity.OwnerIDFor("test-genie", strings.TrimSpace(runID), "suite")
+	lease, verdict, err := m.suiteCapacity.Acquire(ctx, owner, estimate.RAMBytes, estimate.CPUMilli)
+	if err != nil {
+		atomic.AddUint64(&m.shadowErrors, 1)
+		m.applyShadowVerdict("error")
+		m.recordShadowDecision(runID, req, "error", err.Error(), estimate, running, queued, host)
+		return suiteAdmissionProbe{estimate: estimate, known: true}
+	}
+	if strings.Contains(strings.ToLower(verdict.Kind), "grant") || strings.Contains(strings.ToLower(verdict.Kind), "degrad") {
+		atomic.AddUint64(&m.shadowWouldAdmit, 1)
+		m.applyShadowVerdict("admit")
+		m.recordShadowDecision(runID, req, "admit", verdict.Reason, estimate, running, queued, host)
+	} else {
+		atomic.AddUint64(&m.shadowWouldDefer, 1)
+		m.applyShadowVerdict("defer")
+		m.recordShadowDecision(runID, req, "defer", verdict.Reason, estimate, running, queued, host)
+	}
+	m.mu.Lock()
+	adaptive := m.adaptiveEnabled
+	m.mu.Unlock()
+	if !adaptive && lease != nil {
+		// Phase 12 shadowing never holds a real claim.
+		_ = lease.Release(ctx)
+		lease = nil
+	}
+	return suiteAdmissionProbe{lease: lease, estimate: estimate, known: true}
+}
+
+func (m *Manager) applyShadowVerdict(verdict string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.adaptiveEnabled {
+		return
+	}
+	switch verdict {
+	case "admit":
+		m.consecutiveGrants++
+		if m.consecutiveGrants >= 3 && m.effectiveConcurrent < m.maxConcurrentRuns {
+			m.effectiveConcurrent++
+			m.consecutiveGrants = 0
+		}
+		m.lastConcurrencyVerdict = verdict
+	case "defer":
+		m.consecutiveGrants = 0
+		m.effectiveConcurrent = m.minConcurrentRuns
+		m.lastConcurrencyVerdict = verdict
+	case "unknown", "error":
+		m.lastConcurrencyVerdict = verdict
+	}
+}
+
+type shadowDecision struct {
+	Kind                string    `json:"kind"`
+	RunID               string    `json:"runId"`
+	Scenario            string    `json:"scenario"`
+	Preset              string    `json:"preset,omitempty"`
+	Decision            string    `json:"decision"`
+	Reason              string    `json:"reason,omitempty"`
+	RAMBytes            int64     `json:"ramBytes,omitempty"`
+	CPUMilli            int64     `json:"cpuMilli,omitempty"`
+	Reliable            bool      `json:"reliable"`
+	Running             int       `json:"running"`
+	Queued              int       `json:"queued"`
+	AvailableRAMBytes   uint64    `json:"availableRamBytes"`
+	Load1               float64   `json:"load1"`
+	SwapUsedPercent     float64   `json:"swapUsedPercent"`
+	TerminalStatus      string    `json:"terminalStatus,omitempty"`
+	TerminalVerdict     string    `json:"terminalVerdict,omitempty"`
+	WallClockSeconds    float64   `json:"wallClockSeconds"`
+	WarningCount        int       `json:"warningCount"`
+	PeakSwapUsedPercent float64   `json:"peakSwapUsedPercent"`
+	RecordedAt          time.Time `json:"recordedAt"`
+}
+
+func (m *Manager) recordShadowDecision(runID string, req orchestrator.SuiteExecutionRequest, decision, reason string, estimate execution.SuiteEnvelopeEstimate, running, queued int, host sharedcapacity.HostObservation) {
+	m.appendShadowRecord(shadowDecision{
+		Kind: "decision", RunID: runID, Scenario: req.ScenarioName, Preset: req.Preset,
+		Decision: decision, Reason: reason, RAMBytes: estimate.RAMBytes, CPUMilli: estimate.CPUMilli,
+		Reliable: estimate.Reliable, Running: running, Queued: queued,
+		AvailableRAMBytes: host.AvailableRAMBytes, Load1: host.Load1, SwapUsedPercent: host.SwapUsedPercent,
+		RecordedAt: time.Now().UTC(),
+	})
+}
+
+func (m *Manager) appendShadowRecord(record shadowDecision) {
+	root := m.scenarioDir("test-genie")
+	if root == "" {
+		return
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return
+	}
+	file, err := os.OpenFile(filepath.Join(root, "shadow-admission.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.Write(append(data, '\n'))
 }
 
 func runKey(scenario, runID string) string { return scenario + "\x00" + runID }
@@ -411,6 +684,7 @@ func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 		"phaseSet=" + strings.TrimSpace(req.AdmissionPhaseSetDigest),
 		"descriptor=" + strings.TrimSpace(req.AdmissionDescriptorDigest),
 		"config=" + strings.TrimSpace(req.AdmissionConfigurationDigest),
+		"reservation=" + strings.TrimSpace(req.CollectionReservationID),
 		fmt.Sprintf("gateQuality=%t", req.RequireGateQuality),
 	}
 	return strings.Join(parts, "\x1f")
@@ -488,19 +762,21 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 
 	now := time.Now().UTC()
 	ar := &activeRun{
-		runID:        runID,
-		scenario:     scenario,
-		preset:       preset,
-		admissionKey: key,
-		caller:       caller,
-		resources:    exclusiveResources(opts.Input.Request.AdmissionResources),
-		requestedAt:  now,
-		startedAt:    now,
-		bc:           newBroadcaster(),
-		done:         make(chan struct{}),
-		status:       sharedruns.StatusInProgress,
-		lastEventAt:  now,
-		etaTotal:     opts.EstimatedTotalSeconds,
+		runID:                  runID,
+		scenario:               scenario,
+		preset:                 preset,
+		admissionKey:           key,
+		caller:                 caller,
+		resources:              exclusiveResources(opts.Input.Request.AdmissionResources),
+		reservationID:          strings.TrimSpace(opts.Input.Request.CollectionReservationID),
+		reservationMemberCount: opts.Input.Request.CollectionReservationMemberCount,
+		requestedAt:            now,
+		startedAt:              now,
+		bc:                     newBroadcaster(),
+		done:                   make(chan struct{}),
+		status:                 sharedruns.StatusInProgress,
+		lastEventAt:            now,
+		etaTotal:               opts.EstimatedTotalSeconds,
 	}
 	runCtx, cancel := context.WithCancel(m.base)
 	ar.cancel = cancel
@@ -510,6 +786,9 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	// immediately reports a queue wait of zero, which is true; a run that waits
 	// has this value re-attached by the dispatcher when its slot opens.
 	ar.input.Request.RequestedAt = now
+	probe := m.evaluateSuiteAdmission(runCtx, ar.input.Request, runID)
+	ar.suiteLease, ar.suiteEstimate, ar.suiteEstimateKnown = probe.lease, probe.estimate, probe.known
+	m.observeShadowSwap(ar, runCtx)
 
 	m.mu.Lock()
 	// Enumerate in-progress runs of this scenario (ignoring terminal lingerers).
@@ -548,22 +827,66 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		cancel()
 		return StartResult{}, fmt.Errorf("run %s is already active", runID)
 	}
+	m.expireReservationsLocked(now)
 	// Global concurrency gate: if the host is already running the maximum number
 	// of suites (across ALL scenarios, including the background fleet sweep),
 	// admit this one as queued rather than rejecting it. The dispatcher promotes
 	// it FIFO when a slot frees. Otherwise it starts immediately.
-	queued := m.runningCountLocked() >= m.maxConcurrentRuns || m.resourceConflictLocked(ar, nil)
+	queued := m.runningCountLocked() >= m.concurrencyLimitLocked() || m.resourceConflictLocked(ar, nil)
 	if queued && m.queuedCountLocked() >= m.maxQueuedRuns {
+		occupancy := m.queuedCountLocked()
+		limit := m.maxQueuedRuns
 		m.mu.Unlock()
 		cancel()
 		atomic.AddUint64(&m.queueRejectedTotal, 1)
-		return StartResult{}, &SaturatedError{Limit: "queued run capacity"}
+		return StartResult{}, &SaturatedError{Limit: "queued run capacity", Occupancy: occupancy, ConfiguredLimit: limit, FIFOPosition: occupancy + 1, RetryAfterSeconds: 30}
 	}
-	if queued && m.queuedCountForCallerLocked(caller) >= m.maxQueuedPerCaller {
-		m.mu.Unlock()
-		cancel()
-		atomic.AddUint64(&m.queueRejectedTotal, 1)
-		return StartResult{}, &SaturatedError{Limit: "caller queued run capacity"}
+	if queued {
+		reservation := strings.TrimSpace(ar.reservationID)
+		if reservation != "" {
+			occupancy := m.queuedCountForReservationLocked(reservation)
+			if occupancy >= m.maxQueuedPerReservation {
+				m.mu.Unlock()
+				cancel()
+				atomic.AddUint64(&m.queueRejectedTotal, 1)
+				return StartResult{}, &SaturatedError{Limit: "reservation queued run capacity", Occupancy: occupancy, ConfiguredLimit: m.maxQueuedPerReservation, FIFOPosition: occupancy + 1, RetryAfterSeconds: 30}
+			}
+		} else if occupancy := m.queuedCountForCallerLocked(caller); occupancy >= m.maxQueuedPerCaller {
+			m.mu.Unlock()
+			cancel()
+			atomic.AddUint64(&m.queueRejectedTotal, 1)
+			return StartResult{}, &SaturatedError{Limit: "caller queued run capacity", Occupancy: occupancy, ConfiguredLimit: m.maxQueuedPerCaller, FIFOPosition: occupancy + 1, RetryAfterSeconds: 30}
+		}
+	}
+	var retentionLeaseOwner string
+	if ar.input.Request.RetainForEvidence {
+		retentionLeaseOwner = "test-genie:evidence:" + runID
+		reason := strings.TrimSpace(ar.input.Request.RetentionReason)
+		if reason == "" {
+			reason = "server-owned calibration/evidence run"
+		}
+		if _, err := sharedruns.NewPinLeaseStore(m.scenarioDir(scenario)).Grant(
+			runID, retentionLeaseOwner, reason, sharedruns.DefaultPinLeaseTTL, now,
+		); err != nil {
+			lease := ar.suiteLease
+			ar.suiteLease = nil
+			m.mu.Unlock()
+			cancel()
+			m.releaseSuiteLease(lease)
+			return StartResult{}, fmt.Errorf("grant evidence retention lease for %s: %w", runID, err)
+		}
+	}
+	if ar.reservationID != "" {
+		reservation := m.reservations[ar.reservationID]
+		if reservation == nil {
+			reservation = &reservationState{declaredMembers: ar.reservationMemberCount, createdAt: now, lastActivityAt: now}
+			m.reservations[ar.reservationID] = reservation
+		} else {
+			reservation.lastActivityAt = now
+			if ar.reservationMemberCount > 0 && reservation.declaredMembers == 0 {
+				reservation.declaredMembers = ar.reservationMemberCount
+			}
+		}
 	}
 	if queued {
 		ar.setStatus(sharedruns.StatusQueued)
@@ -590,14 +913,22 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		DescriptorSnapshotDigest: strings.TrimSpace(ar.input.Request.AdmissionDescriptorDigest),
 		TreeDigest:               strings.TrimSpace(ar.input.Request.AdmissionTreeDigest),
 	}); err != nil {
+		if retentionLeaseOwner != "" {
+			_ = sharedruns.NewPinLeaseStore(m.scenarioDir(scenario)).Revoke(runID, retentionLeaseOwner)
+		}
 		delete(m.runs, runKey(scenario, runID))
+		lease := ar.suiteLease
+		ar.suiteLease = nil
 		m.mu.Unlock()
 		cancel()
+		m.releaseSuiteLease(lease)
 		return StartResult{}, fmt.Errorf("persist admitted run %s/%s: %w", scenario, runID, err)
 	}
 	m.mu.Unlock()
 
 	if queued {
+		m.releaseSuiteLease(ar.suiteLease)
+		ar.suiteLease = nil
 		ar.bc.publish(Event{Kind: EventRunQueued, RunID: runID, Scenario: scenario, Preset: preset})
 		return StartResult{RunID: runID}, nil
 	}
@@ -608,6 +939,15 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	m.wg.Add(1)
 	go m.drive(runCtx, ar, opts.Input)
 	return StartResult{RunID: runID}, nil
+}
+
+func (m *Manager) releaseSuiteLease(lease sharedcapacity.Lease) {
+	if lease == nil {
+		return
+	}
+	if err := lease.Release(context.Background()); err != nil {
+		log.Printf("suite capacity lease cleanup failed: %v", err)
+	}
 }
 
 // runningCountLocked returns the number of runs currently executing (status
@@ -621,6 +961,19 @@ func (m *Manager) runningCountLocked() int {
 		}
 	}
 	return n
+}
+
+func (m *Manager) concurrencyLimitLocked() int {
+	limit := m.effectiveConcurrent
+	if limit <= 0 {
+		limit = m.maxConcurrentRuns
+	}
+	// Tests and legacy embedders may adjust the operator ceiling after New;
+	// never let a stale effective value exceed that hard safety bound.
+	if m.maxConcurrentRuns > 0 && limit > m.maxConcurrentRuns {
+		limit = m.maxConcurrentRuns
+	}
+	return limit
 }
 
 func (m *Manager) queuedCountLocked() int {
@@ -643,6 +996,42 @@ func (m *Manager) queuedCountForCallerLocked(caller string) int {
 	return n
 }
 
+func (m *Manager) queuedCountForReservationLocked(reservation string) int {
+	n := 0
+	for _, ar := range m.runs {
+		if ar.reservationID == reservation && ar.currentStatus() == sharedruns.StatusQueued {
+			n++
+		}
+	}
+	return n
+}
+
+func (m *Manager) expireReservationsLocked(now time.Time) {
+	for id, reservation := range m.reservations {
+		if now.Sub(reservation.lastActivityAt) >= reservationTTL {
+			delete(m.reservations, id)
+		}
+	}
+}
+
+// finishReservationLocked accounts for one terminal member. A declared
+// collection reservation is removed as soon as all declared members finish;
+// otherwise it remains available for deferred members and is bounded by TTL.
+func (m *Manager) finishReservationLocked(ar *activeRun, now time.Time) {
+	if ar == nil || ar.reservationID == "" {
+		return
+	}
+	reservation := m.reservations[ar.reservationID]
+	if reservation == nil {
+		return
+	}
+	reservation.terminalMembers++
+	reservation.lastActivityAt = now
+	if reservation.declaredMembers > 0 && reservation.terminalMembers >= reservation.declaredMembers {
+		delete(m.reservations, ar.reservationID)
+	}
+}
+
 // setStatus updates the run status under the run lock.
 func (ar *activeRun) setStatus(status string) {
 	ar.mu.Lock()
@@ -659,7 +1048,7 @@ func (ar *activeRun) setStatus(status string) {
 func (m *Manager) dispatch() {
 	m.mu.Lock()
 	var toStart []*activeRun
-	for m.runningCountLocked()+len(toStart) < m.maxConcurrentRuns {
+	for m.runningCountLocked()+len(toStart) < m.concurrencyLimitLocked() {
 		next := m.oldestQueuedLocked(toStart)
 		if next == nil {
 			break
@@ -684,6 +1073,7 @@ func (m *Manager) dispatch() {
 	m.mu.Unlock()
 
 	for _, ar := range toStart {
+		m.acquireQueuedSuiteLease(ar)
 		ar.bc.publish(Event{Kind: EventRunStarted, RunID: ar.runID, Scenario: ar.scenario, Preset: ar.preset})
 		m.wg.Add(1)
 		ar.mu.Lock()
@@ -691,6 +1081,33 @@ func (m *Manager) dispatch() {
 		ar.mu.Unlock()
 		go m.drive(ar.runCtx, ar, input)
 	}
+}
+
+func (m *Manager) acquireQueuedSuiteLease(ar *activeRun) {
+	m.mu.Lock()
+	adaptive := m.adaptiveEnabled
+	broker := m.suiteCapacity
+	m.mu.Unlock()
+	if !adaptive || broker == nil {
+		return
+	}
+	ar.mu.Lock()
+	estimate, known := ar.suiteEstimate, ar.suiteEstimateKnown
+	ar.mu.Unlock()
+	if !known || !estimate.Reliable {
+		return
+	}
+	lease, verdict, err := broker.Acquire(ar.runCtx, sharedcapacity.OwnerIDFor("test-genie", ar.runID, "suite"), estimate.RAMBytes, estimate.CPUMilli)
+	if err != nil {
+		log.Printf("queued suite capacity reacquisition failed for %s: %v", ar.runID, err)
+		return
+	}
+	if lease == nil || !(strings.Contains(strings.ToLower(verdict.Kind), "grant") || strings.Contains(strings.ToLower(verdict.Kind), "degrad")) {
+		return
+	}
+	ar.mu.Lock()
+	ar.suiteLease = lease
+	ar.mu.Unlock()
 }
 
 // oldestQueuedLocked returns the earliest-started run still in StatusQueued that
@@ -809,6 +1226,10 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	// canonical detail has already been persisted by the orchestrator. Never
 	// retain the full executor result in the live registry.
 	compactResult := orchestrator.CompactTerminalSnapshot(result)
+	if result != nil {
+		atomic.AddUint64(&m.fallbackAdmissionsTotal, uint64(result.SchedulerEstimatedAdmissions))
+		atomic.AddUint64(&m.phaseAdmissionsTotal, uint64(result.SchedulerPhaseAdmissions))
+	}
 
 	ar.mu.Lock()
 	ar.result = compactResult
@@ -826,6 +1247,27 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	status := ar.status
 	elapsed := time.Since(ar.startedAt).Seconds()
 	ar.mu.Unlock()
+	if m.suiteCapacity != nil && m.suiteEnvelopes != nil {
+		terminalVerdict := ""
+		if result != nil {
+			terminalVerdict = result.Verdict
+		}
+		if terminalVerdict == "" {
+			terminalVerdict = string(status)
+		}
+		m.appendShadowRecord(shadowDecision{
+			Kind: "outcome", RunID: ar.runID, Scenario: ar.scenario, Preset: ar.preset,
+			TerminalStatus: status, WallClockSeconds: elapsed,
+			TerminalVerdict: terminalVerdict,
+			WarningCount:    warningCount(result), PeakSwapUsedPercent: ar.shadowSwapPeak,
+			RecordedAt: time.Now().UTC(),
+		})
+	}
+	ar.mu.Lock()
+	suiteLease := ar.suiteLease
+	ar.suiteLease = nil
+	ar.mu.Unlock()
+	m.releaseSuiteLease(suiteLease)
 
 	if aborted {
 		// The orchestrator's finalize wrote passed/failed from partial results;
@@ -841,6 +1283,9 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 		// stalled-baseline incident.
 		m.reconcileDurableTerminal(ar.scenario, ar.runID, status, result)
 	}
+	m.mu.Lock()
+	m.finishReservationLocked(ar, time.Now().UTC())
+	m.mu.Unlock()
 
 	term := Event{
 		Kind:           EventRunCompleted,
@@ -869,10 +1314,22 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	}
 	ar.bc.publish(term)
 	ar.bc.close()
+	if m.claimReleaser != nil {
+		if releaseErr := m.claimReleaser.ReleaseRun(context.Background(), ar.scenario, ar.runID); releaseErr != nil {
+			log.Printf("run capacity claim cleanup failed for %s/%s: %v", ar.scenario, ar.runID, releaseErr)
+		}
+	}
 
 	m.retire(ar)
 	// This run released its concurrency slot; promote any waiters.
 	m.dispatch()
+}
+
+func warningCount(result *orchestrator.SuiteExecutionResult) int {
+	if result == nil {
+		return 0
+	}
+	return len(result.Warnings)
 }
 
 // terminalFailureResult preserves the executor error in the canonical result
@@ -985,6 +1442,7 @@ func (m *Manager) heartbeatLoop(ar *activeRun, stop <-chan struct{}) {
 		case <-stop:
 			return
 		case <-ticker.C:
+			m.observeShadowSwap(ar, ar.runCtx)
 			ar.mu.Lock()
 			phase := ar.activePhase
 			quiet := time.Since(ar.lastEventAt)
@@ -996,6 +1454,22 @@ func (m *Manager) heartbeatLoop(ar *activeRun, stop <-chan struct{}) {
 			ar.bc.publish(Event{Kind: EventPhaseHeartbeat, ElapsedSeconds: elapsed, Phase: phase, QuietSeconds: round1(quiet.Seconds())})
 		}
 	}
+}
+
+func (m *Manager) observeShadowSwap(ar *activeRun, ctx context.Context) {
+	observer, ok := m.suiteCapacity.(SuiteHostObserver)
+	if !ok {
+		return
+	}
+	host, err := observer.ObserveHostState(ctx)
+	if err != nil {
+		return
+	}
+	ar.mu.Lock()
+	if host.SwapUsedPercent > ar.shadowSwapPeak {
+		ar.shadowSwapPeak = host.SwapUsedPercent
+	}
+	ar.mu.Unlock()
 }
 
 // retire drops the run from the registry after a grace window so late callers
@@ -1159,6 +1633,9 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 		m.mu.Unlock()
 		ar.cancel()
 		m.markIndexAborted(ar.scenario, ar.runID, nil)
+		m.mu.Lock()
+		m.finishReservationLocked(ar, time.Now().UTC())
+		m.mu.Unlock()
 		ar.bc.publish(Event{Kind: EventRunCompleted, RunID: ar.runID, Scenario: ar.scenario, Status: sharedruns.StatusAborted, Verdict: "ABORTED"})
 		ar.bc.close()
 		close(ar.done)
@@ -1451,6 +1928,9 @@ func (m *Manager) scenarioDir(scenario string) string {
 }
 
 func (m *Manager) snapshot(ar *activeRun) LiveStatus {
+	m.mu.Lock()
+	queuePosition, queueWait, queueKnown := m.queueWaitEstimateLocked(ar)
+	m.mu.Unlock()
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
@@ -1479,6 +1959,9 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 		ElapsedSeconds:              round1(elapsed),
 		EstimatedTotalSeconds:       ar.etaTotal,
 		EstimatedRemainingSeconds:   remaining,
+		QueuePosition:               queuePosition,
+		EstimatedQueueWaitSeconds:   queueWait,
+		QueueWaitKnown:              queueKnown,
 		ETAKnown:                    etaKnown,
 		RecommendedNextCheckSeconds: recommendedNextCheck(ar.status, remaining, etaKnown),
 		Active:                      true,
@@ -1495,6 +1978,32 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 		ls.Error = ar.err.Error()
 	}
 	return ls
+}
+
+func (m *Manager) queueWaitEstimateLocked(target *activeRun) (int, int, bool) {
+	if target.currentStatus() != sharedruns.StatusQueued {
+		return 0, 0, false
+	}
+	position := 1
+	wait := 0
+	known := false
+	for _, other := range m.runs {
+		if other.currentStatus() == sharedruns.StatusQueued && other.startedAt.Before(target.startedAt) {
+			position++
+		}
+		if other.currentStatus() != sharedruns.StatusInProgress || other.etaTotal <= 0 {
+			continue
+		}
+		known = true
+		remaining := other.etaTotal - int(time.Since(other.startedAt).Seconds())
+		if remaining > wait {
+			wait = remaining
+		}
+	}
+	if !known {
+		return position, 0, false
+	}
+	return position, wait, true
 }
 
 func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*commonv1.PhasePresentation, []*runspb.PhaseFindingsSummary) {

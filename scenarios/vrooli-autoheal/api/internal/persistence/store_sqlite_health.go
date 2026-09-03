@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -188,22 +189,28 @@ func (s *Store) cleanupOldResultsSQLite(ctx context.Context, retentionHours int)
 
 func (s *Store) pruneOperationalHistorySQLite(ctx context.Context, before time.Time, batchSize int) (RetentionResult, error) {
 	if batchSize <= 0 {
-		batchSize = defaultRetentionBatchSize
+		batchSize = coreRetention.DefaultBatchSize
 	}
-	cutoff := before.UTC().Format(time.RFC3339Nano)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return RetentionResult{}, err
+	maxAge := time.Since(before)
+	if maxAge <= 0 {
+		return RetentionResult{}, nil
 	}
-	defer func() { _ = tx.Rollback() }()
 	prune := func(table, column string) (int64, error) {
-		query := fmt.Sprintf("DELETE FROM %s WHERE rowid IN (SELECT rowid FROM %s WHERE %s < ? ORDER BY %s LIMIT ?)", table, table, column, column)
-		result, err := tx.ExecContext(ctx, query, cutoff, batchSize)
+		pruner, err := coreRetention.NewSQLiteTablePruner(coreRetention.SQLiteTableConfig{
+			DB: s.db, Path: "autoheal.sqlite", Table: table, TimeColumn: column,
+			BatchSize: batchSize, MaxDuration: 10 * time.Minute,
+			// The caller's database path may be routed or in-memory. Keep this
+			// shared engine responsible for selection while disabling compaction
+			// here; the scenario's existing database lifecycle owns that decision.
+			FreeSpace: func(string) (int64, error) { return 0, nil },
+		})
 		if err != nil {
 			return 0, err
 		}
-		return result.RowsAffected()
+		result, err := pruner.Prune(ctx, coreRetention.Budget{Name: table, MaxAge: maxAge})
+		return result.Deleted, err
 	}
+	var err error
 	var out RetentionResult
 	if out.HealthResults, err = prune("health_results", "created_at"); err != nil {
 		return RetentionResult{}, fmt.Errorf("prune health results: %w", err)
@@ -213,9 +220,6 @@ func (s *Store) pruneOperationalHistorySQLite(ctx context.Context, before time.T
 	}
 	if out.SystemEvents, err = prune("system_events", "occurred_at"); err != nil {
 		return RetentionResult{}, fmt.Errorf("prune system events: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return RetentionResult{}, err
 	}
 	return out, nil
 }

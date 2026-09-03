@@ -26,6 +26,7 @@ func TestSelfHealAllowedFreshState(t *testing.T) {
 	}
 }
 
+// [REQ:AUTOHEAL-P0-014]
 func TestSelfHealBudgetExhaustsWithinWindow(t *testing.T) {
 	now := time.Now()
 	state := selfHealState{WindowStartedAt: now, Attempts: selfHealMaxAttempts}
@@ -51,6 +52,7 @@ func TestSelfHealBudgetResetsAfterWindow(t *testing.T) {
 
 // The breaker must survive process restart. Without persistence a crash-loop
 // would grant a fresh budget every cycle, which defeats the whole point.
+// [REQ:AUTOHEAL-P0-014]
 func TestSelfHealSuspensionBlocksEvenInNewWindow(t *testing.T) {
 	now := time.Now()
 	state := selfHealState{
@@ -68,6 +70,7 @@ func TestSelfHealSuspensionBlocksEvenInNewWindow(t *testing.T) {
 	}
 }
 
+// [REQ:AUTOHEAL-P0-014]
 func TestRecordSelfHealAttemptTripsBreaker(t *testing.T) {
 	now := time.Now()
 	state := selfHealState{}
@@ -116,7 +119,7 @@ func TestLoadSelfHealStateToleratesCorruption(t *testing.T) {
 
 func TestAttemptSelfHealIgnoresUnrelatedFailure(t *testing.T) {
 	config := &Config{VrooliRoot: t.TempDir(), ScenarioName: "vrooli-autoheal"}
-	outcome := attemptSelfHeal(config, "connection refused talking to postgres")
+	outcome := attemptSelfHeal(context.Background(), config, "connection refused talking to postgres")
 	if outcome.Attempted {
 		t.Fatal("a non-drift failure must not trigger recovery")
 	}
@@ -127,7 +130,7 @@ func TestAttemptSelfHealIgnoresUnrelatedFailure(t *testing.T) {
 
 func TestAttemptSelfHealRequiresOutput(t *testing.T) {
 	config := &Config{VrooliRoot: t.TempDir(), ScenarioName: "vrooli-autoheal"}
-	if outcome := attemptSelfHeal(config, "   "); outcome.Attempted {
+	if outcome := attemptSelfHeal(context.Background(), config, "   "); outcome.Attempted {
 		t.Fatal("empty output must not trigger recovery")
 	}
 }
@@ -166,7 +169,7 @@ func TestAttemptSelfHealRecoversOutageSignature(t *testing.T) {
 	t.Setenv("HOME", filepath.Join(root, "home"))
 
 	config := &Config{VrooliRoot: root, ScenarioName: "vrooli-autoheal"}
-	outcome := attemptSelfHeal(config, outageFailureOutput)
+	outcome := attemptSelfHeal(context.Background(), config, outageFailureOutput)
 
 	if !outcome.Attempted {
 		t.Fatalf("outage signature must engage the floor: %s", outcome.Detail)
@@ -202,7 +205,7 @@ func TestAttemptSelfHealNoOpIsNotHealed(t *testing.T) {
 	t.Setenv("HOME", filepath.Join(root, "home"))
 
 	config := &Config{VrooliRoot: root, ScenarioName: "vrooli-autoheal"}
-	outcome := attemptSelfHeal(config, outageFailureOutput)
+	outcome := attemptSelfHeal(context.Background(), config, outageFailureOutput)
 
 	if !outcome.Attempted {
 		t.Fatal("floor should have engaged")

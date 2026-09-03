@@ -99,20 +99,10 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			// removing the whole capture.
 			TopLevelEntries: true,
 		}),
-		NewCacheProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
-			ID:          "go-build-cache",
-			Name:        "Go build cache",
-			Roots:       deps.GoBuildCacheRoots,
-			Description: "Remove aged Go build cache entries",
-		}),
-		NewCacheProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
-			ID:          "playwright-cache",
-			Name:        "Playwright browser cache",
-			Roots:       deps.PlaywrightCacheRoots,
-			Description: "Remove aged Playwright browser cache entries",
-		}),
-		NewDockerProvider(deps.Docker),
-		NewJournalProvider(deps.Journal),
+		NewDockerProvider(deps.Docker, deps.Broker),
+		NewJournalProvider(deps.Journal, deps.Broker),
+		NewLogVolumeProvider(deps.FileSystem, deps.Broker),
+		NewDockerUnusedVolumesProvider(deps.Docker, deps.Broker),
 		NewCommandMetadataProvider(CommandProviderConfig{
 			ID:                 "apt-metadata",
 			Name:               "APT metadata",
@@ -126,7 +116,7 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 		}, deps.ProcessRunner),
 	}
 	if deps.DockerImageLedger != nil {
-		providers = append(providers, NewDockerUnusedImagesProvider(deps.Docker, deps.DockerImageLedger))
+		providers = append(providers, NewDockerUnusedImagesProvider(deps.Docker, deps.DockerImageLedger, deps.Broker))
 	}
 	if deps.OllamaModelProvider != nil {
 		providers = append(providers, deps.OllamaModelProvider)
@@ -134,6 +124,19 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	providers = append(providers, OwnerScenarioProviders(deps.OwnerProviderConfigs, deps.OwnerScenarioClient)...)
 	for _, cfg := range deps.RuntimeHomeProviders {
 		providers = append(providers, NewRuntimeHomeProvider(deps.FileSystem, deps.Clock, cfg))
+	}
+	for _, cfg := range deps.GovernedRootProviders {
+		providers = append(providers, NewCacheProvider(deps.FileSystem, deps.Clock, cfg))
+	}
+	for _, spec := range deps.GovernedRootSpecs {
+		provider, err := NewSpecProvider(deps.FileSystem, deps.Clock, spec, FileProviderConfig{})
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, provider)
+	}
+	if deps.OrphanedDatabaseProvider != nil {
+		providers = append(providers, deps.OrphanedDatabaseProvider)
 	}
 
 	for _, provider := range providers {
@@ -153,24 +156,28 @@ func OwnerScenarioProviders(configs []OwnerProviderConfig, client cleanup.Scenar
 }
 
 type BuiltInDeps struct {
-	FileSystem           cleanup.FileSystem
-	ProcessLiveness      cleanup.ProcessLiveness
-	ProcessRunner        cleanup.ProcessRunner
-	Docker               cleanup.DockerClient
-	DockerImageLedger    imageUsageLedger
-	OllamaModelProvider  cleanup.Provider
-	Journal              cleanup.JournalClient
-	OwnerScenarioClient  cleanup.ScenarioProviderClient
-	OwnerProviderConfigs []OwnerProviderConfig
-	Clock                cleanup.Clock
-	TrashRoots           []string
-	TmpRoots             []string
-	ScratchRoots         []string
-	GoBuildCacheRoots    []string
-	PlaywrightCacheRoots []string
-	ScenarioBinariesRoot string
-	RuntimeHomeProviders []FileProviderConfig
-	Saturated            func(context.Context) (bool, error)
+	FileSystem               cleanup.FileSystem
+	ProcessLiveness          cleanup.ProcessLiveness
+	ProcessRunner            cleanup.ProcessRunner
+	Docker                   cleanup.DockerClient
+	DockerImageLedger        imageUsageLedger
+	OllamaModelProvider      cleanup.Provider
+	Journal                  cleanup.JournalClient
+	Broker                   cleanup.BrokerActionClient
+	OwnerScenarioClient      cleanup.ScenarioProviderClient
+	OwnerProviderConfigs     []OwnerProviderConfig
+	Clock                    cleanup.Clock
+	TrashRoots               []string
+	TmpRoots                 []string
+	ScratchRoots             []string
+	GoBuildCacheRoots        []string
+	PlaywrightCacheRoots     []string
+	ScenarioBinariesRoot     string
+	RuntimeHomeProviders     []FileProviderConfig
+	GovernedRootProviders    []FileProviderConfig
+	GovernedRootSpecs        []RootSpec
+	OrphanedDatabaseProvider cleanup.Provider
+	Saturated                func(context.Context) (bool, error)
 	// RemovalLedger makes reclamations attributable. A built-in that deletes
 	// install-root artifacts refuses to run without it.
 	RemovalLedger *artifactledger.Ledger

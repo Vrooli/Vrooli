@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -77,10 +78,24 @@ func loadDefaultCatalogFromDescriptors(defaultTimeout time.Duration) (*Catalog, 
 	return NewCatalogFromSpecs(defaultTimeout, SpecsFromRegistry(registry)...), nil
 }
 
+// defaultRepoRoot resolves the repository root that holds
+// scenarios/*/.vrooli/test-genie.json. The control plane exports VROOLI_ROOT
+// (and VROOLI_SCENARIO_DIR) to every scenario process; runtime.Caller is only a
+// development fallback because a -trimpath build reports a relative source
+// path, which would resolve to "../.." and find nothing.
 func defaultRepoRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" && filepath.IsAbs(root) {
+		return filepath.Clean(root), nil
+	}
+	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); dir != "" && filepath.IsAbs(dir) {
+		return filepath.Clean(filepath.Join(dir, "..", "..")), nil
+	}
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", fmt.Errorf("runtime.Caller failed")
+	}
+	if !filepath.IsAbs(file) {
+		return "", fmt.Errorf("resolve repo root: VROOLI_ROOT is unset and the binary was built with -trimpath (source path %q)", file)
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "..")), nil
 }

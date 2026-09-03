@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
-	"workspace-sandbox/internal/rlimitexec"
+	"github.com/vrooli/platform-go/rlimitexec"
 )
 
 // init intercepts the rlimit-exec self-exec shim invocation before main runs.
@@ -21,13 +20,8 @@ import (
 // process that is not lifecycle-managed). For a normal server start or
 // `go test`, os.Args[1] is never the shim subcommand, so this is a no-op.
 func init() {
-	if len(os.Args) <= 1 || os.Args[1] != rlimitexec.Subcommand {
-		return
+	if rlimitexec.MaybeRun(os.Args) {
+		// Unreachable on success: the exec replaced the process image.
+		os.Exit(0)
 	}
-	if err := rlimitexec.Run(os.Args[2:]); err != nil {
-		fmt.Fprintf(os.Stderr, "workspace-sandbox-api %s: %v\n", rlimitexec.Subcommand, err)
-		os.Exit(1)
-	}
-	// Unreachable on success: rlimitexec.Run's exec replaces the process image.
-	os.Exit(0)
 }

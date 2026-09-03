@@ -3,6 +3,7 @@ package scenarios
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	vroolicli "github.com/vrooli/vrooli-cli-go"
@@ -62,7 +63,7 @@ func TestVrooliScenarioListerMapsTypedFields(t *testing.T) {
 	}
 }
 
-func TestVrooliScenarioListerInjectsNoStaleCheck(t *testing.T) {
+func TestVrooliScenarioListerPassesNoGlobalFlags(t *testing.T) {
 	runner := &recordingRunner{output: `{"success":true,"scenarios":[]}`}
 	withStubClient(t, runner)
 
@@ -73,9 +74,12 @@ func TestVrooliScenarioListerInjectsNoStaleCheck(t *testing.T) {
 	if runner.gotName != "vrooli" {
 		t.Fatalf("command = %q, want vrooli", runner.gotName)
 	}
-	wantArgs := []string{"--no-stale-check", "scenario", "list", "--json"}
+	wantArgs := []string{"scenario", "list", "--json"}
 	if !reflect.DeepEqual(runner.gotArgs, wantArgs) {
 		t.Fatalf("args = %v, want %v", runner.gotArgs, wantArgs)
+	}
+	if strings.HasPrefix(runner.gotArgs[0], "--") {
+		t.Fatalf("args = %v, want no leading global flag", runner.gotArgs)
 	}
 }
 

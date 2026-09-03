@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import { BusyPill } from "./BusyPill";
 import type { PlaybooksClaim } from "../../lib/api";
 import * as api from "../../lib/api";

@@ -19,15 +19,15 @@ func TestRegisterBuildsCleanupCommandsFromManifest(t *testing.T) {
 	if group.Name != GroupName {
 		t.Fatalf("group name = %q, want %q", group.Name, GroupName)
 	}
-	if got := len(group.Subcommands); got != 7 {
-		t.Fatalf("cleanup subcommand count = %d, want 7", got)
+	if got := len(group.Subcommands); got != 12 {
+		t.Fatalf("cleanup subcommand count = %d, want 12", got)
 	}
 
 	names := map[string]bool{}
 	for _, cmd := range group.Subcommands {
 		names[cmd.Name] = true
 	}
-	for _, want := range []string{"providers", "policy", "set-profile", "plan", "apply", "report-pressure", "audit"} {
+	for _, want := range []string{"providers", "policy", "set-profile", "plan", "apply", "report-pressure", "audit", "tiers", "roots", "run", "wait", "history"} {
 		if !names[want] {
 			t.Fatalf("cleanup command %q missing from %#v", want, names)
 		}

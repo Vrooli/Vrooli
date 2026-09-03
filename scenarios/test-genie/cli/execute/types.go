@@ -24,6 +24,9 @@ type Args struct {
 	Skip                   []string
 	PhaseWarnings          []string
 	DiagnosticsPreset      string
+	CaptureProfile         string
+	RetainForEvidence      bool
+	RetentionReason        string
 	FailFast               bool
 	Wait                   bool // Force block-to-completion inline (CI / lifecycle); never auto-background
 	JSON                   bool

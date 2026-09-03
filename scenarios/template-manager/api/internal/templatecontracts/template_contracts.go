@@ -43,21 +43,26 @@ type TemplateDesign struct {
 }
 
 type TemplateManifest struct {
-	Name          string                 `json:"name,omitempty"`
-	Version       string                 `json:"version,omitempty"`
-	DisplayName   string                 `json:"displayName,omitempty"`
-	Description   string                 `json:"description,omitempty"`
-	Stack         []string               `json:"stack,omitempty"`
-	StartDocument string                 `json:"startDocument,omitempty"`
-	Design        TemplateDesign         `json:"design,omitempty"`
-	Orientation   *TemplateOrientation   `json:"orientation,omitempty"`
-	RequiredVars  map[string]TemplateVar `json:"requiredVars,omitempty"`
-	OptionalVars  map[string]TemplateVar `json:"optionalVars,omitempty"`
-	Docs          map[string]string      `json:"docs,omitempty"`
-	CopyExcludes  []string               `json:"copyExcludes,omitempty"`
-	PostHooks     []TemplateHook         `json:"postHooks,omitempty"`
-	Relocations   []TemplateRelocation   `json:"relocations,omitempty"`
-	ExampleDomain *TemplateExampleDomain `json:"exampleDomain,omitempty"`
+	Name string `json:"name,omitempty"`
+	// BaseTemplate lets a focused template inherit a maintained scenario
+	// skeleton while replacing selected slots. The base is resolved beside the
+	// current template under templates/scenarios.
+	BaseTemplate     string                 `json:"baseTemplate,omitempty"`
+	BaseCopyExcludes []string               `json:"baseCopyExcludes,omitempty"`
+	Version          string                 `json:"version,omitempty"`
+	DisplayName      string                 `json:"displayName,omitempty"`
+	Description      string                 `json:"description,omitempty"`
+	Stack            []string               `json:"stack,omitempty"`
+	StartDocument    string                 `json:"startDocument,omitempty"`
+	Design           TemplateDesign         `json:"design,omitempty"`
+	Orientation      *TemplateOrientation   `json:"orientation,omitempty"`
+	RequiredVars     map[string]TemplateVar `json:"requiredVars,omitempty"`
+	OptionalVars     map[string]TemplateVar `json:"optionalVars,omitempty"`
+	Docs             map[string]string      `json:"docs,omitempty"`
+	CopyExcludes     []string               `json:"copyExcludes,omitempty"`
+	PostHooks        []TemplateHook         `json:"postHooks,omitempty"`
+	Relocations      []TemplateRelocation   `json:"relocations,omitempty"`
+	ExampleDomain    *TemplateExampleDomain `json:"exampleDomain,omitempty"`
 }
 
 // TemplateExampleDomain declares the template's illustrative example domain

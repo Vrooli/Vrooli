@@ -30,12 +30,16 @@ type schedulerBrokerStub struct {
 	grantCount int
 	granted    int
 	acquires   int
+	released   *int
 }
 
 func (s *schedulerBrokerStub) Acquire(context.Context, string, int64, int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error) {
 	s.acquires++
 	if s.granted < s.grantCount {
 		s.granted++
+		if s.released != nil {
+			return trackedLease{released: s.released}, sharedcapacity.Verdict{Kind: "grant"}, nil
+		}
 		return stubLease{}, sharedcapacity.Verdict{Kind: "grant"}, nil
 	}
 	return nil, sharedcapacity.Verdict{Kind: s.kind, Reason: s.reason}, nil
@@ -69,9 +73,24 @@ func TestAdmitPhaseBatchUsesConservativeReservationWhenEstimateMissing(t *testin
 		{Name: phases.Name("unknown"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
 		{Name: phases.Name("known"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
 	}
-	leases, reason, admitted, _ := Admit(context.Background(), deps, "demo", "run-1", defs)
+	leases, reason, admitted, fallback := Admit(context.Background(), deps, "demo", "run-1", defs)
 	if admitted != 2 || len(leases) != 2 || reason != "" {
 		t.Fatalf("estimated admission = leases:%d reason:%q admitted:%d, want two granted leases without serial fallback", len(leases), reason, admitted)
+	}
+	if fallback != 1 {
+		t.Fatalf("fallback admissions = %d, want one", fallback)
+	}
+}
+
+func TestAdmitPhaseBatchReportsNoFallbackWhenEstimatesAreReliable(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{grantCount: 2}, Estimator: schedulerCostStub{}}
+	defs := []phases.Definition{
+		{Name: phases.Name("one"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("two"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+	}
+	_, _, admitted, fallback := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if admitted != 2 || fallback != 0 {
+		t.Fatalf("admitted=%d fallback=%d, want two admitted and no fallback admissions", admitted, fallback)
 	}
 }
 
@@ -109,4 +128,53 @@ func TestAdmitPhaseBatchAdmitsFullBatch(t *testing.T) {
 	if admitted != len(defs) || reason != "" {
 		t.Fatalf("admitted = %d reason = %q, want the full batch with no reason", admitted, reason)
 	}
+}
+
+func TestAdmitPhaseBatchClaimsSoloPhase(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{grantCount: 1}, Estimator: schedulerCostStub{}}
+	defs := []phases.Definition{{Name: phases.Name("expensive"), Concurrency: phases.Concurrency{Mode: "exclusive"}}}
+
+	leases, reason, admitted, fallback := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if len(leases) != 1 || reason != "" || admitted != 1 || fallback != 0 {
+		t.Fatalf("solo admission = leases:%d reason:%q admitted:%d fallback:%d, want one claim", len(leases), reason, admitted, fallback)
+	}
+}
+
+func TestAdmitPhaseBatchDeniedSoloPhaseStillMakesProgress(t *testing.T) {
+	broker := &schedulerBrokerStub{kind: "deny", reason: "host full"}
+	defs := []phases.Definition{{Name: phases.Name("expensive"), Concurrency: phases.Concurrency{Mode: "exclusive"}}}
+
+	leases, reason, admitted, fallback := Admit(context.Background(), Deps{Broker: broker, Estimator: schedulerCostStub{}}, "demo", "run-1", defs)
+	if len(leases) != 0 || reason != "host full" || admitted != 1 || fallback != 0 {
+		t.Fatalf("denied solo admission = leases:%d reason:%q admitted:%d fallback:%d, want progress prefix 1", len(leases), reason, admitted, fallback)
+	}
+	if broker.acquires != 1 {
+		t.Fatalf("broker acquisitions = %d, want one claim attempt", broker.acquires)
+	}
+}
+
+func TestAdmitPhaseBatchCallerReleasesSoloPhaseClaim(t *testing.T) {
+	released := 0
+	broker := &schedulerBrokerStub{grantCount: 1, released: &released}
+	defs := []phases.Definition{{Name: phases.Name("expensive"), Concurrency: phases.Concurrency{Mode: "exclusive"}}}
+
+	leases, _, _, _ := Admit(context.Background(), Deps{Broker: broker, Estimator: schedulerCostStub{}}, "demo", "run-1", defs)
+	if len(leases) != 1 {
+		t.Fatalf("solo leases = %d, want one", len(leases))
+	}
+	if err := leases[0].Release(context.Background()); err != nil {
+		t.Fatalf("release solo claim: %v", err)
+	}
+	if released != 1 {
+		t.Fatalf("released claims = %d, want one", released)
+	}
+}
+
+type trackedLease struct {
+	released *int
+}
+
+func (l trackedLease) Release(context.Context) error {
+	*l.released++
+	return nil
 }

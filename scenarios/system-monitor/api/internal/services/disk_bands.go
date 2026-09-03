@@ -7,25 +7,26 @@ import (
 	"strings"
 	"time"
 
+	sharedcleanup "github.com/vrooli/vrooli/scenarios/storage-manager/services/cleanupmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 )
 
 // PressureBand is how severe the current disk pressure is.
 //
 // The band, not the raw percentage, is what decides whether anything happens:
-// warning records, high asks for a cleanup preview, critical permits
-// unattended safe-tier reclamation.
+// warning records a signal, high starts bounded autonomous recovery, and
+// critical starts bounded autonomous recovery at the highest urgency.
 type PressureBand int
 
 const (
 	// BandNormal is below the warning boundary. Record the sample, alert nobody.
 	BandNormal PressureBand = iota
 	// BandWarning persists a violation and forwards it to storage-manager, which
-	// limits the resulting action to the safe tier.
+	// limits the resulting action to safe and proven regenerable tiers.
 	BandWarning
-	// BandHigh requests a conservative cleanup preview. Nothing is deleted.
+	// BandHigh starts bounded autonomous recovery through storage-manager.
 	BandHigh
-	// BandCritical permits safe-tier reclamation with no operator present.
+	// BandCritical starts bounded autonomous recovery with no operator present.
 	BandCritical
 )
 
@@ -59,12 +60,12 @@ func (b PressureBand) Severity() string {
 // classifyBand maps a usage percentage to a band using only settings-provided
 // boundaries. It is pure so the whole table can be walked in a test.
 func classifyBand(usedPercent float64, settings Settings) PressureBand {
-	switch {
-	case usedPercent >= settings.DiskCriticalPercent:
+	switch sharedcleanup.Classify(usedPercent, 1, sharedcleanup.Thresholds{Warning: settings.DiskThreshold, High: settings.DiskHighPercent, Critical: settings.DiskCriticalPercent}) {
+	case sharedcleanup.BandCritical:
 		return BandCritical
-	case usedPercent >= settings.DiskHighPercent:
+	case sharedcleanup.BandHigh:
 		return BandHigh
-	case usedPercent >= settings.DiskThreshold:
+	case sharedcleanup.BandWarning:
 		return BandWarning
 	default:
 		return BandNormal

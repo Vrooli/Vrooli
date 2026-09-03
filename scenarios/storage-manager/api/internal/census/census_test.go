@@ -233,6 +233,53 @@ func TestSnapshotStorePrunesProjectedSamplesAfterThirtyDays(t *testing.T) {
 	}
 }
 
+func TestSnapshotStoreRetainsDailyForensicSnapshotsAndExpiresOlderHistory(t *testing.T) {
+	database := apidb.NewFromPrimary(db.NewSQLite(t))
+	store := NewSnapshotStore(database)
+	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	rows := []struct {
+		id string
+		at time.Time
+	}{
+		{id: "z-early", at: now.Add(-31*24*time.Hour - time.Hour)},
+		{id: "a-late", at: now.Add(-31 * 24 * time.Hour)},
+		{id: "other-day", at: now.Add(-32 * 24 * time.Hour)},
+		{id: "expired", at: now.Add(-366 * 24 * time.Hour)},
+	}
+	for _, row := range rows {
+		if _, err := database.ExecContext(context.Background(), `INSERT INTO census_snapshots (id, observed_at, root, measured_bytes, report_json) VALUES (?, ?, ?, 1, '{}')`, row.id, row.at.Format(time.RFC3339Nano), root); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := database.ExecContext(context.Background(), `INSERT INTO census_snapshot_metrics (snapshot_id, drift_bytes) VALUES (?, 0)`, row.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.Prune(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM census_snapshots`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("forensic snapshot count = %d, want one per retained day", count)
+	}
+	var kept string
+	if err := database.QueryRowContext(context.Background(), `SELECT id FROM census_snapshots WHERE id = 'a-late'`).Scan(&kept); err != nil {
+		t.Fatalf("newest same-day snapshot was not retained: %v", err)
+	}
+	if err := database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM census_snapshot_metrics`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("forensic metric count = %d, want metrics only for retained snapshots", count)
+	}
+}
+
 func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T) {
 	database := apidb.NewFromPrimary(db.NewSQLite(t))
 	store := NewSnapshotStore(database)

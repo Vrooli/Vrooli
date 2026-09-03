@@ -134,8 +134,8 @@ while the filesystem was unwritable for the runtime supervisor.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `disk_threshold` | `80.0` | The **warning** band boundary: usage at which pressure starts being recorded. There is deliberately no separate `disk_warning_percent`; two settings for one boundary is how a configuration surface drifts from the code reading it. |
-| `disk_high_percent` | `90.0` | The **high** band: request a conservative storage-manager preview. Nothing is deleted. |
-| `disk_critical_percent` | `95.0` | The **critical** band: storage-manager applies safe-tier providers with no operator present. |
+| `disk_high_percent` | `90.0` | The **high** band: start bounded storage-manager recovery. |
+| `disk_critical_percent` | `95.0` | The **critical** band: storage-manager applies safe/regenerable providers with no operator present. |
 | `disk_escalation_cooldown_seconds` | `1800` | Minimum gap between two records for the same band. Without it a disk parked above a boundary alerts every tick. |
 | `disk_escalation_debounce_ticks` | `2` | Consecutive observations a new band needs before it takes effect, so one noisy sample cannot escalate. |
 | `disk_fast_fill_jump_percent` | `5.0` | A rise of at least this many points in one evaluation escalates immediately, bounding the delay debounce introduces. |

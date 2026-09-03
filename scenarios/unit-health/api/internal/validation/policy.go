@@ -258,7 +258,7 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 
 func validUnitTestKind(kind string) bool {
 	switch kind {
-	case "unit", "component", "repository", "integration", "workflow":
+	case "unit", "typecheck", "component", "repository", "integration", "workflow":
 		return true
 	}
 	return false

@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -15,6 +18,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
@@ -56,15 +60,6 @@ func Run(cfg *config.Config) error {
 		Timeout:     cfg.AgentManager.Timeout,
 		Enabled:     cfg.AgentManager.Enabled,
 	})
-
-	if agentSvc.IsEnabled() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := agentSvc.Initialize(ctx); err != nil {
-			slog.Warn("Failed to initialize agent-manager profile", "error", err)
-			slog.Info("Investigations require agent-manager; anomaly checks will fail until it is available")
-		}
-		cancel()
-	}
 
 	apiLog := slog.Default()
 
@@ -110,6 +105,7 @@ func Run(cfg *config.Config) error {
 	// reachable only from tests.
 	thresholdScheduler := services.NewThresholdScheduler(settingsMgr, alertSvc, repo, apiLog.With("service", "threshold"),
 		services.WithPressureReporter(cleanupmanager.NewClient(cleanupmanager.Config{})),
+		services.WithWriterSampler(defaultWriterSampler()),
 		services.WithCPUObservationSource(monitorSvc))
 	thresholdScheduler.Start()
 
@@ -168,6 +164,57 @@ func Run(cfg *config.Config) error {
 
 	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, thresholdScheduler, srv, closer)
 	return nil
+}
+
+func defaultWriterSampler() *services.WriterSampler {
+	return services.NewWriterSamplerWithInterval(defaultWriterRoots(), writerSampleInterval())
+}
+
+func writerSampleInterval() time.Duration {
+	const fallback = 60 * time.Second
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return fallback
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return fallback
+	}
+	var doc struct {
+		Storage struct {
+			Recovery struct {
+				SampleIntervalSeconds int `json:"sample_interval_seconds"`
+			} `json:"recovery"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil || doc.Storage.Recovery.SampleIntervalSeconds <= 0 {
+		return fallback
+	}
+	return time.Duration(doc.Storage.Recovery.SampleIntervalSeconds) * time.Second
+}
+
+func defaultWriterRoots() []services.GovernedRoot {
+	home, _ := os.UserHomeDir()
+	cache, _ := os.UserCacheDir()
+	goCache := os.Getenv("GOCACHE")
+	if goCache == "" {
+		goCache = filepath.Join(cache, "go-build")
+	}
+	playwright := os.Getenv("PLAYWRIGHT_BROWSERS_PATH")
+	if playwright == "" {
+		playwright = filepath.Join(cache, "ms-playwright")
+	}
+	runtimeHome := os.Getenv("VROOLI_HOME")
+	if runtimeHome == "" {
+		runtimeHome = filepath.Join(home, ".vrooli")
+	}
+	runtimeHome = strings.TrimSpace(runtimeHome)
+	return []services.GovernedRoot{
+		{ID: "go-build-cache", Root: goCache, Mount: "/", HotWriterBytesHour: 20 * 1024 * 1024 * 1024, MeasureBudget: 100 * time.Millisecond},
+		{ID: "playwright-cache", Root: playwright, Mount: "/", HotWriterBytesHour: 20 * 1024 * 1024 * 1024, MeasureBudget: 100 * time.Millisecond},
+		{ID: "var-log", Root: "/var/log", Mount: "/", HotWriterBytesHour: 20 * 1024 * 1024 * 1024, MeasureBudget: 100 * time.Millisecond},
+		{ID: "go-work-dirs", Root: filepath.Join(runtimeHome, "tmp", "go-work"), Mount: "/", HotWriterBytesHour: 1 * 1024 * 1024 * 1024, MeasureBudget: 2 * time.Second, ExpandChildren: true},
+	}
 }
 
 func connectRepository(cfg *config.Config) (io.Closer, repository.Repository, *database.RoutedDB, *filerouting.RoutedRoots, error) {

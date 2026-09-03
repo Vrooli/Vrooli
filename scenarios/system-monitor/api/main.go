@@ -15,7 +15,13 @@ import (
 func main() {
 	// preflight.Run performs the staleness/rebuild check and the lifecycle
 	// guard (direct execution outside `vrooli scenario start` is rejected).
-	if preflight.Run(preflight.Config{ScenarioName: "system-monitor"}) {
+	if preflight.Run(preflight.Config{
+		ScenarioName: "system-monitor",
+		// The lifecycle performs freshness checks before launching this binary.
+		// Repeating the repository walk here can starve the health listener and
+		// create a second compiler workload during managed startup.
+		DisableStaleness: true,
+	}) {
 		return
 	}
 

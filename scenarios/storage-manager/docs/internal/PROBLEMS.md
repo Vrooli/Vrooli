@@ -84,6 +84,6 @@ a migration handoff with a planned retirement path back into
 ## Work ladder
 
 - Rung: W0
-- Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description mentions `storage-manager`; the active user goal is external to swarm-manager. The scenario PRD/requirements therefore cannot be compared against an owning scenario goal through the deterministic W0 gate.
+- Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description mentions `storage-manager`; the active user goal is external to swarm-manager. The scenario PRD/requirements therefore cannot be compared against an owning scenario goal through the deterministic W0 gate. Rechecked 2026-09-02.
 - Blocker: contract truth is unverifiable until a named swarm-manager goal exists; implementation work may continue against the explicit user plan, but W1-W3 scenario-ladder gates must not be treated as contract proof.
-- Measured: 2026-08-25
+- Measured: 2026-09-02

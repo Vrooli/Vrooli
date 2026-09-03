@@ -8,6 +8,18 @@ import (
 	cleanupfakes "storage-manager/internal/testutil/cleanup"
 )
 
+type recordingBroker struct {
+	actions  []string
+	subjects []map[string]any
+	changed  bool
+}
+
+func (b *recordingBroker) Do(_ context.Context, action string, subject map[string]any) (cleanup.BrokerActionResult, error) {
+	b.actions = append(b.actions, action)
+	b.subjects = append(b.subjects, subject)
+	return cleanup.BrokerActionResult{Changed: b.changed}, nil
+}
+
 func TestJournalProviderUsesJournalClientAndSkipsWithoutOperatorApproval(t *testing.T) {
 	t.Parallel()
 
@@ -39,6 +51,27 @@ func TestJournalProviderUsesJournalClientAndSkipsWithoutOperatorApproval(t *test
 	}
 	if !applied.Applied || applied.ReclaimedBytes != 2048 || len(client.Vacuums) != 1 {
 		t.Fatalf("Apply() with approval = %#v vacuums=%#v, want one fake vacuum", applied, client.Vacuums)
+	}
+}
+
+func TestJournalProviderUsesBrokerForStandingApprovalPath(t *testing.T) {
+	client := &cleanupfakes.JournalClient{Usage: 2048}
+	broker := &recordingBroker{changed: true}
+	provider := NewJournalProvider(client, broker)
+	preview := cleanup.Preview{ProviderID: "journald", ProviderVersion: "v1", Items: []cleanup.PreviewItem{{Bytes: 2048}}}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: "v1", ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "standing-1", Preview: preview})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if !result.Applied || len(broker.actions) != 1 || broker.actions[0] != "journald.vacuum" {
+		t.Fatalf("result=%#v broker actions=%#v, want brokered vacuum", result, broker.actions)
+	}
+	journal, ok := broker.subjects[0]["journal"].(map[string]any)
+	if !ok || journal["max_use_bytes"] != int64(1<<30) {
+		t.Fatalf("broker subject=%#v, want one-gigabyte journal bound", broker.subjects[0])
+	}
+	if len(client.Vacuums) != 0 {
+		t.Fatalf("journal client vacuum calls=%#v, standing approval must not bypass broker", client.Vacuums)
 	}
 }
 

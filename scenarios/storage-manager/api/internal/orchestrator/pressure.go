@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -64,11 +65,22 @@ const (
 
 // PressureSignal is an inbound report from a safeguard.
 type PressureSignal struct {
-	SourceScenario string
-	Partition      string
-	UsedPercent    float64
-	Band           PressureBand
-	AvailableBytes int64
+	SourceScenario       string
+	Partition            string
+	UsedPercent          float64
+	Band                 PressureBand
+	AvailableBytes       int64
+	FillRateBytesPerHour int64
+	HotWriters           []HotWriter
+	Trigger              string
+}
+
+// HotWriter is a governed root whose observed growth rate exceeded policy.
+type HotWriter struct {
+	Root          string
+	CurrentBytes  int64
+	BytesPerHour  int64
+	WindowSeconds int64
 }
 
 // PressureOutcome is the result of handling a report.
@@ -83,6 +95,7 @@ type PressureOutcome struct {
 	Reason                 string
 	BugReference           string
 	AutonomousApplyEnabled bool
+	RunID                  string
 }
 
 // autonomousTierAllowed is the single gate deciding whether a provider may run
@@ -91,7 +104,9 @@ type PressureOutcome struct {
 // This function is correctness-critical and deliberately tiny. At the critical
 // band the system deletes without asking, so the safety-tier classification
 // becomes the only thing standing between remediation and silent data loss.
-// Only SafetyTierSafe qualifies: safe-tier artifacts are reconstructible.
+// Safe and regenerable artifacts qualify: both are explicitly contained and
+// are safe to remove without an operator. Regenerable providers additionally
+// carry NoLease proof at registry validation time.
 //
 // SafetyTierSafeWithOwner is excluded on purpose. Those providers delegate
 // deletion to another scenario and default to owner approval, so running them
@@ -101,7 +116,7 @@ type PressureOutcome struct {
 // Every autonomous execution path must route through here. Do not add a second
 // tier check elsewhere.
 func autonomousTierAllowed(tier cleanup.SafetyTier) bool {
-	return tier == cleanup.SafetyTierSafe
+	return tier == cleanup.SafetyTierSafe || tier == cleanup.SafetyTierRegenerable
 }
 
 // pressureGuard collapses duplicate reports of the same pressure event.
@@ -129,16 +144,23 @@ func newPressureGuard(window time.Duration) *pressureGuard {
 // the source scenario: two different safeguards reporting the same partition at
 // the same band are the same event, which is the whole point of the guard.
 func (g *pressureGuard) acquire(partition string, band PressureBand, now time.Time) (bool, string) {
-	key := partition + "|" + string(band)
+	return g.acquireKey(partition+"|"+string(band), now, "band")
+}
+
+func (g *pressureGuard) acquireTrigger(partition, trigger string, now time.Time) (bool, string) {
+	return g.acquireKey(partition+"|"+trigger, now, "trigger")
+}
+
+func (g *pressureGuard) acquireKey(key string, now time.Time, description string) (bool, string) {
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	if g.inFlight[key] {
-		return false, "an execution for this partition and band is already in flight"
+		return false, "an execution for this partition and " + description + " is already in flight"
 	}
 	if last, ok := g.lastRun[key]; ok && now.Sub(last) < g.window {
-		return false, fmt.Sprintf("an execution for this partition and band completed %s ago, within the %s deduplication window", now.Sub(last).Truncate(time.Second), g.window)
+		return false, fmt.Sprintf("an execution for this partition and %s completed %s ago, within the %s deduplication window", description, now.Sub(last).Truncate(time.Second), g.window)
 	}
 
 	g.inFlight[key] = true
@@ -147,7 +169,14 @@ func (g *pressureGuard) acquire(partition string, band PressureBand, now time.Ti
 
 // release clears the in-flight marker and starts the deduplication window.
 func (g *pressureGuard) release(partition string, band PressureBand, now time.Time) {
-	key := partition + "|" + string(band)
+	g.releaseKey(partition+"|"+string(band), now)
+}
+
+func (g *pressureGuard) releaseTrigger(partition, trigger string, now time.Time) {
+	g.releaseKey(partition+"|"+trigger, now)
+}
+
+func (g *pressureGuard) releaseKey(key string, now time.Time) {
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -173,16 +202,71 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 		Band:                   signal.Band,
 		AutonomousApplyEnabled: s.AutonomousApplyEnabled(),
 	}
+	if snapshots, ok := s.store.(interface {
+		SaveWriterSnapshot(context.Context, string, string, string, string, int64, int64, float64, int64, bool, bool) error
+	}); ok {
+		sampledAt := s.now().UTC().Format(time.RFC3339Nano)
+		usedBytes := int64((signal.UsedPercent / 100) * float64(signal.AvailableBytes))
+		_ = snapshots.SaveWriterSnapshot(ctx, "mount|"+sampledAt, sampledAt, signal.Partition, signal.Partition, usedBytes, signal.FillRateBytesPerHour, 1, signal.FillRateBytesPerHour, false, false)
+		activeRoots := make(map[string]struct{}, len(signal.HotWriters))
+		for i, writer := range signal.HotWriters {
+			activeRoots[filepath.Clean(strings.TrimSpace(writer.Root))] = struct{}{}
+			_ = snapshots.SaveWriterSnapshot(ctx, fmt.Sprintf("hot|%s|%d|%s", writer.Root, i, sampledAt), sampledAt, signal.Partition, writer.Root, writer.CurrentBytes, writer.BytesPerHour, float64(writer.WindowSeconds)/3600, writer.BytesPerHour, false, true)
+		}
+		if reconciler, ok := s.store.(interface {
+			MarkWritersCooled(context.Context, string, map[string]struct{}) error
+		}); ok {
+			_ = reconciler.MarkWritersCooled(ctx, sampledAt, activeRoots)
+		}
+	}
 
 	_ = s.audit(ctx, AuditEvent{
 		Type:    "pressure.reported",
 		Message: fmt.Sprintf("%s reported %s pressure on %s at %.1f%%", signal.SourceScenario, signal.Band, signal.Partition, signal.UsedPercent),
 	})
 
-	// Warning is the early counterweight: plan and run only the safe tier, while
-	// recording an operator-visible escalation for the fastest unbounded owner.
-	// Owner-delegated and conditional providers remain withheld by the same
-	// autonomousTierAllowed gate used at critical pressure.
+	// Triggered high/critical reports use the server-owned lifecycle. The
+	// sender receives a run id before any provider measurement begins, so a
+	// slow filesystem cannot hold the safeguard request open.
+	// Empty-trigger calls remain a synchronous compatibility seam for older
+	// in-process callers and are not used by live senders.
+	trigger := strings.ToUpper(strings.TrimSpace(signal.Trigger))
+	rateOrFloorTrigger := strings.Contains(trigger, "FLOOR") || strings.Contains(trigger, "RATE")
+	if signal.Band != BandWarning || rateOrFloorTrigger {
+		if trigger == "" {
+			trigger = "PRESSURE_TRIGGER_BAND"
+		}
+		if !s.AutonomousApplyEnabled() {
+			outcome.Action = ActionSuppressed
+			outcome.Reason = "autonomous apply is disabled by the kill switch; the pressure report was recorded and no recovery run was started"
+			_ = s.audit(ctx, AuditEvent{Type: "pressure.suppressed", Message: outcome.Reason})
+			return outcome, nil
+		}
+		bypassDedup := strings.Contains(trigger, "FLOOR") || strings.Contains(trigger, "RATE")
+		if !bypassDedup {
+			allowed, reason := s.pressure.acquireTrigger(signal.Partition, trigger, s.now())
+			if !allowed {
+				outcome.Action = ActionDeduplicated
+				outcome.Reason = reason
+				return outcome, nil
+			}
+			defer func() { s.pressure.releaseTrigger(signal.Partition, trigger, s.now()) }()
+		}
+		recoveryPartition := recoveryPartitionForSignal(signal)
+		run, startErr := s.StartRecovery(ctx, signal.Trigger, recoveryPartition, signal.UsedPercent, signal.AvailableBytes, 0, false)
+		if startErr != nil {
+			return PressureOutcome{}, startErr
+		}
+		outcome.Action = ActionApplied
+		outcome.RunID = run.ID
+		outcome.Reason = "recovery run started; wait for terminal result"
+		return outcome, nil
+	}
+
+	// Warning is the early counterweight: record an observation and an
+	// operator-visible escalation for the fastest unbounded owner. It does not
+	// launch a census or delete data; an explicit RATE/FLOOR trigger enters the
+	// recovery controller above.
 	if signal.Band == BandWarning {
 		allowed, reason := s.pressure.acquire(signal.Partition, signal.Band, s.now())
 		if !allowed {
@@ -192,42 +276,34 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 			return outcome, nil
 		}
 		defer func() { s.pressure.release(signal.Partition, signal.Band, s.now()) }()
-		plan, err := s.Plan(ctx, cleanup.ObservationScope{Now: s.now()})
-		if err != nil {
-			return PressureOutcome{}, fmt.Errorf("plan for warning pressure: %w", err)
+		recoveryTrigger := trigger
+		if recoveryTrigger == "" {
+			recoveryTrigger = "PRESSURE_TRIGGER_BAND"
 		}
-		outcome.PlanID = plan.ID
-		outcome.EstimatedBytes = plan.TotalBytes
+		run := s.recordObservedRecovery(ctx, recoveryTrigger, signal.Partition)
+		outcome.RunID = run.ID
 		s.fileWarningBug(ctx, signal, &outcome)
-		_ = s.audit(ctx, AuditEvent{Type: "pressure.warning_action", PlanID: plan.ID, Message: fmt.Sprintf("warning pressure on %s: safe-tier cleanup ran and growth review is required for the fastest unbounded owner", signal.Partition)})
-		return s.applyAutonomously(ctx, signal, plan, outcome)
-	}
-
-	allowed, reason := s.pressure.acquire(signal.Partition, signal.Band, s.now())
-	if !allowed {
-		outcome.Action = ActionDeduplicated
-		outcome.Reason = reason
-		_ = s.audit(ctx, AuditEvent{Type: "pressure.deduplicated", Message: reason})
+		outcome.Action = ActionObserved
+		outcome.Reason = "warning pressure observed; no recovery actions"
+		_ = s.audit(ctx, AuditEvent{Type: "pressure.warning_action", Message: fmt.Sprintf("warning pressure on %s: recorded observation and growth review; no recovery actions", signal.Partition)})
 		return outcome, nil
 	}
-	defer func() { s.pressure.release(signal.Partition, signal.Band, s.now()) }()
 
-	plan, err := s.Plan(ctx, cleanup.ObservationScope{Now: s.now()})
-	if err != nil {
-		return PressureOutcome{}, fmt.Errorf("plan for %s pressure: %w", signal.Band, err)
+	return PressureOutcome{}, fmt.Errorf("warning pressure requires an explicit recovery trigger to enter this path")
+}
+
+// recoveryPartitionForSignal narrows an unambiguous rate event to the named
+// governed root. Mount-level recovery remains the safe fallback when a sender
+// reports zero or multiple hot roots, or when the root is not absolute.
+func recoveryPartitionForSignal(signal PressureSignal) string {
+	trigger := strings.ToUpper(strings.TrimSpace(signal.Trigger))
+	if strings.Contains(trigger, "RATE") && len(signal.HotWriters) == 1 {
+		root := filepath.Clean(strings.TrimSpace(signal.HotWriters[0].Root))
+		if filepath.IsAbs(root) && root != string(filepath.Separator) {
+			return root
+		}
 	}
-	outcome.PlanID = plan.ID
-	outcome.EstimatedBytes = plan.TotalBytes
-
-	if signal.Band == BandHigh {
-		_ = s.audit(ctx, AuditEvent{
-			Type:    "pressure.high_action",
-			PlanID:  plan.ID,
-			Message: fmt.Sprintf("high pressure on %s: applying provably safe-tier cleanup", signal.Partition),
-		})
-	}
-
-	return s.applyAutonomously(ctx, signal, plan, outcome)
+	return signal.Partition
 }
 
 // fileWarningBug reports the fastest growing unbounded entry at most once per

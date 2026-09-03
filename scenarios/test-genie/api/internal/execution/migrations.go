@@ -42,6 +42,8 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 		name string
 		ddl  string
 	}{
+		{name: "started_at", ddl: "TEXT"},
+		{name: "completed_at", ddl: "TEXT"},
 		{name: "duration_ms", ddl: "INTEGER NOT NULL DEFAULT 0"},
 		{name: "predicted_duration_ms", ddl: "INTEGER"},
 		{name: "wall_clock_ms", ddl: "INTEGER"},
@@ -51,6 +53,7 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 		{name: "cpu_reliability", ddl: "TEXT"},
 		{name: "memory_reliability", ddl: "TEXT"},
 		{name: "gpu_reliability", ddl: "TEXT"},
+		{name: "measurement_scope", ddl: "TEXT"},
 		{name: "cache_hit", ddl: "INTEGER NOT NULL DEFAULT 0"},
 		{name: "cache_source_run_id", ddl: "TEXT NOT NULL DEFAULT ''"},
 		{name: "cache_audit", ddl: "INTEGER NOT NULL DEFAULT 0"},

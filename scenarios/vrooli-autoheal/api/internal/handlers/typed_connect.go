@@ -23,6 +23,7 @@ import (
 	measures "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures"
 	measuresconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures/measures_v1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/system"
 	internalincidents "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reconcile"
@@ -600,6 +601,7 @@ func (s *typedHealing) readiness(ctx context.Context, limit int) (readinessSnaps
 		}
 		response.Elements = append(response.Elements, element)
 	}
+	response.BootRecovery = bootRecoveryProjection(s.h.registry)
 	if events, err := s.h.store.ListSystemEvents(ctx, systemevents.Filters{Limit: limit}); err == nil {
 		for _, event := range events.Events {
 			if event.BootID != "" {
@@ -765,4 +767,52 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// bootRecoveryProjection types the last system-boot-recovery-readiness result.
+// The check runs hourly and is observation-only; a registry with no result yet
+// reports "unknown" rather than an empty ok.
+func bootRecoveryProjection(registry *checks.Registry) *healing.BootRecovery {
+	projection := &healing.BootRecovery{Status: "unknown", Remediation: "vrooli setup", Message: "system-boot-recovery-readiness has not run since the API started"}
+	if registry == nil {
+		return projection
+	}
+	result, ok := registry.GetResult(system.BootRecoveryReadinessCheckID)
+	if !ok {
+		return projection
+	}
+	projection.Status = string(result.Status)
+	projection.Message = result.Message
+	if !result.Timestamp.IsZero() {
+		projection.EvaluatedAt = timestamppb.New(result.Timestamp)
+	}
+	if remediation, _ := result.Details["remediation"].(string); remediation != "" {
+		projection.Remediation = remediation
+	}
+	for _, item := range preconditionMaps(result.Details["preconditions"]) {
+		name, _ := item["name"].(string)
+		state, _ := item["state"].(string)
+		reason, _ := item["reason"].(string)
+		projection.Preconditions = append(projection.Preconditions, &healing.BootRecoveryPrecondition{Name: name, State: state, Reason: reason})
+	}
+	return projection
+}
+
+// preconditionMaps reads the precondition list whether it came straight from
+// Run ([]map[string]any) or through JSON persistence ([]interface{}).
+func preconditionMaps(value any) []map[string]any {
+	switch list := value.(type) {
+	case []map[string]any:
+		return list
+	case []interface{}:
+		out := make([]map[string]any, 0, len(list))
+		for _, item := range list {
+			if m, ok := item.(map[string]any); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }

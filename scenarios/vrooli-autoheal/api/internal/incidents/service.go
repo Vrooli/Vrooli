@@ -86,7 +86,7 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 	}
 	previousSeverity, hadOpen := s.openIncidentSeverity(ctx, input.Fingerprint)
 	enrichInputFromResult(&input, result)
-	if err := s.supersedePriorIncidents(ctx, result.CheckID, input.Fingerprint); err != nil {
+	if err := s.supersedePriorIncidents(ctx, result.CheckID, input.Fingerprint, stringDetail(result.Details, "findingKey")); err != nil {
 		return nil, false, err
 	}
 	incident, err := s.store.UpsertIncident(ctx, input)
@@ -122,8 +122,13 @@ func (s *Service) openIncidentSeverity(ctx context.Context, fingerprint string) 
 	return "", false
 }
 
-func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerprint string) error {
-	if checkID == "" || fingerprint == "" {
+// supersedePriorIncidents resolves a check's earlier open incidents when its
+// evidence changed fingerprint: one check, one live incident. A result
+// narrowed to one finding (findingKey set) is one of several live incidents
+// the same check owns at once, so it supersedes nothing; each finding's
+// fingerprint is stable and its incident lives and resolves on its own.
+func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerprint, findingKey string) error {
+	if checkID == "" || fingerprint == "" || findingKey != "" {
 		return nil
 	}
 	resp, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Limit: 200})
@@ -145,15 +150,85 @@ func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerpr
 func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.Result) (int, error) {
 	count := 0
 	for _, result := range results {
-		_, created, err := s.UpsertFromCheckResult(ctx, result)
+		created, err := s.UpsertAllFromCheckResult(ctx, result)
+		count += created
 		if err != nil {
 			return count, err
 		}
+	}
+	return count, nil
+}
+
+// UpsertAllFromCheckResult opens one incident per finding when a result
+// carries a findings list (the emergency watchdog report does), and one
+// incident otherwise. Each finding gets its own fingerprint dimension so a
+// CPU-pressure finding and a fork-rate finding from the same tick are two
+// incidents, not one record whose evidence flips between them.
+func (s *Service) UpsertAllFromCheckResult(ctx context.Context, result checks.Result) (int, error) {
+	findings := findingList(result.Details)
+	if len(findings) == 0 || result.Status == checks.StatusOK {
+		_, created, err := s.UpsertFromCheckResult(ctx, result)
+		if created {
+			return 1, err
+		}
+		return 0, err
+	}
+	count := 0
+	for _, finding := range findings {
+		_, created, err := s.UpsertFromCheckResult(ctx, withFinding(result, finding))
 		if created {
 			count++
 		}
+		if err != nil {
+			return count, err
+		}
 	}
 	return count, nil
+}
+
+// findingList reads Details["findings"] in either shape a check may emit.
+func findingList(details map[string]any) []map[string]any {
+	if details == nil {
+		return nil
+	}
+	switch raw := details["findings"].(type) {
+	case []map[string]any:
+		return raw
+	case []any:
+		out := make([]map[string]any, 0, len(raw))
+		for _, item := range raw {
+			if m, ok := item.(map[string]any); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+// withFinding narrows a result to one finding: the finding's name becomes the
+// findingKey fingerprint dimension, its reason the message, and its
+// attribution (when it has one) the evidence the title is built from.
+func withFinding(result checks.Result, finding map[string]any) checks.Result {
+	narrowed := result
+	narrowed.Details = make(map[string]any, len(result.Details)+3)
+	for key, value := range result.Details {
+		if key == "findings" || key == "attribution" {
+			continue
+		}
+		narrowed.Details[key] = value
+	}
+	name := stringDetail(finding, "name")
+	narrowed.Details["findingKey"] = name
+	if reason := stringDetail(finding, "reason"); reason != "" {
+		narrowed.Details["findingReason"] = reason
+		narrowed.Message = name + ": " + reason
+	}
+	if attribution, ok := finding["attribution"].(map[string]any); ok {
+		narrowed.Details["attribution"] = attribution
+	}
+	return narrowed
 }
 
 // OpenHealIncident records the durable operator-facing escalation once a
@@ -302,6 +377,14 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 			fingerprint:  Fingerprint(string(TypeHostIntegrity), result.CheckID, stableEvidenceDimension(result)),
 		}, true
 	}
+	if key := stringDetail(result.Details, "findingKey"); result.CheckID == "system-emergency-watchdog-report" && key != "" {
+		return incidentRule{
+			incidentType: TypeHostPressure,
+			severity:     severity,
+			title:        hostPressureTitle(key, result.Details),
+			fingerprint:  Fingerprint(string(TypeHostPressure), result.CheckID, "findingKey="+key),
+		}, true
+	}
 	switch result.CheckID {
 	case "infra-rdp":
 		// Only credential and session faults become incidents. A daemon that is
@@ -384,6 +467,42 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 			title:        title,
 			fingerprint:  Fingerprint(string(incidentType), result.CheckID, stableEvidenceDimension(result)),
 		}, true
+	}
+}
+
+// hostPressureTitle names the storm's owner from the finding's attribution:
+// "fork storm from claude pid 4242 in scope vrooli-agent-abc.scope". A finding
+// without attribution says so rather than pretending to know.
+func hostPressureTitle(findingKey string, details map[string]any) string {
+	subject := map[string]string{"fork-rate": "fork storm", "cpu-pressure": "CPU saturation", "stranded-memory": "stranded memory"}[findingKey]
+	if subject == "" {
+		subject = "emergency watchdog finding " + findingKey
+	}
+	attribution, _ := details["attribution"].(map[string]any)
+	top, _ := attribution["top_parent"].(map[string]any)
+	name := stringDetail(top, "name")
+	pid := numberDetail(top, "pid")
+	if name == "" || pid == 0 {
+		return subject + " (unattributed)"
+	}
+	title := fmt.Sprintf("%s from %s pid %d", subject, name, pid)
+	if scope := stringDetail(top, "scope"); scope != "" {
+		title += " in scope " + scope[strings.LastIndex(scope, "/")+1:]
+	}
+	return title
+}
+
+// numberDetail reads an integer that may have crossed JSON as a float.
+func numberDetail(details map[string]any, key string) int64 {
+	switch v := details[key].(type) {
+	case int:
+		return int64(v)
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	default:
+		return 0
 	}
 }
 

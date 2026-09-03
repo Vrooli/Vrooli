@@ -11,8 +11,15 @@ func TestDefaultPlannerRegistryPlansTypedCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Adapter.ID != "go" || plan.Test.Executable != "go" || len(plan.Test.Args) != 2 {
+	if plan.Adapter.ID != "go" || plan.Test.Executable != "go" || len(plan.Test.Args) != 3 || plan.Test.Args[1] != "-trimpath" {
 		t.Fatalf("plan=%+v", plan)
+	}
+	if plan.Coverage != nil {
+		t.Fatalf("default Go plan unexpectedly enables coverage: %+v", plan.Coverage)
+	}
+	coveragePlan, err := r.Resolve(Facts{Language: "go", Framework: "go test", CoverageScript: true})
+	if err != nil || coveragePlan.Coverage == nil {
+		t.Fatalf("coverage Go plan=%+v err=%v", coveragePlan, err)
 	}
 	plan, err = r.Resolve(Facts{Language: "typescript", Framework: "vitest", PackageManager: "pnpm", CoverageScript: true})
 	if err != nil {
@@ -20,6 +27,20 @@ func TestDefaultPlannerRegistryPlansTypedCommands(t *testing.T) {
 	}
 	if plan.Adapter.ID != "react-vitest" || plan.Coverage == nil || plan.Coverage.Args[1] != "test:coverage" || len(plan.Coverage.Artifacts) != 2 {
 		t.Fatalf("plan=%+v", plan)
+	}
+	plan, err = r.Resolve(Facts{Language: "python", Framework: "mypy", Platform: "linux"})
+	if err != nil || plan.Adapter.ID != "python-mypy" || plan.TestKind != "typecheck" || plan.Test.Executable != "uv" || strings.Join(plan.Test.Args, " ") != "run mypy ." {
+		t.Fatalf("python typecheck plan=%+v err=%v", plan, err)
+	}
+}
+
+func TestTypecheckPlannerCoversTypeScriptWithUnknownFramework(t *testing.T) {
+	plan, err := DefaultPlannerRegistry().Resolve(Facts{Language: "typescript", Framework: ""})
+	if err != nil {
+		t.Fatalf("resolve unknown-framework TypeScript: %v", err)
+	}
+	if plan.TestKind != "typecheck" || plan.Adapter.ID != "typescript-typecheck" {
+		t.Fatalf("plan=%+v, want TypeScript typecheck planner", plan)
 	}
 }
 

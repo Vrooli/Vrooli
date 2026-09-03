@@ -188,6 +188,21 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		_, err = io.Copy(os.Stdout, resp.Body)
 		return err
 	}
+	writers := func(args []string) error {
+		top := "10"
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--top" && i+1 < len(args) { top = args[i+1]; i++ }
+			if strings.HasPrefix(args[i], "--top=") { top = strings.TrimPrefix(args[i], "--top=") }
+		}
+		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/storage/writers?top="+url.QueryEscape(top), nil)
+		if err != nil { return err }
+		resp, err := client.Do(req)
+		if err != nil { return fmt.Errorf("storage writers: %w", err) }
+		defer resp.Body.Close()
+		if resp.StatusCode >= http.StatusBadRequest { body, _ := io.ReadAll(resp.Body); return fmt.Errorf("storage writers: %s", string(body)) }
+		_, err = io.Copy(os.Stdout, resp.Body)
+		return err
+	}
 	return cliapp.SubcommandGroup{Name: "storage", Description: "Inspect declared, attributed, and unattributed storage", NeedsAPI: true, Subcommands: []cliapp.Command{
 		{Name: "status", Description: "Show the latest persisted storage accounting", Run: func(args []string) error { return read(args, false) }},
 		{Name: "census", Description: "Run a read-only storage census", Run: func(args []string) error { return read(args, true) }},
@@ -198,6 +213,7 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "placement-audit", Description: "Show placement migration audit events", Run: func([]string) error { return placementAudit() }},
 		{Name: "adoption", Description: "Show declaration adoption coverage and suggestions", Run: func([]string) error { return adoption() }},
 		{Name: "infra-health", Description: "Show persisted storage infra-health signal", Run: func([]string) error { return infraHealth() }},
+		{Name: "writers", Description: "Rank persisted governed-root writer rates", Run: writers},
 		{Name: "inventory", Description: "List every storage owner and declaration", Run: func([]string) error { return inventory() }},
 	}}
 }

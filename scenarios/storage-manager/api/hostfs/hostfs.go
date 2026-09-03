@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	"storage-manager/internal/cleanup"
 )
 
@@ -131,7 +132,7 @@ func (f *FS) ReadDir(ctx context.Context, path string) ([]cleanup.FileInfo, erro
 func (f *FS) Walk(ctx context.Context, root string, visit func(cleanup.FileInfo) error) error {
 	root = filepath.Clean(root)
 
-	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+	return coreRetention.WalkDirectory(ctx, root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -204,7 +205,32 @@ func (f *FS) RemoveAll(ctx context.Context, path string) error {
 		return fmt.Errorf("refusing to remove %s: owned by another user", path)
 	}
 
-	return os.RemoveAll(path)
+	return coreRetention.RemovePath(ctx, path)
+}
+
+func (f *FS) MkdirAll(ctx context.Context, path string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return os.MkdirAll(filepath.Clean(path), 0o700)
+}
+
+func (f *FS) Rename(ctx context.Context, oldPath, newPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	oldPath, newPath = filepath.Clean(oldPath), filepath.Clean(newPath)
+	info, err := os.Lstat(oldPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if f.restrictToOwner && !ownedByCurrentUser(info) {
+		return fmt.Errorf("refusing to rename %s: owned by another user", oldPath)
+	}
+	return os.Rename(oldPath, newPath)
 }
 
 // toFileInfo converts a stdlib FileInfo into the seam's transport type.

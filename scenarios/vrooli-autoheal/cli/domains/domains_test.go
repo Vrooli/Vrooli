@@ -24,7 +24,7 @@ func TestCommandGroupsExposeLegacyEntrypoints(t *testing.T) {
 
 func TestSubcommandGroupsExposeScenarioDomains(t *testing.T) {
 	groups := SubcommandGroups(nil, support.Dependencies{})
-	want := []string{"check", "config", "host", "incidents", "monitoring", "measure", "retention", "actions"}
+	want := []string{"check", "config", "host", "incidents", "monitoring", "measure", "retention", "storm", "actions"}
 	if len(groups) != len(want) {
 		t.Fatalf("SubcommandGroups() count = %d, want %d", len(groups), len(want))
 	}

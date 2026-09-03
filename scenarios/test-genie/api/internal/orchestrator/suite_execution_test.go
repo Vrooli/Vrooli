@@ -1110,13 +1110,13 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] custom presets are honored", func(t *testing.T) {
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-		testDir := filepath.Join(scenarioDir, "coverage")
-		if err := os.MkdirAll(testDir, 0o755); err != nil {
-			t.Fatalf("failed to create coverage dir: %v", err)
+		createScenarioLayout(t, root, "demo")
+		workspace, err := workspacepkg.New(root, "demo")
+		if err != nil {
+			t.Fatalf("failed to resolve test workspace: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(testDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(workspace.CoverageDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
 			t.Fatalf("failed to write preset: %v", err)
 		}
 		stubCommandLookup(t, func(name string) (string, error) {

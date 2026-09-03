@@ -1023,7 +1023,7 @@ func (s *MonitorService) GetDiskDetail(_ context.Context) (*models.DiskDetailRes
 		},
 	}
 	if highestDiskPressure(detail.Partitions) >= 85 {
-		detail.Notes = append(detail.Notes, "High disk pressure detected; request a storage-manager preview before applying remediation.")
+		detail.Notes = append(detail.Notes, "High disk pressure detected; storage-manager starts bounded autonomous recovery.")
 	}
 
 	topDirs, dirErr := collectors.GetLargestDirectories(detail.ActiveMount, detail.Depth, 8)

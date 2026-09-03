@@ -1,6 +1,7 @@
 package execute
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -8,6 +9,34 @@ import (
 
 	execTypes "test-genie/cli/internal/execute"
 )
+
+func TestResolveWorkspacePathsUsesSandboxHostAndLogicalRoots(t *testing.T) {
+	hostMerged := t.TempDir()
+	scenarioPath := filepath.Join(hostMerged, "scenarios", "demo")
+	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_SANDBOX_MERGED_HOST", hostMerged)
+	t.Setenv("VROOLI_SANDBOX_REPO_ROOT", "/canonical/Vrooli")
+	parsed := Args{Scenario: "demo"}
+	got, err := resolveWorkspacePaths(&parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != scenarioPath || parsed.LogicalRepoRoot != "/canonical/Vrooli" || parsed.LogicalScenarioRelPath != "scenarios/demo" {
+		t.Fatalf("resolved path contract disagrees: path=%q parsed=%+v", got, parsed)
+	}
+}
+
+func TestResolveWorkspacePathsNamesUnreachablePhysicalRoot(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing", "scenarios", "demo")
+	t.Setenv("VROOLI_SANDBOX_MERGED_HOST", filepath.Dir(filepath.Dir(missing)))
+	parsed := Args{Scenario: "demo"}
+	_, err := resolveWorkspacePaths(&parsed)
+	if err == nil || !strings.Contains(err.Error(), missing) {
+		t.Fatalf("error = %v, want unreachable path %q", err, missing)
+	}
+}
 
 func TestPlannedPhaseNamesPreservesServerOrder(t *testing.T) {
 	preview := execTypes.PlanPreview{

@@ -2,9 +2,12 @@ package system
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostpressure"
+	"github.com/vrooli/vrooli/internal/setpoint"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
@@ -30,7 +33,7 @@ func TestLinuxOnlyChecksReportNotApplicableOnNonLinux(t *testing.T) {
 
 func TestHostPressureSkipsUnreadSensorsIndependently(t *testing.T) {
 	check := NewHostPressureCheck(
-		WithHostPressureThresholds(50, 17200, 200),
+		WithSetpoint(setpoint.Fallback()),
 		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
 			return hostpressure.PressureSnapshot{
 				CPUPressure:  hostpressure.NewUnread("test", "PSI unavailable"),
@@ -47,9 +50,58 @@ func TestHostPressureSkipsUnreadSensorsIndependently(t *testing.T) {
 	}
 }
 
+func testSetpoint(t *testing.T, cpuMax float64, sustain string) setpoint.Setpoint {
+	t.Helper()
+	doc := fmt.Sprintf(`{"schema_version":"1.0.0","confidence":{"level":"SKETCH","rationale":"test","recorded_on":"2026-09-02"},"bars":[
+	 {"id":"cpu","cell_ref":"substrate/SB14","projection":"substrate","target_kind":"cpu","deadband":"d","sustain":%q,"actuator":"a","decision_ref":"r","unit":"percent","max":%g,"gradeable":true}]}`, sustain, cpuMax)
+	sp, err := setpoint.Parse("test.json", []byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sp
+}
+
+// [REQ:STORM-001] A breach of the CPU bar is a warning until the authored
+// sustain has elapsed, then critical; a reading under the bar resets it.
+func TestHostPressureCheckUsesAuthoredSustain(t *testing.T) {
+	clock := time.Date(2026, 9, 2, 10, 14, 0, 0, time.UTC)
+	reading := 11.0
+	check := NewHostPressureCheck(
+		WithSetpoint(testSetpoint(t, 10, "10m")),
+		WithClock(func() time.Time { return clock }),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewRead(reading, "test"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+			}
+		}),
+	)
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("first breach status = %q, want warning before the sustain: %s", result.Status, result.Message)
+	}
+	clock = clock.Add(61 * time.Second)
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("61s breach status = %q, want warning against a 10m sustain: %s", result.Status, result.Message)
+	}
+	clock = clock.Add(9 * time.Minute)
+	if result := check.Run(context.Background()); result.Status != checks.StatusCritical || result.Details["setpoint_path"] != "test.json" {
+		t.Fatalf("sustained breach status = %q details=%v, want critical from test.json", result.Status, result.Details)
+	}
+	reading = 5
+	if result := check.Run(context.Background()); result.Status != checks.StatusOK {
+		t.Fatalf("clear reading status = %q, want ok: %s", result.Status, result.Message)
+	}
+	reading = 11
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("a new breach after a clear must start a new window, got %q", result.Status)
+	}
+}
+
 func TestHostPressureUsesSetpointThresholds(t *testing.T) {
 	check := NewHostPressureCheck(
-		WithHostPressureThresholds(10, 1, 200),
+		WithSetpoint(testSetpoint(t, 10, "one read")),
 		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
 			return hostpressure.PressureSnapshot{
 				CPUPressure:  hostpressure.NewRead(11, "test"),
@@ -59,8 +111,10 @@ func TestHostPressureUsesSetpointThresholds(t *testing.T) {
 			}
 		}),
 	)
-	if result := check.Run(context.Background()); result.Status != checks.StatusCritical {
-		t.Fatalf("status = %q, want critical at configured CPU bar: %#v", result.Status, result)
+	// "one read" is not a duration, so the documented default window applies
+	// and the first breach is a warning, not a silent pass.
+	if result := check.Run(context.Background()); result.Status != checks.StatusWarning {
+		t.Fatalf("status = %q, want warning at configured CPU bar: %#v", result.Status, result)
 	}
 }
 

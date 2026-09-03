@@ -23,7 +23,12 @@
     "15-custom-metric-collection-via-api/module.json",
     "16-alert-routing-to-multiple-channels/module.json",
     "17-resource-prediction-models/module.json",
-    "18-correlation-analysis-between-metrics/module.json"
+    "18-correlation-analysis-between-metrics/module.json",
+    "19-disk-recovery/module.json",
+    "20-distributed-tracing-integration/module.json",
+    "21-custom-dashboard-builder/module.json",
+    "22-mobile-monitoring-app/module.json",
+    "23-websocket-real-time-updates/module.json"
   ],
   "modules": [
     {
@@ -133,6 +138,30 @@
       "path": "18-correlation-analysis-between-metrics",
       "priority": "P1",
       "title": "Correlation analysis between metrics (not implemented)"
+    },
+    {
+      "id": "MOD-P2-001",
+      "path": "20-distributed-tracing-integration",
+      "priority": "P2",
+      "title": "Distributed tracing integration (planned)"
+    },
+    {
+      "id": "MOD-P2-002",
+      "path": "21-custom-dashboard-builder",
+      "priority": "P2",
+      "title": "Custom dashboard builder (planned)"
+    },
+    {
+      "id": "MOD-P2-003",
+      "path": "22-mobile-monitoring-app",
+      "priority": "P2",
+      "title": "Mobile monitoring app (planned)"
+    },
+    {
+      "id": "MOD-P2-004",
+      "path": "23-websocket-real-time-updates",
+      "priority": "P2",
+      "title": "WebSocket real-time updates (planned)"
     }
   ]
 }

@@ -9,11 +9,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/setupTests.ts'],
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
       thresholds: {
         lines: 0,
         functions: 0,

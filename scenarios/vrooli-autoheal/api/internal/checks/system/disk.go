@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	sharedcleanup "github.com/vrooli/vrooli/scenarios/storage-manager/services/cleanupmanager"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/cleanupmanager"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -354,10 +355,10 @@ func (c *DiskCheck) runAuthoritativePressure(ctx context.Context) checks.Result 
 		result.Status = checks.StatusCritical
 		result.Message = fmt.Sprintf("System Monitor reports %s disk pressure", pressure.Band)
 	case "high":
-		// High asks for a cleanup preview; only critical authorises the
-		// autoheal-on-critical path to act unattended.
+		// High and critical both request bounded recovery; storage-manager
+		// owns the final safety-tier decision.
 		result.Status = checks.StatusWarning
-		result.Message = "System Monitor reports high disk pressure; cleanup requires preview"
+		result.Message = "System Monitor reports high disk pressure; bounded recovery requested"
 	case "warning":
 		result.Status = checks.StatusWarning
 		result.Message = "System Monitor reports warning disk pressure"
@@ -408,7 +409,7 @@ func (c *DiskCheck) RecoveryActions(lastResult *checks.Result) []checks.Recovery
 		{
 			ID:   requestCleanupActionID,
 			Name: "Request storage-manager reclamation",
-			Description: "Reports disk pressure to storage-manager, which reclaims safe-tier space " +
+			Description: "Reports disk pressure to storage-manager, which reclaims safe/regenerable space " +
 				"without an operator present. This is the action that makes the disk check able to heal.",
 			Dangerous: false,
 			Available: true,
@@ -553,7 +554,7 @@ var _ checks.HealableCheck = (*DiskCheck)(nil)
 // It replaces the old assumption, recorded in userconfig as
 // "Can't auto-heal disk space", that nothing could be done automatically.
 // storage-manager exists precisely to reclaim space, and it enforces its own
-// safety boundary: only safe-tier providers run unattended.
+// safety boundary: only safe and proven regenerable providers run unattended.
 const requestCleanupActionID = "request-cleanup"
 
 // executeRequestCleanup reports current pressure to storage-manager and returns
@@ -561,8 +562,8 @@ const requestCleanupActionID = "request-cleanup"
 //
 // The band reported is derived from the same thresholds the check classifies
 // with, so the heal action escalates exactly as far as the observation
-// justifies: a critical partition authorises unattended reclamation, a warning
-// one only asks for a preview.
+// justifies: high and critical partitions request bounded reclamation, while
+// storage-manager enforces the provider safety boundary.
 func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) checks.ActionResult {
 	result := checks.ActionResult{
 		ActionID:  requestCleanupActionID,
@@ -587,9 +588,10 @@ func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) 
 		var worstPartition string
 		worst, worstPartition, err = c.worstPartition()
 		if err == nil {
+			reportedBand, reported := c.band(worst.UsedPercent)
 			pressure = DiskPressure{
 				Observed:       true,
-				Band:           localCleanupBand(c.bandFor(worst.UsedPercent)),
+				Band:           localCleanupBand(toCleanupBand(reportedBand), reported),
 				MountPath:      worstPartition,
 				UsedPercent:    float64(worst.UsedPercent),
 				UsedBytes:      int64(worst.UsedBytes),
@@ -626,11 +628,14 @@ func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) 
 	}
 
 	outcome, err := c.cleanup.ReportPressure(ctx, cleanupmanager.Report{
-		SourceScenario: "vrooli-autoheal",
-		Partition:      partition,
-		UsedPercent:    pressure.UsedPercent,
-		Band:           band,
-		AvailableBytes: pressure.AvailableBytes,
+		SourceScenario:       "vrooli-autoheal",
+		Partition:            partition,
+		UsedPercent:          pressure.UsedPercent,
+		Band:                 band,
+		AvailableBytes:       pressure.AvailableBytes,
+		FillRateBytesPerHour: pressure.FillRateBytesPerHour,
+		HotWriters:           pressure.HotWriters,
+		Trigger:              "PRESSURE_TRIGGER_BAND",
 	})
 	result.Duration = time.Since(start)
 	if err != nil {
@@ -649,6 +654,8 @@ func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) 
 
 func cleanupBand(band string) (cleanupmanager.Band, bool) {
 	switch strings.ToLower(strings.TrimSpace(band)) {
+	case "warning", "pressure_band_warning":
+		return cleanupmanager.BandWarning, true
 	case "high", "pressure_band_high":
 		return cleanupmanager.BandHigh, true
 	case "critical", "pressure_band_critical":
@@ -663,12 +670,27 @@ func localCleanupBand(band cleanupmanager.Band, ok bool) string {
 		return "normal"
 	}
 	switch band {
+	case cleanupmanager.BandWarning:
+		return "warning"
 	case cleanupmanager.BandHigh:
 		return "high"
 	case cleanupmanager.BandCritical:
 		return "critical"
 	default:
 		return "normal"
+	}
+}
+
+func toCleanupBand(band sharedcleanup.Band) cleanupmanager.Band {
+	switch band {
+	case sharedcleanup.BandWarning:
+		return cleanupmanager.BandWarning
+	case sharedcleanup.BandHigh:
+		return cleanupmanager.BandHigh
+	case sharedcleanup.BandCritical:
+		return cleanupmanager.BandCritical
+	default:
+		return ""
 	}
 }
 
@@ -702,16 +724,10 @@ func (c *DiskCheck) worstPartition() (DiskUsage, string, error) {
 	return worst, worstName, nil
 }
 
-// bandFor maps a usage percentage onto the band to report, using the same
-// thresholds the check classifies with. Usage below the warning threshold
-// reports no band at all, so healthy disks never request cleanup.
-func (c *DiskCheck) bandFor(usedPercent int) (cleanupmanager.Band, bool) {
-	switch {
-	case usedPercent >= c.criticalThreshold:
-		return cleanupmanager.BandCritical, true
-	case usedPercent >= c.warningThreshold:
-		return cleanupmanager.BandHigh, true
-	default:
-		return "", false
-	}
+// band applies the shared pressure classifier. Autoheal has no separate local
+// high threshold, so values between warning and critical remain warning rather
+// than being promoted to a stronger cleanup request.
+func (c *DiskCheck) band(usedPercent int) (sharedcleanup.Band, bool) {
+	band := sharedcleanup.Classify(float64(usedPercent), 1, sharedcleanup.Thresholds{Warning: float64(c.warningThreshold), High: float64(c.criticalThreshold), Critical: float64(c.criticalThreshold)})
+	return band, band != sharedcleanup.BandNormal
 }

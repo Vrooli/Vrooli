@@ -37,6 +37,7 @@ type storeDB interface {
 func NewStore(db storeDB) *Store {
 	store := &Store{db: db}
 	_ = store.ensureIncidentContractColumns(context.Background())
+	_ = store.ensureIncidentTypeConstraint(context.Background())
 	_ = store.ensureHostInventorySnapshotColumns(context.Background())
 	_ = store.ensureHealTrackerColumns(context.Background())
 	return store

@@ -183,7 +183,7 @@ type selfHealOutcome struct {
 // the API registry owns those, with per-check heal trackers and cooldowns. A
 // watchdog that could rewrite dependency files across the whole ecosystem
 // unattended is a much worse failure mode than the outage it prevents.
-func attemptSelfHeal(config *Config, failureOutput string) selfHealOutcome {
+func attemptSelfHeal(ctx context.Context, config *Config, failureOutput string) selfHealOutcome {
 	if strings.TrimSpace(failureOutput) == "" {
 		return selfHealOutcome{Detail: "no failure output to classify"}
 	}
@@ -205,7 +205,7 @@ func attemptSelfHeal(config *Config, failureOutput string) selfHealOutcome {
 		return selfHealOutcome{Detail: reason}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), selfHealTimeout)
+	ctx, cancel := context.WithTimeout(ctx, selfHealTimeout)
 	defer cancel()
 
 	var (

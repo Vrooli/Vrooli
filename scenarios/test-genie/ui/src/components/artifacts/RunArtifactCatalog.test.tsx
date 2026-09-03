@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { RunArtifactCatalog } from "./RunArtifactCatalog";
 import { useRunArtifacts } from "../../hooks/useRunArtifacts";

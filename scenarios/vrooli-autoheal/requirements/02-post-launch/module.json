@@ -131,13 +131,21 @@
       "description": "When receiving SIGINT or SIGTERM, the supervisor should stop scheduling work and shut down cleanly.",
       "id": "AUTOHEAL-P1-009",
       "prd_ref": "OT-P1-009",
-      "status": "planned",
+      "status": "in_progress",
       "title": "Graceful shutdown",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P1-009] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "cli/loop/lifecycle_test.go::TestSigtermDuringLifecycleCancelsChildWithinWaitDelay",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "See INFRA-SHUTDOWN-001 (same evidence). Passing 2026-09-02 (`go test ./scenarios/vrooli-autoheal/cli/loop/`). Loop tests carry no [REQ:AUTOHEAL-P1-009] tag yet."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestSignalDuringSleepExitsZero",
+          "phase": "unit",
+          "status": "implemented"
         }
       ]
     }
