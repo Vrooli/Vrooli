@@ -1,0 +1,232 @@
+{
+  "_metadata": {
+    "description": "Must-ship requirements. Each mirrors one P0 operational target one-to-one and carries at least two automated validation layers.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "The scenario shall create, describe, list and destroy an instance through one provider interface, and no caller shall name a provider",
+      "id": "COMPUTEM-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "tags": [
+        "provider",
+        "lifecycle"
+      ],
+      "title": "Provider-agnostic instance lifecycle",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/provider/provider_test.go [REQ tag required]. The fake provider satisfies Create, Describe, List and Destroy, and a request for a size the provider does not offer is refused before any call is made.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/instance/lifecycle_integration_test.go [REQ tag required]. A full request-to-destroyed cycle runs against the fake provider and every state transition is persisted in order.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/provider/interface_surface_test.go [REQ tag required]. An AST assertion that the Provider interface declares exactly four methods, and that no caller package imports a concrete provider implementation.",
+          "phase": "structure",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "When an instance is requested, the scenario shall persist the request and its idempotency key before it calls any provider API",
+      "id": "COMPUTEM-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "tags": [
+        "idempotency",
+        "durability"
+      ],
+      "title": "Intent recorded before the provider is called",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/intent/intent_test.go [REQ tag required]. An intent row carrying its idempotency key is committed before the provider client is reachable; replaying the same key returns the original intent rather than creating a second.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/intent/lost_response_integration_test.go [REQ tag required]. A provider call that succeeds while its response is lost leaves a recoverable intent that the reconciler can match to the created instance.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "The scenario shall compare provider inventory against its own records in both directions on a schedule, and shall report every divergence rather than resolve it silently",
+      "id": "COMPUTEM-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "tags": [
+        "reconciliation",
+        "cost-safety"
+      ],
+      "title": "Bidirectional reconciliation",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/reconcile/reconcile_test.go [REQ tag required]. Present at the provider and absent locally is reported as an orphan; present locally and absent at the provider closes the usage window instead of continuing to meter.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/reconcile/sweep_integration_test.go [REQ tag required]. A full sweep against the fake provider emits findings in both directions and mutates no instance, proving the reconciler reports rather than resolves.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can quarantine a reported orphan, inspect it, and then destroy it.",
+          "phase": "business",
+          "ref": "docs/operations/RUNBOOK.md#quarantine-an-unaccounted-instance",
+          "status": "not_implemented",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "Every instance shall carry an expiry enforced both by the scenario and by a timer on the instance itself, so the fleet drains when the scenario is unavailable",
+      "id": "COMPUTEM-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "tags": [
+        "expiry",
+        "cost-safety"
+      ],
+      "title": "Expiry enforced twice",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/expiry/sweeper_test.go [REQ tag required]. The sweeper destroys instances past expiry, honours an extension granted before expiry, and refuses to extend one already destroyed.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/expiry/firstboot_timer_test.go [REQ tag required]. The rendered first-boot configuration contains a timer that powers the instance off at its expiry without contacting the control plane.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "With this scenario stopped, an instance past its expiry still powers itself off.",
+          "phase": "business",
+          "ref": "docs/operations/RUNBOOK.md#verify-the-instance-side-drain",
+          "status": "not_implemented",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "criticality": "P0",
+      "description": "When an instance boots it shall become a trusted node through the bridge onboarding contract, with no interactive step and no password on any wire",
+      "id": "COMPUTEM-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "tags": [
+        "enrollment",
+        "bridge"
+      ],
+      "title": "Unattended enrollment",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/enroll/firstboot_test.go [REQ tag required]. The rendered first-boot configuration carries the bridge onboarding public key and no password, token or private key of any kind.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/enroll/bridge_integration_test.go [REQ tag required]. Against a bridge fake, the scenario creates the machine record with its locators and starts onboarding; no credential value appears in any request field or log line.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "A real provisioned instance reaches the online state with no interactive step performed by the operator.",
+          "phase": "business",
+          "ref": "docs/operations/RUNBOOK.md#first-unattended-enrollment",
+          "status": "not_implemented",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "When provisioned compute is requested, the scenario shall reserve credit server-side before it calls a provider, and shall settle measured usage when the instance is destroyed",
+      "id": "COMPUTEM-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "tags": [
+        "metering",
+        "class-a"
+      ],
+      "title": "Credit reserved before boot",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/meter/reserve_test.go [REQ tag required]. A reservation is obtained before the provider client is reachable, and a refused reservation short-circuits with no provider call and a distinguishable out-of-credit outcome.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/meter/settle_integration_test.go [REQ tag required]. Teardown settles measured usage against the reservation, and a provision that fails after reserving releases the reservation rather than burning it.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/meter/enforcement_boundary_test.go [REQ tag required]. A client asserting a higher tier than its subscription is still refused, because the tier is resolved server-side and never read from the request.",
+          "phase": "business",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P0",
+      "description": "The scenario shall expose no pause that maps to a provider power-off, because a stopped instance still bills at the full rate on most providers",
+      "id": "COMPUTEM-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "tags": [
+        "cost-safety",
+        "guardrail"
+      ],
+      "title": "Destroy is the only stop",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/provider/no_pause_test.go [REQ tag required]. An AST assertion that no exported method, handler or domain function named pause, stop, suspend, halt or shutdown exists anywhere in the scenario.",
+          "phase": "structure",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: cli/domains/instance/verbs_test.go [REQ tag required]. The CLI manifest declares no pause, stop or suspend verb, and the destroy verb is the only lifecycle terminator.",
+          "phase": "cli",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

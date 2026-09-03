@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "compute-manager",
+  "description": "Compute Manager CLI surface. Single source of truth for the scenario's command groups: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Empty because the example domain was removed by template-manager detemplate and no scenario domain has been authored yet.",
+  "groups": [],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

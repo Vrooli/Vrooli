@@ -1,0 +1,96 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.delegated-run",
+  "version": "1",
+  "purpose": "Start the same governed Agent Manager workflow twice without blocking, then collect each run once and report the evidence row's keys; the delegation construction pattern.",
+  "inputs": {
+    "request": {
+      "type": "object",
+      "description": "{owner, workflow_key, input}. Default: the development-toolchain-validator skill-experiment-audit smoke request."
+    },
+    "wait_seconds": {
+      "type": "integer",
+      "default": 30,
+      "description": "Wait per collect; capped at 300."
+    }
+  },
+  "assumptions": [
+    "the workflow_key names a workflow its owner declares; an unknown key is a typed failure (workflow_rejected)",
+    "the session carries a delegated-run spend ceiling; reaching it is a refusal (delegated_run_spend_exceeded)"
+  ],
+  "invariants": [
+    "exactly two starts and at most two collects; no polling, no retry",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [],
+  "verbs": [
+    "agent.start",
+    "agent.collect"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "delegate",
+        "report"
+      ]
+    },
+    "signals": {
+      "started": "runs agent.start accepted",
+      "collected": "runs that returned an output",
+      "first_row_keys": "keys of the last collected evidence row"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "workflow_rejected",
+        "no_output"
+      ]
+    },
+    "evidence": "execution ids of collected runs"
+  },
+  "budget": {
+    "wall_ms": 600000,
+    "inference_calls": 0,
+    "delegated_runs": 2,
+    "materialize_limit": 2,
+    "async": true,
+    "async_reason": "wall_ms exceeds the 120 s synchronous submission bound; submit with --async and wait once"
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime",
+        "agent-manager"
+      ],
+      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve §5 delegation-live). A fixture never pins that broken outcome."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

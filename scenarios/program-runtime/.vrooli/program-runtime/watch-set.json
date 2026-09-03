@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.watch-set",
+  "version": "1",
+  "purpose": "Start up to eight delegated Agent Manager runs from a request list, collect each once, classify the collected outputs with one governed batch call, and summarize by label.",
+  "inputs": {
+    "requests": {
+      "type": "array",
+      "description": "List of {owner, workflow_key, input}; each becomes one agent.start. Default: one skill-experiment-audit smoke request."
+    },
+    "labels": {
+      "type": "array",
+      "default": [
+        "succeeded",
+        "failed",
+        "needs-review"
+      ],
+      "description": "Closed label set for the outcome classification."
+    },
+    "wait_seconds": {
+      "type": "integer",
+      "default": 120,
+      "description": "Wait per collect; capped at 300 by the bridge."
+    }
+  },
+  "assumptions": [
+    "each workflow_key names a workflow its owner declares; an unknown key is a typed failure (workflow_rejected), not a silent no-op",
+    "the session carries a delegated-run spend ceiling; reaching it is a refusal (delegated_run_spend_exceeded), not a retry",
+    "ai.classify(texts=..., labels=...) returns one row per text shaped {label, text} (kernel/host/engine.py _resolve_labels_schema and _classify_batch)"
+  ],
+  "invariants": [
+    "each run is collected exactly once; no polling loop",
+    "no retry: a failed start stops the program with its class",
+    "at most 8 requests per submission",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/inference/run-batch",
+      "effect": "read",
+      "via": "ai.classify"
+    }
+  ],
+  "verbs": [
+    "agent.start",
+    "agent.collect",
+    "ai.classify"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "delegate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "started": "count of runs agent.start accepted",
+      "collected": "count of runs that returned an output",
+      "by_label": "label -> count over collected outputs",
+      "runs": "list of {index, label, validated} per collected run"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "workflow_rejected",
+        "no_output"
+      ]
+    },
+    "evidence": "execution ids of collected runs"
+  },
+  "budget": {
+    "wall_ms": 600000,
+    "inference_calls": 1,
+    "delegated_runs": 8,
+    "materialize_limit": 8,
+    "async": true,
+    "async_reason": "wall_ms exceeds the 120 s synchronous submission bound; submit with --async and wait once"
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime",
+        "agent-manager",
+        "ai-gateway"
+      ],
+      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve §5 delegation-live). A fixture never pins that broken outcome."
+    },
+    {
+      "id": "empty-requests",
+      "inputs": {
+        "requests": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

@@ -1,0 +1,190 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "instance-detail",
+    "title": "Instance",
+    "routes": [
+      "/instances/:id"
+    ],
+    "purpose": "Show one instance in full: where it came from, what state it is in, what it has cost, when it drains, and whether it became a trusted node.",
+    "prd_refs": [
+      "OT-P1-005",
+      "OT-P0-004",
+      "OT-P0-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What this instance is and what it has cost so far."
+    },
+    {
+      "statement": "When it drains, and how to extend that deliberately."
+    },
+    {
+      "statement": "Whether enrollment succeeded, is queued, or failed.",
+      "notes": "An un-enrolled instance is a normal degraded state, not an error."
+    },
+    {
+      "statement": "How to destroy it, with enough friction that it is never accidental."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Instance is being fetched."
+    },
+    {
+      "id": "default",
+      "description": "Running instance with cost accruing and lifetime counting down."
+    },
+    {
+      "id": "partial",
+      "description": "Instance is running but enrollment is queued, so it is not yet a usable node."
+    },
+    {
+      "id": "syncing",
+      "description": "A lifecycle transition is in flight, such as creating or draining."
+    },
+    {
+      "id": "success",
+      "description": "Destroyed, showing the settled figure rather than a live one."
+    },
+    {
+      "id": "request-error",
+      "description": "The instance could not be fetched."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller may view the fleet but not act on this instance."
+    },
+    {
+      "id": "empty",
+      "description": "The instance id resolves to nothing this scenario owns. Distinguished from a fetch failure, because it may mean the record was reconciled away."
+    },
+    {
+      "id": "stale",
+      "description": "Elapsed cost and remaining lifetime are older than the refresh interval and are labelled with their observation time rather than shown as current."
+    }
+  ],
+  "elements": [
+    {
+      "id": "identity-panel",
+      "role": "region",
+      "name": "Identity",
+      "description": "Name, provider, region, size, and the provider's own identifier."
+    },
+    {
+      "id": "cost-panel",
+      "role": "region",
+      "name": "Cost",
+      "description": "Elapsed cost, the rate it accrues at, and the minimum billable unit that applies."
+    },
+    {
+      "id": "lifetime-panel",
+      "role": "region",
+      "name": "Lifetime",
+      "description": "Expiry time, time remaining, and the extend control."
+    },
+    {
+      "id": "enrollment-panel",
+      "role": "status",
+      "name": "Enrollment",
+      "description": "Whether the instance is a trusted node, and if not, why not."
+    },
+    {
+      "id": "destroy-action",
+      "role": "button",
+      "name": "Destroy instance"
+    },
+    {
+      "id": "destroy-confirm",
+      "role": "form",
+      "name": "Confirm destruction",
+      "description": "Requires the operator to type the instance name."
+    }
+  ],
+  "claims": [
+    {
+      "id": "instance-destroy-is-deliberate",
+      "type": "affordance-present",
+      "statement": "Destruction requires typing the instance name and cannot be completed by a single click or by pressing enter on a default-focused control.",
+      "tier": "aspirational",
+      "elements": [
+        "destroy-action",
+        "destroy-confirm"
+      ],
+      "rationale": "Destruction is irreversible and the machine may be carrying work. A generic confirm dialog is not friction."
+    },
+    {
+      "id": "instance-no-pause-affordance",
+      "type": "element-absent",
+      "statement": "No pause, stop or suspend control exists anywhere on this page.",
+      "tier": "aspirational",
+      "rationale": "A stopped instance still bills at the full rate on most providers. Offering the control would imply a saving that does not exist. This mirrors target OT-P0-007."
+    },
+    {
+      "id": "instance-enrollment-state-honest",
+      "type": "state-distinct",
+      "statement": "Queued enrollment is presented as a distinct degraded state, separate from both healthy and failed.",
+      "tier": "aspirational",
+      "elements": [
+        "enrollment-panel"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "Enrollment is allowed to lag. Rendering it as an error would train the operator to ignore real errors."
+    },
+    {
+      "id": "instance-cost-names-its-unit",
+      "type": "x-cost-unit-named",
+      "statement": "Every cost figure names its amount and its unit, and the minimum billable unit is stated rather than implied.",
+      "tier": "aspirational",
+      "elements": [
+        "cost-panel"
+      ],
+      "rationale": "Most providers round a partial hour up to a full hour. An operator who does not know that will misread a short-lived instance as cheap."
+    },
+    {
+      "id": "instance-states-covered",
+      "type": "state-covered",
+      "statement": "Every declared state renders a distinct, readable surface.",
+      "tier": "aspirational",
+      "states": [
+        "loading",
+        "default",
+        "partial",
+        "syncing",
+        "success",
+        "request-error",
+        "permission-denied",
+        "empty",
+        "stale"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "identity-panel": {
+        "testid": "identity-panel"
+      },
+      "cost-panel": {
+        "testid": "cost-panel"
+      },
+      "lifetime-panel": {
+        "testid": "lifetime-panel"
+      },
+      "enrollment-panel": {
+        "testid": "enrollment-panel"
+      },
+      "destroy-action": {
+        "testid": "destroy-action"
+      },
+      "destroy-confirm": {
+        "testid": "destroy-confirm"
+      }
+    }
+  }
+}

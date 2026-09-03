@@ -1,0 +1,141 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.setpoint-read",
+  "version": "1",
+  "purpose": "Read every row of program-runtime's improve setpoint in one submission and report each as in band, out of band, or declined with a reason from the closed vocabulary, without estimating.",
+  "inputs": {
+    "governance_window_seconds": {
+      "type": "integer",
+      "default": 604800,
+      "description": "Window for the governed-share and binding-condition readings."
+    },
+    "agent_failure_band": {
+      "type": "number",
+      "default": 0.15,
+      "description": "Upper band for the agent program failure rate."
+    }
+  },
+  "assumptions": [
+    "program-runtime is running and its own bindings are reachable from the kernel",
+    "the caller treats a declined row as unknown, never as zero, and acts on its reason (program-contracts.md, the reason table)",
+    "agent-failure-rate is computed over every PROVENANCE_AGENT program on record (all-time): programs/list exposes no window or provenance filter",
+    "discovery eval has no program binding (no_governed_binding); authoring eval has one but its run exceeds the 100 s kernel invoke budget (kernel_invoke_budget): both rows are read from the shell, never in-program",
+    "external-friction and fleet-improve-coverage are read by agent-manager.friction-digest and prompt-manager.skill-set-read; attribution waits on agent-manager telemetry (pending_telemetry)"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no row set is materialized; every reading is count, head, group_by, or meta",
+    "the envelope is printed exactly once, on every path",
+    "every read is guarded on its own worker: one dead binding yields one row with reason scenario_unreachable and the other rows survive",
+    "a row with a permanent reason never lowers the status; only a failed read makes the board partial",
+    "a declined row carries reading null; a number is never printed for a row that was not evaluated"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/programs/governance-share",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/bindings/act",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read",
+      "note": "rows=\"conditions\"; the status group_by uses CONDITION_STATUS_* from bindings.proto"
+    },
+    {
+      "id": "program-runtime/sessions/delegations",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/library/list",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/programs/mine",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/programs/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, governance-share, act-coverage, binding-condition, delegation-live, library-hygiene, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
+      "readable": "count of rows read from a governed binding",
+      "unavailable": "count of rows declined, permanent reasons included",
+      "failure_shapes": "top recurring failure shapes from programs mine, at most six"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "sensor command names, one per row"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "ok under the permanent-rows rule: five rows are declined by construction (no_governed_binding, kernel_invoke_budget, pending_telemetry, two read_elsewhere) and none of them lowers the status. partial means a governed read failed this time."
+    },
+    {
+      "id": "bad-band",
+      "inputs": {
+        "agent_failure_band": -1
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime-improve"
+}

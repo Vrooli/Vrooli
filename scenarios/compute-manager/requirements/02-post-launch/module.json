@@ -1,0 +1,145 @@
+{
+  "_metadata": {
+    "description": "Post-launch requirements. Each mirrors one P1 operational target one-to-one and carries at least two automated validation layers.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Given reachable access to an existing host, the scenario should enroll it as a node without creating or billing anything",
+      "id": "COMPUTEM-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "tags": [
+        "adoption",
+        "bridge"
+      ],
+      "title": "Adopt a machine the operator already owns",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/enroll/adopt_test.go [REQ tag required]. Adopting an existing host records no instance, no intent and no reservation, so a machine the operator already owns is never metered.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/enroll/adopt_integration_test.go [REQ tag required]. An adopted host reaches the online state through the same bridge onboarding contract as a provisioned one.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P1",
+      "description": "The scenario should refuse a request that would take a tenant past its ceiling, rather than rely on a provider spend alert that only sends mail",
+      "id": "COMPUTEM-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "tags": [
+        "metering",
+        "quota"
+      ],
+      "title": "Per-tenant ceiling computed from our own meter",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/meter/ceiling_test.go [REQ tag required]. A request that would take a tenant past its computed ceiling is refused with the ceiling named, rather than accepted and alarmed afterwards.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/meter/ceiling_integration_test.go [REQ tag required]. Concurrent requests against one tenant cannot jointly exceed the ceiling.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "reporting",
+      "criticality": "P1",
+      "description": "The scenario should compare metered usage against the provider's own billing daily and raise an alarm when they diverge beyond a threshold",
+      "id": "COMPUTEM-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "tags": [
+        "reconciliation",
+        "cost"
+      ],
+      "title": "Daily cost reconciliation against the provider",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/reconcile/cost_test.go [REQ tag required]. Metered usage and a provider statement that diverge beyond the threshold produce an alarm; divergence inside the threshold produces a record and no alarm.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/reconcile/cost_integration_test.go [REQ tag required]. A daily comparison runs against the fake provider's billing surface and never feeds its result back into a charge.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P1",
+      "description": "The scenario should support a second provider behind the same interface with no change to any consumer",
+      "id": "COMPUTEM-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "tags": [
+        "provider",
+        "portability"
+      ],
+      "title": "A second provider changes no caller",
+      "validation": [
+        {
+          "notes": "Intended: api/internal/provider/registry_test.go [REQ tag required]. Two registered providers are selected by identifier alone, and each declares its own rounding, minimum billable unit and stopped-instance billing behaviour as data.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: api/internal/provider/caller_independence_test.go [REQ tag required]. An AST assertion that no domain or handler package references a provider by name.",
+          "phase": "structure",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The scenario should render live inventory, elapsed cost and remaining lifetime for every instance it owns",
+      "id": "COMPUTEM-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "tags": [
+        "operator",
+        "inventory"
+      ],
+      "title": "Operator inventory surface",
+      "validation": [
+        {
+          "notes": "Intended: ui/src/features/inventory/__tests__/InventoryTable.test.tsx [REQ tag required]. The table renders loading, empty, populated, expiring-soon and unaccounted states, and distinguishes each without relying on colour alone.",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Intended: ui/src/features/inventory/__tests__/inventory.integration.test.tsx [REQ tag required]. Live inventory, elapsed cost and remaining lifetime render from the generated client against a stubbed API, with figures in tabular numerals.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

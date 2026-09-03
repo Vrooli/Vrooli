@@ -1,0 +1,209 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "compute-manager",
+    "displayName": "Compute Manager",
+    "description": "Acquires, tracks and retires remote compute, and meters what it costs",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "infrastructure",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "class": "external-integration",
+    "capabilities": [
+      "compute-provisioning",
+      "compute-inventory",
+      "compute-metering",
+      "instance-reconciliation",
+      "instance-expiry"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "3.0.0"
+    },
+    "generated_at": "2026-09-03T17:45:34Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "473109d72bcaf428a6d48a77d903c1882f48d7dbd9e4b7097bb0bb4d587e1f62",
+    "content_sha": "bf17a299709f6dcd19706e5c1f12684b47a1079cdbe81faeb18ca027a680a74e"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "compute-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "compute-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "landing-page-business-suite": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Owns the credit reservation and settlement surface. Hosted compute is cost-bearing, so a reservation is obtained server-side before any provider is called and settled when the instance is destroyed.",
+        "degraded_behavior": "Fail closed: provisioning refuses without a reservation. A machine that boots unmetered is cost that grows hourly with no compensating action available afterwards, so refusing is recoverable and provisioning is not. This is the one dependency that refuses rather than degrades, and the availability cost is accepted deliberately. Existing instances continue and settle when it returns."
+      },
+      "vrooli-bridge": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "supervision_precedence": "required",
+        "description": "Owns node identity, pairing and first touch. This scenario creates the bridge Machine record with the instance address as a locator and starts bridge onboarding; it contains no SSH implementation of its own.",
+        "degraded_behavior": "Degrades: the instance is still created, metered and expiring on schedule while enrollment queues and retries, and is visibly flagged as not yet enrolled. Blocking creation on the trust plane would make capacity unavailable for a reason unrelated to capacity. Unattended enrollment additionally depends on bridge publishing its onboarding public key, which it does not do yet."
+      },
+      "treasury": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Bounds what an agent may spend, on the path where Vrooli's own agents request capacity. Not consulted for operator-initiated or customer-initiated requests.",
+        "degraded_behavior": "Agent-initiated provisioning refuses, because an unverifiable agent should not be able to spend. Operator-initiated provisioning continues, because an operator at a keyboard has already demonstrated the authority the mandate exists to check."
+      },
+      "offer-desk": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Holds the sellable definition of provisioned capacity. Read at publishing time only; no runtime path depends on it.",
+        "degraded_behavior": "No runtime effect. Its absence prevents promoting or editing an offer, never provisioning a machine."
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/compute-manager",
+        "field": "hetzner-api-token",
+        "label": "Hetzner Cloud API token",
+        "description": "Authorises instance creation and destruction at Hetzner Cloud. Resolved through credential-authority-go at call time and deliberately NOT injected into the process environment, so it cannot be read from the process table or inherited by a child process.",
+        "required": false,
+        "obtain_url": "https://console.hetzner.cloud/"
+      }
+    ]
+  },
+  "maturity": "greenfield",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned SQLite holding instance intents, instances, provider receipts, reservations and reconciliation findings under SCENARIO_DATA_DIR. An instance this database forgets is an instance that keeps billing, so none of it is regenerable.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "A single-operator fleet holds tens of instances and a modest resale product holds thousands. This ceiling is far above any legitimate size and exists to force review before an append-only evidence table grows without a retention policy, which is how a sibling scenario reached half its database in audit rows."
+        }
+      }
+    },
+    "rationale": "One durable SQLite database. Credentials live in the credential authority and money lives in the business suite; neither is claimed here."
+  },
+  "environment": {
+    "COMPUTE_MANAGER_LPBS_BASE_URL": "",
+    "COMPUTE_MANAGER_BRIDGE_BASE_URL": "",
+    "COMPUTE_MANAGER_RECONCILE_INTERVAL": "15m",
+    "COMPUTE_MANAGER_EXPIRY_INTERVAL": "1m",
+    "COMPUTE_MANAGER_MINIMUM_BILLABLE_UNIT": "1h"
+  }
+}

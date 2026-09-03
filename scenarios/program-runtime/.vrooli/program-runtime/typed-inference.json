@@ -1,0 +1,108 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.typed-inference",
+  "version": "1",
+  "purpose": "Classify up to eight texts concurrently through ai.classify with an enum schema and report one label per text; the typed-inference construction pattern.",
+  "inputs": {
+    "corpus": {
+      "type": "array",
+      "description": "Texts to classify, 1 to 8. Default: two failure sentences."
+    },
+    "labels": {
+      "type": "array",
+      "default": [
+        "infra",
+        "user"
+      ],
+      "description": "Closed label set rendered into the enum schema."
+    }
+  },
+  "assumptions": [
+    "ai-gateway is running with a provider that serves classify.fast"
+  ],
+  "invariants": [
+    "one inference call per text, at most eight",
+    "no scenario binding is called directly",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/inference/run",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather",
+    "ai.classify"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "labels": "one label per text in corpus order",
+      "by_label": "label -> count",
+      "model": "the model the gateway routed to"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "the call count sentence"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 8,
+    "delegated_runs": 0,
+    "materialize_limit": 8
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "empty-corpus",
+      "inputs": {
+        "corpus": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}
