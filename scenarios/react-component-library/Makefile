@@ -14,11 +14,15 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints matrix matrix-diff determinism determinism-check corpus-report ledger-audit restore-authored-mirror purge-unreadable plan-harness-capture plan-harness-compare
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-ui lint lint-go lint-ui check setup corpus-report ledger
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
+
+SCENARIO_CUSTOM_TARGETS += fmt-ui
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
 help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
@@ -33,8 +37,6 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
-	@printf "  make matrix                     Emit the deterministic catalog gate verdict matrix\n"
-	@printf "  make matrix-diff                Compare the live verdict matrix with the baseline\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -62,31 +64,7 @@ clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
-build: ## Build the scenario
-	@if [ -f api/go.mod ]; then \
-		cd api && GOWORK=off go build -o "$(SCENARIO_NAME)-api" .; \
-	fi
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run build; \
-	fi
-
 fmt: fmt-go fmt-ui ## Format all code
-
-fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-	fi
-	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd cli && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd cli && gofmt -w .; \
-		fi; \
-	fi
 
 fmt-ui: ## Format UI and published library source
 	@if [ -f ui/package.json ]; then \
@@ -95,74 +73,15 @@ fmt-ui: ## Format UI and published library source
 
 lint: lint-go lint-ui ## Lint all code
 
-lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && GOWORK=off golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
-		fi; \
-	fi
-	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd cli && GOWORK=off golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
-		fi; \
-	fi
-
-lint-ui: ## Lint UI code
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run type-check; \
-	fi
-
 check: fmt lint test ## Run full quality gates
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
-	@flow-verifier verify check --root "$(CURDIR)"
-
-open: ## Open the scenario in a browser
-	@vrooli scenario open "$(SCENARIO_NAME)"
-
-orient: ## Show generated-scenario orientation progress
-	@template-manager orient "$(SCENARIO_NAME)"
-
-endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
-
-matrix: ## Emit the deterministic catalog gate verdict matrix
-	@cd api && GOWORK=off go run ./cmd/gate-matrix --root ../../..
-
-matrix-diff: ## Compare the live verdict matrix with the committed baseline
-	@cd api && GOWORK=off go run ./cmd/gate-matrix --root ../../.. --diff ../catalog/calibration/verdict-matrix-baseline.json
-
 corpus-report: ## Emit version and retention corpus invariants
-	@cd api && GOWORK=off go run ./cmd/corpus-report --root ../../..
+	@react-component-library catalog corpus-report --json
 
-ledger-audit: ## Audit authored release-hash entries without changing the tree
-	@cd api && GOWORK=off go run ./cmd/ledger-audit --root ../../..
-
-restore-authored-mirror: ## Preview or restore authored release files from the durable mirror
-	@cd api && GOWORK=off go run ./cmd/restore-authored-mirror --root ../../.. $(ARGS)
-
-purge-unreadable: ## Purge one explicitly named evicted version with no mirror
-	@cd api && GOWORK=off go run ./cmd/purge-unreadable --root ../../.. $(ARGS)
-
-plan-harness-capture: ## Capture the plan's gate, corpus, preflight, and build measures
-	@cd api && GOWORK=off go run ./cmd/plan-harness capture --root ../../.. $(ARGS)
-
-plan-harness-compare: ## Compare two plan-harness captures
-	@cd api && GOWORK=off go run ./cmd/plan-harness compare $(ARGS)
-
-determinism: ## Generate test-genie determinism capabilities from the gate registry
-	@cd api && GOWORK=off go run ./cmd/gen-determinism --output ../.vrooli/test-genie.json
-
-determinism-check: ## Verify generated determinism capabilities are current
-	@cd api && GOWORK=off go run ./cmd/gen-determinism --check --output ../.vrooli/test-genie.json
-
-run: start
+ledger: ## TEMPORARY plan ledger
+	@cd api && GOWORK=off go test -tags planledger ./internal/catalogcoverage -run TestComplexityLedger -v
 
 dev: start

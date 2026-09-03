@@ -20,6 +20,9 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
 help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -46,41 +49,9 @@ clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
-build: ## Build the scenario
-	@if [ -f api/go.mod ]; then \
-		cd api && go build -o "$(SCENARIO_NAME)-api" .; \
-	fi
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run build; \
-	fi
-
 fmt: fmt-go fmt-ui ## Format all code
 
-fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-	fi
-
-fmt-ui: ## Format UI code
-	@true
-
 lint: lint-go lint-ui ## Lint all code
-
-lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./... && go fmt ./...; \
-		fi; \
-	fi
-
-lint-ui: ## Lint UI code
-	@true
 
 check: fmt lint test ## Run full quality gates
 

@@ -20,6 +20,10 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
+SCENARIO_CUSTOM_TARGETS += build fmt-go fmt-ui lint-go lint-ui
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
 help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
 	@printf "  make setup                      Run scenario setup lifecycle\n"

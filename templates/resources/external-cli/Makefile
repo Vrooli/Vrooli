@@ -2,6 +2,9 @@
 
 .DEFAULT_GOAL := help
 
+# Toolchain floor (GOFLAGS -p width, GOMAXPROCS, pnpm concurrency) shared with every Makefile in the repository.
+-include ../../mk/toolchain.mk
+
 CLI_DIR := cli
 
 help: ## Show the supported resource quality entrypoints

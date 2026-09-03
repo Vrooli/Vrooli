@@ -20,6 +20,10 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
+SCENARIO_CUSTOM_TARGETS += fmt-go fmt-ui lint-go
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
 help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
 	@printf "  make setup                      Run scenario setup lifecycle\n"
@@ -61,14 +65,6 @@ clean: ## Clean build artifacts
 	@rm -rf ui/dist || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) || true
 
-build: ## Build the scenario
-	@if [ -f api/go.mod ]; then \
-		cd api && GOWORK=off go build -o "$(SCENARIO_NAME)-api" .; \
-	fi
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run build; \
-	fi
-
 fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
@@ -108,11 +104,6 @@ lint-go: ## Lint Go code
 		elif command -v go >/dev/null 2>&1; then \
 			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
 		fi; \
-	fi
-
-lint-ui: ## Lint UI code
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 lint-fix: ## Auto-fix UI lint issues when supported
