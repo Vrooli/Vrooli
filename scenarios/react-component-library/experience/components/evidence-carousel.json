@@ -28,6 +28,7 @@
     }
   ],
   "claims": [
+    { "id": "review-evidence-order", "type": "manual-review", "statement": "A reviewer confirms the evidence sequence communicates its intended narrative.", "tier": "manual", "states": ["default", "empty"] },
     {
       "id": "surface-present",
       "type": "element-present",

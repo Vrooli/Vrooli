@@ -14,7 +14,9 @@ describe("CartesianCharts", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Version progression" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No progression data is available.");
+    expect(document.querySelector('[data-rcl-chart-part="annotation"]')).toHaveTextContent(
+      "There is not enough information to draw this view yet.",
+    );
     expect(screen.getByRole("table")).toBeInTheDocument();
   });
 

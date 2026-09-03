@@ -168,7 +168,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*adoptionsv1.ListAdoptionsResponse, error) {
 	req := &adoptionsv1.ListAdoptionsRequest{
 		ComponentId: ctx.Flag("component-id"),
 		Scenario:    ctx.Flag("scenario"),
@@ -176,30 +176,34 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+			return nil, fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
 		req.Limit = int32(n)
 	}
 	resp, err := h.client.ListAdoptions(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list adoptions", err, nil)
+		return nil, cliapp.WrapAPIError("list adoptions", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no list response")
+		return nil, fmt.Errorf("server returned no list response")
 	}
-	results := make([]string, 0, len(resp.Msg.Adoptions))
-	for _, a := range resp.Msg.Adoptions {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *adoptionsv1.ListAdoptionsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Adoptions))
+	for _, a := range msg.Adoptions {
 		results = append(results, formatAdoption(a))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d adoption(s).", len(resp.Msg.Adoptions))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d adoption(s).", len(msg.Adoptions))},
 		ResultsHeading: "Adoptions",
 		Results:        results,
 		RetrievalHints: []string{
 			"`adoptions refresh` — recompute drift status",
 			"`adoptions apply <component-id> <scenario> <adopted-path>` — copy a component into a scenario",
 		},
-	})
+	}
 }
 
 func (h *handlers) listScenarios(ctx cliapp.RunContext) error {
@@ -231,24 +235,28 @@ func (h *handlers) listScenarios(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) listEffective(ctx cliapp.RunContext) error {
+func (h *handlers) listEffectiveCall(ctx cliapp.OperationContext) (*adoptionsv1.ListEffectiveAdoptionsResponse, error) {
 	req := &adoptionsv1.ListEffectiveAdoptionsRequest{ComponentId: ctx.Positional("component-id")}
 	if raw := ctx.Flag("limit"); raw != "" {
 		limit, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+			return nil, fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
 		req.Limit = int32(limit)
 	}
 	resp, err := h.client.ListEffectiveAdoptions(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list effective adoptions", err, nil)
+		return nil, cliapp.WrapAPIError("list effective adoptions", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no effective-adoptions response")
+		return nil, fmt.Errorf("server returned no effective-adoptions response")
 	}
-	rows := make([]string, 0, len(resp.Msg.Adoptions))
-	for _, effective := range resp.Msg.Adoptions {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listEffectiveReport(_ cliapp.OperationContext, msg *adoptionsv1.ListEffectiveAdoptionsResponse) cliapp.ListReport {
+	rows := make([]string, 0, len(msg.Adoptions))
+	for _, effective := range msg.Adoptions {
 		if effective.ParentAdoption == nil {
 			continue
 		}
@@ -258,27 +266,31 @@ func (h *handlers) listEffective(ctx cliapp.RunContext) error {
 		}
 		rows = append(rows, fmt.Sprintf("%s %s@%s via %s (%s)", kind, effective.SourceLibraryId, effective.SourceVersion, effective.ParentAdoption.Scenario, effective.ParentAdoption.Id))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d effective adoption(s).", len(rows))}, ResultsHeading: "Effective adoptions", Results: rows})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d effective adoption(s).", len(rows))}, ResultsHeading: "Effective adoptions", Results: rows}
 }
 
-func (h *handlers) preflight(ctx cliapp.RunContext) error {
+func (h *handlers) preflightCall(ctx cliapp.OperationContext) (*adoptionsv1.PreflightAdoptionResponse, error) {
 	resp, err := h.client.PreflightAdoption(context.Background(), connect.NewRequest(&adoptionsv1.PreflightAdoptionRequest{
 		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), Version: ctx.Flag("version"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("preflight adoption", err, nil)
+		return nil, cliapp.WrapAPIError("preflight adoption", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no preflight response")
+		return nil, fmt.Errorf("server returned no preflight response")
 	}
-	rows := append([]string{}, resp.Msg.RequiredTokens...)
-	rows = append(rows, resp.Msg.RequiredTokenPatterns...)
-	for _, token := range resp.Msg.UnsatisfiedTokens {
+	return resp.Msg, nil
+}
+
+func (h *handlers) preflightReport(_ cliapp.OperationContext, msg *adoptionsv1.PreflightAdoptionResponse) cliapp.ListReport {
+	rows := append([]string{}, msg.RequiredTokens...)
+	rows = append(rows, msg.RequiredTokenPatterns...)
+	for _, token := range msg.UnsatisfiedTokens {
 		rows = append(rows, "UNSATISFIED "+token)
 	}
-	rows = append(rows, fmt.Sprintf("version=%s maturity=%s (floor=%s)", resp.Msg.VersionStatus, resp.Msg.MaturityRung, resp.Msg.MaturityFloor))
-	rows = append(rows, resp.Msg.Warnings...)
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight %s@%s for %s: blocking=%t", resp.Msg.ComponentId, resp.Msg.Version, resp.Msg.Scenario, resp.Msg.Blocking)}, ResultsHeading: "Adoptability verdict", Results: rows})
+	rows = append(rows, fmt.Sprintf("version=%s maturity=%s (floor=%s)", msg.VersionStatus, msg.MaturityRung, msg.MaturityFloor))
+	rows = append(rows, msg.Warnings...)
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight %s@%s for %s: blocking=%t", msg.ComponentId, msg.Version, msg.Scenario, msg.Blocking)}, ResultsHeading: "Adoptability verdict", Results: rows}
 }
 
 func (h *handlers) syncTokens(ctx cliapp.RunContext) error {
@@ -297,18 +309,22 @@ func (h *handlers) pruneTokens(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token prune for %s: removed=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Removed), resp.Msg.Changed)}, ResultsHeading: "Removed tokens", Results: resp.Msg.Removed})
 }
 
-func (h *handlers) link(ctx cliapp.RunContext) error {
+func (h *handlers) linkCall(ctx cliapp.OperationContext) (*adoptionsv1.LinkAdoptionResponse, error) {
 	resp, err := h.client.LinkAdoption(context.Background(), connect.NewRequest(&adoptionsv1.LinkAdoptionRequest{
 		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), Version: ctx.Flag("version"),
 		ImportSubpath: ctx.Flag("import-subpath"), ConfirmExisting: ctx.Flag("confirm-existing") == "true",
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("link adoption", err, nil)
+		return nil, cliapp.WrapAPIError("link adoption", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
-		return fmt.Errorf("server returned no linked adoption")
+		return nil, fmt.Errorf("server returned no linked adoption")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Linked %s through %s.", resp.Msg.Adoption.Id, resp.Msg.PackagePath)}, ResultsHeading: "Adoption", Results: []string{formatAdoption(resp.Msg.Adoption)}})
+	return resp.Msg, nil
+}
+
+func (h *handlers) linkReport(_ cliapp.OperationContext, msg *adoptionsv1.LinkAdoptionResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Linked %s through %s.", msg.Adoption.Id, msg.PackagePath)}, Changes: []string{formatAdoption(msg.Adoption)}}
 }
 
 func (h *handlers) eject(ctx cliapp.RunContext) error {

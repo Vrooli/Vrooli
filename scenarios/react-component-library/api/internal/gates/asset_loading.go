@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/utilityclass"
@@ -49,6 +50,10 @@ func validateReleasedVersionHashLedger(root string) (Result, error) {
 			continue
 		}
 		path := filepath.Join(root, "scenarios", "react-component-library", "library", filepath.FromSlash(entry.Path))
+		if isSupplementalImplementation(path) {
+			result.Inspected--
+			continue
+		}
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			result.Findings = append(result.Findings, Finding{

@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"strings"
 	"time"
+
+	"react-component-library/internal/librarywalk"
 )
 
 type Repository struct {
@@ -815,7 +816,7 @@ func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, man
 	// plan-aware helper below; this keeps old callers from accidentally gaining
 	// destructive behavior.
 	if suppliedPlanHash == "" || suppliedPlanHash != currentPlanHash {
-		return fmt.Errorf("archive plan changed or --plan-hash is missing; regenerate with versions plan-cleanup")
+		return fmt.Errorf("archive plan changed or --plan-hash is missing; regenerate with versions reap")
 	}
 	allowed := false
 	for _, item := range items {

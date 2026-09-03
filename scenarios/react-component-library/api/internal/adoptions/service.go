@@ -11,12 +11,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
@@ -1714,7 +1715,7 @@ func (r *FSScenarioFileReader) TokenMapping(_ context.Context, scenario string) 
 // It intentionally scans source rather than only the canonical ramp so a
 // consumer-owned declaration outside the managed region still satisfies a
 // library requirement without being overwritten.
-func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string) ([]string, error) {
+func (r *FSScenarioFileReader) DeclaredTokens(ctx context.Context, scenario string) ([]string, error) {
 	base := filepath.Join(r.root, scenario, "ui")
 	declared := map[string]struct{}{}
 	if _, err := os.Stat(base); err != nil {
@@ -1723,7 +1724,7 @@ func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string
 		}
 		return nil, err
 	}
-	err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(ctx, base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -1767,7 +1768,7 @@ func (r *FSScenarioFileReader) DeclaredTokens(_ context.Context, scenario string
 // RuntimeWrittenTokens reports properties whose value is owned by application
 // state rather than by the static design-token ramp. Token sync removes these
 // from its managed region so a stale default cannot race the runtime writer.
-func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario string) ([]string, error) {
+func (r *FSScenarioFileReader) RuntimeWrittenTokens(ctx context.Context, scenario string) ([]string, error) {
 	base := filepath.Join(r.root, scenario, "ui", "src")
 	written := map[string]struct{}{}
 	if _, err := os.Stat(base); err != nil {
@@ -1776,7 +1777,7 @@ func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario 
 		}
 		return nil, err
 	}
-	err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(ctx, base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -1809,8 +1810,8 @@ func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario 
 	return result, nil
 }
 
-func (r *FSScenarioFileReader) ImportedLibrarySpecifiers(_ context.Context, scenario string) ([]components.LibraryPackageSpecifier, error) {
-	sources, err := r.walkScenarioSources()
+func (r *FSScenarioFileReader) ImportedLibrarySpecifiers(ctx context.Context, scenario string) ([]components.LibraryPackageSpecifier, error) {
+	sources, err := r.walkScenarioSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1865,7 +1866,7 @@ type scannedSource struct {
 // (header-tagged files) and ScanUntagged (header-less candidates). It reads
 // every non-symlink .ts/.tsx file under each scenario's ui/src tree, skipping
 // node_modules. It never writes.
-func (r *FSScenarioFileReader) walkScenarioSources() ([]scannedSource, error) {
+func (r *FSScenarioFileReader) walkScenarioSources(ctx context.Context) ([]scannedSource, error) {
 	entries, err := os.ReadDir(r.root)
 	if err != nil {
 		return nil, fmt.Errorf("list scenarios for scan: %w", err)
@@ -1881,7 +1882,7 @@ func (r *FSScenarioFileReader) walkScenarioSources() ([]scannedSource, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		err := librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
+		err := librarywalk.WalkContext(ctx, base, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
@@ -1920,8 +1921,8 @@ func (r *FSScenarioFileReader) walkScenarioSources() ([]scannedSource, error) {
 
 // ScanProvenance reads only scenario UI source files. It never writes target
 // scenarios; reconciliation owns the sole database mutation after this scan.
-func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFile, error) {
-	sources, err := r.walkScenarioSources()
+func (r *FSScenarioFileReader) ScanProvenance(ctx context.Context) ([]ProvenanceFile, error) {
+	sources, err := r.walkScenarioSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1941,8 +1942,8 @@ func (r *FSScenarioFileReader) ScanProvenance(_ context.Context) ([]ProvenanceFi
 // @vrooliComponentSource/@vrooliComponentVersion header. These are the files
 // discovery scores for similarity; a real vendored copy that lost its header
 // is exactly the drift-blind case this closes.
-func (r *FSScenarioFileReader) ScanUntagged(_ context.Context) ([]CandidateFile, error) {
-	sources, err := r.walkScenarioSources()
+func (r *FSScenarioFileReader) ScanUntagged(ctx context.Context) ([]CandidateFile, error) {
+	sources, err := r.walkScenarioSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -2075,14 +2076,14 @@ func (r *FSScenarioFileReader) formatWrittenSource(ctx context.Context, scenario
 // intentionally reports only direct static/dynamic/require imports; callers
 // get actionable replacement evidence without pretending to build a full TS
 // dependency graph here.
-func (r *FSScenarioFileReader) FindImportSites(_ context.Context, scenario, adoptedPath string) ([]string, error) {
+func (r *FSScenarioFileReader) FindImportSites(ctx context.Context, scenario, adoptedPath string) ([]string, error) {
 	target, err := r.resolve(scenario, adoptedPath)
 	if err != nil {
 		return nil, err
 	}
 	base := filepath.Join(r.root, scenario)
 	sites := make([]string, 0)
-	err = librarywalk.WalkContext(context.Background(), base, func(path string, entry os.DirEntry, walkErr error) error {
+	err = librarywalk.WalkContext(ctx, base, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -2141,7 +2142,7 @@ func (r *FSScenarioFileReader) RewriteImportSites(ctx context.Context, scenario,
 		// only the row's current exact version, so a repeated governed Link
 		// repairs stale package imports as well.
 		oldModulePattern := regexp.MustCompile(`(["'])` + regexp.QuoteMeta(modulePrefix) + `[^"']+(["'])`)
-		err := librarywalk.WalkInfo(context.Background(), base, func(path string, info os.FileInfo, walkErr error) error {
+		err := librarywalk.WalkInfo(ctx, base, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}

@@ -13,6 +13,13 @@ func ValidateTokenRampComplete(scope Scope) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	filteredSources := sources[:0]
+	for _, path := range sources {
+		if !isSupplementalImplementation(path) {
+			filteredSources = append(filteredSources, path)
+		}
+	}
+	sources = filteredSources
 	rampRaw, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css"))
 	if err != nil {
 		return Result{}, err

@@ -4,6 +4,7 @@
 package libspec
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,7 +39,7 @@ func ParseAll(source string) []Specifier {
 func IsRelease(value string) bool { return sharedlibspec.IsRelease(value) }
 
 func Walk(root string, scope Scope, visit func(path string) error) error {
-	return librarywalk.WalkTree(nil, root, func(path string, entry os.DirEntry, err error) error {
+	return librarywalk.WalkTree(context.TODO(), root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

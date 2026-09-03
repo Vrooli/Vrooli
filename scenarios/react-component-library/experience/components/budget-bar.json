@@ -28,6 +28,7 @@
     }
   ],
   "claims": [
+    { "id": "review-limit-meaning", "type": "manual-review", "statement": "A reviewer confirms the limit and remaining budget are understandable without inference.", "tier": "manual", "states": ["default", "failure"] },
     {
       "id": "surface-present",
       "type": "element-present",

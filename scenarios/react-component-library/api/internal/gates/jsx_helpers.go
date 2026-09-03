@@ -10,10 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
 	"time"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func jsxOpeningTags(source string) []string {

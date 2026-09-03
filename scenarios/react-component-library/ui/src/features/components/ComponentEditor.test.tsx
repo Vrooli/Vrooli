@@ -99,6 +99,8 @@ import { ComponentEditor } from "./ComponentEditor";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 
+const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
 describe("ComponentEditor", () => {
   beforeEach(async () => {
     await setLocale("en");
@@ -106,6 +108,7 @@ describe("ComponentEditor", () => {
 
   afterEach(() => {
     cleanup();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
     vi.clearAllMocks();
   });
 

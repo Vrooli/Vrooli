@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:RollingNumber",
   "version": "0.1.2",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T08:51:21.573Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -13,7 +13,7 @@
     {
       "libraryId": "react-component-library:ProvenanceInk",
       "major": 0,
-      "observed": "0.1.1",
+      "observed": "0.1.2",
       "rank": 4
     },
     {

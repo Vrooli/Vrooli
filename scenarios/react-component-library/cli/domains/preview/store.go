@@ -16,15 +16,13 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-var (
-	runPreviewDependencyInstall = func(ctx context.Context, repoRoot, packageName, versionRange, surface string) ([]byte, error) {
-		cmd := exec.CommandContext(ctx, "scenario-dependency-analyzer", "deps", "install", "npm/"+packageName+"@"+versionRange,
-			"--scenario", "react-component-library", "--surface", "tools/"+surface, "--apply", "--json")
-		cmd.Dir = repoRoot
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ROOT=" + repoRoot})
-		return cmd.CombinedOutput()
-	}
-)
+var runPreviewDependencyInstall = func(ctx context.Context, repoRoot, packageName, versionRange, surface string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "scenario-dependency-analyzer", "deps", "install", "npm/"+packageName+"@"+versionRange,
+		"--scenario", "react-component-library", "--surface", "tools/"+surface, "--apply", "--json")
+	cmd.Dir = repoRoot
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ROOT=" + repoRoot})
+	return cmd.CombinedOutput()
+}
 
 type previewStoreDeclaration struct {
 	Name  string

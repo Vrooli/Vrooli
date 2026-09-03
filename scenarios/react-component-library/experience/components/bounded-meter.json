@@ -28,6 +28,7 @@
     }
   ],
   "claims": [
+    { "id": "review-readable-context", "type": "manual-review", "statement": "A reviewer confirms the metric remains understandable with its surrounding context.", "tier": "manual", "states": ["default", "warning"] },
     {
       "id": "surface-present",
       "type": "element-present",

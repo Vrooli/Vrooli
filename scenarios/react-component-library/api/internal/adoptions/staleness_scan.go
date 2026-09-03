@@ -6,9 +6,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
 )
@@ -47,7 +48,7 @@ func ScanVendoredFiles(ctx context.Context, root string, catalog ComponentCatalo
 		return nil, err
 	}
 	var findings []FileScanFinding
-	err = librarywalk.WalkContext(context.Background(), root, func(path string, d fs.DirEntry, err error) error {
+	err = librarywalk.WalkContext(ctx, root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

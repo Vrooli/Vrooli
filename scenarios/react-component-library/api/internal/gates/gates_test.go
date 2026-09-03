@@ -428,6 +428,52 @@ func TestReleasedVersionImmutableRejectsEmptyIndexWithoutEvidence(t *testing.T) 
 	}
 }
 
+func TestEvidenceFreshnessSkipsSupplementalImplementations(t *testing.T) {
+	root := t.TempDir()
+	storyPath := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "AuthClient", "versions", "1.0.0", "story.json")
+	manifestPath := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "AuthClient", "component.json")
+	if err := os.MkdirAll(filepath.Dir(storyPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(storyPath, []byte(`{"kind":"component","stories":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, []byte(`{"libraryId":"react-component-library:AuthClient","latest":"1.0.0","supplemental":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	normalStory := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "versions", "1.0.0", "story.json")
+	normalManifest := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "component.json")
+	if err := os.MkdirAll(filepath.Dir(normalStory), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(normalStory, []byte(`{"kind":"component","stories":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(normalManifest, []byte(`{"libraryId":"react-component-library:Button","latest":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := openGateDB(context.Background(), filepath.Join(root, "react-component-library.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE component_test_reports (root_library_id TEXT, root_version TEXT, source_revision TEXT, created_at TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO component_test_reports(root_library_id, root_version, source_revision, created_at) VALUES ('react-component-library:Button', '1.0.0', 'revision', '2026-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateEvidenceFreshness(Scope{Context: context.Background(), Root: root, DB: db.Primary(), Revision: func(string, string) (string, error) {
+		return "revision", nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 || len(result.RunnerError) != 0 {
+		t.Fatalf("supplemental freshness result = %+v, want only the normal asset measured", result)
+	}
+}
+
 func TestReleasedVersionImmutableFallsBackToHashLedgerAndDetectsOneByteMutation(t *testing.T) {
 	root := t.TempDir()
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
@@ -970,13 +1016,16 @@ export default Fixture;
 	}
 }
 
-func TestNormalizeResultPreservesCorpusPseudoAssets(t *testing.T) {
+func TestNormalizeResultRemovesCorpusPseudoAssets(t *testing.T) {
 	result := NormalizeResult(t.TempDir(), Result{Findings: []Finding{{Code: "conformance.type-scale", AssetID: "workbench.conformance"}}})
 	if len(result.Findings) != 1 || len(result.RunnerError) != 0 {
 		t.Fatalf("corpus finding normalization = %+v, want one finding and no runner errors", result)
 	}
 	if result.Findings[0].Scope != FindingScopeCorpus || result.Findings[0].Severity != FindingSeverityWarning {
 		t.Fatalf("corpus finding attribution = %+v, want corpus/warning", result.Findings[0])
+	}
+	if result.Findings[0].AssetID != "" || result.Findings[0].CatalogID != "" {
+		t.Fatalf("corpus finding retains pseudo identity: %+v", result.Findings[0])
 	}
 }
 

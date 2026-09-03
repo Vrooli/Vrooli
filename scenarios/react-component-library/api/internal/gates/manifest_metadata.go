@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateManifestMetadata(scope Scope) (Result, error) {

@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 // Why this file exists.

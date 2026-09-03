@@ -338,7 +338,11 @@ func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Comp
 	// unavailable) must be retried. A source change creates a new release or
 	// draft, while an illegal in-place release mutation is owned by the
 	// immutability gate.
-	if reports, listErr := h.service.List(ctx, asset.ID, version, 5); listErr == nil && hasReusableReport(reports, asset.LibraryID, version) {
+	if report, reused, reuseErr := h.service.Reusable(ctx, domain.Request{
+		ComponentID:    asset.ID,
+		Version:        version,
+		IncludeClosure: true,
+	}); reuseErr == nil && reused && report.RootLibraryID == asset.LibraryID && report.RootVersion == version && report.Verdict != domain.VerdictBlocked {
 		result.skipped = true
 		return result
 	}

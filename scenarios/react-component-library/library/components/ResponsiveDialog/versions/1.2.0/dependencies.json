@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:ResponsiveDialog",
   "version": "1.2.0",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T10:37:19.811Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Icon",
@@ -12,8 +12,8 @@
     },
     {
       "libraryId": "react-component-library:IconButton",
-      "major": 2,
-      "observed": "2.0.3",
+      "major": 3,
+      "observed": "3.1.5",
       "rank": 4
     },
     {

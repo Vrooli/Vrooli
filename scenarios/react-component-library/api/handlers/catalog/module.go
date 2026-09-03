@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -145,13 +145,19 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		}
 	}
 	buildStart := time.Now()
-	if _, err := catalogbuild.Build(h.repoRoot, catalogbuild.Options{}); err != nil {
-		addStage("generator", "fault", err.Error(), buildStart)
-		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
-	}
-	if _, err := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); err != nil {
-		addStage("generator", "fault", err.Error(), buildStart)
-		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+	// The check form is the fast path: clean generated projections need only
+	// verification. A stale projection falls back to the write build and is
+	// verified once more, preserving the edit-loop repair contract without
+	// paying for two generator passes on every steady-state asset check.
+	if _, checkErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); checkErr != nil {
+		if _, buildErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{}); buildErr != nil {
+			addStage("generator", "fault", buildErr.Error(), buildStart)
+			return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+		}
+		if _, verifyErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); verifyErr != nil {
+			addStage("generator", "fault", verifyErr.Error(), buildStart)
+			return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
+		}
 	}
 	addStage("generator", "passed", "catalog build and check passed", buildStart)
 
@@ -556,7 +562,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			return runErr
 		})
 		if runErr != nil {
-			log.Printf("catalog matrix canceled: %v", runErr)
+			slog.Warn("catalog matrix canceled", "error", runErr)
 			if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
 				return nil, connect.NewError(connect.CodeCanceled, runErr)
 			}
@@ -645,10 +651,20 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if h.evidence != nil {
 		runtimeDB = h.evidence.Database()
 	}
+	var versionResolver *catalogcoverage.VersionRevisionResolver
+	if gate == "evidence-freshness" {
+		versionResolver, err = catalogcoverage.NewVersionRevisionResolver(h.repoRoot)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("prepare version revisions: %w", err))
+		}
+	}
 	if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
 		scope := gates.Scope{Context: ctx, Root: h.repoRoot, Assets: h.scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB, Revision: func(libraryID, version string) (string, error) {
+			if versionResolver != nil {
+				return versionResolver.Resolve(libraryID, version)
+			}
 			return catalogcoverage.CurrentRevisionForVersion(h.repoRoot, libraryID, version)
 		}}
 		if prepared, ok := ctx.Value(preparedSetsContextKey{}).(map[gates.Reads]librarywalk.Set); ok {
@@ -679,7 +695,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			Code:        "catalog.version_retirement_plan",
 			AssetID:     "__corpus__",
 			Message:     fmt.Sprintf("retirement plan computed: %d safe candidate(s) out of %d; no versions applied without an explicit plan hash and confirmation", eligible, len(items)),
-			Remediation: fmt.Sprintf("Review `react-component-library versions plan-cleanup --json` (plan hash %s), then apply only with the reviewed hash and explicit confirmation.", planHash),
+			Remediation: fmt.Sprintf("Review `react-component-library versions reap --json` (plan hash %s), then apply only with the reviewed hash and explicit confirmation.", planHash),
 			DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
 		})
 	}

@@ -23,6 +23,7 @@
     }
   ],
   "claims": [
+    { "id": "review-icon-meaning", "type": "manual-review", "statement": "A reviewer confirms the icon communicates the action without relying on decoration alone.", "tier": "manual", "states": ["default"] },
     {
       "id": "named-action",
       "type": "element-present",

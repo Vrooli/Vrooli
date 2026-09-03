@@ -35,6 +35,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -64,6 +67,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -98,6 +104,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -162,6 +171,9 @@
               "network:internal",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -221,6 +233,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -244,6 +259,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -280,6 +298,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -316,6 +337,9 @@
               "network:internal",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -391,6 +415,9 @@
               "filesystem:read",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -431,6 +458,9 @@
               "network:internal",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -476,6 +506,9 @@
               "network:internal",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -516,6 +549,9 @@
               "network:internal",
               "filesystem:write"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -545,6 +581,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -585,6 +624,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -622,6 +664,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -655,6 +700,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -671,6 +719,50 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reap",
+          "description": "Preview and explicitly confirm safe version retirement",
+          "flags": [
+            {
+              "name": "component-id",
+              "description": "Only versions for this component"
+            },
+            {
+              "name": "library-id",
+              "description": "Only versions for this library id"
+            },
+            {
+              "name": "older-than-days",
+              "description": "Only versions older than this age"
+            },
+            {
+              "name": "plan-hash",
+              "description": "Exact hash returned by the dry-run plan"
+            },
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "Apply the exact reviewed plan"
+            }
+          ],
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
           }
         }
       ]
@@ -734,6 +826,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -771,6 +866,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -794,6 +892,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -827,6 +928,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -924,6 +1028,9 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -948,6 +1055,9 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -971,6 +1081,9 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primitive": "operational"
           }
         },
         {
@@ -1227,6 +1340,126 @@
       "reason": "Preview-only UI authoring surface. Frame persistence creates versioned story drafts from the Components UI; no standalone CLI workflow exists."
     },
     {
+      "service": "CatalogService",
+      "method": "CaptureEvidence",
+      "reason": "Evidence capture is a browser-backed UI/Test Genie workflow composed by asset check; it is not a standalone CLI mutation."
+    },
+    {
+      "service": "CatalogService",
+      "method": "CheckAsset",
+      "reason": "The targeted asset check workflow is composed by the CLI asset command and is not exposed as a raw catalog RPC."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetAssetPortContract",
+      "reason": "Port contracts are an internal workbench/catalog-build seam, not a standalone public CLI workflow."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetCatalogStructure",
+      "reason": "Catalog structure is consumed by the workbench and corpus report; the public CLI exposes catalog status and build workflows."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetCoverage",
+      "reason": "Coverage is a workbench/readiness projection; the public CLI exposes readiness and corpus-report instead."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetHealthOverview",
+      "reason": "Health overview is an internal workbench projection; the public CLI uses the top-level status/readiness workflow."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetScoreHistory",
+      "reason": "Score history is an internal catalog reporting projection and is not a promoted edit-loop verb."
+    },
+    {
+      "service": "CatalogService",
+      "method": "ListNextWork",
+      "reason": "Next-work ranking is consumed by catalog readiness and the workbench; it is not a standalone edit-loop command."
+    },
+    {
+      "service": "CatalogService",
+      "method": "ReconcileGraph",
+      "reason": "Graph reconciliation is a catalog-build stage, not an independently promoted command."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "GetComponentTestReport",
+      "reason": "Reports are durable evidence consumed by asset check and the workbench; the CLI exposes the governed test workflow rather than raw report reads."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "ListComponentTestReports",
+      "reason": "Reports are durable evidence consumed by asset check and the workbench; the CLI exposes the governed test workflow rather than raw report listing."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "RerunComponentTest",
+      "reason": "Reruns are composed by the governed component test/asset check workflow and are not a separate public edit-loop verb."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ArchiveVersion",
+      "reason": "Version archival is an internal lifecycle operation composed by versions doctor/reap."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "CleanupDraft",
+      "reason": "Draft cleanup is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "CleanupVersions",
+      "reason": "Version cleanup is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "DeprecateVersion",
+      "reason": "Deprecation is an internal version-lifecycle operation, not a promoted edit-loop verb."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ExportArchive",
+      "reason": "Archive export is an internal lifecycle operation and is intentionally not part of the focused public surface."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ImportArchive",
+      "reason": "Archive import is an internal lifecycle operation and is intentionally not part of the focused public surface."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ListRetireCandidates",
+      "reason": "Retirement candidates are consumed by the promoted versions reap/doctor workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ListVersionLedger",
+      "reason": "The version ledger is an internal integrity projection consumed by versions doctor."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "MaterializeVersion",
+      "reason": "Version materialization is composed by the governed draft/publish workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "PlanCleanup",
+      "reason": "Cleanup planning is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ReconcilePresence",
+      "reason": "Presence reconciliation is an internal lifecycle/doctor operation."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "RetireVersion",
+      "reason": "Version retirement is an internal lifecycle operation composed by versions reap/doctor."
+    },
+    {
       "service": "ScenarioValidationService",
       "method": "ValidateTarget",
       "reason": "Provider-owned validation surface invoked by Test Genie; CLI consumers use the scenario test protocol."
@@ -1270,16 +1503,6 @@
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
       "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
-    },
-    {
-      "service": "InventoryService",
-      "method": "ScanScenario",
-      "reason": "Internal/UI-only inventory scan used by adoption suggestions; the CLI exposes governed adoption commands rather than raw inventory scans."
-    },
-    {
-      "service": "InventoryService",
-      "method": "Scan",
-      "reason": "Internal/UI-only inventory scan used by adoption suggestions; the CLI exposes governed adoption commands rather than raw inventory scans."
     }
   ]
 }

@@ -33,6 +33,7 @@
     }
   ],
   "claims": [
+    { "id": "review-control-feedback", "type": "manual-review", "statement": "A reviewer confirms the control's visual feedback communicates its current state.", "tier": "manual", "states": ["variant-primary"] },
     {
       "id": "hover-state-contrast",
       "type": "state-contrast",

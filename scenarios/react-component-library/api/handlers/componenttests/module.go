@@ -70,6 +70,12 @@ func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceR
 		// Resolve through the shared registry service before hashing so both
 		// identities remain valid at this boundary.
 		revisionID := assetID
+		// A qualified public library id is already the identity required by
+		// CurrentRevisionForVersion. Preserve it even if the registry is still
+		// warming and its lookup cannot resolve the request yet.
+		if strings.Contains(assetID, ":") {
+			revisionID = assetID
+		}
 		if component, lookupErr := assets.Get(ctx, assetID); lookupErr == nil && component.LibraryID != "" {
 			revisionID = component.LibraryID
 		} else if component, lookupErr := assets.GetByLibraryID(ctx, assetID); lookupErr == nil && component.LibraryID != "" {
@@ -99,7 +105,7 @@ func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceR
 				}
 			}
 		}
-		if revisionID == assetID {
+		if revisionID == assetID && !strings.Contains(assetID, ":") {
 			return "", fmt.Errorf("resolve revision library id for %q from source root %q", assetID, sourceRoot)
 		}
 		// Revision helpers accept the scenario root; sourceRoot is the
@@ -373,7 +379,7 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 					existing, listErr := h.service.List(ctx, asset.ID, version.Version, 1)
 					if listErr != nil {
 						response.Errors = append(response.Errors, fmt.Sprintf("%s@%s: read prior report: %v", asset.LibraryID, version.Version, listErr))
-					} else if len(existing) > 0 && existing[0].Verdict != domain.VerdictBlocked && h.storyEvidenceFresh(version) {
+					} else if len(existing) > 0 && existing[0].Verdict != domain.VerdictBlocked && h.storyEvidenceFresh(ctx, version) {
 						previous = string(existing[0].Verdict)
 						sweep.Results[key] = previous
 						_ = h.sweeps.Save(ctx, sweep)
@@ -429,7 +435,7 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 	return connect.NewResponse(response), nil
 }
 
-func (h *connectHandler) storyEvidenceFresh(version components.ComponentVersion) bool {
+func (h *connectHandler) storyEvidenceFresh(ctx context.Context, version components.ComponentVersion) bool {
 	storyPath, ok := h.storyContractPath(version)
 	if !ok {
 		return false
@@ -438,7 +444,7 @@ func (h *connectHandler) storyEvidenceFresh(version components.ComponentVersion)
 	if err != nil {
 		return false
 	}
-	reports, err := h.service.List(context.Background(), version.ComponentID, version.Version, 1)
+	reports, err := h.service.List(ctx, version.ComponentID, version.Version, 1)
 	return err == nil && len(reports) > 0 && reports[0].CreatedAt.After(contract.ModTime())
 }
 

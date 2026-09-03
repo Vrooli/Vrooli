@@ -1,22 +1,25 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "libraryId": "react-component-library:CartesianCharts",
   "version": "1.0.2",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-03T08:51:21.573Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Chart",
-      "version": "1.0.0",
+      "major": 1,
+      "observed": "1.0.0",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.1",
+      "major": 1,
+      "observed": "1.0.1",
       "rank": 1
     },
     {
       "libraryId": "react-component-library:useLocale",
-      "version": "1.1.1",
+      "major": 1,
+      "observed": "1.1.1",
       "rank": 2
     }
   ]

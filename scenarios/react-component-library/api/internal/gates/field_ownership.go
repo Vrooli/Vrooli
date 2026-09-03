@@ -41,10 +41,14 @@ func ValidateFieldOwnership(scope Scope) (Result, error) {
 			return Result{}, fmt.Errorf("parse %s: %w", manifest, err)
 		}
 		var identity struct {
-			CatalogID string `json:"catalogId"`
-			LibraryID string `json:"libraryId"`
+			CatalogID    string `json:"catalogId"`
+			LibraryID    string `json:"libraryId"`
+			Supplemental bool   `json:"supplemental"`
 		}
 		_ = json.Unmarshal(data, &identity)
+		if identity.Supplemental {
+			continue
+		}
 		assetID := identity.CatalogID
 		if assetID == "" {
 			assetID = identity.LibraryID

@@ -14,11 +14,11 @@ const sizingContract = readFileSync(
   "utf8",
 );
 const controlBaseSource = readFileSync(
-  path.resolve(directory, "../../../library/components/ControlBase/versions/1.1.0/ControlBase.tsx"),
+  path.resolve(directory, "../../../library/components/ControlBase/versions/1.1.2/ControlBase.tsx"),
   "utf8",
 );
 const baseStylesSource = readFileSync(
-  path.resolve(directory, "../../../library/foundations/BaseStyles/versions/1.0.0/BaseStyles.ts"),
+  path.resolve(directory, "../../../library/foundations/BaseStyles/versions/1.2.3/BaseStyles.ts"),
   "utf8",
 );
 
@@ -38,12 +38,14 @@ describe("ControlBase documented geometry", () => {
     ]);
 
     for (const rung of documentedRungs) {
-      expect(controlBaseSource).toContain(
-        `${rung.name}: { minBlockSize: "var(--control-size-${rung.name})"`,
+      expect(controlBaseSource).toMatch(
+        new RegExp(
+          `${rung.name}:\\s*\\{\\s*minBlockSize: "var\\(--control-size-${rung.name}\\)"`,
+        ),
       );
     }
-    expect(controlBaseSource).toContain(
-      'icon: { minBlockSize: "var(--control-size-icon)", minInlineSize: "var(--control-size-icon)"',
+    expect(controlBaseSource).toMatch(
+      /icon:\s*\{\s*minBlockSize: "var\(--control-size-icon\)",\s*minInlineSize: "var\(--control-size-icon\)"/,
     );
     expect(controlBaseSource).not.toContain("min-height: var(--tap-target-min)");
     expect(controlBaseSource).not.toContain("min-width: var(--tap-target-min)");
@@ -75,8 +77,8 @@ describe("ControlBase documented geometry", () => {
   // browser render threw. A contract the test runner can satisfy alone is not
   // a contract the consumers get.
   it("states each rung's pixels once and derives the tap-target marking from them", () => {
-    expect(controlBaseSource).toContain(
-      "const sizePixels: Record<ControlSize, number> = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 };",
+    expect(controlBaseSource).toMatch(
+      /const sizePixels: Record<ControlSize, number> = \{[\s\S]*xs: 32,[\s\S]*sm: 36,[\s\S]*md: 40,[\s\S]*lg: 44,[\s\S]*xl: 48,[\s\S]*icon: 40,[\s\S]*default: 40,[\s\S]*\};/,
     );
     expect(controlBaseSource).toContain("const tapTargetMinimum = 44;");
     expect(controlBaseSource).toContain(

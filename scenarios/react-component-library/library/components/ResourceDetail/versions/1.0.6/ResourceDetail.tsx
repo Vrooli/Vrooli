@@ -17,7 +17,7 @@ import {
 } from "@vrooli/react-component-library/AsyncBoundary/1";
 import { AuditTrail } from "@vrooli/react-component-library/AuditTrail/1";
 import { DescriptionList } from "@vrooli/react-component-library/DescriptionList/1";
-import { PageHeader } from "@vrooli/react-component-library/PageHeader/1";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 
 export interface ResourceDetailEntry {
   term: string;

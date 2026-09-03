@@ -30,9 +30,10 @@ describe("Card primitives", () => {
       </Card>,
     );
 
-    // Base chunk (cn/twMerge output) plus the caller's custom class both survive.
+    // The released card uses its data attribute for tokenized styling and
+    // keeps the caller's className as an extension seam.
     const card = screen.getByTestId("card");
-    expect(card.className).toContain("rounded-panel");
+    expect(card).toHaveAttribute("data-rcl-card");
     expect(card.className).toContain("custom-card");
 
     expect(screen.getByTestId("header").className).toContain("custom-header");

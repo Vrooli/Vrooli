@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import {
@@ -45,18 +45,23 @@ describe("CreateComponentDialog", () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateComponentDialog onClose={onClose} />);
 
-    await user.type(screen.getByTestId(selectors.components.create.slug), "notice");
-    await user.type(screen.getByTestId(selectors.components.create.libraryId), "ui:Notice");
-    await user.type(screen.getByTestId(selectors.components.create.displayName), "Notice");
-    await user.type(screen.getByTestId(selectors.components.create.tags), " status, feedback , ");
-    await user.type(
-      screen.getByTestId(selectors.components.create.description),
-      "An inline notice.",
-    );
-    await user.type(
-      screen.getByTestId(selectors.components.create.initialSource),
-      "export const Notice = () => null;",
-    );
+    const slug = screen.getByTestId(selectors.components.create.slug);
+    fireEvent.change(slug, { target: { value: "notice" } });
+    fireEvent.change(screen.getByTestId(selectors.components.create.libraryId), {
+      target: { value: "ui:Notice" },
+    });
+    fireEvent.change(screen.getByTestId(selectors.components.create.displayName), {
+      target: { value: "Notice" },
+    });
+    fireEvent.change(screen.getByTestId(selectors.components.create.tags), {
+      target: { value: " status, feedback , " },
+    });
+    fireEvent.change(screen.getByTestId(selectors.components.create.description), {
+      target: { value: "An inline notice." },
+    });
+    fireEvent.change(screen.getByTestId(selectors.components.create.initialSource), {
+      target: { value: "export const Notice = () => null;" },
+    });
     await user.click(screen.getByTestId(selectors.components.create.submit));
 
     await waitFor(() => {

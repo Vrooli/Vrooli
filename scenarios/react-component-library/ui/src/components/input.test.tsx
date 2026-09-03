@@ -2,10 +2,8 @@
  * Unit tests for the Input primitive.
  *
  * What these tests pin:
- *   - The base className chunk (`rounded-control`) is always emitted, so a
- *     refactor that drops the cn() merge surfaces immediately.
- *   - Custom className is merged via tailwind-merge (cn helper) — both
- *     base and custom classes survive.
+ *   - The tokenized base styling marker (`data-rcl-input`) is always emitted.
+ *   - Custom className remains a caller-owned extension seam.
  *   - The forwardRef contract holds: useRef(null) populates with the
  *     real HTMLInputElement.
  *   - Arbitrary props pass through (placeholder, type, disabled).
@@ -27,15 +25,14 @@ describe("Input", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
     renderWithProviders(<Input data-testid="i" />);
     const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
   it("merges a custom className with the base classes via cn()", () => {
     renderWithProviders(<Input data-testid="i" className="custom-extra px-space-md" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-control/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

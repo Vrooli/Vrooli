@@ -42,6 +42,19 @@ func ShapeCensus(libraryRoot string) ([]ShapeRow, error) {
 			files = []string{"<Asset>.tsx", "<Asset>.css?", "<Asset>.strings.ts?", "story.tsx", "story.json", "dependencies.json"}
 		}
 		kind := "version"
+		// Supplemental implementations are durable registry inputs, not part
+		// of the active catalog population. Keep their shape visible in the
+		// detailed census, but do not let their intentionally different source
+		// companions make the active-version invariant noisy.
+		manifestPath := filepath.Join(filepath.Dir(filepath.Dir(version)), "component.json")
+		if data, readErr := os.ReadFile(manifestPath); readErr == nil {
+			var manifest struct {
+				Supplemental bool `json:"supplemental"`
+			}
+			if json.Unmarshal(data, &manifest) == nil && manifest.Supplemental {
+				kind = "supplemental-version"
+			}
+		}
 		if strings.Contains(filepath.ToSlash(version), "/support/") {
 			kind = "support-version"
 		}
@@ -103,17 +116,65 @@ func ShapeCensus(libraryRoot string) ([]ShapeRow, error) {
 	return rows, nil
 }
 
+// ActiveVersionShapeCount counts distinct shapes at each manifest's current
+// published version. Historical versions remain visible in ShapeCensus, but
+// they are immutable compatibility records and must not make the active
+// catalog-shape invariant fail after a governed replacement is published.
+func ActiveVersionShapeCount(libraryRoot string) (int, error) {
+	shapes := map[string]struct{}{}
+	kinds, err := os.ReadDir(libraryRoot)
+	if err != nil {
+		return 0, err
+	}
+	for _, kind := range kinds {
+		if !kind.IsDir() || kind.Name() == ".retired" || kind.Name() == "support" {
+			continue
+		}
+		assets, readErr := os.ReadDir(filepath.Join(libraryRoot, kind.Name()))
+		if readErr != nil {
+			return 0, readErr
+		}
+		for _, asset := range assets {
+			if !asset.IsDir() {
+				continue
+			}
+			assetRoot := filepath.Join(libraryRoot, kind.Name(), asset.Name())
+			manifestData, readErr := os.ReadFile(filepath.Join(assetRoot, "component.json"))
+			if readErr != nil {
+				continue
+			}
+			var manifest struct {
+				Latest       string `json:"latest"`
+				Supplemental bool   `json:"supplemental"`
+			}
+			if json.Unmarshal(manifestData, &manifest) != nil || manifest.Latest == "" || manifest.Supplemental {
+				continue
+			}
+			versionRoot := filepath.Join(assetRoot, "versions", manifest.Latest)
+			entries, readErr := os.ReadDir(versionRoot)
+			if readErr != nil {
+				continue
+			}
+			shape := canonicalVersionShape(asset.Name(), entries)
+			shapes[strings.Join(shape, "\x00")] = struct{}{}
+		}
+	}
+	return len(shapes), nil
+}
+
 func canonicalVersionShape(assetName string, entries []os.DirEntry) []string {
 	allowed := map[string]bool{
 		assetName + ".ts": true, assetName + ".tsx": true,
+		assetName + ".test.ts": true, assetName + ".test.tsx": true,
 		assetName + ".css": true, assetName + ".strings.ts": true,
-		"story.tsx": true, "story.json": true, "dependencies.json": true,
+		"experience-contract.json": true,
+		"story.tsx":                true, "story.json": true, "dependencies.json": true,
 	}
 	// Optional authored companions are part of the declared shape even when a
 	// particular asset does not need one. This keeps the census about contract
 	// violations, rather than producing a row for every valid CSS/strings
 	// combination.
-	shape := []string{"<Asset>.tsx", "<Asset>.css?", "<Asset>.strings.ts?", "story.tsx", "story.json", "dependencies.json"}
+	shape := []string{"<Asset>.tsx", "<Asset>.css?", "<Asset>.strings.ts?", "<Asset>.test.ts?", "experience-contract.json?", "story.tsx", "story.json", "dependencies.json"}
 	entryFound, storyFound, contractFound, lockFound := false, false, false, false
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() {
@@ -132,6 +193,11 @@ func canonicalVersionShape(assetName string, entries []os.DirEntry) []string {
 			// Optional canonical companion; already represented in the shape.
 		case assetName + ".strings.ts":
 			// Optional canonical companion; already represented in the shape.
+		case assetName + ".test.ts", assetName + ".test.tsx":
+			// Optional release-local regression companion; already represented in
+			// the shape and intentionally excluded from package exports.
+		case "experience-contract.json":
+			// Optional experience metadata; it does not alter the implementation shape.
 		case "story.tsx":
 			storyFound = true
 		case "story.json":
@@ -216,7 +282,7 @@ func DuplicationCensus(root string) ([]DuplicationRow, error) {
 }
 
 func walkLiveVersions(libraryRoot string, fn func(string) error) error {
-	return librarywalk.WalkTree(nil, libraryRoot, func(path string, entry os.DirEntry, err error) error {
+	return librarywalk.WalkTree(context.TODO(), libraryRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

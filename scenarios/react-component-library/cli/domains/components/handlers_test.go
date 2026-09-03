@@ -358,7 +358,9 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern", "companion-files": "ui/src/components/useFocusTrap.ts", "experience-contract": "experience/components/drawer-shell.json"},
 	})
 
-	require.NoError(t, h.ingest(ctx))
+	msg, err := h.ingestCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoMutation(ctx, msg, h.ingestReport(ctx, msg)))
 	require.Len(t, svc.ingestReqs, 1)
 	require.Equal(t, "web-console", svc.ingestReqs[0].Scenario)
 	require.Equal(t, []string{"overlay", "layout"}, svc.ingestReqs[0].Tags)
@@ -381,7 +383,7 @@ func TestComponentsIngest_BlockedHarvestNamesLossAndPointsAtOverride(t *testing.
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
 	})
 
-	err := h.ingest(ctx)
+	_, err := h.ingestCall(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "addEventListener")
 	require.Contains(t, err.Error(), "--accept-behavior-loss")
@@ -404,7 +406,9 @@ func TestComponentsIngest_AcceptBehaviorLossForwardsOverride(t *testing.T) {
 		Flags:       map[string]string{"accept-behavior-loss": "true"},
 	})
 
-	require.NoError(t, h.ingest(ctx))
+	msg, err := h.ingestCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoMutation(ctx, msg, h.ingestReport(ctx, msg)))
 	require.Len(t, svc.ingestReqs, 1)
 	require.True(t, svc.ingestReqs[0].AcceptBehaviorLoss)
 	require.Contains(t, out.String(), "Accepted 1 behavior-loss finding(s)")
@@ -422,7 +426,9 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 		Flags: map[string]string{"match": "btn", "tag": "form", "style": "vrooli-default", "affinity": "native", "asset-kind": "hook", "limit": "50"},
 	})
 
-	require.NoError(t, h.list(ctx))
+	msg, err := h.listCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoList(ctx, msg, h.listReport(ctx, msg)))
 	require.Len(t, svc.listReqs, 1)
 	require.Equal(t, "btn", svc.listReqs[0].Match)
 	require.Equal(t, "form", svc.listReqs[0].Tag)
@@ -500,7 +506,9 @@ func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {
 		Flags: map[string]string{"tags": " form , , layout ", "category": "controls"},
 	})
 
-	require.NoError(t, h.list(ctx))
+	msg, err := h.listCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoList(ctx, msg, h.listReport(ctx, msg)))
 	require.Len(t, svc.listReqs, 1)
 	require.Equal(t, []string{"form", "layout"}, svc.listReqs[0].Tags,
 		"comma-separated --tags is parsed and trimmed; blanks dropped")
@@ -515,7 +523,7 @@ func TestComponentsList_RejectsBadLimit(t *testing.T) {
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"limit": "abc"},
 	})
-	err := h.list(ctx)
+	_, err := h.listCall(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "--limit must be an integer")
 }
@@ -532,7 +540,9 @@ func TestComponentsList_JSONIsProtoWireShape(t *testing.T) {
 		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "asset-kind"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{JSON: true})
 
-	require.NoError(t, h.list(ctx))
+	msg, err := h.listCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoList(ctx, msg, h.listReport(ctx, msg)))
 
 	body := out.String()
 	require.NotContains(t, body, "summary",
@@ -599,7 +609,9 @@ func TestComponentsContentSet_FromFile(t *testing.T) {
 		Positionals: map[string]string{"id": "abc", "file": tmpFile},
 		Flags:       map[string]string{"path": "story.json", "expected-sha256": "stale"},
 	})
-	require.NoError(t, h.contentSet(ctx))
+	msg, err := h.contentSetCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoMutation(ctx, msg, h.contentSetReport(ctx, msg)))
 	require.Len(t, svc.contentSetReqs, 1)
 	require.Equal(t, "abc", svc.contentSetReqs[0].Id)
 	require.Equal(t, "story.json", svc.contentSetReqs[0].Path)
@@ -731,7 +743,10 @@ func TestComponentsGet_ReportsNotFound(t *testing.T) {
 		Positionals: map[string]string{"id": "ghost"},
 	})
 
-	err := h.get(ctx)
+	msg, err := h.getCall(ctx)
+	if err == nil {
+		err = cliapp.RenderProtoList(ctx, msg, h.getReport(ctx, msg))
+	}
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not_found")
 }

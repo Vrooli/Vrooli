@@ -104,8 +104,7 @@ export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = n
       // that is no longer materialized locally, so retain their existing
       // ledger lock instead of pretending it can be recomputed from absent
       // source.
-      if ((asset.manifest.evictedVersions ?? []).includes(version)
-        || (asset.manifest.deprecatedVersions ?? []).includes(version)) continue;
+      if ((asset.manifest.evictedVersions ?? []).includes(version)) continue;
       const entry = await entryForVersion(root, asset.kind, name, version);
       if (!entry) continue;
       const versionRoot = join(root, asset.kind, name, "versions", version);

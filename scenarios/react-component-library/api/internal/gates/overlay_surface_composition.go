@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateOverlaySurfaceComposition(scope Scope) (Result, error) {

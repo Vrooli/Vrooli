@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,9 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/envkit-go"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
+	"react-component-library/internal/catalogcoverage"
 )
 
 type handlers struct {
@@ -25,12 +26,21 @@ func (h *handlers) corpusReport(_ cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("go", "run", "./cmd/corpus-report", "--root", filepath.Join(root, "..", "..")) // #nosec G204 -- fixed command and repository-owned root
-	cmd.Dir = filepath.Join(root, "api")
-	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	report, err := catalogcoverage.BuildCorpusReport(filepath.Join(root, "..", ".."))
+	if err != nil {
+		return err
+	}
+	out, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode corpus report: %w", err)
+	}
+	fmt.Println(string(out))
+	for _, invariant := range report.Invariants {
+		if invariant.Status == "failed_measurement" {
+			return fmt.Errorf("corpus report contains failed measurement %s", invariant.ID)
+		}
+	}
+	return nil
 }
 
 func (h *handlers) build(ctx cliapp.RunContext) error {
@@ -41,6 +51,9 @@ func (h *handlers) build(ctx cliapp.RunContext) error {
 			"release-hashes    — update immutable release hashes",
 			"story-contracts   — derive story contracts",
 			"dependency-locks  — resolve major-line dependency locks",
+			"catalog-conformance — type-check and lint catalog sources",
+			"composition        — derive preview composition evidence",
+			"harness-manifest   — validate preview harness declarations",
 		} {
 			fmt.Println(stage)
 		}
@@ -64,13 +77,17 @@ func scenarioRoot() (string, error) {
 	starts := []string{}
 	if cwd, err := os.Getwd(); err == nil {
 		starts = append(starts, cwd)
+		// Agents commonly invoke the installed control surface from the
+		// repository root. The scenario is a sibling below `scenarios/`, so
+		// upward-only discovery must also inspect that canonical child.
+		starts = append(starts, filepath.Join(cwd, "scenarios", "react-component-library"))
 	}
 	if envRoot := os.Getenv("SCENARIO_PATH"); envRoot != "" {
 		starts = append(starts, envRoot)
 	}
 	for _, start := range starts {
 		for current := filepath.Clean(start); ; current = filepath.Dir(current) {
-			if _, err := os.Stat(filepath.Join(current, "api", "cmd", "corpus-report", "main.go")); err == nil {
+			if isScenarioRoot(current) {
 				return current, nil
 			}
 			parent := filepath.Dir(current)
@@ -80,6 +97,12 @@ func scenarioRoot() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("cannot locate react-component-library scenario root")
+}
+
+func isScenarioRoot(path string) bool {
+	_, apiErr := os.Stat(filepath.Join(path, "api", "go.mod"))
+	_, catalogErr := os.Stat(filepath.Join(path, "catalog", "config.json"))
+	return apiErr == nil && catalogErr == nil
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -92,16 +115,19 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) readiness(ctx cliapp.RunContext) error {
+func (h *handlers) readinessCall(ctx cliapp.OperationContext) (*catalogv1.GetReadinessResponse, error) {
 	floor := readinessFloor(ctx)
 	resp, err := h.client.GetReadiness(context.Background(), connect.NewRequest(&catalogv1.GetReadinessRequest{Floor: floor}))
 	if err != nil {
-		return cliapp.WrapAPIError("get catalog readiness", err, nil)
+		return nil, cliapp.WrapAPIError("get catalog readiness", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog readiness")
+		return nil, fmt.Errorf("server returned no catalog readiness")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) readinessReport(_ cliapp.OperationContext, msg *catalogv1.GetReadinessResponse) cliapp.OperationalReport {
 	status := []string{
 		fmt.Sprintf("Verdict: %s", msg.GetVerdict()),
 		fmt.Sprintf("Evidence run: %s (completed=%t; completed_at=%s)", msg.GetRun().GetRunId(), msg.GetRun().GetCompleted(), msg.GetRun().GetCompletedAt()),
@@ -119,28 +145,33 @@ func (h *handlers) readiness(ctx cliapp.RunContext) error {
 		triage = append(triage, cliapp.TriageGroup{Heading: gate, Items: items})
 	}
 	sort.Slice(triage, func(i, j int) bool { return triage[i].Heading < triage[j].Heading })
-	return ctx.RenderOperational(cliapp.OperationalReport{Status: status, Triage: triage, NextSteps: msg.GetNextSteps()})
+	return cliapp.OperationalReport{Status: status, Triage: triage, NextSteps: msg.GetNextSteps()}
 }
 
-func readinessFloor(ctx cliapp.RunContext) string {
+func readinessFloor(ctx cliapp.OperationContext) string {
 	if ctx.FlagDeclared("floor") {
 		return ctx.Flag("floor")
 	}
 	return ""
 }
 
-func (h *handlers) gate(ctx cliapp.RunContext) error {
+func (h *handlers) gateCall(ctx cliapp.OperationContext) (*catalogv1.RunGateResponse, error) {
 	gate := ctx.Positional("gate")
 	if gate == "" && !ctx.BoolFlag("all") {
-		return fmt.Errorf("catalog gates requires a gate name or --all; use --help to see valid gates")
+		return nil, fmt.Errorf("catalog gates requires a gate name or --all; use --help to see valid gates")
 	}
 	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only"), IncludeAdvisory: ctx.BoolFlag("include-advisory")}))
 	if err != nil {
-		return cliapp.WrapAPIError("run catalog gate", err, nil)
+		return nil, cliapp.WrapAPIError("run catalog gate", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog gate result")
+		return nil, fmt.Errorf("server returned no catalog gate result")
 	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) gateReport(_ cliapp.OperationContext, msg *catalogv1.RunGateResponse) cliapp.ListReport {
+	resp := connect.NewResponse(msg)
 	// Findings render grouped by remediation, not one flat list. A gate that
 	// reports 410 assets failing for one reason should print that reason once
 	// and then the affected locations — repeating an identical paragraph per
@@ -239,18 +270,11 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	if resp.Msg.NonDiscriminating {
 		lines = append(lines, "QUARANTINED: calibration did not discriminate; corpus evidence was downgraded to unmeasured.")
 	}
-	renderErr := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        lines,
 		ResultsHeading: "Findings",
 		Results:        findings,
-	})
-	if renderErr != nil {
-		return renderErr
 	}
-	if resp.Msg.NonDiscriminating {
-		return fmt.Errorf("catalog gate %s is non-discriminating", resp.Msg.Gate)
-	}
-	return nil
 }
 
 func findingSeverityLabel(finding *catalogv1.GateFinding) string {
@@ -288,18 +312,22 @@ func ownerSuffix(owner string) string {
 	return ", owner " + owner
 }
 
-func (h *handlers) graph(ctx cliapp.RunContext) error {
+func (h *handlers) graphCall(ctx cliapp.OperationContext) (*catalogv1.GetAssetRelationshipsResponse, error) {
 	resp, err := h.client.GetAssetRelationships(context.Background(), connect.NewRequest(&catalogv1.GetAssetRelationshipsRequest{AssetId: ctx.Positional("asset-id")}))
 	if err != nil {
-		return cliapp.WrapAPIError("get catalog graph", err, nil)
+		return nil, cliapp.WrapAPIError("get catalog graph", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Relationships == nil {
-		return fmt.Errorf("server returned no catalog graph")
+		return nil, fmt.Errorf("server returned no catalog graph")
 	}
-	r := resp.Msg.Relationships
+	return resp.Msg, nil
+}
+
+func (h *handlers) graphReport(_ cliapp.OperationContext, msg *catalogv1.GetAssetRelationshipsResponse) cliapp.ListReport {
+	r := msg.Relationships
 	results := []string{fmt.Sprintf("depends-on: %d direct, %d in closure", len(r.DirectDependencies), len(r.Closure)), fmt.Sprintf("used-by: %d direct, %d transitive", len(r.DirectDependents), len(r.TransitiveDependents))}
 	for _, band := range r.ClosureBands {
 		results = append(results, fmt.Sprintf("rung %d (%s): %d", band.Rung, band.RungName, band.Count))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset graph: %s; blast radius %d.", r.Root.AssetId, len(r.TransitiveDependents))}, ResultsHeading: "Relationships", Results: results})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset graph: %s; blast radius %d.", r.Root.AssetId, len(r.TransitiveDependents))}, ResultsHeading: "Relationships", Results: results}
 }

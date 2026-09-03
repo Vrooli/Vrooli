@@ -8,7 +8,7 @@
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:AuthSection */
-import { AuthSection as BaseAuthSection } from "@vrooli/react-component-library/MonetizationAccount/1";
+import { AuthSection as BaseAuthSection } from "@vrooli/react-component-library/MonetizationAccount/2";
 export type AuthSectionProps = {
   signedIn: boolean;
   onSignIn: () => void;

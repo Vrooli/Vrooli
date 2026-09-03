@@ -13,14 +13,14 @@ const GroupName = "preview"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"PreviewService.GetPreviewBundle": h.bundle,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"PreviewService.GetPreviewBundle": cliapp.ProtoList(h.bundleCall, h.bundleReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("preview: load from manifest: %w", err)
 	}
-	group.Subcommands = append(group.Subcommands, cliapp.Command{
+	group.Subcommands = append(group.Subcommands, (cliapp.Command{
 		Name:        "populate-store",
 		Description: "Populate the governed preview runtime store for one asset version through Scenario Dependency Analyzer",
 		Args: cliapp.ArgSchema{
@@ -29,7 +29,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			},
 			Flags: []cliapp.Flag{{Name: "version", Required: true, Description: "Asset version whose @deps declarations should be installed"}},
 		},
-		RunCtx: h.populateStore,
-	})
+	}).WithPrimitive(cliapp.ExternalDelegation(h.populateStore)))
 	return group, nil
 }

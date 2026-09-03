@@ -14,13 +14,13 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop restart test logs status clean build dev fmt fmt-ui lint lint-go lint-ui check setup corpus-report ledger
+.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-SCENARIO_CUSTOM_TARGETS += fmt-ui
+SCENARIO_CUSTOM_TARGETS += fmt-go fmt-ui lint-go lint-ui
 # Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
 -include ../../mk/scenario.mk
 
@@ -33,11 +33,6 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
-	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
-	@printf "  make open                       Open the scenario in a browser\n"
-	@printf "  make orient                     Show generated-scenario orientation progress\n"
-	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
-	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
 	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
@@ -47,9 +42,6 @@ start: ## Start the scenario
 
 stop: ## Stop the scenario
 	@vrooli scenario stop "$(SCENARIO_NAME)"
-
-restart: ## Restart the scenario
-	@vrooli scenario restart "$(SCENARIO_NAME)"
 
 status: ## Show scenario runtime status
 	@vrooli scenario status "$(SCENARIO_NAME)"
@@ -66,9 +58,46 @@ clean: ## Clean build artifacts
 
 fmt: fmt-go fmt-ui ## Format all code
 
+fmt-go: ## Format Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+		fi; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd cli && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd cli && gofmt -w .; \
+		fi; \
+	fi
+
 fmt-ui: ## Format UI and published library source
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run format && pnpm run lint:fix && pnpm run strings:check; \
+	fi
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && GOWORK=off golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
+		fi; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd cli && GOWORK=off golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
+		fi; \
+	fi
+
+lint-ui: ## Lint UI code
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 lint: lint-go lint-ui ## Lint all code
@@ -77,11 +106,3 @@ check: fmt lint test ## Run full quality gates
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
-
-corpus-report: ## Emit version and retention corpus invariants
-	@react-component-library catalog corpus-report --json
-
-ledger: ## TEMPORARY plan ledger
-	@cd api && GOWORK=off go test -tags planledger ./internal/catalogcoverage -run TestComplexityLedger -v
-
-dev: start

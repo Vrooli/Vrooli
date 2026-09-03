@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:ResourceDetail",
   "version": "1.0.6",
-  "resolvedAt": "2026-09-03T02:41:18.431Z",
+  "resolvedAt": "2026-09-03T10:37:19.811Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:AsyncBoundary",
@@ -30,8 +30,8 @@
     },
     {
       "libraryId": "react-component-library:PageHeader",
-      "major": 1,
-      "observed": "1.0.8",
+      "major": 2,
+      "observed": "2.0.1",
       "rank": 4
     },
     {

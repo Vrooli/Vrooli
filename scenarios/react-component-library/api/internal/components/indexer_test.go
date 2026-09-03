@@ -39,7 +39,7 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 		LibraryID string `json:"libraryId"`
 		Version   string `json:"version"`
 		Observed  string `json:"observed"`
-	}{LibraryID: "react-component-library:BottomSheet", Observed: "1.2.10"})
+	}{LibraryID: "react-component-library:BottomSheet", Observed: "1.2.11"})
 }
 
 const buttonTSX = `/**
@@ -644,10 +644,16 @@ func TestIndexer_RunFindsOrphanStoryHarnessArtifact(t *testing.T) {
 		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion": 5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
 		"components/Button/versions/1.0.0/story.tsx":  {Data: []byte(`export const UnusedHarness = () => null;`)},
 	}
-	res, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fsys).Run(context.Background())
+	repo := mocks.NewFakeRepository()
+	res, err := components.NewIndexer(repo, ".", fsys).Run(context.Background())
 	require.NoError(t, err)
 	require.Len(t, res.Findings, 1)
 	require.Equal(t, components.IndexFindingStoryHarnessOrphan, res.Findings[0].Kind)
+	component, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	stories, err := repo.ListStories(context.Background(), components.StoryQuery{ComponentID: component.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Len(t, stories, 1, "orphan harness hygiene must not discard the valid declarative story projection")
 }
 
 func TestIndexer_RunReportsMalformedHeaderErrors(t *testing.T) {

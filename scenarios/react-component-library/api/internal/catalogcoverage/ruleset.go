@@ -116,7 +116,7 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 		// as corpus evidence rather than converting diagnostic context into a
 		// runner failure.
 		if strings.Contains(err.Error(), "catalog asset") {
-			finding.AssetID = "__corpus__.unresolved-" + gate
+			finding.AssetID = ""
 			finding.RuleSource = gates.RuleSourceCorpus
 			finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 			return nil
@@ -133,7 +133,7 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 	// A legacy/support identity can be a useful diagnostic without being an
 	// applicable catalog asset. Keep the observation corpus-scoped rather than
 	// aborting the entire gate matrix on annotation bookkeeping.
-	finding.AssetID = "__corpus__.unresolved-" + gate
+	finding.AssetID = ""
 	finding.RuleSource = gates.RuleSourceCorpus
 	finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	return nil

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:AsyncBoundary",
+  "version": "1.0.8",
+  "resolvedAt": "2026-09-03T02:41:18.431Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useNetworkStatus",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

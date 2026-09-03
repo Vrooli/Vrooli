@@ -18,10 +18,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 
 	"connectrpc.com/connect"
 
@@ -102,7 +103,7 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 	for _, name := range slotNames {
 		slot := mf.Slots[name]
 		dir := filepath.Join(scenarioRoot, slot.Dir)
-		entries, err := walkTSX(dir)
+		entries, err := walkTSX(ctx, dir)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				h.deps.Logger.Printf("[rcl/inventory] walk %s: %v", dir, err)
@@ -122,7 +123,6 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 
 			content, readErr := os.ReadFile(abs)
 			if readErr != nil {
-				h.deps.Logger.Printf("[rcl/inventory] read %s: %v", abs, readErr)
 				continue
 			}
 
@@ -176,7 +176,7 @@ func isTestFile(base string) bool {
 
 // walkTSX returns every .tsx file under dir, recursively. Non-existent dir
 // returns os.ErrNotExist; callers may treat that as "skip slot".
-func walkTSX(dir string) ([]string, error) {
+func walkTSX(ctx context.Context, dir string) ([]string, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func walkTSX(dir string) ([]string, error) {
 		return nil, nil
 	}
 	var out []string
-	err = librarywalk.WalkInfo(context.Background(), dir, func(path string, fi os.FileInfo, walkErr error) error {
+	err = librarywalk.WalkInfo(ctx, dir, func(path string, fi os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

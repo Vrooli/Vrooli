@@ -33,6 +33,7 @@
     }
   ],
   "claims": [
+    { "id": "review-navigation-model", "type": "manual-review", "statement": "A reviewer confirms the navigation presentation keeps the active route and hierarchy understandable.", "tier": "manual", "states": ["default", "long-content"] },
     {
       "id": "named-navigation",
       "type": "element-present",

@@ -209,7 +209,7 @@ func TestRevisionTracksManifestAndVersionSource(t *testing.T) {
 
 // Adoption copies a transitive closure, so a dependent's cached verdict cannot
 // outlive a change to what it is built on.
-func TestRevisionFoldsDependencies(t *testing.T) {
+func TestDependencyEditInvalidatesDependents(t *testing.T) {
 	root := t.TempDir()
 	writeAsset(t, root, "stack", "Stack", "")
 	writeAsset(t, root, "card", "Card", `{"libraryId":"rcl:Stack","version":"1.0.0","rank":3}`)
@@ -228,6 +228,23 @@ func TestRevisionFoldsDependencies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, before, afterDependent, "a dependency change must invalidate its dependents")
 	require.NotEqual(t, independent, afterDependency)
+}
+
+func TestMajorLineIsolation(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "leaf", "Leaf", "")
+	leafRoot := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "leaf")
+	secondVersion := filepath.Join(leafRoot, "versions", "2.0.0")
+	require.NoError(t, os.MkdirAll(secondVersion, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(secondVersion, "Leaf.tsx"), []byte("export const Leaf = '2';"), 0o644))
+	writeAsset(t, root, "mid", "Mid", `{"libraryId":"rcl:Leaf","major":1,"observed":"1.0.0","rank":3}`)
+
+	before, err := CurrentRevisionForVersion(root, "rcl:Mid", "1.0.0")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(secondVersion, "Leaf.tsx"), []byte("export const Leaf = '2 changed';"), 0o644))
+	after, err := CurrentRevisionForVersion(root, "rcl:Mid", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, before, after, "a change on an unimported major line must not invalidate the dependent")
 }
 
 func TestStaleAssetsByGateReportsOnlyTheChangedAsset(t *testing.T) {

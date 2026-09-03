@@ -49,19 +49,27 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) testRun(ctx cliapp.RunContext) error {
+func (h *handlers) testCall(ctx cliapp.OperationContext) (*componenttestsv1.RunComponentTestResponse, error) {
 	resp, err := h.testClient.RunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RunComponentTestRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Flag("version"), IncludeClosure: ctx.Flag("closure") == "true"}))
 	if err != nil {
-		return cliapp.WrapAPIError("run component test", err, nil)
+		return nil, cliapp.WrapAPIError("run component test", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
-		return fmt.Errorf("server returned no component test report")
+		return nil, fmt.Errorf("server returned no component test report")
 	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) testReport(_ cliapp.OperationContext, msg *componenttestsv1.RunComponentTestResponse) cliapp.MutationReport {
 	label := "Component test completed."
-	if resp.Msg.Reused {
-		label = fmt.Sprintf("Component test reused revision %s since report %s.", shortRevision(resp.Msg.SourceRevision), resp.Msg.Report.Id)
+	if msg.Reused {
+		label = fmt.Sprintf("Component test reused revision %s since report %s.", shortRevision(msg.SourceRevision), msg.Report.Id)
 	}
-	return renderTestReport(ctx, resp.Msg.Report, label)
+	changes := make([]string, 0, len(msg.Report.Results))
+	for _, result := range msg.Report.Results {
+		changes = append(changes, fmt.Sprintf("%s\t%s@%s\t%s", result.Stage, result.AssetLibraryId, result.Version, result.Verdict))
+	}
+	return cliapp.MutationReport{Result: []string{label}, Changes: changes, NextCommand: []string{"`components test-show " + msg.Report.Id + "` — retrieve this durable report"}}
 }
 
 func shortRevision(revision string) string {
@@ -120,38 +128,36 @@ func (h *handlers) testList(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d component test report(s).", len(results))}, ResultsHeading: "Reports", Results: results, RetrievalHints: []string{"`components test-show <report-id>` — inspect stages and remediation"}})
 }
 
-func (h *handlers) sweep(ctx cliapp.RunContext) error {
+func (h *handlers) sweepCall(ctx cliapp.OperationContext) (*componenttestsv1.SweepComponentTestsResponse, error) {
 	resp, err := h.testClient.SweepComponentTests(context.Background(), connect.NewRequest(&componenttestsv1.SweepComponentTestsRequest{
 		Resume: ctx.BoolFlag("resume"), IncludeClosure: ctx.BoolFlag("closure"), ComponentId: ctx.Flag("component-id"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("sweep component tests", err, nil)
+		return nil, cliapp.WrapAPIError("sweep component tests", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no component test sweep response")
+		return nil, fmt.Errorf("server returned no component test sweep response")
 	}
-	rows := make([]string, 0, len(resp.Msg.Reports))
-	for _, report := range resp.Msg.Reports {
+	return resp.Msg, nil
+}
+
+func (h *handlers) sweepReport(ctx cliapp.OperationContext, msg *componenttestsv1.SweepComponentTestsResponse) cliapp.ListReport {
+	rows := make([]string, 0, len(msg.Reports))
+	for _, report := range msg.Reports {
 		if report == nil {
 			continue
 		}
 		rows = append(rows, fmt.Sprintf("%s\t%s@%s\t%s", report.Id, report.RootLibraryId, report.RootVersion, report.Verdict))
 	}
 	mode := "fresh"
-	if resp.Msg.Skipped > 0 || ctx.BoolFlag("resume") {
+	if msg.Skipped > 0 || ctx.BoolFlag("resume") {
 		mode = "resume"
 	}
-	summary := fmt.Sprintf("Component sweep (%s): planned=%d started=%d skipped=%d passed=%d failed=%d blocked=%d complete=%t.", mode, resp.Msg.Planned, resp.Msg.Started, resp.Msg.Skipped, resp.Msg.Passed, resp.Msg.Failed, resp.Msg.Blocked, resp.Msg.Complete)
-	if len(resp.Msg.Errors) > 0 {
-		rows = append(rows, resp.Msg.Errors...)
+	summary := fmt.Sprintf("Component sweep (%s): planned=%d started=%d skipped=%d passed=%d failed=%d blocked=%d complete=%t.", mode, msg.Planned, msg.Started, msg.Skipped, msg.Passed, msg.Failed, msg.Blocked, msg.Complete)
+	if len(msg.Errors) > 0 {
+		rows = append(rows, msg.Errors...)
 	}
-	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Version reports", Results: rows, RetrievalHints: []string{"`components sweep --resume` — retry only untested or blocked versions"}}); err != nil {
-		return err
-	}
-	if resp.Msg.Blocked > 0 || !resp.Msg.Complete {
-		return fmt.Errorf("component sweep is not complete: %d blocked result(s), %d error(s)", resp.Msg.Blocked, len(resp.Msg.Errors))
-	}
-	return nil
+	return cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Version reports", Results: rows, RetrievalHints: []string{"`components sweep --resume` — retry only untested or blocked versions"}}
 }
 
 func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentTestReport, summary string) error {
@@ -204,7 +210,7 @@ func (h *handlers) index(ctx cliapp.RunContext) error {
 }
 
 // list calls ComponentsService.ListComponents with optional filter flags.
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*componentsv1.ListComponentsResponse, error) {
 	req := &componentsv1.ListComponentsRequest{
 		Match:    ctx.Flag("match"),
 		Tag:      ctx.Flag("tag"),
@@ -219,7 +225,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		case "hook":
 			req.AssetKind = componentsv1.AssetKind_ASSET_KIND_HOOK
 		default:
-			return fmt.Errorf("--asset-kind must be component or hook (got %q)", rawKind)
+			return nil, fmt.Errorf("--asset-kind must be component or hook (got %q)", rawKind)
 		}
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
@@ -234,46 +240,54 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+			return nil, fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
 		req.Limit = int32(n)
 	}
 	resp, err := h.client.ListComponents(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list components", err, nil)
+		return nil, cliapp.WrapAPIError("list components", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no list response")
+		return nil, fmt.Errorf("server returned no list response")
 	}
-	results := make([]string, 0, len(resp.Msg.Components))
-	for _, c := range resp.Msg.Components {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *componentsv1.ListComponentsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Components))
+	for _, c := range msg.Components {
 		results = append(results, formatComponent(c))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d component(s).", len(resp.Msg.Components))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d component(s).", len(msg.Components))},
 		ResultsHeading: "Components",
 		Results:        results,
 		RetrievalHints: []string{
 			"`components get <id>` — show a single component",
 			"`components index` — refresh from disk",
 		},
-	})
+	}
 }
 
-func (h *handlers) get(ctx cliapp.RunContext) error {
+func (h *handlers) getCall(ctx cliapp.OperationContext) (*componentsv1.GetComponentResponse, error) {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetComponent(context.Background(), connect.NewRequest(&componentsv1.GetComponentRequest{Id: id}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("get component %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("get component %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no component")
+		return nil, fmt.Errorf("server returned no component")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Fetched component %s.", resp.Msg.Component.LibraryId)},
+	return resp.Msg, nil
+}
+
+func (h *handlers) getReport(_ cliapp.OperationContext, msg *componentsv1.GetComponentResponse) cliapp.ListReport {
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Fetched component %s.", msg.Component.LibraryId)},
 		ResultsHeading: "Component",
-		Results:        []string{formatComponent(resp.Msg.Component)},
-	})
+		Results:        []string{formatComponent(msg.Component)},
+	}
 }
 
 func (h *handlers) getByLibraryID(ctx cliapp.RunContext) error {
@@ -372,7 +386,7 @@ func (h *handlers) init(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) ingest(ctx cliapp.RunContext) error {
+func (h *handlers) ingestCall(ctx cliapp.OperationContext) (*componentsv1.IngestComponentResponse, error) {
 	req := &componentsv1.IngestComponentRequest{
 		Scenario:               ctx.Positional("scenario"),
 		SourceFile:             ctx.Positional("source-file"),
@@ -395,27 +409,26 @@ func (h *handlers) ingest(ctx cliapp.RunContext) error {
 		// A blocked harvest (FailedPrecondition) already names the dropped
 		// behaviors in its message; point the operator at the override.
 		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
-			return fmt.Errorf("%w\nRe-run with --accept-behavior-loss to record and accept these losses on the draft's parity report", err)
+			return nil, fmt.Errorf("%w\nRe-run with --accept-behavior-loss to record and accept these losses on the draft's parity report", err)
 		}
-		return cliapp.WrapAPIError("ingest component", err, nil)
+		return nil, cliapp.WrapAPIError("ingest component", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no ingest response")
+		return nil, fmt.Errorf("server returned no ingest response")
 	}
-	results := []string{resp.Msg.ManifestPath, resp.Msg.SourcePath}
-	for _, finding := range resp.Msg.Findings {
+	return resp.Msg, nil
+}
+
+func (h *handlers) ingestReport(_ cliapp.OperationContext, msg *componentsv1.IngestComponentResponse) cliapp.MutationReport {
+	results := []string{msg.ManifestPath, msg.SourcePath}
+	for _, finding := range msg.Findings {
 		results = append(results, fmt.Sprintf("%s: %s", finding.Code, finding.Message))
 	}
-	summary := []string{fmt.Sprintf("Ingested %s as draft %s.", resp.Msg.Component.LibraryId, resp.Msg.DraftVersion)}
-	if report := resp.Msg.ParityReport; report != nil && report.Acknowledged && len(report.Findings) > 0 {
-		summary = append(summary, fmt.Sprintf("Accepted %d behavior-loss finding(s); recorded as an acknowledged parity report.", len(report.Findings)))
+	result := []string{fmt.Sprintf("Ingested %s as draft %s.", msg.Component.LibraryId, msg.DraftVersion)}
+	if report := msg.ParityReport; report != nil && report.Acknowledged && len(report.Findings) > 0 {
+		result = append(result, fmt.Sprintf("Accepted %d behavior-loss finding(s); recorded as an acknowledged parity report.", len(report.Findings)))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        summary,
-		ResultsHeading: "Files and findings",
-		Results:        results,
-		RetrievalHints: []string{fmt.Sprintf("Review %s before promoting the draft.", resp.Msg.ChecklistPath)},
-	})
+	return cliapp.MutationReport{Result: result, Changes: results, NextCommand: []string{fmt.Sprintf("Review %s before promoting the draft.", msg.ChecklistPath)}}
 }
 
 func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
@@ -463,26 +476,25 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) versionBegin(ctx cliapp.RunContext) error {
+func (h *handlers) versionBeginCall(ctx cliapp.OperationContext) (*componentsv1.BeginComponentVersionResponse, error) {
 	resp, err := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{
 		Component: ctx.Positional("component"),
 		Bump:      ctx.Flag("bump"),
 		Version:   ctx.Flag("version"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("begin component version", err, nil)
+		return nil, cliapp.WrapAPIError("begin component version", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no component draft")
+		return nil, fmt.Errorf("server returned no component draft")
 	}
-	results := append([]string(nil), resp.Msg.ArtifactPaths...)
-	results = append(results, "Preview: "+resp.Msg.PreviewPath)
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Began %s draft %s.", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
-		ResultsHeading: "Draft artifacts",
-		Results:        results,
-		RetrievalHints: []string{fmt.Sprintf("`components check %s --version %s` — run the focused preflight", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
-	})
+	return resp.Msg, nil
+}
+
+func (h *handlers) versionBeginReport(_ cliapp.OperationContext, msg *componentsv1.BeginComponentVersionResponse) cliapp.MutationReport {
+	results := append([]string(nil), msg.ArtifactPaths...)
+	results = append(results, "Preview: "+msg.PreviewPath)
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Began %s draft %s.", msg.Component.LibraryId, msg.Version.Version)}, Changes: results, NextCommand: []string{fmt.Sprintf("`components check %s --version %s` — run the focused preflight", msg.Component.LibraryId, msg.Version.Version)}}
 }
 
 func (h *handlers) versionCheck(ctx cliapp.RunContext) error {
@@ -518,7 +530,7 @@ func (h *handlers) versionCheck(ctx cliapp.RunContext) error {
 	return nil
 }
 
-func (h *handlers) versionPublish(ctx cliapp.RunContext) error {
+func (h *handlers) versionPublishCall(ctx cliapp.OperationContext) (*componentsv1.PublishComponentVersionResponse, error) {
 	resp, err := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{
 		Component:               ctx.Positional("component"),
 		DraftVersion:            ctx.Flag("draft-version"),
@@ -527,18 +539,18 @@ func (h *handlers) versionPublish(ctx cliapp.RunContext) error {
 		AcknowledgeParityWaiver: ctx.Flag("acknowledge-parity-waiver") != "",
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("publish component version", err, nil)
+		return nil, cliapp.WrapAPIError("publish component version", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no published component version")
+		return nil, fmt.Errorf("server returned no published component version")
 	}
-	results := append([]string(nil), resp.Msg.ArtifactPaths...)
-	results = append(results, "Preview: "+resp.Msg.PreviewPath)
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Published %s@%s.", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
-		ResultsHeading: "Published artifacts",
-		Results:        results,
-	})
+	return resp.Msg, nil
+}
+
+func (h *handlers) versionPublishReport(_ cliapp.OperationContext, msg *componentsv1.PublishComponentVersionResponse) cliapp.MutationReport {
+	results := append([]string(nil), msg.ArtifactPaths...)
+	results = append(results, "Preview: "+msg.PreviewPath)
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Published %s@%s.", msg.Component.LibraryId, msg.Version.Version)}, Changes: results}
 }
 
 func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
@@ -1013,7 +1025,7 @@ func (h *handlers) stories(ctx cliapp.RunContext) error {
 // contentSet reads <file> from disk (or "-" for stdin) and calls
 // ComponentsService.UpdateComponentContent. --expected-sha256 forwards
 // the optimistic-concurrency guard.
-func (h *handlers) contentSet(ctx cliapp.RunContext) error {
+func (h *handlers) contentSetCall(ctx cliapp.OperationContext) (*componentsv1.UpdateComponentContentResponse, error) {
 	id := ctx.Positional("id")
 	src := ctx.Positional("file")
 	var body []byte
@@ -1024,7 +1036,7 @@ func (h *handlers) contentSet(ctx cliapp.RunContext) error {
 		body, err = os.ReadFile(src)
 	}
 	if err != nil {
-		return fmt.Errorf("read source %q: %w", src, err)
+		return nil, fmt.Errorf("read source %q: %w", src, err)
 	}
 	req := &componentsv1.UpdateComponentContentRequest{
 		Id:             id,
@@ -1034,17 +1046,19 @@ func (h *handlers) contentSet(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("set content for component %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("set content for component %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no update response")
+		return nil, fmt.Errorf("server returned no update response")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{fmt.Sprintf("Wrote %s (sha256=%s).", resp.Msg.SourcePath, resp.Msg.Sha256)},
-		RetrievalHints: []string{
-			"`components index` — re-walk if the @libraryId header changed",
-		},
-	})
+	return resp.Msg, nil
+}
+
+func (h *handlers) contentSetReport(_ cliapp.OperationContext, msg *componentsv1.UpdateComponentContentResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Wrote %s (sha256=%s).", msg.SourcePath, msg.Sha256)},
+		NextCommand: []string{"`components index` — re-walk if the @libraryId header changed"},
+	}
 }
 
 func readAllStdin() ([]byte, error) {

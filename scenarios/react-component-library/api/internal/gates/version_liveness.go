@@ -96,7 +96,7 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 				result.Findings = append(result.Findings, Finding{
 					Code: "catalog.version_liveness", AssetID: assetID, File: repoRel(root, path), Line: line,
 					Message:     fmt.Sprintf("imports retired or missing library version %s@%s", name, version),
-					Remediation: fmt.Sprintf("Point this import at a surviving %s version and run `react-component-library versions plan-cleanup` before retiring any further versions. Published package subpaths must resolve to a live version entry.", name),
+					Remediation: fmt.Sprintf("Point this import at a surviving %s version and review `react-component-library versions reap` before retiring any further versions. Published package subpaths must resolve to a live version entry.", name),
 					DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
 				})
 			}

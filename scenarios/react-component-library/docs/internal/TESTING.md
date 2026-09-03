@@ -245,7 +245,6 @@ time. The pattern from wire to render:
 | Wire contract | `packages/proto/schemas/react-component-library/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
 | REST metadata contract | `packages/proto/schemas/react-component-library/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
 | Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| REST error envelope | `packages/proto/schemas/react-component-library/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
@@ -537,34 +536,6 @@ package. If the rule fires:
 - ✅ **Move the helper out of testutil** into a non-test package.
 - ❌ **Don't add `// nolint`** — the production code path will then
    carry the test-only dep into the binary on every build.
-
-### Outbound HTTP — `httpc.Doer`
-
-Production callers consuming external services depend on the `Doer`
-interface declared at `internal/httpc/doer.go`. `*http.Client` satisfies
-it directly (compile-time-asserted in the same file); tests substitute
-`mocks.FakeDoer`. Reference test:
-`internal/httpc/doer_test.go::TestDoer_TestPath` exercises both the
-production-side and test-side wiring through one tiny inline caller —
-the canonical substitution shape.
-
-`mocks.FakeDoer` queues canned `*http.Response` (or errors) via
-`AddResponse(status, body) []byte` and records every inbound request
-into `.Requests` for after-the-fact assertions. The test fake is the
-same shape every scenario reaches for; resist hand-rolling per-feature
-HTTP fakes when this surface fits.
-
-The seam ships *unwired* in production by intent — there's no
-`server.Deps.Doer` field until the first scenario actually needs one.
-When you wire it, follow the canonical pattern:
-
-```go
-// main.go
-deps := server.Deps{
-    Doer: &http.Client{Timeout: 10 * time.Second},
-    // …other deps
-}
-```
 
 ## UI testing
 

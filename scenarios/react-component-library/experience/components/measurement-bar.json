@@ -28,6 +28,7 @@
     }
   ],
   "claims": [
+    { "id": "review-measurement-context", "type": "manual-review", "statement": "A reviewer confirms the measurement remains meaningful with its label and scale.", "tier": "manual", "states": ["default"] },
     {
       "id": "surface-present",
       "type": "element-present",

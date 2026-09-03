@@ -23,6 +23,7 @@
     }
   ],
   "claims": [
+    { "id": "review-quarantine-semantics", "type": "manual-review", "statement": "A reviewer confirms the quarantine status is distinguishable and not misleading.", "tier": "manual", "states": ["default"] },
     {
       "id": "surface-present",
       "type": "element-present",

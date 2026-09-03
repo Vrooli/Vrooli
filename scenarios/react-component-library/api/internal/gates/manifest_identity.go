@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateManifestIdentity(scope Scope) (Result, error) {
@@ -34,11 +35,15 @@ func ValidateManifestIdentity(scope Scope) (Result, error) {
 				return Result{}, err
 			}
 			var doc struct {
-				CatalogID string `json:"catalogId"`
-				LibraryID string `json:"libraryId"`
+				CatalogID    string `json:"catalogId"`
+				LibraryID    string `json:"libraryId"`
+				Supplemental bool   `json:"supplemental"`
 			}
 			if err := json.Unmarshal(data, &doc); err != nil {
 				return Result{}, err
+			}
+			if doc.Supplemental {
+				continue
 			}
 			result.Inspected++
 			if doc.CatalogID == "" {

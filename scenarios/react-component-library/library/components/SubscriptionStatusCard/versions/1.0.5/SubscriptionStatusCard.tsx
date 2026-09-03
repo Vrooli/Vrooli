@@ -8,7 +8,7 @@
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:SubscriptionStatusCard */
-import { SubscriptionStatusCard as BaseSubscriptionStatusCard } from "@vrooli/react-component-library/MonetizationAccount/1";
+import { SubscriptionStatusCard as BaseSubscriptionStatusCard } from "@vrooli/react-component-library/MonetizationAccount/2";
 export type SubscriptionStatusCardProps = {
   plan: string;
   status: "active" | "trialing" | "past_due" | "canceled" | "inactive";

@@ -34,7 +34,7 @@ describe("released TreeView 1.0.0", () => {
     };
 
     renderWithProviders(<TreeView items={[folder]} defaultSelectedId="file" onSelect={onSelect} />);
-    const folderItem = screen.getByRole("treeitem", { name: "Project folder" });
+    const folderItem = screen.getByRole("treeitem", { name: "Folder metadata" });
     expect(screen.getByRole("treeitem", { name: "Readme" })).toBeVisible();
     expect(screen.getByRole("treeitem", { name: "Readme" })).toHaveAttribute(
       "aria-selected",

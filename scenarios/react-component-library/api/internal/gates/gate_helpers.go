@@ -8,9 +8,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
+
+// isSupplementalImplementation identifies a version source whose owning
+// manifest is intentionally outside the catalog population. Supplemental
+// sources still participate in registry/indexing workflows, but catalog gates
+// must not require catalog evidence or published token vocabulary from them.
+func isSupplementalImplementation(path string) bool {
+	versionDir := filepath.Dir(path)
+	assetDir := filepath.Dir(filepath.Dir(versionDir))
+	data, err := os.ReadFile(filepath.Join(assetDir, "component.json"))
+	if err != nil {
+		return false
+	}
+	var manifest struct {
+		Supplemental bool `json:"supplemental"`
+	}
+	return json.Unmarshal(data, &manifest) == nil && manifest.Supplemental
+}
 
 func fixtureStoryContracts(root string) ([]fixtureStoryContract, error) {
 	paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
@@ -191,6 +209,12 @@ func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetD
 	}
 	for _, asset := range assets {
 		if !scope.IsFullCorpus() && !selected[asset.Asset.ID] {
+			continue
+		}
+		if strings.HasPrefix(asset.Asset.ID, "supplemental.") {
+			// Supplemental manifests are durable implementation inputs, but are
+			// intentionally outside the active catalog population. They must not
+			// become unresolved-asset runner errors for source-file gates.
 			continue
 		}
 		versions, err := implementationSources(root, asset.Asset.ID)

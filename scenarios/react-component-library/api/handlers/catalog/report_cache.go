@@ -8,10 +8,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"sync"
 	"time"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/catalogcoverage"
 )

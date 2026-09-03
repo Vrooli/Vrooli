@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 // sourceImportRE intentionally accepts static, dynamic, and export imports.

@@ -31,7 +31,6 @@ func validateEvidenceFreshness(scope Scope) (Result, error) {
 		if retired {
 			continue
 		}
-		result.Inspected++
 		versionDir := filepath.Dir(storyPath)
 		version := filepath.Base(versionDir)
 		componentDir := filepath.Dir(filepath.Dir(versionDir))
@@ -41,11 +40,20 @@ func validateEvidenceFreshness(scope Scope) (Result, error) {
 			continue
 		}
 		var metadata struct {
-			LibraryID string `json:"libraryId"`
+			LibraryID    string `json:"libraryId"`
+			Supplemental bool   `json:"supplemental"`
 		}
 		if json.Unmarshal(manifest, &metadata) != nil || metadata.LibraryID == "" {
 			continue
 		}
+		// Supplemental implementations are durable inputs used by the catalog,
+		// but they are not catalog assets and do not require component-test
+		// evidence. Treating them as evidence-bearing assets creates a false
+		// blocking freshness finding for intentionally non-catalog sources.
+		if metadata.Supplemental {
+			continue
+		}
+		result.Inspected++
 		if scope.Revision == nil {
 			result.Findings = append(result.Findings, freshnessFinding(root, storyPath, "asset revision authority is unavailable"))
 			continue

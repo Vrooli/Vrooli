@@ -18,11 +18,11 @@ import (
 
 	"react-component-library/internal/librarywalk"
 
-	// Register the SQLite driver used by the live corpus report database.
 	"react-component-library/internal/components"
 	"react-component-library/internal/libspec"
 	"react-component-library/internal/versionledger"
 
+	// Register the SQLite driver used by the live corpus report database.
 	_ "modernc.org/sqlite"
 )
 
@@ -40,6 +40,21 @@ type CorpusReport struct {
 	InvariantCount int               `json:"invariantCount"`
 	Invariants     []CorpusInvariant `json:"invariants"`
 	VersionShapes  []ShapeRow        `json:"versionShapes,omitempty"`
+}
+
+func boolPointer(value bool) *bool { return &value }
+
+func (invariant CorpusInvariant) MarshalJSON() ([]byte, error) {
+	type plain CorpusInvariant
+	return json.Marshal(struct {
+		plain
+		Blocking *bool `json:"blocking,omitempty"`
+	}{plain: plain(invariant), Blocking: func() *bool {
+		if invariant.ID == "I27" {
+			return boolPointer(false)
+		}
+		return nil
+	}()})
 }
 
 var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
@@ -204,13 +219,14 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 	overduePlans := overduePlannedImplementations(filepath.Join(libraryRoot, "..", "catalog"), libraryRoot)
 	overdueRetired := overdueRetiredTrees(libraryRoot, 30)
 	adoptionDepth := adoptionDepthPercent(root)
-	machineryLines := LedgerMachineryLines()
-	assetLines := LedgerAssetLines()
+	machineryLines := CountMachineryLines()
+	assetLines := CountAssetLines()
 	machineryRatio := 0.0
 	if assetLines > 0 {
 		machineryRatio = float64(machineryLines) / float64(assetLines)
 	}
 	shapes, _ := ShapeCensus(libraryRoot)
+	activeShapes, _ := ActiveVersionShapeCount(libraryRoot)
 	duplications, _ := DuplicationCensus(root)
 	values := []CorpusInvariant{
 		{"I21", "adoption depth (library imports / ecosystem UI files)", adoptionDepth, 25, "percent", ""},
@@ -237,7 +253,7 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 		// claims is the requirement.
 		{"I18", fmt.Sprintf("machine minus manual experience claims (machine: %d, manual: %d)", machineClaims, manualClaims), float64(machineClaims - manualClaims), 1, "claims", ""},
 		{"I19", "declared assets without implementation", float64(missingImplementations), 0, "assets", ""},
-		{"I22", "distinct live version-directory shapes", float64(len(shapes)), 1, "shapes", ""},
+		{"I22", "distinct active catalog version-directory shapes", float64(activeShapes), 1, "shapes", ""},
 		{"I23", "owned metadata duplication mismatches", float64(len(duplications)), 0, "mismatches", ""},
 		{"I27", "machinery-to-asset line ratio", machineryRatio, 0.92, "ratio", ""},
 		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets", ""},

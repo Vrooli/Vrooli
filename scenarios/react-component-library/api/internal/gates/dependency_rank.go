@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"react-component-library/internal/librarywalk"
 )
 
@@ -38,6 +39,7 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		if len(scope.Assets) > 0 && !scopeReportsAsset(scope, implementationName(lockPath)) {
 			continue
 		}
+		result.Inspected++
 		raw, err := os.ReadFile(lockPath)
 		if err != nil {
 			return Result{}, err

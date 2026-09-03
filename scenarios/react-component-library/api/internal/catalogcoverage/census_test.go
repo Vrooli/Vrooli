@@ -41,6 +41,33 @@ func TestShapeCensusReportsLegacySupportLayouts(t *testing.T) {
 	require.Contains(t, rows, ShapeRow{Kind: "support-file", Shape: []string{"<Asset>/<version>.tsx"}, Count: 1})
 }
 
+func TestShapeCensusLabelsSupplementalVersionShapesSeparately(t *testing.T) {
+	root := t.TempDir()
+	version := filepath.Join(root, "components", "AuthClient", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(version, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "AuthClient", "component.json"), []byte(`{"supplemental":true}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(version, "AuthClient.tsx"), nil, 0o644))
+	rows, err := ShapeCensus(root)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "supplemental-version", rows[0].Kind)
+}
+
+func TestActiveVersionShapeCountUsesLatestNonSupplementalVersions(t *testing.T) {
+	root := t.TempDir()
+	asset := filepath.Join(root, "components", "Button")
+	for _, version := range []string{"1.0.0", "1.1.0"} {
+		versionDir := filepath.Join(asset, "versions", version)
+		require.NoError(t, os.MkdirAll(versionDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), nil, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, "story.json"), nil, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, "story.tsx"), nil, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, "dependencies.json"), nil, 0o644))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(asset, "component.json"), []byte(`{"latest":"1.1.0"}`), 0o644))
+	require.Equal(t, 1, func() int { count, err := ActiveVersionShapeCount(root); require.NoError(t, err); return count }())
+}
+
 func TestDuplicationCensusReportsOwnedMetadataDrift(t *testing.T) {
 	root := t.TempDir()
 	catalog := filepath.Join(root, "scenarios/react-component-library/catalog/assets/controls")

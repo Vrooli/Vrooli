@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateExamples(scope Scope) (Result, error) {

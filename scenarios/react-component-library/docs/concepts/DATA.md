@@ -39,7 +39,7 @@ hash ledger.
 ## Cold version tier
 
 Version identity and version bytes have separate placement. The reachability
-predicate used by `versions retire-candidates` is the authority: latest and
+predicate used by `versions reap` is the authority: latest and
 draft versions, adopted or dependency-pinned versions, and versions named by
 adoption files or source imports stay materialized. Other non-retired versions
 may be marked `evicted`; their manifest identity, SQLite row, complete file

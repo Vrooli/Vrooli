@@ -246,7 +246,9 @@ func TestAdoptionsList_ForwardsFiltersAndRenders(t *testing.T) {
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"scenario": "swarm-manager", "limit": "50"},
 	})
-	require.NoError(t, h.list(ctx))
+	msg, err := h.listCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ctx.RenderList(h.listReport(ctx, msg)))
 	require.Len(t, svc.listReqs, 1)
 	require.Equal(t, "swarm-manager", svc.listReqs[0].Scenario)
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
@@ -373,7 +375,8 @@ func TestAdoptionsList_RejectsBadLimit(t *testing.T) {
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "component-id"}, {Name: "scenario"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{"limit": "x"}})
-	require.Error(t, h.list(ctx))
+	_, err := h.listCall(ctx)
+	require.Error(t, err)
 }
 
 func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {

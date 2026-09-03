@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:IntegrationCard",
+  "version": "0.1.4",
+  "resolvedAt": "2026-09-03T04:07:08Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StatusBadge",
+      "major": 1,
+      "observed": "1.2.2",
+      "rank": 4
+    }
+  ]
+}

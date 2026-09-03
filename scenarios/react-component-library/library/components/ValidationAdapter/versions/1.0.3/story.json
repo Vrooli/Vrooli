@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [{ "path": "inputs", "kind": "structured", "label": "Operator inputs" }, { "path": "values", "kind": "structured", "label": "Values" }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "operator-inputs", "name": "Operator inputs", "args": {}, "expect": [{ "kind": "visible", "selector": "body" }] }]
+}

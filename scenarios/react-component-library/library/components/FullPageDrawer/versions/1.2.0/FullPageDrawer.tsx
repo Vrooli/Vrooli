@@ -8,7 +8,7 @@
 import type { ReactNode, RefObject } from "react";
 import { Portal } from "@vrooli/react-component-library/Portal/1";
 import { Icon } from "@vrooli/react-component-library/Icon/1";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1";
 import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";

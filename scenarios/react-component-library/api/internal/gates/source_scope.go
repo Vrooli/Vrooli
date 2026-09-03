@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func libraryAssetForPath(libraryRoot, file string) string {

@@ -52,7 +52,7 @@
           "kind": "attribute",
           "selector": "[data-rcl-settings-row-control]",
           "attribute": "data-measured-trailing",
-          "value": "true"
+          "value": "false"
         }
       ]
     },

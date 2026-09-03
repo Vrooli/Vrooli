@@ -73,6 +73,7 @@
     }
   ],
   "claims": [
+    { "id": "review-shell-hierarchy", "type": "manual-review", "statement": "A reviewer confirms the shell hierarchy remains understandable across its responsive presentations.", "tier": "manual", "states": ["default", "loading", "empty", "error"] },
     {
       "id": "landmarks",
       "type": "element-present",

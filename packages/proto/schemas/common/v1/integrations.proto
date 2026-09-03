@@ -228,6 +228,10 @@ message ConnectionMutationRequest {
   // metadata. They are used only by BindConnection and UnbindConnection.
   string binding_scenario_slug = 6;
   string binding_context = 7;
+  // BindConnection rejects a binding when any requested scope is not granted
+  // by the connection. Empty means the consumer accepts the connector's
+  // current granted scopes.
+  repeated string required_scopes = 8;
 }
 message ConnectionMutationResponse {
   Connection connection = 1;

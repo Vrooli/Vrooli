@@ -32,23 +32,11 @@ When you add a domain, keep the mapping file next to that domain's
 service layer. The handler should call the mapper instead of switching
 on domain error types inline.
 
-## Multipart REST Exceptions
+## Binary and REST exceptions
 
-Opaque file bytes are not proto payloads. Upload endpoints use REST
-multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
-
-Use this split:
-
-- Connect-RPC for messages that can be described by proto.
-- REST multipart for file bytes.
-- Proto metadata responses for REST upload results.
-
-Do not introduce a second general JSON transport for internal scenario
-calls. If the payload is structured and Vrooli-owned, add a proto
-service method.
+The scenario's product API is Connect-RPC. If a future binary upload needs a
+REST edge, define its wire envelope and handler contract with the owning proto
+schema first; do not introduce an untyped JSON transport for structured data.
 
 ## Voice input lifecycle failures
 

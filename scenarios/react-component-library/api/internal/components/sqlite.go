@@ -514,34 +514,21 @@ ON CONFLICT(library_id) DO UPDATE SET
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Component, error) {
-	row := s.db.QueryRowContext(ctx, selectComponentByIDSQL, id)
+	return s.get(ctx, selectComponentByIDSQL, id, "get component")
+}
+
+func (s *sqliteRepository) GetByLibraryID(ctx context.Context, libraryID string) (Component, error) {
+	return s.get(ctx, selectComponentByLibraryIDSQL, libraryID, "get component by libraryId")
+}
+
+func (s *sqliteRepository) get(ctx context.Context, query, id, operation string) (Component, error) {
+	row := s.db.QueryRowContext(ctx, query, id)
 	c, err := scanComponent(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Component{}, ErrComponentNotFound{IDOrLibraryID: id}
 	}
 	if err != nil {
-		return Component{}, fmt.Errorf("get component %q: %w", id, err)
-	}
-	if err := s.loadHeaders(ctx, &c); err != nil {
-		return Component{}, err
-	}
-	if err := s.loadDesignAffinities(ctx, &c); err != nil {
-		return Component{}, err
-	}
-	if err := s.loadAssetProjection(ctx, []*Component{&c}); err != nil {
-		return Component{}, err
-	}
-	return c, nil
-}
-
-func (s *sqliteRepository) GetByLibraryID(ctx context.Context, libraryID string) (Component, error) {
-	row := s.db.QueryRowContext(ctx, selectComponentByLibraryIDSQL, libraryID)
-	c, err := scanComponent(row)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Component{}, ErrComponentNotFound{IDOrLibraryID: libraryID}
-	}
-	if err != nil {
-		return Component{}, fmt.Errorf("get component by libraryId %q: %w", libraryID, err)
+		return Component{}, fmt.Errorf("%s %q: %w", operation, id, err)
 	}
 	if err := s.loadHeaders(ctx, &c); err != nil {
 		return Component{}, err

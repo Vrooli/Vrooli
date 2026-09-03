@@ -21,55 +21,67 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: workflowsconnect.NewWorkflowsServiceClient(httpClient, baseURL)}
 }
 
-func (h *handlers) start(ctx cliapp.RunContext) error {
+func (h *handlers) startCall(ctx cliapp.OperationContext) (*workflowspb.StartWorkflowResponse, error) {
 	kind, err := parseKind(ctx.Flag("kind"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := h.client.StartWorkflow(context.Background(), connect.NewRequest(&workflowspb.StartWorkflowRequest{
 		Kind: kind, AssetId: ctx.Flag("asset-id"), SourceScenario: ctx.Flag("source-scenario"), TargetScenario: ctx.Flag("target-scenario"), SourcePath: ctx.Flag("source-path"), RequestedVersion: ctx.Flag("version"), IdempotencyKey: ctx.Flag("idempotency-key"), ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true",
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("start assisted workflow", err, nil)
+		return nil, cliapp.WrapAPIError("start assisted workflow", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Workflow == nil {
-		return fmt.Errorf("server returned no workflow")
+		return nil, fmt.Errorf("server returned no workflow")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Workflow queued with depth %d.", resp.Msg.QueueDepth)}, ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
+	return resp.Msg, nil
 }
 
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) startReport(_ cliapp.OperationContext, msg *workflowspb.StartWorkflowResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Workflow queued with depth %d.", msg.QueueDepth)}, Changes: []string{format(msg.Workflow)}}
+}
+
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*workflowspb.ListWorkflowsResponse, error) {
 	req := &workflowspb.ListWorkflowsRequest{AssetId: ctx.Flag("asset-id"), TargetScenario: ctx.Flag("target-scenario"), ActiveOnly: ctx.Flag("active") == "true"}
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+			return nil, fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
 		req.Limit = int32(n)
 	}
 	resp, err := h.client.ListWorkflows(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list workflows", err, nil)
+		return nil, cliapp.WrapAPIError("list workflows", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no workflow list")
+		return nil, fmt.Errorf("server returned no workflow list")
 	}
-	rows := make([]string, 0, len(resp.Msg.Workflows))
-	for _, w := range resp.Msg.Workflows {
-		rows = append(rows, format(w))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d workflow(s).", len(rows))}, ResultsHeading: "Workflows", Results: rows})
+	return resp.Msg, nil
 }
 
-func (h *handlers) get(ctx cliapp.RunContext) error {
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *workflowspb.ListWorkflowsResponse) cliapp.ListReport {
+	rows := make([]string, 0, len(msg.Workflows))
+	for _, w := range msg.Workflows {
+		rows = append(rows, format(w))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d workflow(s).", len(rows))}, ResultsHeading: "Workflows", Results: rows}
+}
+
+func (h *handlers) getCall(ctx cliapp.OperationContext) (*workflowspb.GetWorkflowResponse, error) {
 	resp, err := h.client.GetWorkflow(context.Background(), connect.NewRequest(&workflowspb.GetWorkflowRequest{Id: ctx.Positional("id")}))
 	if err != nil {
-		return cliapp.WrapAPIError("get workflow", err, nil)
+		return nil, cliapp.WrapAPIError("get workflow", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Workflow == nil {
-		return fmt.Errorf("server returned no workflow")
+		return nil, fmt.Errorf("server returned no workflow")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
+	return resp.Msg, nil
+}
+
+func (h *handlers) getReport(_ cliapp.OperationContext, msg *workflowspb.GetWorkflowResponse) cliapp.ListReport {
+	return cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(msg.Workflow)}}
 }
 
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
@@ -105,18 +117,22 @@ func (h *handlers) retry(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Workflow queued with depth %d.", resp.Msg.QueueDepth)}, ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
 }
 
-func (h *handlers) promotionReadiness(ctx cliapp.RunContext) error {
+func (h *handlers) promotionReadinessCall(ctx cliapp.OperationContext) (*workflowspb.GetPromotionReadinessResponse, error) {
 	resp, err := h.client.GetPromotionReadiness(context.Background(), connect.NewRequest(&workflowspb.GetPromotionReadinessRequest{AssetId: ctx.Positional("asset-id"), OriginScenario: ctx.Flag("origin-scenario"), Version: ctx.Flag("version")}))
 	if err != nil {
-		return cliapp.WrapAPIError("get promotion readiness", err, nil)
+		return nil, cliapp.WrapAPIError("get promotion readiness", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Readiness == nil {
-		return fmt.Errorf("server returned no promotion readiness")
+		return nil, fmt.Errorf("server returned no promotion readiness")
 	}
-	r := resp.Msg.Readiness
+	return resp.Msg, nil
+}
+
+func (h *handlers) promotionReadinessReport(_ cliapp.OperationContext, msg *workflowspb.GetPromotionReadinessResponse) cliapp.ListReport {
+	r := msg.Readiness
 	rows := append([]string{}, r.Blockers...)
 	rows = append(rows, fmt.Sprintf("examples %d/%d; parity=%t; origin replacement=%t clean=%t", r.AvailableExampleCount, r.RequiredExampleCount, r.ParityReportPresent, r.OriginReplacementPresent, r.OriginReplacementClean))
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Promotion readiness for %s@%s: %t.", r.LibraryId, r.SelectedVersion, r.Ready)}, ResultsHeading: "Evidence and blockers", Results: rows, RetrievalHints: []string{r.NextValidationCommand}})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Promotion readiness for %s@%s: %t.", r.LibraryId, r.SelectedVersion, r.Ready)}, ResultsHeading: "Evidence and blockers", Results: rows, RetrievalHints: []string{r.NextValidationCommand}}
 }
 
 func parseKind(value string) (workflowspb.WorkflowKind, error) {

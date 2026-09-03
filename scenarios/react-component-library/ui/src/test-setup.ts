@@ -64,6 +64,12 @@ let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
+  // Some legacy suites use a second Testing Library installation through
+  // api-base and are not visible to this package's automatic root registry.
+  // Clear those roots before each test so a full run cannot inherit DOM from
+  // a preceding file.
+  cleanup();
+  document.body.replaceChildren();
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -81,6 +87,7 @@ afterEach(() => {
   // Cleaning here rather than in a separate hook keeps unmount-time console
   // errors inside the assertion below instead of escaping it.
   cleanup();
+  document.body.replaceChildren();
 
   const errorCalls = consoleError.mock.calls;
   const warnCalls = consoleWarn.mock.calls;

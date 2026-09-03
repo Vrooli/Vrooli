@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"strconv"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/themes"
 )
@@ -57,6 +58,9 @@ func ValidateTokens(scope Scope) (Result, error) {
 		return Result{}, err
 	}
 	for _, path := range sources {
+		if isStorySource(path) || isTestSource(path) {
+			continue
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return Result{}, err

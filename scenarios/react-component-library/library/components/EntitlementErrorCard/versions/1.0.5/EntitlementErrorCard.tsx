@@ -8,7 +8,7 @@
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:EntitlementErrorCard */
-import { EntitlementErrorCard as BaseEntitlementErrorCard } from "@vrooli/react-component-library/MonetizationAccount/1";
+import { EntitlementErrorCard as BaseEntitlementErrorCard } from "@vrooli/react-component-library/MonetizationAccount/2";
 import type { ReactNode } from "react";
 export type EntitlementErrorCardProps = {
   errorType: string;

@@ -1814,8 +1814,12 @@ type ConnectionMutationRequest struct {
 	// metadata. They are used only by BindConnection and UnbindConnection.
 	BindingScenarioSlug string `protobuf:"bytes,6,opt,name=binding_scenario_slug,json=bindingScenarioSlug,proto3" json:"binding_scenario_slug,omitempty"`
 	BindingContext      string `protobuf:"bytes,7,opt,name=binding_context,json=bindingContext,proto3" json:"binding_context,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// BindConnection rejects a binding when any requested scope is not granted
+	// by the connection. Empty means the consumer accepts the connector's
+	// current granted scopes.
+	RequiredScopes []string `protobuf:"bytes,8,rep,name=required_scopes,json=requiredScopes,proto3" json:"required_scopes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ConnectionMutationRequest) Reset() {
@@ -1895,6 +1899,13 @@ func (x *ConnectionMutationRequest) GetBindingContext() string {
 		return x.BindingContext
 	}
 	return ""
+}
+
+func (x *ConnectionMutationRequest) GetRequiredScopes() []string {
+	if x != nil {
+		return x.RequiredScopes
+	}
+	return nil
 }
 
 type ConnectionMutationResponse struct {
@@ -2062,7 +2073,7 @@ const file_common_v1_integrations_proto_rawDesc = "" +
 	"\x15GetConnectionResponse\x12B\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\".common.v1.integrations.ConnectionR\n" +
-	"connection\"\xad\x02\n" +
+	"connection\"\xd6\x02\n" +
 	"\x19ConnectionMutationRequest\x12#\n" +
 	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12!\n" +
 	"\fconnector_id\x18\x02 \x01(\tR\vconnectorId\x12!\n" +
@@ -2071,7 +2082,8 @@ const file_common_v1_integrations_proto_rawDesc = "" +
 	"request_id\x18\x04 \x01(\tR\trequestId\x12)\n" +
 	"\x10credential_value\x18\x05 \x01(\tR\x0fcredentialValue\x122\n" +
 	"\x15binding_scenario_slug\x18\x06 \x01(\tR\x13bindingScenarioSlug\x12'\n" +
-	"\x0fbinding_context\x18\a \x01(\tR\x0ebindingContext\"\x7f\n" +
+	"\x0fbinding_context\x18\a \x01(\tR\x0ebindingContext\x12'\n" +
+	"\x0frequired_scopes\x18\b \x03(\tR\x0erequiredScopes\"\x7f\n" +
 	"\x1aConnectionMutationResponse\x12B\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\".common.v1.integrations.ConnectionR\n" +

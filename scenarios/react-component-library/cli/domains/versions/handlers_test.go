@@ -68,6 +68,34 @@ func connectAPI(t *testing.T, svc *versionsService) http.Handler {
 	return mux
 }
 
+type lifecycleService struct {
+	versionsconnect.UnimplementedVersionLifecycleServiceHandler
+	planResp    *versionsv1.PlanCleanupResponse
+	cleanupResp *versionsv1.CleanupVersionsResponse
+	planCalls   int
+	cleanupReq  *versionsv1.CleanupVersionsRequest
+}
+
+func (s *lifecycleService) PlanCleanup(_ context.Context, _ *connect.Request[versionsv1.PlanCleanupRequest]) (*connect.Response[versionsv1.PlanCleanupResponse], error) {
+	s.planCalls++
+	return connect.NewResponse(s.planResp), nil
+}
+
+func (s *lifecycleService) CleanupVersions(_ context.Context, req *connect.Request[versionsv1.CleanupVersionsRequest]) (*connect.Response[versionsv1.CleanupVersionsResponse], error) {
+	s.cleanupReq = req.Msg
+	return connect.NewResponse(s.cleanupResp), nil
+}
+
+func connectLifecycleAPI(t *testing.T, versionsSvc *versionsService, lifecycleSvc *lifecycleService) http.Handler {
+	t.Helper()
+	versionsPath, versionsHandler := versionsconnect.NewVersionsServiceHandler(versionsSvc)
+	lifecyclePath, lifecycleHandler := versionsconnect.NewVersionLifecycleServiceHandler(lifecycleSvc)
+	mux := http.NewServeMux()
+	mux.Handle(versionsPath, versionsHandler)
+	mux.Handle(lifecyclePath, lifecycleHandler)
+	return mux
+}
+
 func sampleVersion() *versionsv1.Version {
 	ts := timestamppb.New(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC))
 	return &versionsv1.Version{
@@ -93,7 +121,9 @@ func TestVersionsList_ForwardsPositionalAndLimit(t *testing.T) {
 		Positionals: map[string]string{"component-id": "cmp-btn"},
 		Flags:       map[string]string{"limit": "25"},
 	})
-	require.NoError(t, h.list(ctx))
+	msg, err := h.listCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ctx.RenderList(h.listReport(ctx, msg)))
 	require.Len(t, svc.listReqs, 1)
 	require.Equal(t, "cmp-btn", svc.listReqs[0].ComponentId)
 	require.Equal(t, int32(25), svc.listReqs[0].Limit)
@@ -114,7 +144,9 @@ func TestVersionsShow_PassesIncludeContent(t *testing.T) {
 		Positionals: map[string]string{"component-id": "cmp-btn", "version": "1.0.0"},
 		Flags:       map[string]string{"with-content": "1"},
 	})
-	require.NoError(t, h.show(ctx))
+	msg, err := h.showCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ctx.RenderList(h.showReport(ctx, msg)))
 	require.Len(t, svc.getReqs, 1)
 	require.True(t, svc.getReqs[0].IncludeContent)
 	require.Contains(t, out.String(), "actual file body here")
@@ -142,7 +174,9 @@ func TestVersionsDiff_RendersSummaryAndRows(t *testing.T) {
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"component-id": "cmp-btn", "from": "1.0.0", "to": "1.0.1"},
 	})
-	require.NoError(t, h.diff(ctx))
+	msg, err := h.diffCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ctx.RenderList(h.diffReport(ctx, msg)))
 	require.Len(t, svc.diffReqs, 1)
 	require.Equal(t, "1.0.0", svc.diffReqs[0].From)
 	body := out.String()
@@ -160,4 +194,37 @@ func TestRetireSchemaDoesNotRequireCleanupPlanHash(t *testing.T) {
 		Flags:       map[string]string{"confirm": "yes"},
 	})
 	require.False(t, ctx.FlagDeclared("plan-hash"))
+}
+
+func TestReapRequiresConfirmationForMutation(t *testing.T) {
+	lifecycleSvc := &lifecycleService{
+		planResp:    &versionsv1.PlanCleanupResponse{PlanHash: "hash"},
+		cleanupResp: &versionsv1.CleanupVersionsResponse{PlanHash: "hash", Applied: true},
+	}
+	core := clitest.NewTestApp(t, connectLifecycleAPI(t, &versionsService{}, lifecycleSvc))
+	h := newHandlers(core)
+	flags := []cliapp.Flag{
+		{Name: "component-id"},
+		{Name: "library-id"},
+		{Name: "older-than-days"},
+		{Name: "confirm", Bool: true},
+		{Name: "plan-hash"},
+	}
+
+	dryRun, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: flags,
+	}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.reap(dryRun))
+	require.Equal(t, 1, lifecycleSvc.planCalls)
+	require.Nil(t, lifecycleSvc.cleanupReq)
+
+	confirm, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: flags,
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"confirm": "true", "plan-hash": "hash"},
+	})
+	require.NoError(t, h.reap(confirm))
+	require.NotNil(t, lifecycleSvc.cleanupReq)
+	require.True(t, lifecycleSvc.cleanupReq.Confirm)
+	require.Equal(t, "hash", lifecycleSvc.cleanupReq.PlanHash)
 }

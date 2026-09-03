@@ -11,7 +11,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
+	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
 
 type Verdict string
@@ -460,7 +460,6 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 	for _, impl := range allImpls {
 		byName[impl.Name] = impl.CatalogID
 	}
-	importPattern := regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z0-9_-]+)(?:/|["'])`)
 	for _, file := range files {
 		data, readErr := os.ReadFile(filepath.Join(uiDir, filepath.FromSlash(file)))
 		if readErr != nil {
@@ -470,11 +469,9 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 		if from == "" {
 			continue
 		}
-		for _, match := range importPattern.FindAllStringSubmatch(string(data), -1) {
-			if len(match) == 2 {
-				if to := byName[match[1]]; to != "" && to != from {
-					imports[from] = append(imports[from], to)
-				}
+		for _, specifier := range libspec.ParseAll(string(data)) {
+			if to := byName[specifier.Name]; to != "" && to != from {
+				imports[from] = append(imports[from], to)
 			}
 		}
 	}

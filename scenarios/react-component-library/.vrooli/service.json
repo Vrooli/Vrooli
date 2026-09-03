@@ -82,6 +82,7 @@
     "version": "2.0.0",
     "health": {
       "description": "Standard API/UI health checks",
+      "probe": "live",
       "endpoints": {
         "api": "/health",
         "ui": "/health"

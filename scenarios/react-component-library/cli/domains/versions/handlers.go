@@ -89,7 +89,7 @@ func (h *handlers) planCleanup(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("plan version cleanup", err, nil)
 	}
 	results := renderCleanupItems(resp.Msg.Items)
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Cleanup plan: %d eligible item(s); plan-hash=%s.", countEligible(resp.Msg.Items), resp.Msg.PlanHash)}, ResultsHeading: "Version cleanup plan", Results: results, RetrievalHints: []string{"`versions cleanup --plan-hash <hash> --confirm` — apply this exact plan"}})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Cleanup plan: %d eligible item(s); plan-hash=%s.", countEligible(resp.Msg.Items), resp.Msg.PlanHash)}, ResultsHeading: "Version cleanup plan", Results: results, RetrievalHints: []string{"`versions reap --plan-hash <hash> --confirm` — apply this exact plan"}})
 }
 
 func countEligible(items []*versionsv1.CleanupItem) int {
@@ -107,7 +107,7 @@ func (h *handlers) cleanupVersions(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	confirm := ctx.Flag("confirm") != ""
+	confirm := ctx.BoolFlag("confirm")
 	resp, err := h.lifecycleClient.CleanupVersions(context.Background(), connect.NewRequest(&versionsv1.CleanupVersionsRequest{Scope: scope, PlanHash: ctx.Flag("plan-hash"), Confirm: confirm}))
 	if err != nil {
 		return cliapp.WrapAPIError("cleanup versions", err, nil)
@@ -119,6 +119,16 @@ func (h *handlers) cleanupVersions(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Version cleanup %s: retired %d; plan-hash=%s.", mode, resp.Msg.RetiredCount, resp.Msg.PlanHash)}, ResultsHeading: "Version cleanup", Results: renderCleanupItems(resp.Msg.Items)})
 }
 
+// reap composes the lifecycle's preview-and-confirm protocol into one
+// governed command. A dry run only plans; mutation requires the exact plan
+// hash returned by that preview and an explicit confirmation flag.
+func (h *handlers) reap(ctx cliapp.RunContext) error {
+	if !ctx.BoolFlag("confirm") {
+		return h.planCleanup(ctx)
+	}
+	return h.cleanupVersions(ctx)
+}
+
 func (h *handlers) cleanupDraft(ctx cliapp.RunContext) error {
 	days := int64(0)
 	if raw := ctx.Flag("older-than-days"); raw != "" {
@@ -128,7 +138,7 @@ func (h *handlers) cleanupDraft(ctx cliapp.RunContext) error {
 		}
 		days = parsed
 	}
-	resp, err := h.lifecycleClient.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: ctx.Positional("component-id"), OlderThanDays: int32(days), Confirm: ctx.Flag("confirm") != ""}))
+	resp, err := h.lifecycleClient.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: ctx.Positional("component-id"), OlderThanDays: int32(days), Confirm: ctx.BoolFlag("confirm")}))
 	if err != nil {
 		return cliapp.WrapAPIError("cleanup draft", err, nil)
 	}
@@ -227,16 +237,23 @@ func (h *handlers) importArchive(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Imported version archive from %s (checksum %s).", resp.Msg.Path, resp.Msg.Checksum)}, ResultsHeading: "Version archive", Results: []string{fmt.Sprintf("schema=%d rows=%v", resp.Msg.SchemaVersion, resp.Msg.RowCounts)}})
 }
 
-func (h *handlers) doctor(ctx cliapp.RunContext) error {
+func (h *handlers) doctorCall(_ cliapp.OperationContext) (*versionsv1.DoctorResponse, error) {
 	resp, err := h.lifecycleClient.Doctor(context.Background(), connect.NewRequest(&versionsv1.DoctorRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("doctor version ledger", err, nil)
+		return nil, cliapp.WrapAPIError("doctor version ledger", err, nil)
 	}
-	results := make([]string, 0, len(resp.Msg.Issues))
-	for _, issue := range resp.Msg.Issues {
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no doctor response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) doctorReport(_ cliapp.OperationContext, msg *versionsv1.DoctorResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Issues))
+	for _, issue := range msg.Issues {
 		results = append(results, fmt.Sprintf("%s@%s %s expected=%s actual=%s (%s)", issue.LibraryId, issue.Version, issue.Path, issue.ExpectedSha256, issue.ActualSha256, issue.Reason))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Version ledger doctor found %d issue(s).", len(results))}, ResultsHeading: "Version ledger issues", Results: results})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Version ledger doctor found %d issue(s).", len(results))}, ResultsHeading: "Version ledger issues", Results: results}
 }
 
 func renderCandidates(items []*versionsv1.RetireCandidate, action string) []string {
@@ -249,39 +266,43 @@ func renderCandidates(items []*versionsv1.RetireCandidate, action string) []stri
 	return results
 }
 
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*versionsv1.ListVersionsResponse, error) {
 	all := ctx.FlagDeclared("all") && ctx.BoolFlag("all")
 	req := &versionsv1.ListVersionsRequest{ComponentId: ctx.Positional("component-id"), All: all}
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+			return nil, fmt.Errorf("--limit must be an integer (got %q)", raw)
 		}
 		req.Limit = int32(n)
 	}
 	resp, err := h.client.ListVersions(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list versions", err, nil)
+		return nil, cliapp.WrapAPIError("list versions", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no list response")
+		return nil, fmt.Errorf("server returned no list response")
 	}
-	results := make([]string, 0, len(resp.Msg.Versions))
-	for _, v := range resp.Msg.Versions {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *versionsv1.ListVersionsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Versions))
+	for _, v := range msg.Versions {
 		results = append(results, formatVersion(v))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d version(s).", len(resp.Msg.Versions))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d version(s).", len(msg.Versions))},
 		ResultsHeading: "Versions",
 		Results:        results,
 		RetrievalHints: []string{
 			"`versions show <component-id> <version> --with-content` — full body",
 			"`versions diff <component-id> <from> <to>` — line-by-line diff",
 		},
-	})
+	}
 }
 
-func (h *handlers) show(ctx cliapp.RunContext) error {
+func (h *handlers) showCall(ctx cliapp.OperationContext) (*versionsv1.GetVersionResponse, error) {
 	req := &versionsv1.GetVersionRequest{
 		ComponentId:    ctx.Positional("component-id"),
 		Version:        ctx.Positional("version"),
@@ -289,23 +310,27 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.GetVersion(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("get version", err, nil)
+		return nil, cliapp.WrapAPIError("get version", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil {
-		return fmt.Errorf("server returned no version")
+		return nil, fmt.Errorf("server returned no version")
 	}
-	results := []string{formatVersion(resp.Msg.Version)}
-	if req.IncludeContent {
-		results = append(results, "--- content ---", resp.Msg.Content)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Version %s for %s.", req.Version, req.ComponentId)},
-		ResultsHeading: "Version",
-		Results:        results,
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) diff(ctx cliapp.RunContext) error {
+func (h *handlers) showReport(_ cliapp.OperationContext, msg *versionsv1.GetVersionResponse) cliapp.ListReport {
+	results := []string{formatVersion(msg.Version)}
+	if msg.Content != "" {
+		results = append(results, "--- content ---", msg.Content)
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Version %s for %s.", msg.Version.Version, msg.Version.ComponentId)},
+		ResultsHeading: "Version",
+		Results:        results,
+	}
+}
+
+func (h *handlers) diffCall(ctx cliapp.OperationContext) (*versionsv1.DiffVersionsResponse, error) {
 	req := &versionsv1.DiffVersionsRequest{
 		ComponentId: ctx.Positional("component-id"),
 		From:        ctx.Positional("from"),
@@ -313,22 +338,26 @@ func (h *handlers) diff(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.DiffVersions(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("diff versions", err, nil)
+		return nil, cliapp.WrapAPIError("diff versions", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no diff response")
+		return nil, fmt.Errorf("server returned no diff response")
 	}
-	results := make([]string, 0, len(resp.Msg.Rows))
-	for _, r := range resp.Msg.Rows {
+	return resp.Msg, nil
+}
+
+func (h *handlers) diffReport(ctx cliapp.OperationContext, msg *versionsv1.DiffVersionsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Rows))
+	for _, r := range msg.Rows {
 		results = append(results, formatDiffRow(r))
 	}
 	summary := fmt.Sprintf("%s → %s : +%d / -%d (%d rows)",
-		req.From, req.To, resp.Msg.Additions, resp.Msg.Removals, len(resp.Msg.Rows))
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		ctx.Positional("from"), ctx.Positional("to"), msg.Additions, msg.Removals, len(msg.Rows))
+	return cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: "Diff",
 		Results:        results,
-	})
+	}
 }
 
 func formatVersion(v *versionsv1.Version) string {

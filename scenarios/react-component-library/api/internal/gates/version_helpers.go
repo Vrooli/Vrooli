@@ -42,6 +42,13 @@ func isRetiredVersion(path string) (bool, error) {
 	manifestPath := filepath.Join(filepath.Dir(filepath.Dir(versionDir)), "component.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
+		// Support modules use the canonical versioned source layout but are
+		// intentionally cataloged through their support metadata rather than a
+		// component.json manifest. They still participate in liveness checks;
+		// absence of the component manifest is not an unreadable input.
+		if os.IsNotExist(err) && strings.Contains(filepath.ToSlash(manifestPath), "/library/support/") {
+			return false, nil
+		}
 		return false, err
 	}
 	var manifest struct {
@@ -230,7 +237,8 @@ func isStorySource(path string) bool {
 
 func isTestSource(path string) bool {
 	base := filepath.Base(path)
-	return strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".test.tsx")
+	return strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.ts") || strings.HasSuffix(base, ".spec.tsx")
 }
 
 // hasBrowserAccessOutsideEffects keeps the static SSR check conservative while

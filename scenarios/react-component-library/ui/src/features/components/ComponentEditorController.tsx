@@ -1,23 +1,6 @@
 /** @vrooliComponentSource navigation.master-detail */
-import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type Monaco } from "@monaco-editor/react";
-import type { editor } from "monaco-editor";
-import {
-  ArrowLeft,
-  Eye,
-  Info,
-  Maximize2,
-  Menu,
-  Minimize2,
-  PanelsLeftRight,
-  SlidersHorizontal,
-} from "lucide-react";
-import { Group, Panel, Separator } from "react-resizable-panels";
-
-import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -27,7 +10,6 @@ import {
   listComponentStories,
   listPreviewFrames,
   persistPreviewFrame,
-  resolveLibraryImport,
   type ComponentStory,
   type PreviewFrameCandidate,
 } from "../../api/components";
@@ -37,103 +19,25 @@ import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { errorMessage } from "../../lib/errorMessage";
-import { EmulatorToolbar } from "./EmulatorChrome";
-import { ComponentEditorStage } from "./ComponentEditorStage";
-import { ComponentEditorSource } from "./ComponentEditorSource";
-import {
-  ComponentEditorMobileTools,
-  ComponentEditorTools,
-  type PreviewDiagnostics,
-} from "./ComponentEditorTools";
-import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
+import { ComponentEditorView } from "./ComponentEditorView";
+import type { PreviewDiagnostics } from "./ComponentEditorTools";
+import type { PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
-import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
-import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
-import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
 import { useShellNavigation } from "../../components/ShellNavigationContext";
-import {
-  createLibraryImportDefinitionProvider,
-  createLibraryImportHoverProvider,
-  isLibraryImportSpecifier,
-  libraryImportsInModel,
-} from "./libraryImportProviders";
+import { configureEditorBeforeMount, configureEditorMount } from "./componentEditorMonaco";
+import { parseStorySpecimens, specimenIdentity } from "./componentEditorStories";
+import type { PreviewSpecimen, SpecimenIdentity } from "./ComponentEditorStage";
+import { useComponentEditorPanes, type WorkspacePane } from "./useComponentEditorPanes";
+import { useComponentPreviewMessaging, type PreviewEvent } from "./useComponentPreviewMessaging";
+import { useComponentEditorTools } from "./useComponentEditorTools";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
-const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.split-view.v1";
-const DEFAULT_DESKTOP_PANEL_LAYOUT = { primary: 50, secondary: 50 };
-const DEFAULT_PANE_ORDER = ["details", "files", "preview"] as const;
-
-type WorkspacePane = (typeof DEFAULT_PANE_ORDER)[number];
-type FilesView = "tree" | "source" | "diff";
-type SpecimenIdentity = `${string}:${string}`;
-type PreviewSpecimen = {
-  id: string;
-  componentId: string;
-  libraryId: string;
-  version: string;
-  name: string;
-  displayName: string;
-  propsJson: string;
-  environment: Record<string, string>;
-  expectJson: string;
-  sourcePath: string;
-  storyId: string;
-  description?: string;
-};
-
-type PreviewEvent = { story: string; name: string; args: unknown[]; ts: number };
-const MAX_PREVIEW_EVENTS = 200;
-
-function SourceLoadingSkeleton() {
-  return (
-    <div
-      data-testid={selectors.components.editor.loading}
-      role="status"
-      aria-label="Loading source"
-      className="flex h-full min-h-0 flex-col bg-app-background"
-    >
-      <div className="flex h-control-md shrink-0 items-center border-b border-app-border bg-app-surface px-space-2xs">
-        <span className="h-3 w-16 animate-pulse rounded bg-app-surface-muted" />
-      </div>
-      <div className="flex shrink-0 gap-space-3xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
-        <span className="h-control-compact w-8 animate-pulse rounded bg-app-surface-muted" />
-        <span className="h-control-compact w-36 animate-pulse rounded bg-app-surface-muted" />
-        <span className="h-control-compact w-28 animate-pulse rounded bg-app-surface-muted" />
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-space-2xs p-space-sm" aria-hidden="true">
-        {["w-11/12", "w-8/12", "w-10/12", "w-6/12", "w-9/12", "w-7/12"].map((width) => (
-          <span key={width} className={`h-3 animate-pulse rounded bg-app-surface-muted ${width}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function specimenIdentity(example?: Pick<PreviewSpecimen, "version" | "name">): SpecimenIdentity {
-  return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
-}
-
-function withoutRecordKey<T>(record: Record<string, T>, key: string): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).filter(([candidate]) => candidate !== key));
-}
 
 export interface ComparisonSession {
   fromLabel: string;
   toLabel: string;
   rows: DiffRow[];
-}
-
-function loadSplitLayout(): Record<string, number> {
-  const fallback = DEFAULT_DESKTOP_PANEL_LAYOUT;
-  try {
-    const raw = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
-    if (!raw) return fallback;
-    const saved = JSON.parse(raw) as Record<string, number>;
-    return { ...fallback, ...saved };
-  } catch {
-    return fallback;
-  }
 }
 
 function readPreviewPreference<T>(key: string, fallback: T): T {
@@ -341,8 +245,8 @@ export function ComponentEditorImpl({
   >({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
-  const [previewKit, setPreviewKit] = useState<PreviewKit>(() =>
-    readPreviewPreference("rcl.preview.kit", "vrooli-default") || "vrooli-default",
+  const [previewKit, setPreviewKit] = useState<PreviewKit>(
+    () => readPreviewPreference("rcl.preview.kit", "vrooli-default") || "vrooli-default",
   );
   const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;
@@ -359,22 +263,33 @@ export function ComponentEditorImpl({
       // Preferences are best-effort in private and embedded browser contexts.
     }
   }, [frameEnabled, previewKit, stageMode]);
-  const [uncontrolledPane, setUncontrolledPane] = useState<WorkspacePane>("files");
-  const currentPane = activePane ?? uncontrolledPane;
-  const [splitView, setSplitView] = useState(false);
-  const [secondaryPane, setSecondaryPane] = useState<WorkspacePane>(
-    renderable ? "preview" : "files",
-  );
-  const [splitLayout, setSplitLayout] = useState<Record<string, number>>(loadSplitLayout);
-  const [filesView, setFilesView] = useState<FilesView>("source");
-  const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
-  const [fontSize, setFontSize] = useState(13);
+  const {
+    currentPane,
+    splitView,
+    splitLayout,
+    filesView,
+    wordWrap,
+    fontSize,
+    setFilesView,
+    setWordWrap,
+    setFontSize,
+    availablePanes,
+    visiblePanes,
+    toggleSplitView,
+    selectSplitPane,
+    saveDesktopPanelLayout,
+    selectFile,
+  } = useComponentEditorPanes({
+    activePane,
+    onActivePaneChange,
+    renderable,
+    desktopLayout,
+    comparison,
+    setSelectedFile,
+  });
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewReady = previewState === "ready";
-  // A preview is usable once all specimens settle. Failed individual specimens
-  // retain their own retry UI, so the composed region is honestly partial
-  // rather than falsely ready when any of them fail.
   const previewExperienceState =
     previewState === "waiting"
       ? "loading"
@@ -383,15 +298,11 @@ export function ComponentEditorImpl({
         : Object.keys(specimenErrors).length > 0
           ? "partial"
           : "ready";
-
   useEffect(() => {
     onPreviewExperienceStateChange?.(previewExperienceState);
   }, [onPreviewExperienceStateChange, previewExperienceState]);
-
   useEffect(() => {
     if (!stageMode) return;
-    // Structural assets are judged as compositions, so the specimen owns the
-    // initial vertical space. The tools remain one intentional toggle away.
     setPreviewToolsCollapsed(true);
     const fitPreview = () => emulator.fitToPane(previewStageRef.current);
     const collapseFrame = window.requestAnimationFrame(() =>
@@ -433,49 +344,28 @@ export function ComponentEditorImpl({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  const postToPreviewFrames = useCallback((message: unknown) => {
-    for (const frame of previewFramesRef.current) {
-      frame.contentWindow?.postMessage(message, "*");
-    }
-  }, []);
-
-  const postToSpecimen = useCallback((identity: SpecimenIdentity, message: unknown) => {
-    specimenFramesRef.current.get(identity)?.contentWindow?.postMessage(message, "*");
-  }, []);
-
-  const registerPreviewFrame = useCallback(
-    (identity: SpecimenIdentity, frame: HTMLIFrameElement | null) => {
-      const previous = specimenFramesRef.current.get(identity);
-      if (previous) previewFramesRef.current.delete(previous);
-      if (!frame) {
-        specimenFramesRef.current.delete(identity);
-        if (previewFrameRef.current === previous) previewFrameRef.current = null;
-        return;
-      }
-      specimenFramesRef.current.set(identity, frame);
-      previewFramesRef.current.add(frame);
-      if (!previewFrameRef.current) previewFrameRef.current = frame;
-    },
-    [],
-  );
-
-  const activateSpecimen = useCallback(
-    (identity: SpecimenIdentity) => {
-      setActiveSpecimen(identity);
-      previewFrameRef.current = specimenFramesRef.current.get(identity) ?? null;
-      const story = identity.split(":").slice(1).join(":");
-      if (story && story !== "__default__") onSelectedStoryChange?.(story);
-    },
-    [onSelectedStoryChange],
-  );
-
-  const retrySpecimen = useCallback((identity: SpecimenIdentity) => {
-    setSpecimenErrors((current) => {
-      return withoutRecordKey(current, identity);
-    });
-    setSpecimenRetries((current) => ({ ...current, [identity]: (current[identity] ?? 0) + 1 }));
-  }, []);
-
+  const {
+    postToPreviewFrames,
+    postToSpecimen,
+    registerPreviewFrame,
+    activateSpecimen,
+    retrySpecimen,
+  } = useComponentPreviewMessaging({
+    id,
+    previewFrameRef,
+    previewFramesRef,
+    specimenFramesRef,
+    setActiveSpecimen,
+    onSelectedStoryChange,
+    setReadyExamples,
+    setSpecimenErrors,
+    setSpecimenRetries,
+    setOverrideStatus,
+    setOverrideMessages,
+    setPreviewEvents,
+    previewFailedMessage: t(strings.components.editor.previewFailed),
+    propsRejectedMessage: t(strings.components.editor.propsRejected),
+  });
   const toggleComparison = useCallback(
     (identity: SpecimenIdentity) => {
       setComparedSpecimens((current) => {
@@ -488,78 +378,6 @@ export function ComponentEditorImpl({
     },
     [activateSpecimen],
   );
-
-  useEffect(() => {
-    const handler = (ev: MessageEvent) => {
-      const data = ev.data as {
-        type?: string;
-        id?: string;
-        message?: string;
-        story?: string;
-        version?: string;
-        name?: string;
-        args?: unknown[];
-        ts?: number;
-        passed?: boolean;
-        failures?: Array<{ message?: string }>;
-      } | null;
-      const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.story || "__default__"}`;
-      const frame = specimenFramesRef.current.get(identity);
-      if (!data || data.id !== id || !frame || ev.source !== frame.contentWindow) return;
-      if (data.type === "preview-ready") {
-        setReadyExamples((current) => {
-          const next = new Set(current);
-          next.add(identity);
-          return next;
-        });
-        setSpecimenErrors((current) => {
-          if (!current[identity]) return current;
-          return withoutRecordKey(current, identity);
-        });
-      } else if (data.type === "preview-error") {
-        setSpecimenErrors((current) => ({
-          ...current,
-          [identity]: data.message || t(strings.components.editor.previewFailed),
-        }));
-      } else if (data.type === "rcl-preview-props-applied") {
-        setOverrideStatus((current) => ({ ...current, [identity]: "applied" }));
-      } else if (data.type === "rcl-preview-props-reset") {
-        setOverrideStatus((current) => ({ ...current, [identity]: "idle" }));
-        setOverrideMessages((current) => ({ ...current, [identity]: "" }));
-      } else if (data.type === "rcl-preview-props-error") {
-        setOverrideStatus((current) => ({ ...current, [identity]: "error" }));
-        setOverrideMessages((current) => ({
-          ...current,
-          [identity]: data.message || t(strings.components.editor.propsRejected),
-        }));
-      } else if (data.type === "rcl-story-result" && data.passed === false) {
-        const details = (data.failures ?? [])
-          .map((failure) => failure.message)
-          .filter(Boolean)
-          .join(" ");
-        setSpecimenErrors((current) => ({
-          ...current,
-          [identity]: details || "Story interactions or expectations failed.",
-        }));
-      } else if (data.type === "rcl-preview-event" && typeof data.name === "string") {
-        const eventName = data.name;
-        setPreviewEvents((current) =>
-          [
-            {
-              story: data.story ?? "",
-              name: eventName,
-              args: Array.isArray(data.args) ? data.args : [],
-              ts: typeof data.ts === "number" ? data.ts : Date.now(),
-            },
-            ...current,
-          ].slice(0, MAX_PREVIEW_EVENTS),
-        );
-      }
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [id, t]);
-
   // The app owns the resolved theme. Emulator "system" means follow the
   // app decision, never a separate OS media decision inside the iframe.
   useEffect(() => {
@@ -582,64 +400,8 @@ export function ComponentEditorImpl({
     setPreviewEvents([]);
   }, [baselineSha, previewKit, previewReloadKey]);
 
-  const storySpecimens = useMemo<PreviewSpecimen[]>(
-    () =>
-      (storiesQuery.data?.stories ?? []).flatMap((contract) => {
-        try {
-          const definitions = JSON.parse(contract.storiesJson) as Array<{
-            id?: unknown;
-            name?: unknown;
-            description?: unknown;
-            args?: unknown;
-            environment?: unknown;
-            expect?: unknown;
-          }>;
-          if (!Array.isArray(definitions)) return [];
-          return definitions.flatMap((definition) => {
-            if (
-              typeof definition.id !== "string" ||
-              typeof definition.name !== "string" ||
-              !definition.args ||
-              typeof definition.args !== "object" ||
-              Array.isArray(definition.args)
-            )
-              return [];
-            const environment: Record<string, string> =
-              definition.environment &&
-              typeof definition.environment === "object" &&
-              !Array.isArray(definition.environment)
-                ? (Object.fromEntries(
-                    Object.entries(definition.environment as Record<string, unknown>).filter(
-                      ([, value]) => typeof value === "string",
-                    ),
-                  ) as Record<string, string>)
-                : {};
-            return [
-              {
-                id: `${contract.id}:${definition.id}`,
-                componentId: contract.componentId,
-                libraryId: contract.libraryId,
-                version: contract.version,
-                name: definition.id,
-                displayName: definition.name,
-                description:
-                  typeof definition.description === "string" && definition.description.trim()
-                    ? definition.description
-                    : undefined,
-                propsJson: JSON.stringify(definition.args),
-                environment,
-                expectJson: JSON.stringify(
-                  Array.isArray(definition.expect) ? definition.expect : [],
-                ),
-                sourcePath: contract.sourcePath,
-                storyId: definition.id,
-              },
-            ];
-          });
-        } catch {
-          return [];
-        }
-      }),
+  const storySpecimens = useMemo(
+    () => parseStorySpecimens(storiesQuery.data?.stories ?? []),
     [storiesQuery.data?.stories],
   );
   const examples = storySpecimens;
@@ -767,181 +529,14 @@ export function ComponentEditorImpl({
     onError: (error) => setFrameSaveMessage(errorMessage(error, t)),
   });
 
-  const releasedVersion =
-    Boolean(selectedVersion) && activeVersionRecord?.status !== ComponentVersionStatus.DRAFT;
+  const releasedVersion = Boolean(selectedVersion) && activeVersionRecord?.status !== ComponentVersionStatus.DRAFT;
   const readOnly = releasedVersion || selectedFile.endsWith(".json");
   const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
 
-  const handleBeforeMount = (monaco: Monaco) => {
-    const diagnosticsOptions = {
-      noSemanticValidation: true,
-      noSyntaxValidation: false,
-    };
-    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
-  };
+  const handleBeforeMount = configureEditorBeforeMount;
+  const handleMount = (monacoEditor: Parameters<typeof configureEditorMount>[0], monaco: Parameters<typeof configureEditorMount>[1]) =>
+    configureEditorMount(monacoEditor, monaco, () => !saveMutation.isPending && saveMutation.mutate());
 
-  const handleMount = (monacoEditor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
-    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      if (!saveMutation.isPending) saveMutation.mutate();
-    });
-    const languages = ["typescript", "typescriptreact", "javascript", "javascriptreact"];
-    const resolveImport = (specifier: string, fromPath: string) =>
-      resolveLibraryImport({ specifier, fromPath });
-    const model = monacoEditor.getModel();
-    const diagnosticsOwner = "rcl-library-imports";
-    let diagnosticsRun = 0;
-    const refreshDiagnostics = async () => {
-      if (!model) return;
-      const run = ++diagnosticsRun;
-      const imports = libraryImportsInModel(model).filter((item) =>
-        isLibraryImportSpecifier(item.specifier),
-      );
-      const resolutions = await Promise.all(
-        imports.map(async (item) => ({
-          item,
-          resolution: await resolveImport(item.specifier, model.uri.path),
-        })),
-      );
-      if (run !== diagnosticsRun || model.isDisposed()) return;
-      monaco.editor.setModelMarkers(
-        model,
-        diagnosticsOwner,
-        resolutions
-          .filter(({ resolution }) => !resolution.resolved)
-          .map(({ item, resolution }) => ({
-            severity: monaco.MarkerSeverity.Error,
-            message: resolution.diagnostic || "The library import does not resolve.",
-            ...item.range,
-          })),
-      );
-    };
-    const contentListener = model?.onDidChangeContent(() => void refreshDiagnostics());
-    void refreshDiagnostics();
-    monaco.languages.registerHoverProvider(
-      languages,
-      createLibraryImportHoverProvider(resolveImport),
-    );
-    monaco.languages.registerDefinitionProvider(
-      languages,
-      createLibraryImportDefinitionProvider(
-        monaco,
-        resolveImport,
-        async (resolution, uri) => {
-          if (monaco.editor.getModel(uri)) return;
-          const source = await componentsClient.getComponentVersionContent({
-            componentId: resolution.libraryId,
-            version: resolution.version,
-          });
-          monaco.editor.createModel(source.content, "typescript", uri);
-        },
-        (_resolution, _range) => {
-          void refreshDiagnostics();
-        },
-      ),
-    );
-    monacoEditor.onDidDispose(() => {
-      contentListener?.dispose();
-      if (model && !model.isDisposed()) monaco.editor.setModelMarkers(model, diagnosticsOwner, []);
-    });
-  };
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(splitLayout));
-    } catch {
-      // Split sizing is a convenience; editing never depends on storage access.
-    }
-  }, [splitLayout]);
-
-  useEffect(() => {
-    if (!desktopLayout) setSplitView(false);
-  }, [desktopLayout]);
-
-  useEffect(() => {
-    if (!comparison) return;
-    setFilesView("diff");
-    selectPane("files");
-  }, [comparison]);
-
-  const selectPane = (pane: WorkspacePane) => {
-    if (pane === "preview" && !renderable) return;
-    if (onActivePaneChange) onActivePaneChange(pane);
-    else setUncontrolledPane(pane);
-  };
-
-  const availablePanes = DEFAULT_PANE_ORDER.filter((pane) => pane !== "preview" || renderable);
-  const visiblePanes = splitView
-    ? [currentPane, secondaryPane].filter((pane, index, panes) => panes.indexOf(pane) === index)
-    : [currentPane];
-
-  const toggleSplitView = () => {
-    if (!desktopLayout) return;
-    if (!splitView && secondaryPane === currentPane) {
-      setSecondaryPane(availablePanes.find((pane) => pane !== currentPane) ?? currentPane);
-    }
-    setSplitView((current) => !current);
-  };
-
-  const selectSplitPane = (index: number, pane: WorkspacePane) => {
-    if (pane === "preview" && !renderable) return;
-    if (index === 0) {
-      selectPane(pane);
-      if (pane === secondaryPane) setSecondaryPane(currentPane);
-      return;
-    }
-    setSecondaryPane(
-      pane === currentPane
-        ? (availablePanes.find((candidate) => candidate !== currentPane) ?? pane)
-        : pane,
-    );
-  };
-
-  const saveDesktopPanelLayout = (layout: Record<string, number>) => {
-    if (!desktopLayout) return;
-    setSplitLayout((current) => ({ ...current, ...layout }));
-  };
-
-  const selectFile = (path: string) => {
-    setSelectedFile(path);
-    setFilesView("source");
-  };
-
-  const paneHeader = (pane: WorkspacePane, index: number, label: string, icon: ReactNode) => {
-    return (
-      <header className="flex h-control-md shrink-0 items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs">
-        <details className="relative min-w-0">
-          <summary
-            data-testid="components-editor-split-pane-switcher"
-            data-pane={pane}
-            className="flex cursor-pointer list-none items-center gap-space-2xs rounded-control px-space-3xs py-space-3xs text-xs font-semibold text-app-foreground hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
-          >
-            {icon}
-            <span className="truncate">{label}</span>
-          </summary>
-          <div className="absolute left-0 z-20 mt-space-3xs w-field rounded-control border border-app-border bg-app-surface p-space-3xs shadow-lg">
-            {availablePanes.map((candidate) => (
-              <Button
-                key={candidate}
-                type="button"
-                variant="secondary"
-                className="h-control-tight w-full justify-start px-space-2xs text-xs"
-                onClick={() => selectSplitPane(index, candidate)}
-              >
-                {paneLabels[candidate]}
-              </Button>
-            ))}
-          </div>
-        </details>
-      </header>
-    );
-  };
-
-  // Do not mount a fabricated fallback while the indexed story contract is
-  // still loading. That transient iframe is aborted when the real story
-  // arrives and can leave the host waiting forever for a readiness message on
-  // a frame that no longer exists. A fallback is valid only after a settled,
-  // genuinely empty contract has been observed.
   const specimens: Array<PreviewSpecimen | undefined> = storiesQuery.isLoading
     ? []
     : examples.length > 0
@@ -959,9 +554,7 @@ export function ComponentEditorImpl({
       ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
       : specimens;
   const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
-  const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find(
-    (story) => story.version === (activeExample?.version || activeVersion),
-  );
+  const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find((story) => story.version === (activeExample?.version || activeVersion));
   const compatibleFrameCandidates = (frameCandidatesQuery.data?.candidates ?? []).filter(
     (candidate) => candidate.compatible,
   );
@@ -978,549 +571,130 @@ export function ComponentEditorImpl({
     frame: frameOverride?.asset ?? "default",
     ...(activeSpecimenError ? { error: activeSpecimenError } : {}),
   };
-  const paneLabels: Record<WorkspacePane, string> = {
-    files: t(strings.components.editor.files),
-    preview: t(strings.components.editor.previewMode),
-    details: t(strings.components.editor.info),
-  };
-  const applyPropsOverride = (
-    props: Record<string, unknown>,
-    environment?: Record<string, string>,
-  ) => {
-    if (!activeSpecimen) return;
-    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
-    setSpecimenOverrides((current) => ({ ...current, [activeSpecimen]: props }));
-    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
-    setOverrideMessages((current) => ({ ...current, [activeSpecimen]: "" }));
-    postToSpecimen(activeSpecimen, {
-      type: "rcl-preview-props-override",
-      componentId: id,
-      story: example?.storyId || "",
-      version: example?.version || "",
-      props,
-      environment: environment ?? example?.environment ?? {},
-    });
-  };
-  const resetPropsOverride = () => {
-    if (!activeSpecimen) return;
-    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
-    setSpecimenOverrides((current) => {
-      return withoutRecordKey(current, activeSpecimen);
-    });
-    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
-    postToSpecimen(activeSpecimen, {
-      type: "rcl-preview-props-reset",
-      componentId: id,
-      story: example?.storyId || "",
-      version: example?.version || "",
-    });
-  };
-  const togglePreviewTools = () => {
-    setPreviewToolsCollapsed((collapsed) => !collapsed);
-  };
-
-  const editorToolProps = {
+  const paneLabels: Record<WorkspacePane, string> = { files: t(strings.components.editor.files), preview: t(strings.components.editor.previewMode), details: t(strings.components.editor.info) };
+  const { editorToolProps, togglePreviewFullscreen } = useComponentEditorTools({
     activeSpecimen,
+    specimens,
+    id,
+    postToSpecimen,
+    setSpecimenOverrides,
+    setOverrideStatus,
+    setOverrideMessages,
+    setPreviewEvents,
     activeExample,
     activeSpecimenLabel,
     storyContract: activeStoryContract,
     inspector,
-    overrideStatus,
     specimenOverrides,
+    overrideStatus,
     overrideMessages,
     previewEvents,
     previewDiagnostics,
-    onApply: applyPropsOverride,
-    onReset: resetPropsOverride,
-    onClearEvents: () => setPreviewEvents([]),
-  };
-
-  const togglePreviewFullscreen = async () => {
-    const stage = previewStageRef.current;
-    if (!stage) return;
-    if (previewFullscreen) {
-      if (document.fullscreenElement === stage && typeof document.exitFullscreen === "function")
-        await document.exitFullscreen();
-      setPreviewFullscreen(false);
-      return;
-    }
-    try {
-      if (typeof stage.requestFullscreen === "function") {
-        await stage.requestFullscreen();
-      }
-    } catch {
-      // A browser or embedded host may deny native fullscreen. The fixed
-      // fallback still gives the operator a useful, viewport-sized preview.
-    }
-    setPreviewFullscreen(true);
-  };
+    previewStageRef,
+    previewFullscreen,
+    setPreviewFullscreen,
+  });
+  const togglePreviewTools = () => setPreviewToolsCollapsed((collapsed) => !collapsed);
 
   return (
-    <AssetWorkspace
-      testId={selectors.components.editor.panel}
-      label={t(strings.components.editor.title, { libraryId })}
-    >
-      {!chromeless && (
-        <WorkspaceHeader
-          title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
-          description={t(strings.components.editor.subtitle)}
-          leading={
-            shellNavigation.sidebarCollapsed ? (
-              <button
-                type="button"
-                onClick={shellNavigation.openSidebar}
-                aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
-                data-testid="workspace-header-open-sidebar"
-                className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-              >
-                <Menu aria-hidden className="h-icon-md w-icon-md" />
-              </button>
-            ) : undefined
-          }
-          actions={
-            <div className="flex items-center gap-space-2xs">
-              {dirty && (
-                <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">
-                  {t(strings.components.editor.dirty)}
-                </StatusBadge>
-              )}
-              {previewReady && (desktopLayout || currentPane === "preview") && (
-                <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">
-                  {t(strings.components.editor.previewReady)}
-                </StatusBadge>
-              )}
-              {availablePanes.length > 1 && (
-                <IconButton
-                  data-testid="components-editor-split-view-toggle"
-                  aria-label={t("components.editor.splitView", { defaultValue: "Split view" })}
-                  aria-pressed={splitView}
-                  onClick={toggleSplitView}
-                  className={`hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
-                >
-                  <PanelsLeftRight aria-hidden className="h-icon-compact w-icon-compact" />
-                </IconButton>
-              )}
-              {renderable && (
-                <IconButton
-                  data-testid={selectors.components.editor.closeButton}
-                  aria-label={t(strings.components.editor.close)}
-                  onClick={onClose}
-                  className="h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
-                >
-                  <ArrowLeft aria-hidden className="h-icon-compact w-icon-compact" />
-                </IconButton>
-              )}
-            </div>
-          }
-        />
-      )}
-
-      {!chromeless && navigationSlot && (
-        <div className="shrink-0 border-b border-app-border bg-app-surface px-space-sm">
-          {navigationSlot}
-        </div>
-      )}
-
-      {contentQuery.isLoading && <SourceLoadingSkeleton />}
-
-      {contentQuery.error && (
-        <p data-testid={selectors.components.editor.error} className="p-space-sm text-app-danger">
-          {errorMessage(contentQuery.error, t)}
-        </p>
-      )}
-
-      {saveMutation.error && (
-        <p data-testid={selectors.components.editor.error} className="p-space-sm text-app-danger">
-          {errorMessage(saveMutation.error, t)}
-        </p>
-      )}
-
-      {(storiesQuery.data?.warnings?.length ?? 0) > 0 && (
-        <aside
-          role="status"
-          aria-label="Story contract warnings"
-          className="border-b border-app-warning/30 bg-app-warning/10 px-space-sm py-space-xs text-xs text-app-warning"
-        >
-          <p className="font-medium">
-            {storiesQuery.data?.warnings?.length} story contract warning(s); indexing remains
-            available.
-          </p>
-          <ul className="mt-space-2xs list-disc space-y-space-3xs pl-space-md">
-            {storiesQuery.data?.warnings?.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </aside>
-      )}
-
-      {contentQuery.data && (
-        <div className="min-h-0 flex-1">
-          {selectedVersion && (
-            <p className="border-b border-app-border bg-app-warning/10 px-space-sm py-space-2xs text-xs text-app-warning">
-              {t(strings.components.editor.viewingVersion, { version: selectedVersion })}
-            </p>
-          )}
-          <Group
-            id="component-editor-panels"
-            orientation={splitView && desktopLayout ? "horizontal" : "vertical"}
-            defaultLayout={splitView && desktopLayout ? splitLayout : { primary: 100 }}
-            onLayoutChanged={saveDesktopPanelLayout}
-            className="h-full min-h-0"
-          >
-            {visiblePanes.map((pane, index) => (
-              <Fragment key={pane}>
-                <Panel
-                  id={index === 0 ? "primary" : "secondary"}
-                  minSize="15%"
-                  defaultSize={splitView ? splitLayout[index === 0 ? "primary" : "secondary"] : 100}
-                >
-                  <div className="h-full min-h-0">
-                    {pane === "files" && (
-                      <ComponentEditorSource
-                        id={id}
-                        libraryId={libraryId}
-                        renderable={renderable}
-                        splitView={splitView}
-                        version={activeVersion}
-                        releasedVersion={releasedVersion}
-                        activeVersionFiles={activeVersionFiles}
-                        selectedFile={selectedFile}
-                        selectedTemplate={selectedTemplate}
-                        filesView={filesView}
-                        comparison={comparison}
-                        buffer={buffer}
-                        appResolvedTheme={appResolvedTheme}
-                        fontSize={fontSize}
-                        wordWrap={wordWrap}
-                        readOnly={readOnly}
-                        dirty={dirty}
-                        savePending={saveMutation.isPending}
-                        contentLoading={contentQuery.isLoading}
-                        handleBeforeMount={handleBeforeMount}
-                        handleMount={handleMount}
-                        onSelectFile={selectFile}
-                        onSelectTemplate={setSelectedTemplate}
-                        onFilesViewChange={setFilesView}
-                        onBufferChange={setBuffer}
-                        onSave={() => saveMutation.mutate()}
-                        onRevert={() => setBuffer(contentQuery.data.content)}
-                        onToggleWordWrap={() =>
-                          setWordWrap((current) => (current === "on" ? "off" : "on"))
-                        }
-                        onDecreaseFont={() => setFontSize((current) => Math.max(11, current - 1))}
-                        onIncreaseFont={() => setFontSize((current) => Math.min(20, current + 1))}
-                        onCloseComparison={() => {
-                          onCloseComparison?.();
-                          setFilesView("source");
-                        }}
-                      />
-                    )}
-                    {pane === "preview" && (
-                      <div
-                        ref={previewStageRef}
-                        data-testid={selectors.components.editor.previewStage}
-                        data-preview-fullscreen={previewFullscreen ? "true" : "false"}
-                        className={
-                          previewFullscreen
-                            ? "fixed inset-0 z-50 h-full w-full bg-app-background"
-                            : "h-full min-h-0"
-                        }
-                      >
-                        <ExperienceSurface
-                          surfaceId="component-preview"
-                          state={previewExperienceState}
-                          data-testid={selectors.components.editor.workspacePane}
-                          data-preview-state={previewExperienceState}
-                          data-pane="preview"
-                          className="relative flex h-full min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-app-background"
-                        >
-                          {splitView &&
-                            paneHeader(
-                              "preview",
-                              index,
-                              paneLabels.preview,
-                              <Eye aria-hidden className="h-icon-compact w-icon-compact" />,
-                            )}
-                          <div
-                            data-preview-floating-dock
-                            role="toolbar"
-                            aria-label="Preview controls"
-                            className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-inline-overlay flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
-                          >
-                            {stageMode && (
-                              <nav
-                                className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
-                                aria-label={t(strings.components.editor.storiesLabel)}
-                              >
-                                <div className="flex w-max gap-space-3xs">
-                                  {specimens.map((example) => {
-                                    const identity = specimenIdentity(example);
-                                    const selected = identity === activeSpecimen;
-                                    return (
-                                      <Button
-                                        key={identity}
-                                        data-testid={selectors.components.editor.storyPickerItem}
-                                        type="button"
-                                        variant={selected ? "primary" : "secondary"}
-                                        className="h-control-tight min-w-touch shrink-0 px-space-2xs text-xs"
-                                        aria-current={selected ? "true" : undefined}
-                                        title={example?.description}
-                                        onClick={() => activateSpecimen(identity)}
-                                      >
-                                        {example?.displayName || example?.name || "Default"}
-                                      </Button>
-                                    );
-                                  })}
-                                </div>
-                              </nav>
-                            )}
-                            {framePickerEnabled && (
-                              <div className="flex min-w-0 items-center gap-space-3xs">
-                                <label className="flex h-control items-center gap-space-3xs rounded-control border border-app-border/80 bg-app-surface px-space-2xs text-xs text-app-muted-foreground">
-                                  <span className="sr-only">Preview frame</span>
-                                  <select
-                                    aria-label="Preview frame"
-                                    data-testid="components-editor-frame-picker"
-                                    className="h-full min-h-touch max-w-[12rem] bg-transparent text-app-foreground outline-none"
-                                    value={frameOverride ? frameOverride.asset : ""}
-                                    disabled={
-                                      frameCandidatesQuery.isPending || frameCandidatesQuery.isError
-                                    }
-                                    onChange={(event) => {
-                                      const next = compatibleFrameCandidates.find(
-                                        (candidate) => candidate.asset === event.target.value,
-                                      );
-                                      setFrameSaveMessage("");
-                                      setFrameOverride(next);
-                                    }}
-                                  >
-                                    <option value="">
-                                      {frameCandidatesQuery.isPending
-                                        ? "Loading frames…"
-                                        : frameCandidatesQuery.isError
-                                          ? "Frames unavailable"
-                                          : compatibleFrameCandidates.length === 0
-                                            ? "No compatible frames"
-                                            : "Story frame"}
-                                    </option>
-                                    {compatibleFrameCandidates.map((candidate) => (
-                                      <option
-                                        key={`${candidate.asset}:${candidate.region}`}
-                                        value={candidate.asset}
-                                      >
-                                        {candidate.label} · {candidate.region}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                {frameOverride && (
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    className="h-control-tight px-space-2xs text-xs"
-                                    data-testid="components-editor-frame-save"
-                                    disabled={persistFrameMutation.isPending}
-                                    onClick={() => persistFrameMutation.mutate()}
-                                  >
-                                    {persistFrameMutation.isPending ? "Saving…" : "Save frame"}
-                                  </Button>
-                                )}
-                                {frameSaveMessage && (
-                                  <span
-                                    role={persistFrameMutation.isError ? "alert" : "status"}
-                                    className="max-w-[14rem] truncate text-xs text-app-muted-foreground"
-                                    title={frameSaveMessage}
-                                  >
-                                    {frameSaveMessage}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            <IconButton
-                              data-testid={selectors.components.editor.previewStageFullscreen}
-                              type="button"
-                              aria-label={
-                                previewFullscreen
-                                  ? t("components.editor.exitFullscreen", {
-                                      defaultValue: "Exit full screen",
-                                    })
-                                  : t("components.editor.enterFullscreen", {
-                                      defaultValue: "View preview full screen",
-                                    })
-                              }
-                              aria-pressed={previewFullscreen}
-                              onClick={() => {
-                                void togglePreviewFullscreen();
-                              }}
-                              className="h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
-                            >
-                              {previewFullscreen ? (
-                                <Minimize2 aria-hidden className="h-icon-compact w-icon-compact" />
-                              ) : (
-                                <Maximize2 aria-hidden className="h-icon-compact w-icon-compact" />
-                              )}
-                            </IconButton>
-                            <ThemeSwitcher
-                              previewReady={previewReady}
-                              colorScheme={filters.colorScheme}
-                              setColorScheme={filters.setColorScheme}
-                              kit={previewKit}
-                              setKit={setPreviewKit}
-                              filters={filters}
-                              compactOnMobile
-                            />
-                            <Button
-                              type="button"
-                              variant={stageMode ? "primary" : "secondary"}
-                              className="h-control-tight px-space-2xs text-xs"
-                              aria-pressed={stageMode}
-                              data-testid="components-editor-stage-mode"
-                              onClick={() => {
-                                setStageMode((enabled) => !enabled);
-                                setPreviewToolsCollapsed(true);
-                                setComparedSpecimens(new Set());
-                              }}
-                            >
-                              {stageMode ? "Focus" : "Canvas"}
-                            </Button>
-                            {!stageMode && specimens.length > 1 && (
-                              <Button
-                                type="button"
-                                variant={comparisonActive ? "primary" : "secondary"}
-                                className="h-control-tight px-space-2xs text-xs"
-                                data-testid={selectors.components.editor.storySheetAll}
-                                aria-pressed={comparisonActive}
-                                onClick={selectAllComparison}
-                              >
-                                Story sheet ({Math.min(specimens.length, 4)})
-                              </Button>
-                            )}
-                            <EmulatorToolbar emulator={emulator} compactOnMobile />
-                            {activeSpecimen && (
-                              <IconButton
-                                data-testid={selectors.components.editor.previewToolsToggle}
-                                aria-label={
-                                  previewToolsCollapsed
-                                    ? t("components.editor.showTools", {
-                                        defaultValue: "Show controls",
-                                      })
-                                    : t("components.editor.hideTools", {
-                                        defaultValue: "Hide controls",
-                                      })
-                                }
-                                className="ml-auto h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
-                                aria-expanded={!previewToolsCollapsed}
-                                aria-controls="component-preview-tools"
-                                onClick={togglePreviewTools}
-                              >
-                                <SlidersHorizontal
-                                  aria-hidden
-                                  className="h-icon-compact w-icon-compact"
-                                />
-                              </IconButton>
-                            )}
-                          </div>
-                          <ComponentEditorStage
-                            emulator={emulator}
-                            filters={filters}
-                            stageMode={stageMode}
-                            comparisonActive={comparisonActive}
-                            specimens={specimens}
-                            visibleSpecimens={visibleSpecimens}
-                            readyExamples={readyExamples}
-                            previewMessage={previewMessage}
-                            specimenErrors={specimenErrors}
-                            specimenRetries={specimenRetries}
-                            comparedSpecimens={comparedSpecimens}
-                            activeSpecimen={activeSpecimen}
-                            previewKit={previewKit}
-                            frameEnabled={frameEnabled}
-                            frameOverride={frameOverride}
-                            id={id}
-                            baselineSha={baselineSha}
-                            previewReloadKey={previewReloadKey}
-                            selectedVersion={selectedVersion}
-                            resolvedPreviewTheme={resolvedPreviewTheme}
-                            previewCanvasRef={previewCanvasRef}
-                            toolsDocked={desktopLayout}
-                            toolsOpen={desktopLayout && !previewToolsCollapsed}
-                            onClearComparison={() => setComparedSpecimens(new Set())}
-                            onSelectAllComparison={selectAllComparison}
-                            onToggleComparison={toggleComparison}
-                            onRetrySpecimen={retrySpecimen}
-                            onRegisterPreviewFrame={registerPreviewFrame}
-                            onPreviewLoad={(identity) => {
-                              setActiveSpecimen((current) => current ?? identity);
-                            }}
-                            onPreviewError={(identity) =>
-                              setSpecimenErrors((current) => ({
-                                ...current,
-                                [identity]: t(strings.components.editor.previewFailed),
-                              }))
-                            }
-                            postToPreviewFrames={postToPreviewFrames}
-                            onCloseTools={() => setPreviewToolsCollapsed(true)}
-                            onEnterSpecimen={(identity) => {
-                              setActiveSpecimen(identity);
-                              setStageMode(true);
-                              setComparedSpecimens(new Set());
-                            }}
-                            tools={<ComponentEditorTools {...editorToolProps} />}
-                          />
-                          {!desktopLayout && (
-                            <ComponentEditorMobileTools
-                              tool={previewToolsCollapsed ? null : "props"}
-                              onClose={() => setPreviewToolsCollapsed(true)}
-                              props={editorToolProps}
-                            />
-                          )}
-                        </ExperienceSurface>
-                      </div>
-                    )}
-                    {pane === "details" && (
-                      <aside
-                        data-testid={selectors.components.editor.workspacePane}
-                        data-pane="details"
-                        className="flex h-full min-h-0 flex-col overflow-hidden bg-app-surface"
-                      >
-                        {splitView &&
-                          paneHeader(
-                            "details",
-                            index,
-                            paneLabels.details,
-                            <Info aria-hidden className="h-icon-compact w-icon-compact" />,
-                          )}
-                        <div
-                          data-testid={selectors.components.editor.infoDialog}
-                          className="min-h-0 flex-1 overflow-auto p-space-sm"
-                        >
-                          {metadataSlot ?? (
-                            <p className="text-sm text-app-muted-foreground">
-                              {t(strings.components.editor.noInfo)}
-                            </p>
-                          )}
-                        </div>
-                      </aside>
-                    )}
-                  </div>
-                </Panel>
-                {index < visiblePanes.length - 1 && (
-                  <Separator className="w-separator shrink-0 bg-app-border hover:bg-app-primary" />
-                )}
-              </Fragment>
-            ))}
-          </Group>
-        </div>
-      )}
-
-      {showSaved && (
-        <p
-          data-testid={selectors.components.editor.savedToast}
-          className="absolute bottom-3 right-3 rounded-md bg-app-success/10 px-space-xs py-space-2xs text-xs text-app-success shadow-lg"
-        >
-          {t(strings.components.editor.saved)}
-        </p>
-      )}
-    </AssetWorkspace>
+    <ComponentEditorView
+      model={{
+        t,
+        selectors,
+        strings,
+        chromeless,
+        storiesQuery,
+        libraryId,
+        shellNavigation,
+        dirty,
+        previewReady,
+        desktopLayout,
+        currentPane,
+        availablePanes,
+        splitView,
+        toggleSplitView,
+        renderable,
+        onClose,
+        navigationSlot,
+        contentQuery,
+        activeVersionFiles,
+        selectedVersion,
+        splitLayout,
+        saveDesktopPanelLayout,
+        visiblePanes,
+        visibleSpecimens,
+        readyExamples,
+        previewMessage,
+        specimenErrors,
+        specimenRetries,
+        comparedSpecimens,
+        frameEnabled,
+        baselineSha,
+        previewReloadKey,
+        resolvedPreviewTheme,
+        previewCanvasRef,
+        id,
+        activeVersion,
+        releasedVersion,
+        selectedFile,
+        selectedTemplate,
+        filesView,
+        comparison,
+        buffer,
+        appResolvedTheme,
+        fontSize,
+        wordWrap,
+        readOnly,
+        saveMutation,
+        handleBeforeMount,
+        handleMount,
+        selectFile,
+        setSelectedTemplate,
+        setFilesView,
+        setBuffer,
+        setWordWrap,
+        setFontSize,
+        onCloseComparison,
+        previewStageRef,
+        previewFullscreen,
+        showSaved,
+        previewExperienceState,
+        paneLabels,
+        selectSplitPane,
+        specimens,
+        activeSpecimen,
+        specimenIdentity,
+        activateSpecimen,
+        framePickerEnabled,
+        frameCandidatesQuery,
+        frameOverride,
+        compatibleFrameCandidates,
+        setFrameSaveMessage,
+        setFrameOverride,
+        frameSaveMessage,
+        persistFrameMutation,
+        filters,
+        previewKit,
+        setPreviewKit,
+        stageMode,
+        setStageMode,
+        setPreviewToolsCollapsed,
+        setComparedSpecimens,
+        comparisonActive,
+        toggleComparison,
+        selectAllComparison,
+        emulator,
+        togglePreviewTools,
+        togglePreviewFullscreen,
+        previewToolsCollapsed,
+        editorToolProps,
+        setActiveSpecimen,
+        setSpecimenErrors,
+        retrySpecimen,
+        registerPreviewFrame,
+        postToPreviewFrames,
+        metadataSlot,
+      }}
+    />
   );
 }

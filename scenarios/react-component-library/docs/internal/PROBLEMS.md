@@ -270,7 +270,7 @@ a migration handoff with a planned retirement path back into
 - Measured: 2026-09-03.
 
 - Rung: W3 / R0 — preview preference and focused UI recheck
-- Evidence: A missing/empty persisted preview-kit preference now resolves to `vrooli-default`; the focused `ComponentEditor` suite passes 29/29 and the diagnostics contract again reports the canonical kit. The adoption dialog’s two overwrite/override failures remain reproducible only in the broader rapid-typing test interaction, where the controlled identifier is truncated before submission; no submit-contract workaround was retained.
+- Evidence: A missing/empty persisted preview-kit preference now resolves to `vrooli-default`; the focused `ComponentEditor` suite passes 29/29 and the diagnostics contract again reports the canonical kit. The adoption dialog’s prior overwrite/override rapid-typing failures were fixed by wiring the released Dialog’s initial focus to the component-id input; the focused dialog suite now passes 5/5 sequentially.
 - Outstanding: The comprehensive UI suites and server-owned scenario run remain red on the previously recorded broad findings. This focused correction does not claim plan completion.
 - Measured: 2026-09-03.
 

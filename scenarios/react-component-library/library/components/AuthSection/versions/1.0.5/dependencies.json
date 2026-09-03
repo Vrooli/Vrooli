@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:AuthSection",
   "version": "1.0.5",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T13:12:27.528Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -12,8 +12,8 @@
     },
     {
       "libraryId": "react-component-library:MonetizationAccount",
-      "major": 1,
-      "observed": "1.0.6",
+      "major": 2,
+      "observed": "2.0.1",
       "rank": 4
     }
   ]

@@ -28,6 +28,7 @@
     }
   ],
   "claims": [
+    { "id": "review-finding-priority", "type": "manual-review", "statement": "A reviewer confirms finding priority and remediation context are clear.", "tier": "manual", "states": ["default", "empty"] },
     {
       "id": "surface-present",
       "type": "element-present",

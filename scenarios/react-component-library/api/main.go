@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -263,11 +264,11 @@ func main() {
 	startupIndexer := componentsInternal.NewIndexer(componentsRepo, sourceRoot, nil)
 	startupIndexer.SetUpsertObserver(depsObserver)
 	if indexResult, indexErr := startupIndexer.Run(context.Background()); indexErr != nil {
-		log.Printf("startup component index failed: %v", indexErr)
+		slog.Error("startup component index failed", "error", indexErr)
 	} else if len(indexResult.Errors) > 0 {
-		log.Printf("startup component index completed with %d errors (%d indexed, %d deleted)", len(indexResult.Errors), indexResult.Indexed, indexResult.Deleted)
+		slog.Info("startup component index completed", "errors", len(indexResult.Errors), "indexed", indexResult.Indexed, "deleted", indexResult.Deleted)
 		for _, indexErr := range indexResult.Errors {
-			log.Printf("startup component index error: %v", indexErr)
+			slog.Error("startup component index error", "error", indexErr)
 		}
 	}
 	previewSvc := previewH.BuildServiceAtRoot(componentsSvc, depsSvc, filepath.Dir(scenariosRoot))

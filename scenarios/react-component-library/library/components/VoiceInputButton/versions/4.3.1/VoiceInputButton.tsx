@@ -6,7 +6,7 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 import { useCallback, useRef, type ButtonHTMLAttributes, type PointerEvent } from "react";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.5";
 import type {
   ControlDensity,
   ControlSize,

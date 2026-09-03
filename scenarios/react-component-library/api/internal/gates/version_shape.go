@@ -2,9 +2,10 @@ package gates
 
 import (
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
 )

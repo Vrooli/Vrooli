@@ -713,10 +713,67 @@ func CurrentRevision(root, assetID string) (string, error) {
 // above remains the cheap latest-version projection for catalog coverage.
 func CurrentRevisionForVersion(root, libraryID, version string) (string, error) {
 	scenarioRoot := resolveScenarioRoot(root)
-	return versionRevision(scenarioRoot, libraryID, version, map[string]bool{})
+	resolver, err := NewVersionRevisionResolver(scenarioRoot)
+	if err != nil {
+		return "", err
+	}
+	return resolver.Resolve(libraryID, version)
 }
 
-func versionRevision(root, libraryID, version string, visiting map[string]bool) (string, error) {
+type versionManifest struct {
+	path      string
+	data      []byte
+	catalogID string
+}
+
+// VersionRevisionResolver indexes manifests once and resolves materialized
+// version revisions through that index. Callers that resolve many versions
+// (for example the freshness gate) must share one resolver; constructing one
+// per version needlessly rereads the entire manifest corpus.
+type VersionRevisionResolver struct {
+	root      string
+	manifests map[string]versionManifest
+	cache     map[string]string
+}
+
+func NewVersionRevisionResolver(root string) (*VersionRevisionResolver, error) {
+	root = resolveScenarioRoot(root)
+	manifestPaths, err := filepath.Glob(filepath.Join(root, "library", "*", "*", "component.json"))
+	if err != nil {
+		return nil, err
+	}
+	manifests := make(map[string]versionManifest, len(manifestPaths))
+	for _, path := range manifestPaths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
+		}
+		var manifest struct {
+			LibraryID string `json:"libraryId"`
+			CatalogID string `json:"catalogId"`
+		}
+		if json.Unmarshal(data, &manifest) != nil || manifest.LibraryID == "" {
+			continue
+		}
+		manifests[manifest.LibraryID] = versionManifest{path: path, data: data, catalogID: manifest.CatalogID}
+	}
+	return &VersionRevisionResolver{root: root, manifests: manifests, cache: map[string]string{}}, nil
+}
+
+func (r *VersionRevisionResolver) Resolve(libraryID, version string) (string, error) {
+	key := libraryID + "@" + version
+	if revision, ok := r.cache[key]; ok {
+		return revision, nil
+	}
+	revision, err := r.resolve(libraryID, version, map[string]bool{})
+	if err != nil {
+		return "", err
+	}
+	r.cache[key] = revision
+	return revision, nil
+}
+
+func (r *VersionRevisionResolver) resolve(libraryID, version string, visiting map[string]bool) (string, error) {
 	key := libraryID + "@" + version
 	if visiting[key] {
 		return "", fmt.Errorf("dependency revision cycle at %s", key)
@@ -724,46 +781,26 @@ func versionRevision(root, libraryID, version string, visiting map[string]bool) 
 	visiting[key] = true
 	defer delete(visiting, key)
 
-	manifestPaths, err := filepath.Glob(filepath.Join(root, "library", "*", "*", "component.json"))
-	if err != nil {
-		return "", err
-	}
-	var manifestPath string
-	var manifestData []byte
-	var catalogID string
-	for _, candidate := range manifestPaths {
-		data, readErr := os.ReadFile(candidate)
-		if readErr != nil {
-			return "", readErr
-		}
-		var manifest struct {
-			LibraryID string `json:"libraryId"`
-			CatalogID string `json:"catalogId"`
-		}
-		if json.Unmarshal(data, &manifest) == nil && manifest.LibraryID == libraryID {
-			manifestPath, manifestData, catalogID = candidate, data, manifest.CatalogID
-			break
-		}
-	}
-	if manifestPath == "" {
+	manifest, ok := r.manifests[libraryID]
+	if !ok {
 		return "", fmt.Errorf("library asset %q not found", libraryID)
 	}
-	versionDir := filepath.Join(filepath.Dir(manifestPath), "versions", version)
+	versionDir := filepath.Join(filepath.Dir(manifest.path), "versions", version)
 	if info, statErr := os.Stat(versionDir); statErr != nil || !info.IsDir() {
 		return "", fmt.Errorf("version %s@%s is not materialized", libraryID, version)
 	}
 	h := sha256.New()
-	if catalogID != "" {
-		parts := strings.SplitN(catalogID, ".", 2)
+	if manifest.catalogID != "" {
+		parts := strings.SplitN(manifest.catalogID, ".", 2)
 		if len(parts) == 2 {
-			declaration := filepath.Join(root, "catalog", "assets", parts[0], parts[1]+".json")
+			declaration := filepath.Join(r.root, "catalog", "assets", parts[0], parts[1]+".json")
 			if data, readErr := os.ReadFile(declaration); readErr == nil {
 				h.Write(data)
 				h.Write([]byte{0})
 			}
 		}
 	}
-	h.Write(manifestData)
+	h.Write(manifest.data)
 	h.Write([]byte{0})
 	for _, sourcePath := range versionSourcePaths(versionDir) {
 		data, readErr := revisionFileData(sourcePath)
@@ -792,9 +829,9 @@ func versionRevision(root, libraryID, version string, visiting map[string]bool) 
 					observed = dependency.Version
 				}
 				if dependency.Major > 0 {
-					observed = resolveMajorVersion(root, dependency.LibraryID, dependency.Major, observed)
+					observed = resolveMajorVersion(r.root, dependency.LibraryID, dependency.Major, observed)
 				}
-				child, childErr := versionRevision(root, dependency.LibraryID, observed, visiting)
+				child, childErr := r.resolve(dependency.LibraryID, observed, visiting)
 				if childErr != nil {
 					return "", childErr
 				}
@@ -805,7 +842,9 @@ func versionRevision(root, libraryID, version string, visiting map[string]bool) 
 			}
 		}
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	revision := hex.EncodeToString(h.Sum(nil))
+	r.cache[key] = revision
+	return revision, nil
 }
 
 func resolveMajorVersion(root, libraryID string, major int, fallback string) string {

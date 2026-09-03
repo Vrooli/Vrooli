@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -168,10 +168,14 @@ describe("AdoptionFileTree", () => {
       onSelectTemplate,
     });
 
+    // Wait for the placement query's rerender before retaining the select;
+    // the initial fallback and resolved tree each render the seam.
+    await screen.findByTestId(selectors.components.editor.fileTree);
     const seam = await screen.findByTestId(selectors.components.editor.templateSelect);
     expect(seam.tagName).toBe("SELECT");
 
-    fireEvent.change(seam, { target: { value: "next-app" } });
+    const user = userEvent.setup();
+    await user.selectOptions(seam, "next-app");
     expect(onSelectTemplate).toHaveBeenCalledWith("next-app");
   });
 

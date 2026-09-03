@@ -61,7 +61,9 @@ func TestPreviewBundle_PrintsJS(t *testing.T) {
 		Positionals: map[string]string{"id": "cmp-x"},
 	})
 
-	require.NoError(t, h.bundle(ctx))
+	msg, err := h.bundleCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, cliapp.RenderProtoList(ctx, msg, h.bundleReport(ctx, msg)))
 	require.Len(t, svc.bundleReqs, 1)
 	require.Equal(t, "cmp-x", svc.bundleReqs[0].Id)
 	body := out.String()

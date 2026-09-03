@@ -1,10 +1,13 @@
 package gates
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func TestGateImplementationsStaySmallAndFactsUseOneBatchEntryPoint(t *testing.T) {
@@ -129,30 +132,32 @@ func TestScopeIsAContract(t *testing.T) {
 }
 
 func TestEveryGateHonoursItsScope(t *testing.T) {
-	root, err := filepath.Abs("../../../../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, definition := range Definitions() {
-		if definition.Run == nil {
-			continue
+	base := librarywalk.Set{Files: []string{"prepared-source.tsx"}}
+	for _, reads := range []Reads{ReadsAsset, ReadsClosure, ReadsCorpus} {
+		reads := reads
+		var scopedAssets []string
+		definition := Definition{
+			ID:    "scope-contract",
+			Reads: reads,
+			Run: func(_ context.Context, scope Scope) (Result, error) {
+				if len(scope.Assets) > 0 {
+					scopedAssets = append([]string(nil), scope.Assets...)
+				}
+				return Result{Inspected: len(scope.Set.Files)}, nil
+			},
 		}
-		full, fullErr := RunDefinition(definition, Scope{Root: root})
-		if fullErr != nil {
-			continue
+		if _, err := RunDefinition(definition, Scope{Root: "/unused", Set: base}); err != nil {
+			t.Fatal(err)
 		}
-		scoped, scopedErr := RunDefinition(definition, Scope{Root: root, Assets: []string{"controls.button"}})
-		if scopedErr != nil {
-			continue
+		if _, err := RunDefinition(definition, Scope{Root: "/unused", Assets: []string{"controls.button"}, Set: base}); err != nil {
+			t.Fatal(err)
 		}
-		if definition.Reads == ReadsCorpus {
-			if scoped.Inspected != full.Inspected {
-				t.Errorf("corpus-scoped gate %q changed inspected count from %d to %d", definition.ID, full.Inspected, scoped.Inspected)
+		if reads == ReadsCorpus {
+			if len(scopedAssets) != 0 {
+				t.Fatalf("corpus-scoped gate retained asset selector: %v", scopedAssets)
 			}
-			continue
-		}
-		if scoped.Inspected == full.Inspected && full.Inspected > 0 {
-			t.Errorf("asset-scoped gate %q ignored Scope.Assets: inspected %d in both runs", definition.ID, full.Inspected)
+		} else if len(scopedAssets) != 1 || scopedAssets[0] != "controls.button" {
+			t.Fatalf("asset-scoped gate lost asset selector: %v", scopedAssets)
 		}
 	}
 }

@@ -352,7 +352,7 @@ class GetConnectionResponse(_message.Message):
     def __init__(self, connection: _Optional[_Union[Connection, _Mapping]] = ...) -> None: ...
 
 class ConnectionMutationRequest(_message.Message):
-    __slots__ = ("connection_id", "connector_id", "display_name", "request_id", "credential_value", "binding_scenario_slug", "binding_context")
+    __slots__ = ("connection_id", "connector_id", "display_name", "request_id", "credential_value", "binding_scenario_slug", "binding_context", "required_scopes")
     CONNECTION_ID_FIELD_NUMBER: _ClassVar[int]
     CONNECTOR_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -360,6 +360,7 @@ class ConnectionMutationRequest(_message.Message):
     CREDENTIAL_VALUE_FIELD_NUMBER: _ClassVar[int]
     BINDING_SCENARIO_SLUG_FIELD_NUMBER: _ClassVar[int]
     BINDING_CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_SCOPES_FIELD_NUMBER: _ClassVar[int]
     connection_id: str
     connector_id: str
     display_name: str
@@ -367,7 +368,8 @@ class ConnectionMutationRequest(_message.Message):
     credential_value: str
     binding_scenario_slug: str
     binding_context: str
-    def __init__(self, connection_id: _Optional[str] = ..., connector_id: _Optional[str] = ..., display_name: _Optional[str] = ..., request_id: _Optional[str] = ..., credential_value: _Optional[str] = ..., binding_scenario_slug: _Optional[str] = ..., binding_context: _Optional[str] = ...) -> None: ...
+    required_scopes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, connection_id: _Optional[str] = ..., connector_id: _Optional[str] = ..., display_name: _Optional[str] = ..., request_id: _Optional[str] = ..., credential_value: _Optional[str] = ..., binding_scenario_slug: _Optional[str] = ..., binding_context: _Optional[str] = ..., required_scopes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ConnectionMutationResponse(_message.Message):
     __slots__ = ("connection", "request_id")

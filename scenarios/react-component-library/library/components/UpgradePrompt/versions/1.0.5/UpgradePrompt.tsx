@@ -8,7 +8,7 @@
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:UpgradePrompt */
-import { UpgradePrompt as BaseUpgradePrompt } from "@vrooli/react-component-library/MonetizationAccount/1";
+import { UpgradePrompt as BaseUpgradePrompt } from "@vrooli/react-component-library/MonetizationAccount/2";
 export type UpgradePromptProps = {
   feature: string;
   requiredPlan: string;

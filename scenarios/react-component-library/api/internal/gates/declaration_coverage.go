@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 // ValidateDeclarationCoverage ensures every implementation visible to the

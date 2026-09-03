@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:CommandButton",
   "version": "1.0.6",
-  "resolvedAt": "2026-09-03T03:52:21.814Z",
+  "resolvedAt": "2026-09-03T11:38:07.742Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Button",
       "major": 2,
-      "observed": "2.2.8",
+      "observed": "2.2.9",
       "rank": 4
     },
     {

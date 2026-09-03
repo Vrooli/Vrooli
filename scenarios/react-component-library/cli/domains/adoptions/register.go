@@ -13,14 +13,14 @@ const GroupName = "adoptions"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"AdoptionsService.ListAdoptions":          h.list,
-		"AdoptionsService.ListEffectiveAdoptions": h.listEffective,
-		"AdoptionsService.PreflightAdoption":      h.preflight,
-		"obligations":                             h.obligations,
-		"AdoptionsService.LinkAdoption":           h.link,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"AdoptionsService.ListAdoptions":          cliapp.ProtoList(h.listCall, h.listReport),
+		"AdoptionsService.ListEffectiveAdoptions": cliapp.ProtoList(h.listEffectiveCall, h.listEffectiveReport),
+		"AdoptionsService.PreflightAdoption":      cliapp.ProtoList(h.preflightCall, h.preflightReport),
+		"obligations":                             {Run: h.obligations},
+		"AdoptionsService.LinkAdoption":           cliapp.ProtoMutation(h.linkCall, h.linkReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("adoptions: load from manifest: %w", err)
 	}

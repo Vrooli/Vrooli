@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/librarywalk"
 	"regexp"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 func ValidateReleaseProvenance(scope Scope) (Result, error) {

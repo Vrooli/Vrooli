@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	previewMarkerAttribute      = regexp.MustCompile(`\sdata-rcl-(?:asset|version|stamp)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}))?`)
+	previewMarkerAttribute      = regexp.MustCompile(`\sdata-rcl-(?:asset|version|stamp)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}))?(?:\s|>)`)
 	previewComponentDeclaration = regexp.MustCompile(`(?m)(?:export\s+)?(?:function\s+([A-Za-z_$][\w$]*)\b|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)`)
 	previewCreateElement        = regexp.MustCompile(`\bcreateElement\(\s*[A-Za-z_$][\w$]*\s*,\s*\{`)
 	previewTypeParameterList    = regexp.MustCompile(`^<[A-Za-z_$][\w$]*(?:\s+extends\b|\s*,|\s*:)`)
@@ -23,7 +23,7 @@ func stampPreviewSource(source, sourcePath, asset, version string) string {
 	if asset == "" || version == "" || !strings.HasSuffix(strings.ToLower(sourcePath), ".tsx") {
 		return source
 	}
-	cleaned := previewMarkerAttribute.ReplaceAllString(source, "")
+	cleaned := stripPreviewMarkerAttributes(source)
 	componentName := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
 	start := 0
 	for _, match := range previewComponentDeclaration.FindAllStringSubmatchIndex(cleaned, -1) {
@@ -57,6 +57,18 @@ func stampPreviewSource(source, sourcePath, asset, version string) string {
 		}
 	}
 	return cleaned
+}
+
+func stripPreviewMarkerAttributes(source string) string {
+	return previewMarkerAttribute.ReplaceAllStringFunc(source, func(match string) string {
+		// Keep the delimiter consumed by the boundary-aware expression. This
+		// prevents a boolean marker before `>` from deleting the tag close,
+		// while still normalizing a marker followed by another attribute.
+		if strings.HasSuffix(match, ">") {
+			return ">"
+		}
+		return " "
+	})
 }
 
 func escapeAttribute(value string) string {

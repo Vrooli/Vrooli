@@ -8,7 +8,7 @@
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:PendingSyncBadge */
-import { PendingSyncBadge as BasePendingSyncBadge } from "@vrooli/react-component-library/MonetizationAccount/1";
+import { PendingSyncBadge as BasePendingSyncBadge } from "@vrooli/react-component-library/MonetizationAccount/2";
 export type PendingSyncBadgeProps = { pending: number; className?: string };
 export const PendingSyncBadge = withClassName(function PendingSyncBadge(
   props: PendingSyncBadgeProps,

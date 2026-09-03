@@ -107,6 +107,17 @@ func TestStampPreviewSourceIgnoresTypeScriptComparisonsBeforeJSX(t *testing.T) {
 	}
 }
 
+func TestStampPreviewSourcePreservesPrefixedDataAttributes(t *testing.T) {
+	source := `export function AssetDetailShell() { return <main data-rcl-asset-detail><h1 data-rcl-asset-detail-title>Title</h1></main>; }`
+	got := stampPreviewSource(source, "library/components/AssetDetailShell/versions/1.1.6/AssetDetailShell.tsx", "components.asset-detail-shell", "1.1.6")
+	if !strings.Contains(got, "data-rcl-asset-detail") || !strings.Contains(got, "data-rcl-asset-detail-title") {
+		t.Fatalf("prefixed data attributes were altered: %s", got)
+	}
+	if !strings.Contains(got, `<main data-rcl-asset-detail data-rcl-asset="`) {
+		t.Fatalf("generated marker was not placed after the existing attribute: %s", got)
+	}
+}
+
 func TestStampPreviewSourceIgnoresNestedTypeParameterLists(t *testing.T) {
 	source := `export function ObjectField<T extends Record<string, unknown>>() {
   const setValue = <TKey extends keyof T>(key: TKey, value: T[TKey]) => ({ key, value });

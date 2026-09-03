@@ -502,7 +502,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				continue
 			}
 			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") || strings.HasSuffix(f.Name(), ".css") {
-				 sourceFiles = append(sourceFiles, f)
+				sourceFiles = append(sourceFiles, f)
 			}
 		}
 		// Evicted versions may retain an empty placeholder directory after
@@ -866,6 +866,12 @@ func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
 }
 
 func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding, []string) {
+	// Foundations are source-only closure members. The story-contract schema
+	// intentionally has no foundation kind, so legacy story-shaped companions
+	// beside them must not be reported as malformed component contracts.
+	if assetKind == AssetKindFoundation {
+		return nil, nil, nil
+	}
 	raw, err := fs.ReadFile(idx.fs, sourcePath)
 	if errors.Is(err, fs.ErrNotExist) {
 		// The complete-catalog conformance audit owns missing-file failures;
@@ -906,6 +912,7 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 			harnesses[definition.Composition.Specimen.Export] = struct{}{}
 		}
 	}
+	var findings []IndexFinding
 	if len(harnesses) > 0 && errors.Is(storyErr, fs.ErrNotExist) {
 		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: "a story references a specimen but story.tsx is missing"}}, nil
 	}
@@ -915,11 +922,17 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	if storyErr == nil {
 		exports := harnessExports(string(storySource))
 		if len(harnesses) == 0 {
-			return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a specimen export"}}, nil
-		}
-		for harness := range harnesses {
-			if _, found := exports[harness]; !found {
-				return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/composition/specimen/export", Actual: harness, Detail: "referenced specimen export was not found in story.tsx"}}, nil
+			// The declarative contract is authoritative. A story.tsx file may
+			// contain typed specimen exports for a future composition without
+			// making the otherwise valid story contract unindexable. Keep the
+			// hygiene finding, but retain the contract projection so component
+			// tests can validate the asset's one story record.
+			findings = append(findings, IndexFinding{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a specimen export"})
+		} else {
+			for harness := range harnesses {
+				if _, found := exports[harness]; !found {
+					return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/composition/specimen/export", Actual: harness, Detail: "referenced specimen export was not found in story.tsx"}}, nil
+				}
 			}
 		}
 	}
@@ -927,7 +940,7 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	environment, _ := json.Marshal(contract.Environment)
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
-	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil, nil
+	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, findings, nil
 }
 
 func storyErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {

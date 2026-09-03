@@ -113,16 +113,28 @@ func NormalizeResult(root string, result Result) Result {
 	normalized := make([]Finding, 0, len(result.Findings))
 	for _, finding := range result.Findings {
 		finding = normalizeFinding(finding)
-		if finding.AssetID == "" {
-			result.RunnerError = append(result.RunnerError, finding)
+		// Corpus-level observations have no catalog identity. Older runners may
+		// still stamp a __corpus__ compatibility value, but it must never cross
+		// the typed finding boundary as an asset identity.
+		if finding.AssetID != "" && (strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "supplemental.") || strings.HasPrefix(finding.AssetID, "__corpus__")) {
+			finding.AssetID = ""
+			finding.CatalogID = ""
+			finding.Scope = FindingScopeCorpus
+			normalized = append(normalized, finding)
 			continue
 		}
-		// Corpus-level gates use stable pseudo-assets instead of attributing a
-		// distribution finding to an arbitrary catalog entry. Preserve those
-		// findings as findings; they are measured observations, not runner
-		// failures caused by an unresolvable asset identity.
-		if strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "supplemental.") || strings.HasPrefix(finding.AssetID, "__corpus__") {
-			normalized = append(normalized, finding)
+		// Some runners intentionally leave AssetID blank because they only
+		// have the source location at the point they emit the finding. Resolve
+		// that location before declaring the observation unowned.
+		if finding.AssetID == "" {
+			if resolved := implementationName(filepath.Join(root, finding.File)); resolved != "" && ids[resolved] {
+				finding.AssetID = resolved
+				finding.Scope = FindingScopeAsset
+				finding.CatalogID = resolved
+				normalized = append(normalized, finding)
+				continue
+			}
+			result.RunnerError = append(result.RunnerError, finding)
 			continue
 		}
 		if ids[finding.AssetID] {
