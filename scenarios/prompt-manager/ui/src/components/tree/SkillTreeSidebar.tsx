@@ -325,7 +325,7 @@ interface SkillTreeSidebarProps {
   onCollapseAll: () => void
   onCreateNew: (modes?: string[]) => void
   /** Ref for the search input (for keyboard shortcuts) */
-  searchInputRef?: RefObject<HTMLInputElement>
+  searchInputRef?: RefObject<HTMLInputElement | null>
   /** Callback to open settings modal */
   onOpenSettings?: () => void
   // Filter/sort/view props

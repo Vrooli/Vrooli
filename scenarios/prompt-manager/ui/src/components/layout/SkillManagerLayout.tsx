@@ -43,7 +43,7 @@ import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
-import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
+import { useRunningAgents } from '@/hooks/useRunningAgents'
 import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
 import { HeartbeatControlPopover } from '@/components/tree/HeartbeatControlPopover'
@@ -142,8 +142,8 @@ function SkillManagerLayoutImpl() {
     [searchParams]
   )
 
-  // Running agent sync (single polling instance, feeds 3D world + stores)
-  const runningAgentsData = useRunningAgentStatusSync()
+  // Running agents (shared poller; the world feed consumes the same signal)
+  const runningAgentsData = useRunningAgents()
   const heartbeatControlData = useHeartbeatControlStatus()
 
   // Mobile state
@@ -1194,7 +1194,7 @@ function SkillManagerLayoutImpl() {
         redo()
       }
     },
-    onNew: () => void handleCreateNew(),
+    onNew: () => handleCreateNew(),
     onFocusSearch: () => {
       const searchInput = searchInputRef.current
       if (!searchInput) {
@@ -1381,7 +1381,7 @@ function SkillManagerLayoutImpl() {
         onToggleCollapse={toggleCollapse}
         onExpandAll={expandAll}
         onCollapseAll={collapseAll}
-        onCreateNew={(modes) => void handleCreateNew(modes)}
+        onCreateNew={(modes) => handleCreateNew(modes)}
         searchInputRef={searchInputRef}
         onOpenSettings={() => setShowSettingsDialog(true)}
         filterState={filterState}
@@ -1620,8 +1620,6 @@ function SkillManagerLayoutImpl() {
                 onSaveAll={() => void handleSaveAllChanges()}
                 onDiscard={discardCurrentChanges}
                 onDelete={() => setShowDeleteDialog(true)}
-                onSelectSkill={handleSelectItem}
-                onSelectTeam={navigateToTeam}
                 isSaving={isSaving}
                 isDeleting={isDeleting}
                 isLoadingContent={isLoadingContent}
@@ -1737,7 +1735,7 @@ function SkillManagerLayoutImpl() {
                 onToggleCollapse={() => {}}
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
-                onCreateNew={(modes) => void handleCreateNew(modes)}
+                onCreateNew={(modes) => handleCreateNew(modes)}
                 filterState={filterState}
                 onFilterStateChange={setFilterState}
                 sortConfig={sortConfig}

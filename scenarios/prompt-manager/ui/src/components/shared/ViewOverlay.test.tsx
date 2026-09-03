@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { ViewOverlay } from './ViewOverlay'
-import { usePerformanceStore } from '@/stores/performanceStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
 vi.mock('./StatsBar', () => ({
@@ -12,14 +11,9 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: vi.fn(() => false),
 }))
 
-vi.mock('@/components/world/performance', () => ({
-  FPSOverlay: () => <div data-testid="fps-overlay-panel-content" />,
-}))
-
 describe('ViewOverlay', () => {
   beforeEach(() => {
     vi.mocked(useIsMobile).mockReturnValue(false)
-    usePerformanceStore.getState().setConfig({ showOverlay: false })
   })
 
   it('opens settings and help as independent floating panels on desktop', () => {
@@ -84,33 +78,5 @@ describe('ViewOverlay', () => {
     expect(screen.getByTestId('view-overlay-mobile-panel-sheet')).toBeInTheDocument()
     expect(screen.getByText('Queries')).toBeInTheDocument()
     expect(screen.getByText('Query Body')).toBeInTheDocument()
-  })
-
-  it('shows FPS in floating panel when enabled in world view', () => {
-    usePerformanceStore.getState().setConfig({ showOverlay: true })
-
-    render(
-      <ViewOverlay
-        settingsContent={<div>Settings Body</div>}
-        helpContent={<div>Help Body</div>}
-      />,
-    )
-
-    expect(screen.getByTestId('view-overlay-performance-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('fps-overlay-panel-content')).toBeInTheDocument()
-  })
-
-  it('does not show FPS panel in graph view even if enabled', () => {
-    usePerformanceStore.getState().setConfig({ showOverlay: true })
-
-    render(
-      <ViewOverlay
-        homeView="graph"
-        settingsContent={<div>Settings Body</div>}
-        helpContent={<div>Help Body</div>}
-      />,
-    )
-
-    expect(screen.queryByTestId('view-overlay-performance-panel')).not.toBeInTheDocument()
   })
 })

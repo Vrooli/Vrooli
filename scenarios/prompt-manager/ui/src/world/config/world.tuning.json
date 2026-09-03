@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "sim": {
+    "tickSeconds": 0.1,
+    "walkSpeed": 2.2,
+    "hurrySpeed": 3.2,
+    "turnRateRadPerSec": 9,
+    "arriveRadius": 0.3,
+    "gatherLeadSeconds": 120,
+    "gatherWindowSeconds": 900,
+    "failedAckSeconds": 900,
+    "eventsRing": 64,
+    "maxReplansPerTick": 6,
+    "pathCacheSize": 512,
+    "idle": {
+      "rollIntervalSeconds": 5,
+      "weights": {
+        "rest": 70,
+        "wander": 12,
+        "socialize": 10,
+        "sit": 8
+      },
+      "maxMoversRatio": 0.35,
+      "socializeSeconds": {
+        "min": 8,
+        "max": 20
+      },
+      "sitSeconds": {
+        "min": 12,
+        "max": 40
+      },
+      "restSeconds": {
+        "min": 10,
+        "max": 30
+      },
+      "socializeGap": 1.4,
+      "spacing": 1.2,
+      "spacingAttempts": 8
+    },
+    "accelSeconds": 0.5
+  },
+  "layout": {
+    "cellSize": 0.5,
+    "roomWidth": 8,
+    "roomDepth": 6,
+    "roomGap": 3,
+    "maxRoomsPerRow": 4,
+    "deskPitch": 1.7,
+    "deskInset": 1.1,
+    "deskSeatOffset": 0.8,
+    "tableRadius": 0.9,
+    "tableSeatRadius": 1.5,
+    "tableSeats": 6,
+    "commonsRadius": 5.5,
+    "commonsSeatRadius": 2.2,
+    "commonsSeats": 8,
+    "commonsGap": 4,
+    "clearingRadius": 3.5,
+    "slabMargin": 4,
+    "minSlabWidth": 26,
+    "minSlabDepth": 20,
+    "wallHeight": 0.7,
+    "boardOffset": 4,
+    "treeDensity": 0.035,
+    "treeMargin": 2.5,
+    "treeAttemptsPerTree": 8,
+    "outlineRimSamples": 12
+  },
+  "camera": {
+    "fov": 38,
+    "near": 0.5,
+    "far": 400,
+    "polarMinDeg": 30,
+    "polarMaxDeg": 64,
+    "azimuthRangeDeg": 35,
+    "minDistance": 6,
+    "maxDistance": 140,
+    "introSeconds": 2,
+    "smoothTime": 0.35,
+    "focusPadding": 1.6,
+    "focusDistance": 7,
+    "minClearance": 2,
+    "keyOrbitDegPerSec": 55,
+    "keyDollyPerSec": 10,
+    "frameFill": 0.9
+  },
+  "lighting": {
+    "keyLight": {
+      "elevationDeg": 52,
+      "azimuthDeg": -38,
+      "shadowBias": -0.0004,
+      "shadowNormalBias": 0.02
+    },
+    "periodHours": {
+      "dawn": {
+        "from": 5,
+        "to": 8
+      },
+      "day": {
+        "from": 8,
+        "to": 17
+      },
+      "dusk": {
+        "from": 17,
+        "to": 20
+      },
+      "night": {
+        "from": 20,
+        "to": 5
+      }
+    },
+    "periods": {
+      "dawn": {
+        "exposure": 0.8,
+        "envIntensity": 0.35,
+        "keyIntensity": 2.6,
+        "keyColor": "#ffd2a8",
+        "ambientIntensity": 0.2,
+        "fogColor": "#e9c9c0",
+        "sunElevationDeg": 8,
+        "lampEmissive": 1.2,
+        "backgroundColor": "#f4d9d0",
+        "skyIntensity": 0.35,
+        "skyBlur": 0.35,
+        "fogNear": 1.1,
+        "fogFar": 3.2
+      },
+      "day": {
+        "exposure": 0.85,
+        "envIntensity": 0.45,
+        "keyIntensity": 3.6,
+        "keyColor": "#fff1d6",
+        "ambientIntensity": 0.22,
+        "fogColor": "#cfe0f2",
+        "sunElevationDeg": 55,
+        "lampEmissive": 0,
+        "backgroundColor": "#cfe6fb",
+        "skyIntensity": 0.55,
+        "skyBlur": 0.1,
+        "fogNear": 1.3,
+        "fogFar": 4.5
+      },
+      "dusk": {
+        "exposure": 0.75,
+        "envIntensity": 0.3,
+        "keyIntensity": 2,
+        "keyColor": "#ff9a5c",
+        "ambientIntensity": 0.18,
+        "fogColor": "#e0a98f",
+        "sunElevationDeg": 4,
+        "lampEmissive": 2.2,
+        "backgroundColor": "#f0b28e",
+        "skyIntensity": 0.3,
+        "skyBlur": 0.4,
+        "fogNear": 1,
+        "fogFar": 3
+      },
+      "night": {
+        "exposure": 0.5,
+        "envIntensity": 0.08,
+        "keyIntensity": 0.4,
+        "keyColor": "#8fa9ff",
+        "ambientIntensity": 0.1,
+        "fogColor": "#101a33",
+        "sunElevationDeg": -12,
+        "lampEmissive": 4,
+        "backgroundColor": "#0b1226",
+        "skyIntensity": 0.05,
+        "skyBlur": 0.6,
+        "fogNear": 0.9,
+        "fogFar": 2.6
+      }
+    }
+  },
+  "labels": {
+    "budget": 24,
+    "collapseDistance": 34,
+    "fontSize": 0.34,
+    "offsetY": 1.45,
+    "minScreenPx": 11,
+    "maxScreenPx": 20,
+    "paddingPx": 4
+  },
+  "actor": {
+    "bodyRadius": 0.42,
+    "breathAmplitude": 0.035,
+    "breathHz": 0.55,
+    "hopHeight": 0.24,
+    "hopHz": 2.4,
+    "squashOnLand": 0.84,
+    "squashRecoverPerSec": 6,
+    "wobbleIntensity": 0.05,
+    "blinkIntervalSeconds": {
+      "min": 2.5,
+      "max": 6.5
+    },
+    "blinkSeconds": 0.12,
+    "emoteSeconds": 1.8,
+    "seatedScale": 0.9,
+    "equipmentTiers": [
+      0,
+      3,
+      8,
+      15,
+      25
+    ],
+    "look": {
+      "bodySquashY": 0.82,
+      "eyeRadius": 0.075,
+      "eyeSpacing": 0.16,
+      "eyeHeight": 0.55,
+      "eyeForward": 0.85,
+      "blinkScaleY": 0.12,
+      "mouthWidth": 0.16,
+      "mouthHeight": 0.05,
+      "mouthForward": 0.9,
+      "mouthDrop": 0.3,
+      "earSize": 0.14,
+      "earHeight": 0.8,
+      "earSpread": 0.55,
+      "equipmentScale": 0.22,
+      "equipmentBack": 0.75,
+      "equipmentHeight": 0.45,
+      "markerHeight": 1.35,
+      "markerRadius": 0.16,
+      "emoteRise": 0.7,
+      "emoteSize": 0.42,
+      "emoteHeight": 1.3,
+      "messageTtlSeconds": 12
+    }
+  },
+  "quality": {
+    "defaultProfile": "medium",
+    "degradedRatio": 0.72,
+    "recoverRatio": 0.92,
+    "monitorFlipflops": 3,
+    "profiles": {
+      "low": {
+        "dpr": 1,
+        "shadows": false,
+        "shadowMapSize": 512,
+        "ao": false,
+        "bloom": false,
+        "labelBudget": 8,
+        "frameCapFps": 60,
+        "wobble": false,
+        "clouds": false,
+        "msaa": 0
+      },
+      "medium": {
+        "dpr": 1,
+        "shadows": true,
+        "shadowMapSize": 1024,
+        "ao": false,
+        "bloom": true,
+        "labelBudget": 16,
+        "frameCapFps": 60,
+        "wobble": true,
+        "clouds": false,
+        "msaa": 2
+      },
+      "high": {
+        "dpr": 1,
+        "shadows": true,
+        "shadowMapSize": 2048,
+        "ao": true,
+        "bloom": true,
+        "labelBudget": 24,
+        "frameCapFps": 60,
+        "wobble": true,
+        "clouds": true,
+        "msaa": 4
+      },
+      "ultra": {
+        "dpr": 1.5,
+        "shadows": true,
+        "shadowMapSize": 4096,
+        "ao": true,
+        "bloom": true,
+        "labelBudget": 40,
+        "frameCapFps": 120,
+        "wobble": true,
+        "clouds": true,
+        "msaa": 8
+      }
+    }
+  },
+  "data": {
+    "pollIntervalMs": 5000,
+    "fallbackAfterMs": 4000,
+    "reconnectBaseMs": 1000,
+    "reconnectMaxMs": 30000,
+    "snapshotStaleMs": 15000
+  },
+  "editor": {
+    "snap": 0.5,
+    "maxHistory": 50,
+    "saveDebounceMs": 800,
+    "aerialPolarDeg": 22
+  },
+  "budgets": {
+    "goldenThreshold": 0.015,
+    "propTriangles": 4000,
+    "actorDrawCalls": 4,
+    "emptyStageDrawCalls": 30,
+    "periodPixelDelta": 0.25,
+    "scenes": {
+      "park": {
+        "low": {
+          "drawCalls": 40,
+          "triangles": 90000,
+          "p95Ms": 18
+        },
+        "medium": {
+          "drawCalls": 80,
+          "triangles": 160000,
+          "p95Ms": 18
+        },
+        "high": {
+          "drawCalls": 110,
+          "triangles": 200000,
+          "p95Ms": 18
+        },
+        "ultra": {
+          "drawCalls": 110,
+          "triangles": 200000,
+          "p95Ms": 24
+        }
+      },
+      "office": {
+        "low": {
+          "drawCalls": 40,
+          "triangles": 90000,
+          "p95Ms": 18
+        },
+        "medium": {
+          "drawCalls": 80,
+          "triangles": 160000,
+          "p95Ms": 18
+        },
+        "high": {
+          "drawCalls": 110,
+          "triangles": 200000,
+          "p95Ms": 18
+        },
+        "ultra": {
+          "drawCalls": 110,
+          "triangles": 200000,
+          "p95Ms": 24
+        }
+      }
+    },
+    "framing": {
+      "minFill": 0.7,
+      "maxFill": 0.97
+    }
+  }
+}

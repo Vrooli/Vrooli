@@ -19,12 +19,29 @@ type ActiveRun struct {
 	CancelFn  context.CancelFunc `json:"-"`
 }
 
+// RunObserver receives run lifecycle notifications from the registry. The
+// world feed is the consumer; the registry never blocks on it.
+type RunObserver interface {
+	RunStarted(run ActiveRun)
+	// RunEnded reports the outcome the registry knows: failed with a message,
+	// or ended cleanly (message "stopped" when an operator stopped it).
+	RunEnded(run ActiveRun, endedAt time.Time, failed bool, message string)
+}
+
 // RunRegistry is an in-memory registry of active heartbeat runs with disk
 // persistence for restart recovery.
 type RunRegistry struct {
 	mu       sync.RWMutex
 	active   map[string]*ActiveRun // key: "teamID/agentID"
 	filePath string
+	observer RunObserver
+}
+
+// SetObserver installs the run lifecycle observer.
+func (r *RunRegistry) SetObserver(observer RunObserver) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.observer = observer
 }
 
 // NewRunRegistry creates a new run registry that persists state to the given directory.
@@ -44,23 +61,38 @@ func (r *RunRegistry) Register(teamID, agentID, runID string, startedAt time.Tim
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.active[registryKey(teamID, agentID)] = &ActiveRun{
+	run := &ActiveRun{
 		TeamID:    teamID,
 		AgentID:   agentID,
 		RunID:     runID,
 		StartedAt: startedAt,
 		CancelFn:  cancel,
 	}
+	r.active[registryKey(teamID, agentID)] = run
 	r.persistLocked()
+	if r.observer != nil {
+		r.observer.RunStarted(*run)
+	}
 }
 
-// Unregister removes an active run from the registry. Safe to call if key is not found.
+// Unregister removes an active run from the registry. Safe to call if key is
+// not found. Reported to the observer as a clean stop.
 func (r *RunRegistry) Unregister(teamID, agentID string) {
+	r.Complete(teamID, agentID, false, "stopped")
+}
+
+// Complete removes an active run and reports its outcome to the observer.
+func (r *RunRegistry) Complete(teamID, agentID string, failed bool, message string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	delete(r.active, registryKey(teamID, agentID))
+	key := registryKey(teamID, agentID)
+	run, ok := r.active[key]
+	delete(r.active, key)
 	r.persistLocked()
+	if ok && r.observer != nil {
+		r.observer.RunEnded(*run, time.Now().UTC(), failed, message)
+	}
 }
 
 // ListActive returns a snapshot of all active runs.

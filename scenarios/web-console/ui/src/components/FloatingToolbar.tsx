@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone, CircleUserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
@@ -47,6 +47,7 @@ function saveDockedEdge(edge: DockedEdge) {
 
 interface FloatingToolbarProps {
   onOpenSettings: () => void;
+  onOpenAccount: () => void;
   /** Opens the machines surface, which owns linking a computer and its permissions. */
   onOpenMachines: () => void;
   onOpenAi: () => void;
@@ -82,6 +83,7 @@ interface FloatingToolbarProps {
 
 export default function FloatingToolbar({
   onOpenSettings,
+  onOpenAccount,
   onOpenMachines,
   onOpenAi,
   onNewTerminal,
@@ -260,6 +262,18 @@ export default function FloatingToolbar({
       className="flex items-center gap-1 px-2 py-1"
       aria-hidden={!!docked}
     >
+      <Button
+        data-testid="toolbar-account"
+        variant="ghost"
+        size="icon"
+        className="h-11 w-11 md:h-8 md:w-8"
+        onClick={onOpenAccount}
+        title={t(strings.settings.tabs.account.label)}
+        aria-label={t(strings.settings.tabs.account.label)}
+        tabIndex={docked ? -1 : undefined}
+      >
+        <CircleUserRound className="h-4 w-4" />
+      </Button>
       <Button
         data-testid="toolbar-settings"
         variant="ghost"

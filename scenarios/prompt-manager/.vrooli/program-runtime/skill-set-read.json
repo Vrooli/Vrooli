@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "prompt-manager.skill-set-read",
+  "version": "1",
+  "purpose": "Read one scenario's skill set as prompt-manager's registry sees it: ids registered under the scenario pack, usage and improve presence, token size, and read counts when skill-usage answers.",
+  "inputs": {
+    "scenario": { "type": "string", "default": "program-runtime", "description": "Scenario whose skill set is read; usage id is <scenario>, improve id is <scenario>-improve." }
+  },
+  "assumptions": [
+    "prompt-manager is running and its skill bindings are reachable from the kernel",
+    "the skill-usage binding returns 500 (proto field projected unknown) as of 2026-09-02, so read-counts reads unavailable until that is fixed",
+    "an unavailable row is unknown, never zero"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "at most 50 registry rows per filter are read with head",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    { "id": "prompt-manager/skill/list", "effect": "read" },
+    { "id": "prompt-manager/skill/read", "effect": "read" },
+    { "id": "prompt-manager/skill-usage/skill-usage", "effect": "read", "optional": true }
+  ],
+  "outputs": {
+    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
+    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "signals": {
+      "rows": "list of {row, reading, unavailable, reason}: registered-under-scenario-pack, usage-id-present, improve-id-present, set-token-size, read-counts",
+      "readable": "count of rows read",
+      "unavailable": "count of rows not readable in-program",
+      "registered": "skill ids the registry attributes to the scenario",
+      "usage_present": "true when <scenario> is registered",
+      "improve_present": "true when <scenario>-improve is registered"
+    },
+    "errors": { "classes": ["invalid_input", "scenario_unreachable", "no_grant", "binding_error"] },
+    "evidence": "sensor command names, one per row"
+  },
+  "budget": { "wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 50 },
+  "fixtures": [
+    { "id": "live", "inputs": { "scenario": "program-runtime" }, "expect": { "status": ["ok", "partial"], "signals": { "usage_present": true, "improve_present": true } }, "requires": ["prompt-manager"] },
+    { "id": "bad-scenario", "inputs": { "scenario": "" }, "expect": { "status": ["failed"] } }
+  ],
+  "rung": "S3",
+  "owner_skill": "prompt-manager"
+}

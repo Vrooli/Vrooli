@@ -31,7 +31,7 @@
 - [ ] OT-P0-003 | Durable Session Continuity | Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline
 - [ ] OT-P0-004 | Proxy-Correct Networking via api-base | UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions
 - [ ] OT-P0-005 | AI Input with Provider Fallback | AI command generation uses Ollama first with OpenRouter fallback and deterministic failover behavior
-- [ ] OT-P0-009 | Account and Provider Source Surface | Settings can connect the device-scoped Vrooli subscription session or provision an OpenRouter BYOK key without returning secrets; the active source is visible.
+- [x] OT-P0-009 | Account and Provider Source Surface | Settings can connect the device-scoped Vrooli subscription session or provision an OpenRouter BYOK key without returning secrets; the active source is visible.
 - [ ] OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | New-terminal flow offers empty shell and configurable shortcut entries; default entries include `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` and `codex --yolo`
 - [ ] OT-P0-007 | Mobile Terminal Usability Toolbar | Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage
 - [ ] OT-P0-008 | Sidebar/Drawer Controls Surface | Drawer exposes session/workspace status, sender-owned message snippets, bounded message actions, and core controls without blocking primary terminal workflow

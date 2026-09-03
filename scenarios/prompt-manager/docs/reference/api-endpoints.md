@@ -30,8 +30,7 @@ JSON. The API mounts these generated services:
 | graph | `GraphService` | 13 | Relationship graph, health, config, and node projections |
 | heartbeat | `HeartbeatService` | 52 | Scheduling, runs, queues, prompts, handoffs, tasks, retention, bug intake |
 | memberflow | `MemberflowService` | 14 | Topics, rules, objectives, operating models, drain/orientation evidence |
-| worldscale | `WorldScaleService` | 2 | Persisted world-scale preference |
-| worldseats | `WorldSeatsService` | 2 | Persisted seat placement |
+| world | `WorldService` | 5 | World config, per-scene layout overrides and the server-streamed swarm feed |
 
 Stable identifiers and method inputs are typed. Heartbeat/memberflow payloads
 whose upstream catalogs intentionally evolve are carried as
@@ -1673,51 +1672,27 @@ Leader-led single-process triggers are validated before enqueueing: the lead mus
 
 ---
 
-## World Scale
+## World
 
-[CODE: api/worldscale/handlers.go]
+[CODE: api/handlers/world/connect_handler.go]
+[CODE: api/internal/world/config.go]
+[CODE: api/internal/world/feed.go]
 
-### GET /api/v1/world-scale
+`WorldService` (`vrooli.prompt_manager.v1.world`) serves the 3D world at
+`/vrooli.prompt_manager.v1.world.WorldService/<Method>` over Connect. Files
+live under `<config root>/world/`.
 
-Get the current object scale configuration.
+| Method | Persists | Notes |
+|---|---|---|
+| `GetWorldConfig` / `SetWorldConfig` | `world/config.json` | scene (`park`, `office`), `qualityProfile` (`low`..`ultra`), `qualityAuto`, `periodMode` (`clock`, `dawn`, `day`, `dusk`, `night`), `twoDMode`, `showDiagnostics`, `scale` (0.25..4). Out-of-range values return `invalid_argument`; a malformed file is an error, never silently replaced. |
+| `GetLayout` / `SetLayout` | `world/layout-<scene>.json` | Per-scene `overrides[]` (`placeId`, optional `position`, optional `rotation`, `removed`) applied over the generated layout by id, plus operator `decor[]` additions. Duplicate ids and out-of-range decor scale are rejected. Agent positions are never persisted. |
+| `StreamWorldFeed` | in-memory ring | Server stream. Opens with a `SNAPSHOT` (active runs from the run registry, upcoming heartbeats from the scheduler), replays buffered events newer than `since_seq`, then streams live `RUN_STARTED`, `RUN_FINISHED`, `RUN_FAILED` (with the error in `message`), `HEARTBEAT_UPCOMING` (`scheduled_at`), `HEARTBEAT_CANCELLED` and `AGENT_MESSAGE`. A subscriber that falls behind the channel depth is closed with `resource_exhausted` and reconnects with `since_seq`. |
 
-**Response:**
-```json
-{
-  "agent": 1.0,
-  "furniture": 1.0,
-  "decoration": 1.0,
-  "overlay": 1.0
-}
-```
-
-**Notes:**
-- Returns default values (all 1.0) if the config file doesn't exist yet
-- Config persists in `store/world-scale.json`
-
-### PUT /api/v1/world-scale
-
-Update the object scale configuration.
-
-**Request Body:**
-```json
-{
-  "agent": 1.2,
-  "furniture": 0.8,
-  "decoration": 1.5,
-  "overlay": 1.0
-}
-```
-
-**Validation:**
-- All values must be between 0.1 and 3.0
-
-**Response:** Updated config object.
-
-**Errors:**
-- `400` - Value out of range or invalid JSON
-
----
+Signal sources: `heartbeat.RunRegistry` reports `RUN_STARTED` on register and
+`RUN_FINISHED` / `RUN_FAILED` on completion (the executor passes the outcome);
+a schedule watcher polls the cron scheduler and announces next runs inside a
+six-hour horizon, and cancellations when a schedule disappears. The UI keeps
+the 5 s `ListRunning` poll as a fallback when the stream is silent or failing.
 
 ## Graph
 

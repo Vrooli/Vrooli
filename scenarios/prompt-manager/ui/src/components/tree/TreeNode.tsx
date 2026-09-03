@@ -162,6 +162,7 @@ function TreeNodeComponentImpl({
         {renderChildren && isExpanded && (
           <div>
             {node.children.map((child) => (
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define -- recursive memo component; only read at render time, after module evaluation
               <TreeNodeComponent
                 key={child.id}
                 node={child}

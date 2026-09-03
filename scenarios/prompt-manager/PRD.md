@@ -36,7 +36,7 @@ The primary users are agents and operators composing repeatable work. Prompt Man
 - [ ] prompt-manager-nice-to-have-collaboration-features | Collaboration | Support multi-operator collaboration with explicit ownership.
 - [ ] prompt-manager-nice-to-have-advanced-analytics-dashboard | Advanced analytics | Explain usage and effectiveness trends.
 - [x] prompt-manager-nice-to-have-version-history-for-skills | Version history | Inspect and restore prior skill versions.
-- [x] prompt-manager-nice-to-have-3d-world-visualization-for-agents | Agent world | Visualize agents and coordination state.
+- [x] prompt-manager-nice-to-have-3d-world-visualization-for-agents | Agent world | Visualize agents and coordination state as a diorama where place is state: each agent stands at its desk when running, at the team table when a heartbeat is due, in the commons when idle; the HUD shows counts, the next heartbeat, a ticker and per-agent actions, and works without the canvas.
 
 ## 🧱 Tech Direction Snapshot
 

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
-import { MemoryRouter } from 'react-router-dom'
 import { TeamDashboardTab } from './TeamDashboardTab'
 import type { TeamDetails } from '@/types/team'
 import {
@@ -58,11 +57,7 @@ describe('TeamDashboardTab', () => {
   })
 
   function renderDashboard(team: TeamDetails, onUpdate: (updates: unknown) => Promise<void>) {
-    return render(
-      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <TeamDashboardTab team={team} onUpdate={onUpdate} />
-      </MemoryRouter>
-    )
+    return render(<TeamDashboardTab team={team} onUpdate={onUpdate} />)
   }
 
   it('promotes multi-process teams to leader-led serialized execution when switching to single-process runtime', () => {

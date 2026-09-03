@@ -248,6 +248,26 @@ func (s *Scheduler) GetNextRuns(teamID, agentID string, count int) []time.Time {
 	return runs
 }
 
+// ScheduledRun is one scheduled heartbeat and its next execution time.
+type ScheduledRun struct {
+	TeamID  string
+	AgentID string
+	NextRun time.Time
+}
+
+// ListScheduled returns every scheduled heartbeat with its next execution time.
+func (s *Scheduler) ListScheduled() []ScheduledRun {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	runs := make([]ScheduledRun, 0, len(s.scheduled))
+	for _, sh := range s.scheduled {
+		entry := s.cron.Entry(sh.EntryID)
+		runs = append(runs, ScheduledRun{TeamID: sh.TeamID, AgentID: sh.AgentID, NextRun: entry.Next})
+	}
+	return runs
+}
+
 // IsScheduled checks if a heartbeat is scheduled
 func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 	s.mu.RLock()

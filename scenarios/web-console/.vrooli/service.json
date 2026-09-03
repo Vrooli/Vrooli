@@ -101,9 +101,9 @@
         "rung": "owned",
         "kind": "dir",
         "class": "state",
-        "regenerable": false,
+        "regenerable": true,
         "subpath": "sessions",
-        "rationale": "Per-session agent rollout transcripts are durable user work and remain available for a 30-day review window. Runtime directories under this tree are links to the shared agent home after launch-time provisioning.",
+        "rationale": "Per-session agent rollout transcripts are owner-budgeted review evidence and are disposable after the 30-day review window. Runtime directories under this tree are links to the shared agent home after launch-time provisioning.",
         "budget": {
           "max_age": "30d",
           "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
@@ -136,7 +136,8 @@
         "name": "Web Console old sessions",
         "safety_tier": "safe_with_owner",
         "default_mode": "disabled",
-        "default_approval": "owner"
+        "default_approval": "owner",
+        "storage_entries": ["session-rollouts"]
       }
     ],
     "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."

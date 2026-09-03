@@ -532,6 +532,35 @@ func resolveTmuxSocket() string {
 // resolveTmuxScopeName returns the systemd scope name used when booting the
 // tmux server. Tests may override this to avoid colliding with the live app's
 // scope unit while still exercising the real tmux path.
+// tmuxContainedSpec is the console's tmux server born under the agent slice:
+// the same ceiling every coding-agent session carries, applied through the
+// platform-go seam the launcher uses, so a console shell cannot take the host
+// either. The scope carries the slice's task ceiling and share; memory is
+// bounded by the slice.
+func tmuxContainedSpec(socketName string, sessionArgs, env []string, output *bytes.Buffer) platform.ContainedSpec {
+	return platform.ContainedSpec{
+		Path:   "tmux",
+		Args:   append([]string{"-S", socketName}, sessionArgs...),
+		Env:    env,
+		Stdout: output,
+		Stderr: output,
+		Scope:  resolveTmuxScopeName(),
+		Containment: platform.Containment{
+			Slice:     agentSlice,
+			CPUWeight: agentSliceCPUWeight,
+			TasksMax:  agentSliceTasksMax,
+		},
+	}
+}
+
+// The agent slice the agent_session_containment safeguard converges and the
+// per-scope ceilings the launcher applies (its D3 defaults).
+const (
+	agentSlice          = "vrooli-agents.slice"
+	agentSliceCPUWeight = 50
+	agentSliceTasksMax  = 4096
+)
+
 func resolveTmuxScopeName() string {
 	if scope := strings.TrimSpace(os.Getenv("WC_TMUX_SCOPE_NAME")); scope != "" {
 		return scope
@@ -597,16 +626,21 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
 	socketName := resolveTmuxSocket()
 	if systemdRunUsable() {
-		createCmd := exec.Command("systemd-run", append([]string{
-			"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
-			"tmux", "-S", socketName,
-		}, sessionArgs...)...)
-		_ = platform.ConfigureCommand(createCmd, platform.ProcessOptions{Detached: true})
-		createCmd.Env = buildSessionEnv(spec)
-		if output, err := createCmd.CombinedOutput(); err == nil {
+		var output bytes.Buffer
+		contained, err := platform.ContainedCommand(tmuxContainedSpec(socketName, sessionArgs, buildSessionEnv(spec), &output))
+		if err == nil {
+			_ = platform.ConfigureCommand(contained.Cmd, platform.ProcessOptions{Detached: true})
+			if err = contained.Start(); err == nil {
+				err = contained.Cmd.Wait()
+			}
+			contained.Release()
+		}
+		if err == nil {
 			goto configureTmuxSession
-		} else if strings.TrimSpace(string(output)) != "" {
-			log.Printf("tmux systemd-run create failed: %s", strings.TrimSpace(string(output)))
+		} else if strings.TrimSpace(output.String()) != "" {
+			log.Printf("tmux systemd-run create failed: %s", strings.TrimSpace(output.String()))
+		} else {
+			log.Printf("tmux contained create failed: %v", err)
 		}
 	}
 	{

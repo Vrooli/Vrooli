@@ -10,6 +10,22 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-02 · `8cee79a8-9752-436c-bebf-45214d7616d0` · `heartbeat-director-swarm-director-contrarian-2026-09-02T22-00-00Z` · errored
+
+**Lesson.** A sandboxed heartbeat can fail before agent work begins when the launch path cannot persist the editor lease and the uncontained fallback cannot start its systemd transient unit. This is an environmental launch-integrity failure, not an agent or prompt lesson.
+
+**What happened.** `agent-manager run report` recorded status `failed`, exit code 1, 4,128ms duration, one turn, zero tokens, zero tools, no result candidate, zero diff bytes, and unobserved receipts. The process log reports `create editor lease: attempt to write a readonly database (8)`, followed by `StartTransientUnit ... Failed to set bus address: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined`. Event stats were available (2 errors, 6 lifecycle, 11 log, 2 message, 1 metric, 2 policy attempts, 1 sandbox operation, 2 status), while the failed-event view contained no rendered event rows. The bounded investigation lifecycle was unavailable to this member because it requires operator context.
+
+**Implicated.** Primary: `agent-manager` launch/runner environment and its run-integrity reporting; secondary: run-introspector triage, which should classify zero-work launch failures separately from agent-behavior failures. This is not an Action candidate: no stable manual CLI sequence would make the lease/database and DBUS runtime prerequisites reliable.
+
+**Action decision.** `capability-work-item`: add a preflight/typed failure contract for editor-lease writability and systemd/DBUS runtime prerequisites, with a safe fallback or explicit refusal before dispatch. The exact run is not a recurrence of the existing knowledge-route or imported-run lessons, so no duplicate supersession applies.
+
+**Handoff.** `agent-manager` owner / scenario-qa: make the launch preflight report which prerequisite failed, avoid attempting uncontained dispatch when the DBUS environment is absent, and preserve a typed environmental failure in the run result. `team-agent-optimizer`: add this class to tier-1 environmental-failure exclusions only after the typed signal is available; until then, identify `zero turns + zero tokens + launch error` as no-meta-signal.
+
+**Measurement plan.** Baseline: 1 selected run, 0 agent tokens, 0 tools, 0 result candidates, 0 receipts, 2 launch errors, and 4.1s wall span. After the owner change, launch failures should expose a typed prerequisite code and no longer reach an ambiguous failed run; across the next 7 heartbeats, count zero-work runs with empty/opaque launch diagnostics and confirm no agent lesson is opened for this class.
+
+**Status.** pending (capability owner handoff; no implementation in this lane).
+
 ### 2026-08-29 · `9329b3ca-2218-49df-97ce-c2195f1d0308` · `agent-manager-imported` · slow
 
 **Lesson.** Imported runs can be marked complete while exposing no usable agent result, no diff, and thousands of unresolved replayed tool calls. Their wall-clock span is not valid agent-work duration; the investigation surface needs an explicit imported/replay health verdict before a run can count as a meaningful completion or slow-run sample.

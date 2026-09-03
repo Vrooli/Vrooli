@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "prompt-manager.vision-walk-prep",
+  "version": "1",
+  "purpose": "Return the bounded morning vision walk projection: agent-manager run volume as fleet health and ai-gateway total as inference activity; the scenario-owned form of library morning-vision-walk-prep@4.",
+  "inputs": {
+    "window": {
+      "type": "string",
+      "description": "Optional measures TimeWindow token: this_week, last_7d, last_30d, this_month, last_month, this_quarter. Passed as {token}.",
+      "enum": [
+        "this_week",
+        "last_7d",
+        "last_30d",
+        "this_month",
+        "last_month",
+        "this_quarter"
+      ]
+    }
+  },
+  "assumptions": [
+    "agent-manager and ai-gateway are running",
+    "the vision-walk-prep heartbeat rejects a projection shorter than 200 characters or containing example.invalid; this program adds no placeholder values",
+    "an unavailable row is unknown, never zero"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "exactly two reads; only the first row of each is materialized",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/measures/run-volume",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/total",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "fleet_health": "first row of agent-manager run volume (definitionId, totalRuns, terminalRuns, validity, ...)",
+      "inference_activity": "first row of ai-gateway total (count)",
+      "readable": "count of the two reads that returned",
+      "unavailable": "count of the two reads that failed"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "no_grant",
+        "binding_error"
+      ]
+    },
+    "evidence": "binding ids read"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 2
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "agent-manager",
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "bad-window",
+      "inputs": {
+        "window": 5
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "prompt-manager"
+}

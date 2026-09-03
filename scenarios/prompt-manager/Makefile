@@ -20,6 +20,10 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
+SCENARIO_CUSTOM_TARGETS += build fmt-ui lint-go
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
 help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
 	@printf "  make setup                      Run scenario setup lifecycle\n"
@@ -74,22 +78,6 @@ build: ## Build the scenario
 
 fmt: fmt-go fmt-ui ## Format all code
 
-fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-	fi
-	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd cli && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd cli && gofmt -w .; \
-		fi; \
-	fi
-
 fmt-ui: ## Format UI code
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run lint:fix; \
@@ -111,11 +99,6 @@ lint-go: ## Lint Go code
 		elif command -v go >/dev/null 2>&1; then \
 			cd cli && go vet ./... && go fmt ./...; \
 		fi; \
-	fi
-
-lint-ui: ## Lint UI code
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 type: type-go type-ui ## Type-check all code

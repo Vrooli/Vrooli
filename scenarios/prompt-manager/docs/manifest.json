@@ -13,13 +13,19 @@
           "path": "QUICKSTART.md",
           "title": "Quick Start",
           "description": "Get running in 5 minutes",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ]
         },
         {
           "path": "README.md",
           "title": "Documentation Overview",
           "description": "Map of prompt-manager documentation and core concepts",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ]
         }
       ]
     },
@@ -32,79 +38,129 @@
           "path": "concepts/ARCHITECTURE.md",
           "title": "Architecture Overview",
           "description": "System design, data flow, and component relationships",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "concepts/DOMAINS.md",
           "title": "Domain Model and Migration Contract",
           "description": "Live inventories, proto package map, omission policy, and governed slice order",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ]
         },
         {
           "path": "concepts/SWARM-MODEL.md",
           "title": "Swarm Coordination Model",
           "description": "How skills, agents, teams, and Actions work together",
-          "audience": ["developers", "users"]
+          "audience": [
+            "developers",
+            "users"
+          ]
         },
         {
           "path": "concepts/ACTIONS.md",
           "title": "Actions",
           "description": "Executable wrapper entity for deterministic Vrooli-controlled CLI operations",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ]
         },
         {
           "path": "concepts/MEMORY-PROMOTION.md",
           "title": "Memory Promotion",
           "description": "Ontology and decision tree for promoting typed observations into durable forms",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ]
         },
         {
-          "path": "concepts/3D-WORLD-ARCHITECTURE.md",
-          "title": "3D World Architecture",
-          "description": "Component hierarchy, state management, and rendering pipeline for the 3D visualization system",
-          "audience": ["developers"]
+          "path": "concepts/WORLD-ARCHITECTURE.md",
+          "title": "World Architecture",
+          "description": "The /world diorama: six-layer module, control surface, rendering stack, diagnostics and smoke tool",
+          "audience": [
+            "developers"
+          ]
+        },
+        {
+          "path": "concepts/WORLD-SIM.md",
+          "title": "World Simulation",
+          "description": "Place-is-state layout rules, the actor state machine, idle layer, motion and determinism guarantees",
+          "audience": [
+            "developers"
+          ]
+        },
+        {
+          "path": "concepts/WORLD-HUD.md",
+          "title": "World HUD",
+          "description": "What each swarm signal means in the world, every HUD action, the keyboard map and 2D mode",
+          "audience": [
+            "users",
+            "developers"
+          ]
         },
         {
           "path": "concepts/STORE-MIGRATION.md",
           "title": "Storage Migration",
           "description": "Migration guide from legacy skills/ to new store/ directory structure",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "concepts/HEARTBEATS.md",
           "title": "Heartbeats & Cron Execution",
           "description": "Autonomous scheduled task execution for team members",
-          "audience": ["developers", "users"]
+          "audience": [
+            "developers",
+            "users"
+          ]
         },
         {
           "path": "concepts/GRAPH.md",
           "title": "Relationship Graph",
           "description": "How the dependency graph maps connections between teams, agents, skills, and CLI tools",
-          "audience": ["developers", "users"]
+          "audience": [
+            "developers",
+            "users"
+          ]
         },
         {
           "path": "concepts/TEAM-EXECUTION.md",
           "title": "Team Execution Model",
           "description": "Per-team execution contexts with serialized or bounded-parallel heartbeat queues",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "concepts/PERSONA-SYSTEM.md",
           "title": "Persona System",
           "description": "Agent SOUL.md personality and behavioral guidance configuration",
-          "audience": ["developers", "users"]
+          "audience": [
+            "developers",
+            "users"
+          ]
         },
         {
           "path": "concepts/CAPABILITY-MATCHING.md",
           "title": "Capability Matching",
           "description": "How skills are matched to agents based on capability declarations",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "concepts/RELATIONS.md",
           "title": "Relations",
           "description": "Team-member relation system and normalization patterns",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         }
       ]
     },
@@ -117,37 +173,52 @@
           "path": "reference/api-endpoints.md",
           "title": "API Reference",
           "description": "Complete REST API documentation with request/response examples",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "reference/cli-commands.md",
           "title": "CLI Reference",
           "description": "All CLI commands, options, and examples",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ]
         },
         {
           "path": "reference/configuration.md",
           "title": "Configuration",
           "description": "Environment variables, settings, and resource configuration",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ]
         },
         {
           "path": "reference/discovery-pipeline.md",
           "title": "Discovery Pipeline",
           "description": "How discover finds Required Reading: threshold, budget unit/tiers, trimming, telemetry, and the tuning rubric",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "reference/heartbeat-api.md",
           "title": "Heartbeat API",
           "description": "REST API endpoints for heartbeat configuration and execution",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ]
         },
         {
           "path": "reference/heartbeat-cli.md",
           "title": "Heartbeat CLI",
           "description": "CLI commands for heartbeat management",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ]
         }
       ]
     },
@@ -157,10 +228,12 @@
       "icon": "compass",
       "documents": [
         {
-          "path": "guides/ASSET-GENERATION.md",
-          "title": "3D Asset Generation",
-          "description": "How to create new 3D objects (decorations, props) using the Node.js GLB generator pipeline",
-          "audience": ["developers"]
+          "path": "guides/WORLD-ASSETS.md",
+          "title": "World Assets",
+          "description": "The CC0 prop pipeline: sources, gltf-transform bake, the registry, and how to add a prop",
+          "audience": [
+            "developers"
+          ]
         }
       ]
     },
@@ -171,9 +244,11 @@
       "documents": [
         {
           "path": "perf/2026-05-03-layout-world-graph-audit.md",
-          "title": "Layout, World, and Graph Performance Audit",
-          "description": "Profile-mode browser trace for Prompt Manager sidebar resizing, list surfaces, world view, and graph view",
-          "audience": ["developers"]
+          "title": "Layout, world and graph audit (2026-05-03, historical)",
+          "description": "Historical performance audit of the legacy 3D world and graph views; the world it measures was replaced by the world-foundation rewrite on 2026-09-02",
+          "audience": [
+            "developers"
+          ]
         }
       ]
     },
@@ -233,12 +308,26 @@
       "icon": "grid",
       "description": "Coverage-space definitions (denominators) for federated answer projections",
       "documents": [
-        { "path": "spaces/guide-space.md", "title": "Guide Space — SWE Task & Skill Coverage", "description": "The Guide projection's denominator: the SWE task space an agent must handle, mapped to guiding skills and empirical-gate status. Live skill health comes from prompt-manager graph health." }
+        {
+          "path": "spaces/guide-space.md",
+          "title": "Guide Space \u2014 SWE Task & Skill Coverage",
+          "description": "The Guide projection's denominator: the SWE task space an agent must handle, mapped to guiding skills and empirical-gate status. Live skill health comes from prompt-manager graph health."
+        }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "perf", "plans", "reference"],
-    "secondary": ["internal", "spaces"]
+    "primary": [
+      "getting-started",
+      "concepts",
+      "guides",
+      "perf",
+      "plans",
+      "reference"
+    ],
+    "secondary": [
+      "internal",
+      "spaces"
+    ]
   }
 }

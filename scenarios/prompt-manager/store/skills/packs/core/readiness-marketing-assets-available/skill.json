@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "readiness-marketing-assets-available",
+  "name": "readiness-marketing-assets-available",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-09-01T20:57:51Z",
+  "updatedAt": "2026-09-01T20:57:51Z"
+}

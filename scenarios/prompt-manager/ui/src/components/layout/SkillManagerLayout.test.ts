@@ -4,10 +4,10 @@ import layoutSource from './SkillManagerLayout.tsx?raw'
 describe('SkillManagerLayout new-skill lifecycle', () => {
   it('keeps New Skill client-only until an explicit save', () => {
     const createHandler = layoutSource.match(
-      /const handleCreateNew = useCallback\([\s\S]*?\n  }, \[isMobile, navigate\]\)/
+      /const handleCreateNew = useCallback\([\s\S]*?\n {2}}, \[isMobile, navigate\]\)/
     )?.[0]
     const saveHandler = layoutSource.match(
-      /const handleSaveCurrentSkill = useCallback\([\s\S]*?\n  }, \[creatingSkillDraft, createSkill, formState, navigate, saveCurrentSkill, showSaveResultToast\]\)/
+      /const handleSaveCurrentSkill = useCallback\([\s\S]*?\n {2}}, \[creatingSkillDraft, createSkill, formState, navigate, saveCurrentSkill, showSaveResultToast\]\)/
     )?.[0]
 
     expect(createHandler).toBeDefined()

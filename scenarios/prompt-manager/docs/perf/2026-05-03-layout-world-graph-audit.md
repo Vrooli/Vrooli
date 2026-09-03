@@ -14,6 +14,9 @@ status: fixed
 related_skill_run: scenario-performance-audit
 ---
 
+> Historical. The world this audit measured (`ui/src/components/world`) was replaced on 2026-09-02 by the world-foundation rewrite under `ui/src/world`; see docs/concepts/WORLD-ARCHITECTURE.md. The graph findings still apply.
+
+
 # Perf audit: layout, world, and graph surfaces
 
 ## Framing

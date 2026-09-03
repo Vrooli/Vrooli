@@ -11,7 +11,8 @@ describe('layoutFlowDagre', () => {
     const edges: Edge[] = [{ id: 'edge', source: 'producer', target: 'consumer' }]
     const result = layoutFlowDagre(nodes, edges, { direction: 'LR', nodeWidth: 100, nodeHeight: 40 })
     expect(result.edges).toEqual(edges)
-    expect(result.nodes.find((node) => node.id === 'producer')!.position.x)
-      .toBeLessThan(result.nodes.find((node) => node.id === 'consumer')!.position.x)
+    const producer = result.nodes.find((node) => node.id === 'producer')
+    const consumer = result.nodes.find((node) => node.id === 'consumer')
+    expect(producer?.position.x ?? Infinity).toBeLessThan(consumer?.position.x ?? -Infinity)
   })
 })

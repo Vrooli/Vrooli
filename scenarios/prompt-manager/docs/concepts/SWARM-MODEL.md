@@ -344,4 +344,4 @@ The coordination skill is a static behavioral layer. Prompt Manager also injects
 - [RELATIONS.md](RELATIONS.md) - Team-member relation details
 - [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md configuration
 - [CAPABILITY-MATCHING.md](CAPABILITY-MATCHING.md) - Skill-to-agent matching
-- [3D-WORLD-ARCHITECTURE.md](3D-WORLD-ARCHITECTURE.md) - Visualization details
+- [WORLD-ARCHITECTURE.md](WORLD-ARCHITECTURE.md) - World visualization

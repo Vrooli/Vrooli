@@ -1,79 +1,198 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T16:20:39-04:00"
+    "last_validated_at": "2026-09-02T14:49:16-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P2-027",
-      "title": "3D World Canvas",
+      "title": "World canvas and first frame",
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
-      "description": "React Three Fiber based 3D world for agent visualization",
+      "description": "/world mounts one React Three Fiber canvas on a composed first frame: the diorama slab for the selected scene, an eased dolly from the establishing pose to the hero pose, no geometry between the camera and the actors, and a diagnostics probe that reports ready and render counters.",
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "WorldCanvas component renders 3D scene"
-        },
-        {
-          "type": "test",
-          "phase": "performance",
-          "status": "failing",
-          "notes": "Renders at 60fps on mid-tier hardware"
-        },
-        {
-          "type": "test",
-          "ref": "bas/cases/01-foundation/01-smoke/world-ui-loads.json",
+          "ref": "bas/cases/01-foundation/02-world/world-first-frame.json",
           "phase": "workflow",
-          "status": "failing",
-          "notes": "World canvas smoke journey"
+          "status": "passing",
+          "notes": "Canvas mounts, diagnostics data-ready=true and data-budget-ok=true, summary strip visible, screenshot"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/engine/camera/pose.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Hero and establishing poses fit the slab and stay inside the orbit clamps"
+        },
+        {
+          "type": "test",
+          "ref": "ui/scripts/world-smoke/run.mjs",
+          "phase": "performance",
+          "status": "passing",
+          "notes": "pnpm world:smoke: draw-call and triangle budgets from world.tuning.json, first-frame clearance, goldens under ui/src/world/__goldens__"
         }
       ]
     },
     {
       "id": "REQ-P2-028",
-      "title": "Geometric Agent Visualization",
+      "title": "Actors reflect agent appearance and state",
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
-      "description": "Geometric agent representation with appearance colors",
+      "description": "Each agent is one instanced slime with its API appearance colours, a face, equipment by skill count, and status marks driven only by simulation state (working ring, failed lamp, gathered marker, emotes).",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/world/scene/actors/pose.test.ts",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "GeometricMember renders agent with body/head/accent colors"
+          "status": "passing",
+          "notes": "Body pose from animation phase: hop, squash, seated scale, facing offsets"
         },
         {
           "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Agent appearance from API reflects in 3D world"
+          "ref": "ui/src/world/engine/materials/slime.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Instance colour, seed and squash attributes injected once into the slime material"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-focus-agent.json",
+          "phase": "workflow",
+          "status": "passing",
+          "notes": "Focusing an agent opens its card with the live state chip"
         }
       ]
     },
     {
       "id": "REQ-P2-029",
-      "title": "3D World State Management",
+      "title": "World state is a deterministic simulation with persisted layout",
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
-      "description": "Zustand state management for 3D world state",
+      "description": "Place is state: layout is generated from the team graph, actor positions are simulation outputs derived from live signals, operator layout edits persist server-side per scene through WorldService and re-apply by place id.",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/world/sim/__tests__/determinism.test.ts",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "cameraStore, graphicsStore, environmentStore functional"
+          "status": "passing",
+          "notes": "Same seed and signal script hash identically after 10,000 ticks; 50 actors never leave the slab"
         },
         {
           "type": "test",
-          "ref": "bas/cases/01-foundation/02-world/environment-scene-switch.json",
+          "ref": "ui/src/world/sim/__tests__/machine.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "One test per transition of the actor state machine"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/world/layout_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Layout override round trip, validation and malformed-file handling"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-editor-toolbar.json",
           "phase": "workflow",
           "status": "failing",
-          "notes": "Environment scene switch journey"
+          "notes": "Edit mode toolbar, reset, and the layout surviving a reload"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-030",
+      "title": "HUD makes swarm state actionable, with and without the canvas",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "A summary strip, agent card with Run now / Stop / Acknowledge / Open editor / Follow, team panel, event ticker and filters; every action works in 2D mode and the HUD passes axe at desktop and narrow widths.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/world/hud/__tests__/hud.test.tsx",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Strip filters, card actions and error reporting, 2D mode actions, axe at two widths"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-2d-mode.json",
+          "phase": "workflow",
+          "status": "passing",
+          "notes": "2D mode lists agents and returns to 3D"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-run-now.json",
+          "phase": "workflow",
+          "status": "passing",
+          "notes": "Run now from the card reports the request result"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-031",
+      "title": "Render budgets are declared and enforced",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "performance",
+      "description": "Draw-call, triangle and p95 frame-time budgets per scene and quality profile live in world.tuning.json; the diagnostics probe compares live counters against them and the smoke tool records evidence per run. The quality governor derives its threshold from the active profile's frame cap and never overrides a manual profile.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/world/engine/quality/governor.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Threshold derives from the profile cap; manual profiles are never changed"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/config/tuning.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Budgets and every lever validated by schema and documented"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-first-frame.json",
+          "phase": "workflow",
+          "status": "passing",
+          "notes": "data-budget-ok asserted on the diagnostics overlay in the real browser"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-032",
+      "title": "World feed streams real swarm signals",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "api",
+      "description": "WorldService.StreamWorldFeed opens with a snapshot of active runs and upcoming heartbeats and streams run started/finished/failed, heartbeat upcoming/cancelled and agent messages from the run registry and scheduler; the UI falls back to the 5 s poll when the stream is silent or failing.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/world/connect_handler_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Snapshot first, then RUN_STARTED and RUN_FAILED with the error over a real Connect stream"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/world/feed_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Ring replay by seq, slow-subscriber drop, subscriber cleanup on cancel"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/data/__tests__/feed.test.ts",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Polling starts within fallbackAfterMs when the stream fails and stops when it recovers"
         }
       ]
     }

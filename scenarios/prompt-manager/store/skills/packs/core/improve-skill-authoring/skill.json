@@ -1,0 +1,42 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Author a scenario's improve skill as a control loop: setpoint rows from the scenario's own targets, sensors that exist, floors from golden corpora, curation and ladder routes, anti-gaming by id, evidence, and stop rules. Renders the scenario's setpoint-read program from the same table.",
+  "entry": "SKILL.md",
+  "icon": "gauge",
+  "id": "improve-skill-authoring",
+  "kind": "skill",
+  "modes": [
+    "meta",
+    "practice"
+  ],
+  "name": "Improve Skill Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "scenarios": [
+      "prompt-manager",
+      "program-runtime",
+      "measures-health"
+    ],
+    "commands": [
+      "prompt-manager skill read",
+      "measures-health validate scenario",
+      "program-runtime bindings describe",
+      "program-runtime programs submit"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring",
+    "improve",
+    "self-improvement",
+    "control-loop",
+    "setpoint",
+    "meta-optimization"
+  ],
+  "updatedAt": "2026-09-02T00:00:00Z"
+}

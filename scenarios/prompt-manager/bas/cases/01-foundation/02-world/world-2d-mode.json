@@ -1,0 +1,153 @@
+{
+  "metadata": {
+    "name": "world-2d-mode",
+    "description": "2D mode lists agents, offers the same actions, and returns to 3D",
+    "labels": {
+      "reset": "none",
+      "safety": "read-only"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?intro=0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the world"
+        }
+      }
+    },
+    {
+      "id": "wait-summary",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.summary",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the HUD"
+        }
+      }
+    },
+    {
+      "id": "open-2d",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.twoDToggle"
+        },
+        "metadata": {
+          "label": "Switch to 2D mode"
+        }
+      }
+    },
+    {
+      "id": "assert-2d",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.twoDMode",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "2D mode did not mount"
+        },
+        "metadata": {
+          "label": "2D mode visible"
+        }
+      }
+    },
+    {
+      "id": "assert-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.actorList",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Actor list missing"
+        },
+        "metadata": {
+          "label": "Actor list visible"
+        }
+      }
+    },
+    {
+      "id": "close-2d",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.hud.twoDToggle"
+        },
+        "metadata": {
+          "label": "Back to 3D"
+        }
+      }
+    },
+    {
+      "id": "wait-canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Canvas back"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-summary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-summary",
+      "target": "open-2d",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-2d",
+      "target": "assert-2d",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-2d",
+      "target": "assert-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-list",
+      "target": "close-2d",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "close-2d",
+      "target": "wait-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

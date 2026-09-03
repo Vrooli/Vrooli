@@ -38,8 +38,7 @@ import (
 	"prompt-manager/handlers/templates"
 	"prompt-manager/handlers/testing"
 	"prompt-manager/handlers/topics"
-	"prompt-manager/handlers/worldscale"
-	"prompt-manager/handlers/worldseats"
+	worldhandlers "prompt-manager/handlers/world"
 	promptmeasures "prompt-manager/internal/measures"
 	"prompt-manager/internal/metrics"
 	localmodules "prompt-manager/internal/modules"
@@ -47,6 +46,7 @@ import (
 	"prompt-manager/internal/projection"
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
+	"prompt-manager/internal/world"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/connectx"
@@ -297,6 +297,15 @@ func (p heartbeatPromptSectionProvider) SectionsForMember(ctx context.Context, t
 	return out, nil
 }
 
+// World feed levers: how many events replay on reconnect, how far each
+// subscriber may fall behind, and how the schedule watcher announces runs.
+const (
+	worldFeedRingSize     = 256
+	worldFeedChannelDepth = 64
+	worldScheduleHorizon  = 6 * time.Hour
+	worldScheduleInterval = 30 * time.Second
+)
+
 func main() {
 	// Preflight checks
 	if preflight.Run(preflight.Config{
@@ -427,18 +436,27 @@ func main() {
 	if err != nil {
 		log.Fatalf("initialize file store: %v", err)
 	}
+	// source-ledger and vrooli-events are declared dependencies, but the API
+	// must still come up when either is absent: the team store degrades to its
+	// local file seam (nil ledger) and skips event publishing (empty endpoint),
+	// and heartbeat execution re-attempts scope registration per run.
 	ledger, err := sourceledger.New(dbCtx)
 	if err != nil {
-		log.Fatalf("connect to source-ledger: %v", err)
+		log.Printf("WARNING: source-ledger unavailable, team memory degrades to local files: %v", err)
+		ledger = nil
 	}
 	eventsBase, err := discovery.ResolveScenarioURLDefault(dbCtx, "vrooli-events")
 	if err != nil {
-		log.Fatalf("connect to vrooli-events: %v", err)
+		log.Printf("WARNING: vrooli-events unavailable, team event publishing disabled: %v", err)
+		eventsBase = ""
 	}
-	teamScopes := []string{"director-swarm", "infra-health", "marketing-crew", "meta-optimization", "monetization", "scenario-qa"}
-	for _, teamID := range teamScopes {
-		if err := ledger.EnsureTeamScope(dbCtx, teamID); err != nil {
-			log.Fatalf("register source-ledger scope %q: %v", teamID, err)
+	if ledger != nil {
+		teamScopes := []string{"director-swarm", "infra-health", "marketing-crew", "meta-optimization", "monetization", "scenario-qa"}
+		for _, teamID := range teamScopes {
+			if err := ledger.EnsureTeamScope(dbCtx, teamID); err != nil {
+				log.Printf("WARNING: register source-ledger scope %q deferred to heartbeat execution: %v", teamID, err)
+				break
+			}
 		}
 	}
 	fileStore.SetSourceLedger(ledger)
@@ -704,8 +722,6 @@ func main() {
 	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateHandlers)
 	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
 	metadataConnectPath, metadataConnectHandler := metadata.NewConnectMount(ogmetaHandlers)
-	worldScaleConnectPath, worldScaleConnectHandler := worldscale.NewConnectMount(roots.Config)
-	worldSeatsConnectPath, worldSeatsConnectHandler := worldseats.NewConnectMount(roots.Config)
 	router := mux.NewRouter()
 	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
 		log.Println("test-mode RoutingService disabled: scenario is not in development mode")
@@ -765,8 +781,6 @@ func main() {
 		connectx.ServiceMount{Path: templatesConnectPath, Handler: templatesConnectHandler},
 		connectx.ServiceMount{Path: testingConnectPath, Handler: testingConnectHandler},
 		connectx.ServiceMount{Path: metadataConnectPath, Handler: metadataConnectHandler},
-		connectx.ServiceMount{Path: worldScaleConnectPath, Handler: worldScaleConnectHandler},
-		connectx.ServiceMount{Path: worldSeatsConnectPath, Handler: worldSeatsConnectHandler},
 		connectx.ServiceMount{Path: experimentsConnectPath, Handler: experimentsConnectHandler},
 	)
 
@@ -982,6 +996,14 @@ func main() {
 		teamExecStore,
 	)
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
+	// World feed: the run registry and scheduler are the only signal sources
+	// the 3D world projects; nothing here invents agent behaviour.
+	worldStore := world.NewStore(roots.Config)
+	worldHub := world.NewHub(worldFeedRingSize, worldFeedChannelDepth, world.LiveSource{Runs: runRegistry, Schedule: heartbeatScheduler})
+	runRegistry.SetObserver(worldHub)
+	go world.NewScheduleWatcher(worldHub, heartbeatScheduler, worldScheduleHorizon).Run(context.Background(), worldScheduleInterval)
+	worldConnectPath, worldConnectHandler := worldhandlers.NewConnectMount(worldStore, worldHub)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: worldConnectPath, Handler: worldConnectHandler})
 	heartbeatHandlers := heartbeat.NewHandlers(heartbeat.HandlersDeps{
 		TeamStore:     fileStore.Teams().(*store.FileTeamStore),
 		AgentStore:    fileStore.Agents().(*store.FileAgentStore),

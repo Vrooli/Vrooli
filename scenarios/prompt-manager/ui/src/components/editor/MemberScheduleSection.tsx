@@ -210,10 +210,10 @@ export function MemberScheduleSection({
           <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-xs font-medium text-red-500">
-              Heartbeats are paused{heartbeatControlStatus?.scope === 'global' ? ' globally' : ''}
+              Heartbeats are paused{heartbeatControlStatus.scope === 'global' ? ' globally' : ''}
             </p>
             <p className="text-xs text-muted-foreground">
-              {heartbeatControlStatus?.pausedReason || heartbeatControlStatus?.resumeHint || 'Resume heartbeat control to run this member.'}
+              {heartbeatControlStatus.pausedReason || heartbeatControlStatus.resumeHint || 'Resume heartbeat control to run this member.'}
             </p>
           </div>
         </div>

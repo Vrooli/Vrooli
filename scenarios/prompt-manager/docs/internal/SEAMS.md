@@ -570,14 +570,17 @@ pipeline, threshold/budget semantics, and tuning rubric.
 
 ---
 
-## World Scale Config
+## World Service
 
-The world-scale system uses a simple file-based config (`store/world-scale.json`) with
-GET/PUT handlers in `api/worldscale/handlers.go`. The handlers use `store.LoadJSON` and
-`store.SaveJSON` — the same seams as other file-based stores.
+`api/internal/world` persists the world's operator config (`<config>/world/config.json`)
+and per-scene layout overrides (`world/layout-<scene>.json`) through `store.LoadJSON` /
+`store.SaveJSON`, and fans swarm signals out through `world.Hub`. The hub is the
+`heartbeat.RunObserver` installed on the run registry; a `ScheduleWatcher` polls the
+cron scheduler for upcoming heartbeats.
 
-**Testing:** Handlers accept `storeDir string`, so tests can point at a temp directory.
-No interfaces needed — the seam is the filesystem path.
+**Testing:** `NewStore(dir)` takes a temp directory; `NewHub(ring, depth, source)` takes a
+`SnapshotSource` fake; the Connect handler is exercised through `httptest` with the
+generated client (`handlers/world/connect_handler_test.go`).
 
 ## UI Seams
 

@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
+import { CircleUserRound, Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -71,7 +71,6 @@ import {
 } from "./banners/useRecoveryBanners";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
-import { SubscriptionBadge } from "@vrooli/react-component-library/MonetizationAccount/2";
 import AppearanceModal from "./AppearanceModal";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
 import CloseGroupDialog from "./CloseGroupDialog";
@@ -1953,6 +1952,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <FloatingToolbar
         hidden={isMobile && isTabLikeMode}
         onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
+        onOpenAccount={() => { openSettingsTab("account"); }}
         onOpenMachines={openMachines}
         onOpenAi={() => { workspace.setAiModalOpen(true); }}
         onNewTerminal={() => handleLaunch()}
@@ -1980,11 +1980,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       <TopSafeArea testId="workspace-top-edge">
         <BannerRegion banners={banners} />
-        <div className="flex justify-end px-2 py-1">
-          <div data-testid="subscription-badge">
-            <SubscriptionBadge plan="free" status="inactive" credits={0} onClick={() => { openSettingsTab("account"); }} />
-          </div>
-        </div>
 
         {/* Tab bar (only in tabs mode) */}
         {workspace.displayMode === "tabs" && (
@@ -2022,6 +2017,18 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 title={t(strings.workspace.settingsTitle)}
               >
                 <Settings className="h-4 w-4" />
+              </Button>
+              <Button
+                data-testid="tabbar-account"
+                variant="ghost"
+                size="icon"
+                shape="square"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
+                onClick={() => { openSettingsTab("account"); }}
+                aria-label={t(strings.settings.tabs.account.label)}
+                title={t(strings.settings.tabs.account.label)}
+              >
+                <CircleUserRound className="h-4 w-4" />
               </Button>
               </>
             ) : undefined}
@@ -2111,6 +2118,18 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               title={t(strings.workspace.settingsTitle)}
             >
               <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              data-testid="workspace-sidebar-account"
+              variant="ghost"
+              size="icon"
+              shape="square"
+              className="h-8 w-8"
+              onClick={() => { openSettingsTab("account"); }}
+              aria-label={t(strings.settings.tabs.account.label)}
+              title={t(strings.settings.tabs.account.label)}
+            >
+              <CircleUserRound className="h-4 w-4" />
             </Button>
           </div>
         )}

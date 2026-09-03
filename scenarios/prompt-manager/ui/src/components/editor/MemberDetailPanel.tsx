@@ -25,7 +25,7 @@ import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { MemberPromptPreview } from './MemberPromptPreview'
 import { MemberInboxTab } from './MemberInboxTab'
-import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+import { useRunningAgents } from '@/hooks/useRunningAgents'
 import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { ToastAction } from '@/components/ui/toast'
 import { runDetailPath } from '@/app/routes/route-paths'
@@ -112,7 +112,11 @@ export function MemberDetailPanel({
 }: MemberDetailPanelProps) {
   const navigate = useNavigate()
   // Running agent state from shared store
-  const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
+  const { runningAgents } = useRunningAgents()
+  const runningAgent = useMemo(
+    () => runningAgents.find((entry) => entry.agentId === member.agentId),
+    [runningAgents, member.agentId],
+  )
   const heartbeatControl = useHeartbeatControlStatus()
   const teamHeartbeatControlStatus = useMemo(() => {
     return heartbeatControl.status?.teams?.find((entry) => entry.teamId === team.id) ?? null

@@ -1,6 +1,6 @@
 ---
 name: "skill-improvement-suggestions"
-description: "Audit a skill on two axes — execution efficiency (E1-E9) and conditioning quality (C1-C5, per SKILL_AUTHORING.md) — and produce prioritized improvement suggestions plus a Prose Retirement Map."
+description: "Audit a skill on two axes — execution efficiency (E1-E10) and conditioning quality (C1-C5, per SKILL_AUTHORING.md) — and produce prioritized improvement suggestions plus a Prose Retirement Map."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["skill"]
   icon: "lightbulb"
   status: "active"
-  revision: 47
+  revision: 49
   createdAt: "2026-01-30T00:00:00Z"
-  updatedAt: "2026-02-04T13:13:54Z"
+  updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager action", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read"]
@@ -82,6 +82,7 @@ Walk {{SKILL}} against this table row by row. Each row names a defect, its obser
 | E7 | Verbose command reference | >5 commands documented with flags — `--help` duplication | Add `<group> help` subcommands to the CLI; skill keeps a pointer. Docs live in the tool, always accurate |
 | E8 | Async pattern where sync works | Polling loops, sleep/status-check prose | Tool `--wait` mode; the skill becomes a reference card, not a tutorial (worked example B) |
 | E9 | Long-tail accretion in troubleshooting | Repeated similar entries; "run X then Y then inspect Z" chains; manual interpretation that should be CLI next-actions | Promote to CLI output contract or tool capability per `docs/agent-system/PROMOTION_LADDER.md`; delete superseded prose |
+| E10 | Step below its reachable rung | A `[S0]`/`[S1]` leaf whose command returns deterministic pass/fail with next steps, or several `[S1]` leaves that always run together with stable joins (rungs: `docs/agent-system/SKILL_AUTHORING.md` §"Step rungs") | Promote: cite the Action, or propose a contract program (`scenarios/program-runtime/docs/guides/program-contracts.md`). In the report, count leaves per rung as a figure; it is not a setpoint sensor |
 
 **Worked example A — collapse a multi-step process into general-purpose tool capability** (`browser-automation-studio`, real improvement):
 

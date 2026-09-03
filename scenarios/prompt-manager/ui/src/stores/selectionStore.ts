@@ -6,7 +6,6 @@
  */
 
 import { create } from 'zustand'
-import { usePerformanceStore } from '@/stores/performanceStore'
 
 interface SelectionStore {
   selectedSkillIds: string[]
@@ -18,10 +17,6 @@ interface SelectionStore {
   clearAllSelection: () => void
 }
 
-function recordSelectionWrite() {
-  usePerformanceStore.getState().recordInteractionStoreWrite()
-}
-
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedSkillIds: [],
 
@@ -31,34 +26,28 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       ? selectedSkillIds.filter((sid) => sid !== id)
       : [...selectedSkillIds, id]
     set({ selectedSkillIds: next })
-    recordSelectionWrite()
   },
 
   addToSelection: (id) => {
     const { selectedSkillIds } = get()
     if (selectedSkillIds.includes(id)) return
     set({ selectedSkillIds: [...selectedSkillIds, id] })
-    recordSelectionWrite()
   },
 
   removeFromSelection: (id) => {
     const { selectedSkillIds } = get()
     set({ selectedSkillIds: selectedSkillIds.filter((sid) => sid !== id) })
-    recordSelectionWrite()
   },
 
   setSelectedSkillIds: (ids) => {
     set({ selectedSkillIds: ids })
-    recordSelectionWrite()
   },
 
   clearSelection: () => {
     set({ selectedSkillIds: [] })
-    recordSelectionWrite()
   },
 
   clearAllSelection: () => {
     set({ selectedSkillIds: [] })
-    recordSelectionWrite()
   },
 }))

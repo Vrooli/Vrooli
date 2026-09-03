@@ -412,7 +412,7 @@ const literalSelectors: LiteralSelectorTree = {
     openRouterKeySave: 'openrouter-key-save',
     openRouterKeyTest: 'openrouter-key-test',
     openRouterKeyRemove: 'openrouter-key-remove',
-    subscriptionBadge: 'subscription-badge',
+    accountButton: 'toolbar-account',
     tunnelManagerAwareness: 'tunnel-manager-awareness',
   },
   toolbar: {

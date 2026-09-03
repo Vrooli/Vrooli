@@ -32,7 +32,7 @@ import type { OrgEdge, OrgChartNode as OrgChartNodeType, OrgChartFlowEdge, OrgCh
 
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
-import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+import { useRunningAgents } from '@/hooks/useRunningAgents'
 
 import '@xyflow/react/dist/style.css'
 
@@ -201,7 +201,11 @@ export function OrgChartPanel({
 
   // Heartbeat configs keyed by agentId
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<Map<string, HeartbeatConfig>>(new Map())
-  const runningAgentMap = useRunningAgentsStore((s) => s.agentMap)
+  const { runningAgents } = useRunningAgents()
+  const runningAgentMap = useMemo(
+    () => new Map(runningAgents.map((entry) => [entry.agentId, entry])),
+    [runningAgents],
+  )
 
   useEffect(() => {
     let isActive = true

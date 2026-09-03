@@ -24,9 +24,21 @@
     "description": "File-based prompt storage and management tool with API access and web interface for organizing AI prompts",
     "platform_capabilities": {
       "heartbeat-orchestration": {
-        "linux": {"status": "build-verified", "mechanism": "native-go-heartbeat-scheduler-and-agent-manager-client", "evidence": "Linux module and heartbeat contract tests; host qualification is not claimed"},
-        "macos": {"status": "unqualified", "mechanism": "portable-go-scheduler-and-platform-neutral-storage", "evidence": "darwin cross-build; no real-host qualification"},
-        "windows": {"status": "unqualified", "mechanism": "portable-go-scheduler-and-platform-neutral-storage", "evidence": "windows cross-build; no real-host qualification"}
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-heartbeat-scheduler-and-agent-manager-client",
+          "evidence": "Linux module and heartbeat contract tests; host qualification is not claimed"
+        },
+        "macos": {
+          "status": "unqualified",
+          "mechanism": "portable-go-scheduler-and-platform-neutral-storage",
+          "evidence": "darwin cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "unqualified",
+          "mechanism": "portable-go-scheduler-and-platform-neutral-storage",
+          "evidence": "windows cross-build; no real-host qualification"
+        }
       }
     },
     "version": "1.0.0",
@@ -128,6 +140,20 @@
           }
         },
         "degraded_behavior": "Scheduled heartbeat runs are skipped until agent-manager is available"
+      },
+      "source-ledger": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Team corpus ledger: the API registers one scope per team at boot and reads team knowledge through it.",
+        "degraded_behavior": "Team knowledge features are unavailable until source-ledger is reachable"
+      },
+      "vrooli-events": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Platform event bus the API publishes team and heartbeat events to.",
+        "degraded_behavior": "Events are not published until vrooli-events is reachable"
       }
     },
     "resources": {

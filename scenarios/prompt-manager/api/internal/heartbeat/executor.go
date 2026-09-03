@@ -409,8 +409,10 @@ func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID st
 
 // waitForCompletion polls for run completion and updates config
 func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID, attemptID, profileKey, taskID, tag string, startedAt time.Time, logPath string, timeout time.Duration) {
+	outcomeFailed := false
+	outcomeMessage := ""
 	if e.runRegistry != nil {
-		defer e.runRegistry.Unregister(teamID, agentID)
+		defer func() { e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage) }()
 	}
 
 	// Create timeout context
@@ -439,6 +441,8 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 		if ctx.Err() != nil {
 			status = store.HeartbeatStatusCancelled
 		}
+		outcomeFailed = status == store.HeartbeatStatusFailed
+		outcomeMessage = err.Error()
 		config.LastExecution = &store.HeartbeatExecResult{
 			StartedAt: startedAt.Format(time.RFC3339),
 			EndedAt:   endedAt.Format(time.RFC3339),
@@ -472,6 +476,8 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			status = store.HeartbeatStatusFailed
 			errMsg = run.Error
 		}
+		outcomeFailed = status == store.HeartbeatStatusFailed
+		outcomeMessage = errMsg
 
 		config.LastExecution = &store.HeartbeatExecResult{
 			StartedAt: startedAt.Format(time.RFC3339),

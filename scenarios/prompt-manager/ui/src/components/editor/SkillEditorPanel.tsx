@@ -23,15 +23,12 @@ import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, Mes
 import { cn } from '@/lib/utils'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
-import type { DisplayFormat } from '@/types/world'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { WorldCanvas } from '@/components/world'
-import { WorldSettingsContent } from '@/components/world/WorldSettingsContent'
-import { WorldHelpContent } from '@/components/world/WorldHelpContent'
+import { WorldView } from '@/world'
 import { GraphView } from '@/components/graph/GraphView'
 import { OperatingMapFlow } from '@/components/graph/OperatingMapFlow'
 import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
@@ -81,9 +78,6 @@ interface SkillEditorPanelProps {
   onDiscard: () => void
   onDelete: () => void
   onClose?: () => void
-  onSelectSkill?: (skillId: string) => void
-  onSelectTeam?: (teamId: string) => void
-  onDisplaySkills?: (combined: string, format: DisplayFormat) => void
 
   // Loading states
   isSaving: boolean
@@ -132,9 +126,6 @@ export function SkillEditorPanel({
   onDiscard,
   onDelete,
   onClose,
-  onSelectSkill,
-  onSelectTeam,
-  onDisplaySkills,
   isSaving,
   isDeleting,
   isLoadingContent = false,
@@ -206,32 +197,33 @@ export function SkillEditorPanel({
           </PanelErrorBoundary>
         ) : (
           <PanelErrorBoundary panelName="3D World" className="h-full">
-            <WorldCanvas
-              skills={allSkills}
-              onSelectSkill={onSelectSkill}
-              onSelectTeam={onSelectTeam}
-              onDisplaySkills={onDisplaySkills}
+            <WorldView
+              onOpenMobileSidebar={onOpenMobileSidebar}
+              pendingWorkCount={pendingWorkCount}
+              runningAgentCount={runningAgentCount}
+              homeView={homeView}
+              onHomeViewChange={onHomeViewChange}
             />
           </PanelErrorBoundary>
         )}
+        {graphViewActive && (
         <ViewOverlay
           onOpenMobileSidebar={onOpenMobileSidebar}
           pendingWorkCount={pendingWorkCount}
           runningAgentCount={runningAgentCount}
           homeView={homeView}
           onHomeViewChange={onHomeViewChange}
-          leftPanelContent={graphViewActive ? (
-            <>
-              <PanelErrorBoundary panelName="Graph Queries">
-                <GraphQueryPanel />
-              </PanelErrorBoundary>
-            </>
-          ) : undefined}
-          settingsContent={graphViewActive ? <GraphSettingsContent /> : <WorldSettingsContent />}
-          settingsTitle={graphViewActive ? 'Graph Settings' : 'World Settings'}
-          helpContent={graphViewActive ? <GraphHelpContent /> : <WorldHelpContent />}
-          helpTitle={graphViewActive ? 'Graph Help' : 'Avatar Environment'}
+          leftPanelContent={
+            <PanelErrorBoundary panelName="Graph Queries">
+              <GraphQueryPanel />
+            </PanelErrorBoundary>
+          }
+          settingsContent={<GraphSettingsContent />}
+          settingsTitle="Graph Settings"
+          helpContent={<GraphHelpContent />}
+          helpTitle="Graph Help"
         />
+        )}
       </div>
     )
   }

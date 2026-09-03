@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","scenario","ladder","contract","prd","requirements","routing","methodology"]
   icon: "layers"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-07-27T00:00:00Z"
-  updatedAt: "2026-07-27T00:00:00Z"
+  updatedAt: "2026-09-02T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals", "vrooli scenario"]
@@ -108,6 +108,7 @@ Row 3 is why step 3 reads all three priorities. A capability the goal makes load
 **Entry criteria:** A scenario exists and a change is proposed against it.
 
 **Actions:**
+0. When an improve skill routed you here with a rung and a sensor reading (`improve-skill-authoring` §5), take that rung as the hypothesis and its reading as the evidence to beat; still run the rung's gate to confirm before repairing, and record the reading in the problems document so the next cycle can compare.
 1. Read the scenario's problems document (§6) for the rung a prior session recorded.
 2. Run the W0 gate (§3).
 3. When W0 passes, run each remaining gate in order and stop at the first failure.

@@ -95,8 +95,16 @@
           "measure": {
             "domain": "skills",
             "intent": "How many governed skills are available.",
-            "questions": ["how many skills are available", "count governed skills"],
-            "result": {"kind": "table", "value_field": "skills", "unit": "skills", "summary_template": "{count} governed skills"}
+            "questions": [
+              "how many skills are available",
+              "count governed skills"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "skills",
+              "unit": "skills",
+              "summary_template": "{count} governed skills"
+            }
           }
         },
         {
@@ -332,37 +340,87 @@
         {
           "name": "topology",
           "description": "Report skill packs and generated projection residency.",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "import",
           "description": "Import pinned skill material into quarantine.",
-          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ImportSkill"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ImportSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "review-import",
           "description": "Record an independent imported-skill review.",
-          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ReviewImportedSkill"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ReviewImportedSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "import-staleness",
           "description": "Compare an imported skill with its upstream version.",
-          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ReportImportedSkillStaleness"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ReportImportedSkillStaleness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "activation-hook",
           "description": "Record native skill activation telemetry fail-open.",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": false},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         }
       ]
     },
@@ -390,8 +448,16 @@
           "measure": {
             "domain": "actions",
             "intent": "How many governed actions are available.",
-            "questions": ["how many actions are available", "count governed actions"],
-            "result": {"kind": "table", "value_field": "actions", "unit": "actions", "summary_template": "{count} governed actions"}
+            "questions": [
+              "how many actions are available",
+              "count governed actions"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "actions",
+              "unit": "actions",
+              "summary_template": "{count} governed actions"
+            }
           }
         },
         {
@@ -700,8 +766,16 @@
           "measure": {
             "domain": "tags",
             "intent": "How many persisted tags are available.",
-            "questions": ["how many tags are available", "count persisted tags"],
-            "result": {"kind": "table", "value_field": "tags", "unit": "tags", "summary_template": "{count} persisted tags"}
+            "questions": [
+              "how many tags are available",
+              "count persisted tags"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "tags",
+              "unit": "tags",
+              "summary_template": "{count} persisted tags"
+            }
           }
         },
         {
@@ -811,8 +885,16 @@
           "measure": {
             "domain": "agents",
             "intent": "How many persisted agents are available.",
-            "questions": ["how many agents are available", "count persisted agents"],
-            "result": {"kind": "table", "value_field": "agents", "unit": "agents", "summary_template": "{count} persisted agents"}
+            "questions": [
+              "how many agents are available",
+              "count persisted agents"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "agents",
+              "unit": "agents",
+              "summary_template": "{count} persisted agents"
+            }
           }
         },
         {
@@ -942,8 +1024,16 @@
           "measure": {
             "domain": "teams",
             "intent": "How many persisted teams are available.",
-            "questions": ["how many teams are available", "count persisted teams"],
-            "result": {"kind": "table", "value_field": "teams", "unit": "teams", "summary_template": "{count} persisted teams"}
+            "questions": [
+              "how many teams are available",
+              "count persisted teams"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "teams",
+              "unit": "teams",
+              "summary_template": "{count} persisted teams"
+            }
           }
         },
         {
@@ -1551,8 +1641,16 @@
           "measure": {
             "domain": "topics",
             "intent": "How many persisted topics are available.",
-            "questions": ["how many topics are available", "count persisted topics"],
-            "result": {"kind": "table", "value_field": "topics", "unit": "topics", "summary_template": "{count} persisted topics"}
+            "questions": [
+              "how many topics are available",
+              "count persisted topics"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "topics",
+              "unit": "topics",
+              "summary_template": "{count} persisted topics"
+            }
           }
         },
         {
@@ -2022,8 +2120,16 @@
           "measure": {
             "domain": "metrics",
             "intent": "How many persisted skill-usage rows are available.",
-            "questions": ["how many skills have usage metrics", "count skill usage rows"],
-            "result": {"kind": "table", "value_field": "rows", "unit": "skill usage rows", "summary_template": "{count} persisted skill usage rows"}
+            "questions": [
+              "how many skills have usage metrics",
+              "count skill usage rows"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "rows",
+              "unit": "skill usage rows",
+              "summary_template": "{count} persisted skill usage rows"
+            }
           }
         }
       ]
@@ -2053,8 +2159,16 @@
           "measure": {
             "domain": "aisearch",
             "intent": "How many discovery calls are retained in telemetry.",
-            "questions": ["how many discovery calls are recorded", "count discovery calls"],
-            "result": {"kind": "scalar", "value_field": "call_count", "unit": "discovery calls", "summary_template": "{count} recorded discovery calls"}
+            "questions": [
+              "how many discovery calls are recorded",
+              "count discovery calls"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "call_count",
+              "unit": "discovery calls",
+              "summary_template": "{count} recorded discovery calls"
+            }
           }
         }
       ]
@@ -2226,8 +2340,16 @@
           "measure": {
             "domain": "graph",
             "intent": "How many graph nodes carry computed health evidence.",
-            "questions": ["how many graph nodes have health scores", "count graph health scores"],
-            "result": {"kind": "table", "value_field": "scores", "unit": "graph health scores", "summary_template": "{count} graph nodes with health evidence"}
+            "questions": [
+              "how many graph nodes have health scores",
+              "count graph health scores"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "scores",
+              "unit": "graph health scores",
+              "summary_template": "{count} graph nodes with health evidence"
+            }
           }
         },
         {
@@ -2249,9 +2371,20 @@
         {
           "name": "audit",
           "description": "Run the composed framework-health graph audit.",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "action"}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "rules",
@@ -2435,28 +2568,102 @@
   ],
   "measures": {
     "domains": [
-      {"domain": "actions", "stateful": true, "reason": "Governed action definitions are persisted and measured by action list."},
-      {"domain": "agents", "stateful": true, "reason": "Agent identities are persisted and measured by agent list."},
-      {"domain": "aisearch", "stateful": true, "reason": "Discovery telemetry and index configuration are durable; discovery-metrics measures retained call telemetry."},
-      {"domain": "graph", "stateful": true, "reason": "The graph index and health configuration are durable; graph health measures materialized node scores."},
-      {"domain": "heartbeat", "stateful": true, "reason": "Heartbeat schedules, runs, queues, handoffs, and task boards are durable operational state."},
-      {"domain": "memberflow", "stateful": true, "reason": "Member topic contracts and operating-model projections are durable governed state."},
-      {"domain": "metrics", "stateful": true, "reason": "Skill usage and ratings are persisted and measured by skill-usage."},
-      {"domain": "skills", "stateful": true, "reason": "Governed skill definitions are persisted and measured by skill list."},
-      {"domain": "tags", "stateful": true, "reason": "Tag taxonomy rows are persisted and measured by tag list."},
-      {"domain": "teams", "stateful": true, "reason": "Team aggregates are persisted and measured by team list."},
-      {"domain": "testing", "stateful": true, "reason": "Skill test results are durable entity-scoped history."},
-      {"domain": "topics", "stateful": true, "reason": "Topic taxonomy rows are persisted and measured by topic list."},
-      {"domain": "worldscale", "stateful": true, "reason": "World rendering scale is persisted user configuration."},
-      {"domain": "worldseats", "stateful": true, "reason": "World seat placement is persisted user configuration."}
+      {
+        "domain": "actions",
+        "stateful": true,
+        "reason": "Governed action definitions are persisted and measured by action list."
+      },
+      {
+        "domain": "agents",
+        "stateful": true,
+        "reason": "Agent identities are persisted and measured by agent list."
+      },
+      {
+        "domain": "aisearch",
+        "stateful": true,
+        "reason": "Discovery telemetry and index configuration are durable; discovery-metrics measures retained call telemetry."
+      },
+      {
+        "domain": "graph",
+        "stateful": true,
+        "reason": "The graph index and health configuration are durable; graph health measures materialized node scores."
+      },
+      {
+        "domain": "heartbeat",
+        "stateful": true,
+        "reason": "Heartbeat schedules, runs, queues, handoffs, and task boards are durable operational state."
+      },
+      {
+        "domain": "memberflow",
+        "stateful": true,
+        "reason": "Member topic contracts and operating-model projections are durable governed state."
+      },
+      {
+        "domain": "metrics",
+        "stateful": true,
+        "reason": "Skill usage and ratings are persisted and measured by skill-usage."
+      },
+      {
+        "domain": "skills",
+        "stateful": true,
+        "reason": "Governed skill definitions are persisted and measured by skill list."
+      },
+      {
+        "domain": "tags",
+        "stateful": true,
+        "reason": "Tag taxonomy rows are persisted and measured by tag list."
+      },
+      {
+        "domain": "teams",
+        "stateful": true,
+        "reason": "Team aggregates are persisted and measured by team list."
+      },
+      {
+        "domain": "testing",
+        "stateful": true,
+        "reason": "Skill test results are durable entity-scoped history."
+      },
+      {
+        "domain": "topics",
+        "stateful": true,
+        "reason": "Topic taxonomy rows are persisted and measured by topic list."
+      },
+      {
+        "domain": "worldscale",
+        "stateful": true,
+        "reason": "World rendering scale is persisted user configuration."
+      },
+      {
+        "domain": "worldseats",
+        "stateful": true,
+        "reason": "World seat placement is persisted user configuration."
+      }
     ],
     "omitted": [
-      {"domain": "heartbeat", "reason": "Heartbeat state is operational and entity-scoped, and its evolving generated contract intentionally returns google.protobuf.Value; there is no stable aggregate field a probe can measure truthfully yet."},
-      {"domain": "memberflow", "reason": "Memberflow catalogs evolve independently behind google.protobuf.Value projections, so no stable scalar or table field exists for a durable probe measure yet."},
-      {"domain": "testing", "reason": "Durable test history is scoped by a required skill identifier; there is no aggregate history RPC that can be probed without fabricating an entity target."},
-      {"domain": "worldscale", "reason": "World scale is a current rendering preference, not a historical or countable business signal; its value is exposed through typed generated clients."},
-      {"domain": "worldseats", "reason": "World seat placement is current layout configuration, not a stable analytical measure; its value is exposed through typed generated clients."},
-      {"domain": "skill_metrics", "reason": "skill_metrics is the persistence substrate behind the declared metrics/skill-usage measure, not a separate operator-facing business domain."}
+      {
+        "domain": "heartbeat",
+        "reason": "Heartbeat state is operational and entity-scoped, and its evolving generated contract intentionally returns google.protobuf.Value; there is no stable aggregate field a probe can measure truthfully yet."
+      },
+      {
+        "domain": "memberflow",
+        "reason": "Memberflow catalogs evolve independently behind google.protobuf.Value projections, so no stable scalar or table field exists for a durable probe measure yet."
+      },
+      {
+        "domain": "testing",
+        "reason": "Durable test history is scoped by a required skill identifier; there is no aggregate history RPC that can be probed without fabricating an entity target."
+      },
+      {
+        "domain": "worldscale",
+        "reason": "World scale is a current rendering preference, not a historical or countable business signal; its value is exposed through typed generated clients."
+      },
+      {
+        "domain": "worldseats",
+        "reason": "World seat placement is current layout configuration, not a stable analytical measure; its value is exposed through typed generated clients."
+      },
+      {
+        "domain": "skill_metrics",
+        "reason": "skill_metrics is the persistence substrate behind the declared metrics/skill-usage measure, not a separate operator-facing business domain."
+      }
     ]
   },
   "omitted": [
@@ -2816,24 +3023,29 @@
       "reason": "Agent file templates are consumed by the interactive agent editor; the CLI has no template command."
     },
     {
-      "service": "WorldScaleService",
-      "method": "GetWorldScale",
-      "reason": "World layout configuration is an interactive UI preference with no CLI command."
+      "service": "WorldService",
+      "method": "GetWorldConfig",
+      "reason": "World preferences are an interactive UI setting with no CLI command."
     },
     {
-      "service": "WorldScaleService",
-      "method": "SetWorldScale",
-      "reason": "World layout configuration is an interactive UI preference with no CLI command."
+      "service": "WorldService",
+      "method": "SetWorldConfig",
+      "reason": "World preferences are an interactive UI setting with no CLI command."
     },
     {
-      "service": "WorldSeatsService",
-      "method": "GetWorldSeats",
-      "reason": "World seat layout is an interactive UI preference with no CLI command."
+      "service": "WorldService",
+      "method": "GetLayout",
+      "reason": "World layout overrides are edited in the world editor; no CLI command."
     },
     {
-      "service": "WorldSeatsService",
-      "method": "SetWorldSeats",
-      "reason": "World seat layout is an interactive UI preference with no CLI command."
+      "service": "WorldService",
+      "method": "SetLayout",
+      "reason": "World layout overrides are edited in the world editor; no CLI command."
+    },
+    {
+      "service": "WorldService",
+      "method": "StreamWorldFeed",
+      "reason": "The world feed is a server stream consumed by the UI; the CLI reads runs through heartbeat commands."
     }
   ],
   "exceptions": [

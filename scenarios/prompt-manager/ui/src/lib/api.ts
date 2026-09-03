@@ -164,17 +164,6 @@ import {
   OpenGraphMetadataSchema as OpenGraphMetadataProtoSchema,
 } from '@vrooli/proto-types/prompt-manager/v1/metadata/metadata_pb'
 import {
-  WorldScaleService,
-  GetWorldScaleRequestSchema as GetWorldScaleRequestProtoSchema,
-  SetWorldScaleRequestSchema as SetWorldScaleRequestProtoSchema,
-  WorldScaleSchema as WorldScaleProtoSchema,
-} from '@vrooli/proto-types/prompt-manager/v1/worldscale/worldscale_pb'
-import {
-  WorldSeatsService,
-  GetWorldSeatsRequestSchema as GetWorldSeatsRequestProtoSchema,
-  SetWorldSeatsRequestSchema as SetWorldSeatsRequestProtoSchema,
-} from '@vrooli/proto-types/prompt-manager/v1/worldseats/worldseats_pb'
-import {
   ExperimentsService,
   ListExperimentsRequestSchema,
   GetExperimentRequestSchema,
@@ -293,15 +282,11 @@ import {
   TopicArraySchema,
   AccumulatedSkillsResponseSchema,
   TopicMatchResponseSchema,
-  WorldScaleConfigSchema,
-  WorldSeatsConfigSchema,
   type Topic,
   type CreateTopicRequest,
   type UpdateTopicRequest,
   type AccumulatedSkillsResponse,
   type TopicMatchResponse,
-  type WorldScaleConfig,
-  type WorldSeatsConfig,
   VersionsResponseSchema,
   RevertResponseSchema,
   VariantSchema,
@@ -450,8 +435,6 @@ const topicsClient = createClient(TopicsService, connectTransport)
 const templatesClient = createClient(TemplatesService, connectTransport)
 const testingClient = createClient(TestingService, connectTransport)
 const metadataClient = createClient(MetadataService, connectTransport)
-const worldScaleClient = createClient(WorldScaleService, connectTransport)
-const worldSeatsClient = createClient(WorldSeatsService, connectTransport)
 const experimentsClient = createClient(ExperimentsService, connectTransport)
 const graphClient = createClient(GraphService, connectTransport)
 const memberflowClient = createClient(MemberflowService, connectTransport)
@@ -492,7 +475,8 @@ export async function connectSlice4Request(endpoint: string, options?: RequestIn
       const response = kind === 'orphans' ? await graphClient.listOrphanedSkills(req, callOptions) : kind === 'skillless' ? await graphClient.listSkilllessAgents(req, callOptions) : kind === 'empty-teams' ? await graphClient.listEmptyTeams(req, callOptions) : await graphClient.listUnaffiliatedAgents(req, callOptions)
       return response.nodes.map(v => toJson(GraphNodeWireSchema, v))
     }
-    if (method === 'GET' && ['orphans', 'skillless', 'empty-teams', 'unaffiliated'].includes(s[1] ?? '')) return { handled: true, data: await nodeList(s[1]!) }
+    const nodeKind = s[1] ?? ''
+    if (method === 'GET' && ['orphans', 'skillless', 'empty-teams', 'unaffiliated'].includes(nodeKind)) return { handled: true, data: await nodeList(nodeKind) }
     if (method === 'GET' && s[1] === 'popular') return { handled: true, data: (await graphClient.listPopularNodes(create(ListPopularNodesRequestSchema, { limit: Number(query.limit ?? 0) }), callOptions)).nodes.map(v => toJson(GraphNodeWireSchema, v)) }
     if (method === 'GET' && s[1] === 'cycles') return { handled: true, data: (await graphClient.listCycles(create(ListCyclesRequestSchema), callOptions)).cycles.map(v => v.nodeIds) }
     if (method === 'GET' && s[1] === 'health') return { handled: true, data: (await graphClient.getHealthScores(create(GetHealthScoresRequestSchema), callOptions)).scores.map(v => toJson(HealthScoreSchema, v)) }
@@ -1267,52 +1251,6 @@ class ApiClient {
     const response = await teamsClient.exportClaudeCodeTeam(create(ExportClaudeCodeTeamRequestProtoSchema, { teamId }))
     const wire = toJson(ExportClaudeCodeTeamResponseProtoSchema, response) as Record<string, JsonValue>
     return parseOrThrow(ExportCCResponseSchema, wire.export, 'TeamsService.ExportClaudeCodeTeam')
-  }
-
-  // World scale methods
-  async getWorldScale(): Promise<WorldScaleConfig> {
-    const response = await worldScaleClient.getWorldScale(create(GetWorldScaleRequestProtoSchema))
-    return parseOrThrow(WorldScaleConfigSchema, toJson(WorldScaleProtoSchema, response), 'WorldScaleService.GetWorldScale')
-  }
-
-  async setWorldScale(config: WorldScaleConfig): Promise<WorldScaleConfig> {
-    const response = await worldScaleClient.setWorldScale(create(SetWorldScaleRequestProtoSchema, { scale: config }))
-    return parseOrThrow(WorldScaleConfigSchema, toJson(WorldScaleProtoSchema, response), 'WorldScaleService.SetWorldScale')
-  }
-
-  // World seats methods
-  async getWorldSeats(): Promise<WorldSeatsConfig> {
-    const response = await worldSeatsClient.getWorldSeats(create(GetWorldSeatsRequestProtoSchema))
-    const config = Object.fromEntries(response.groups.map(group => [
-      group.furnitureType,
-      group.seats.map(seat => ({
-        position: [seat.position?.x ?? 0, seat.position?.y ?? 0, seat.position?.z ?? 0],
-        rotation: seat.rotation,
-      })),
-    ]))
-    return parseOrThrow(WorldSeatsConfigSchema, config, 'WorldSeatsService.GetWorldSeats')
-  }
-
-  async setWorldSeats(config: WorldSeatsConfig): Promise<WorldSeatsConfig> {
-    const response = await worldSeatsClient.setWorldSeats(create(SetWorldSeatsRequestProtoSchema, {
-      seats: {
-        groups: Object.entries(config).map(([furnitureType, seats]) => ({
-          furnitureType,
-          seats: seats.map(seat => ({
-            position: { x: seat.position[0], y: seat.position[1], z: seat.position[2] },
-            rotation: seat.rotation,
-          })),
-        })),
-      },
-    }))
-    const saved = Object.fromEntries(response.groups.map(group => [
-      group.furnitureType,
-      group.seats.map(seat => ({
-        position: [seat.position?.x ?? 0, seat.position?.y ?? 0, seat.position?.z ?? 0],
-        rotation: seat.rotation,
-      })),
-    ]))
-    return parseOrThrow(WorldSeatsConfigSchema, saved, 'WorldSeatsService.SetWorldSeats')
   }
 
   // Graph methods - aligned with api/graph/handlers.go

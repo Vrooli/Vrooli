@@ -594,7 +594,7 @@ describe('SkillTreeSidebar', () => {
 
   describe('search input ref', () => {
     it('should forward ref to search input', () => {
-      const ref = { current: null } as React.RefObject<HTMLInputElement>
+      const ref: React.RefObject<HTMLInputElement | null> = { current: null }
       render(<SkillTreeSidebar {...defaultProps} searchInputRef={ref} />)
 
       expect(ref.current).toBeInstanceOf(HTMLInputElement)

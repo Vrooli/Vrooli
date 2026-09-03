@@ -11,13 +11,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { StatsBar } from './StatsBar'
 import { FloatingPanel } from './FloatingPanel'
 import { AgentPickerList } from './AgentPickerList'
-import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
   onOpenMobileSidebar?: () => void
@@ -52,7 +50,6 @@ export function ViewOverlay({
 
   const graphViewActive = homeView === 'graph'
   const isMobile = useIsMobile()
-  const showPerformanceOverlay = usePerformanceStore((state) => state.config.showOverlay)
 
   const panelAnchorX = useMemo(() => {
     if (typeof window === 'undefined') return 24
@@ -246,17 +243,6 @@ export function ViewOverlay({
         {helpContent}
       </FloatingPanel>
 
-      {/* Performance panel (world view only) */}
-      <FloatingPanel
-        isOpen={!graphViewActive && showPerformanceOverlay}
-        onClose={() => usePerformanceStore.getState().setConfig({ showOverlay: false })}
-        title="Performance"
-        initialPosition={{ x: panelAnchorX - 24, y: 136 }}
-        className="max-w-md"
-        testId={selectors.viewOverlay.performancePanel}
-      >
-        <FPSOverlay detailed />
-      </FloatingPanel>
     </>
   )
 }

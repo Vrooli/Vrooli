@@ -7,7 +7,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@/test-utils/renderWithProviders'
-import { MemoryRouter } from 'react-router-dom'
 import type { GraphResponse } from '@/lib/schemas'
 
 // ============================================================================
@@ -177,11 +176,7 @@ import { GraphView } from './GraphView'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
 function renderGraphView() {
-  return render(
-    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <GraphView />
-    </MemoryRouter>
-  )
+  return render(<GraphView />)
 }
 
 // ============================================================================

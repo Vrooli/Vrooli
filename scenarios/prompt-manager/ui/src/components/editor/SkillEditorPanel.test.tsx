@@ -38,24 +38,14 @@ vi.mock('./TipTapEditor', () => ({
   ),
 }))
 
-// Mock WorldCanvas - it shows when no skill is selected
-vi.mock('@/components/world', () => ({
-  WorldCanvas: ({ skills }: { skills: unknown[] }) => (
-    <div data-testid="world-canvas">
-      {skills.length === 0 ? 'No Skills Yet' : `${skills.length} skills in world`}
-    </div>
-  ),
+// Mock the world route component - it shows when no skill is selected
+vi.mock('@/world', () => ({
+  WorldView: () => <div data-testid="world-view" />,
 }))
 
 // Mock ViewOverlay and graph/world content components used in empty state
 vi.mock('../shared/ViewOverlay', () => ({
   ViewOverlay: () => <div data-testid="view-overlay" />,
-}))
-vi.mock('@/components/world/WorldSettingsContent', () => ({
-  WorldSettingsContent: () => <div />,
-}))
-vi.mock('@/components/world/WorldHelpContent', () => ({
-  WorldHelpContent: () => <div />,
 }))
 vi.mock('@/components/graph/GraphView', () => ({
   GraphView: () => <div data-testid="graph-view" />,
@@ -163,31 +153,11 @@ describe('SkillEditorPanel', () => {
   })
 
   describe('empty state (world)', () => {
-    it('should show world canvas when no skill is selected', () => {
+    it('should show the world surface when no skill is selected', () => {
       render(<SkillEditorPanel {...defaultProps} currentSkill={null} />)
 
-      // Now shows world instead of empty message
-      expect(screen.getByTestId('world-canvas')).toBeInTheDocument()
-    })
-
-    it('should show empty tree message when no skills available', () => {
-      render(<SkillEditorPanel {...defaultProps} currentSkill={null} allSkills={[]} />)
-
-      expect(screen.getByText('No Skills Yet')).toBeInTheDocument()
-    })
-
-    it('should show skill count when skills are available', () => {
-      const skills = [createTestSkill({ id: '1' }), createTestSkill({ id: '2' })]
-
-      render(
-        <SkillEditorPanel
-          {...defaultProps}
-          currentSkill={null}
-          allSkills={skills}
-        />
-      )
-
-      expect(screen.getByText('2 skills in world')).toBeInTheDocument()
+      expect(screen.getByTestId('world-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('view-overlay')).not.toBeInTheDocument()
     })
   })
 

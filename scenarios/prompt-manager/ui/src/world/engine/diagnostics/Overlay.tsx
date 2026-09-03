@@ -1,0 +1,65 @@
+import { useEffect, useState } from 'react'
+import { tuning } from '../../config'
+import { readDiagnostics, subscribeDiagnostics, type WorldDiagnostics } from './store'
+
+const REFRESH_MS = 250
+
+/** DOM overlay with the renderer counters. Throttled so it never re-renders per frame. */
+export function DiagnosticsOverlay({ testId = 'world-diagnostics' }: { testId?: string }) {
+  const [snapshot, setSnapshot] = useState<WorldDiagnostics>(() => readDiagnostics())
+
+  useEffect(() => {
+    let dirty = false
+    const off = subscribeDiagnostics(() => { dirty = true })
+    const timer = window.setInterval(() => {
+      if (!dirty) return
+      dirty = false
+      setSnapshot(readDiagnostics())
+    }, REFRESH_MS)
+    return () => {
+      off()
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  const rows: Array<[string, string]> = [
+    ['scene', `${snapshot.scene} · ${snapshot.period}`],
+    ['profile', `${snapshot.profile}${snapshot.auto ? ' (auto)' : ''} · dpr ${snapshot.dpr.toFixed(2)}`],
+    ['draw calls', String(snapshot.drawCalls)],
+    ['triangles', snapshot.triangles.toLocaleString()],
+    ['programs', String(snapshot.programs)],
+    ['frame p50 / p95', `${snapshot.frameMsP50.toFixed(1)} / ${snapshot.frameMsP95.toFixed(1)} ms`],
+    ['tone mapping', snapshot.toneMapping],
+    ['post', `ao ${snapshot.ao ? 'on' : 'off'} · bloom ${snapshot.bloom ? 'on' : 'off'}`],
+    ['nearest hit', snapshot.nearestHit < 0 ? '—' : `${snapshot.nearestHit.toFixed(1)} m`],
+    ['footprint fill', `${(snapshot.footprintFill * 100).toFixed(0)}%`],
+    ['ready', snapshot.ready ? 'yes' : 'no'],
+  ]
+
+  const budget = tuning.budgets.scenes[snapshot.scene][snapshot.profile]
+  const budgetOk = snapshot.ready && snapshot.drawCalls <= budget.drawCalls && snapshot.triangles <= budget.triangles
+  return (
+    <div
+      data-testid={testId}
+      data-ready={snapshot.ready ? 'true' : 'false'}
+      data-budget-ok={budgetOk ? 'true' : 'false'}
+      data-draw-calls={snapshot.drawCalls}
+      data-triangles={snapshot.triangles}
+      data-profile={snapshot.profile}
+      data-scene={snapshot.scene}
+      className="pointer-events-none absolute bottom-3 left-3 z-30 rounded-md border border-border bg-background/85 px-3 py-2 font-mono text-[11px] leading-4 text-foreground shadow-sm backdrop-blur"
+    >
+      <table>
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label}>
+              <td className="pr-3 text-muted-foreground">{label}</td>
+              <td className="tabular-nums">{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {snapshot.gpu && <p className="mt-1 max-w-[280px] truncate text-muted-foreground">{snapshot.gpu}</p>}
+    </div>
+  )
+}

@@ -176,6 +176,10 @@
       "testId": "workspace-toggle-view",
       "selector": "[data-testid=\"workspace-toggle-view\"]"
     },
+    "workspace.topEdge": {
+      "testId": "workspace-top-edge",
+      "selector": "[data-testid=\"workspace-top-edge\"]"
+    },
     "terminal.pane": {
       "testId": "terminal-pane",
       "selector": "[data-testid=\"terminal-pane\"]"
@@ -564,9 +568,9 @@
       "testId": "openrouter-key-remove",
       "selector": "[data-testid=\"openrouter-key-remove\"]"
     },
-    "settings.subscriptionBadge": {
-      "testId": "subscription-badge",
-      "selector": "[data-testid=\"subscription-badge\"]"
+    "settings.accountButton": {
+      "testId": "toolbar-account",
+      "selector": "[data-testid=\"toolbar-account\"]"
     },
     "settings.tunnelManagerAwareness": {
       "testId": "tunnel-manager-awareness",
@@ -683,6 +687,14 @@
     "ai.providerProvenance": {
       "testId": "ai-provider-provenance",
       "selector": "[data-testid=\"ai-provider-provenance\"]"
+    },
+    "commercial.sourceProvenanceAligned": {
+      "testId": "body[data-source-provenance-aligned=\"true\"]",
+      "selector": "[data-testid=\"body[data-source-provenance-aligned=\"true\"]\"]"
+    },
+    "commercial.localVoiceRefusal": {
+      "testId": "body[data-local-voice-refusal=\"false\"]",
+      "selector": "[data-testid=\"body[data-local-voice-refusal=\"false\"]\"]"
     },
     "provider.refresh": {
       "testId": "provider-refresh",

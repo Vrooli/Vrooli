@@ -6,6 +6,7 @@ package main
 // itself is limited to the rollout subtree.
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	"web-console/internal/sessionstore"
 )
 
@@ -88,7 +90,7 @@ func pruneArchivedAgentHistory(meta sessionstore.Metadata) (int64, error) {
 		if filepath.Dir(path) != expectedParent || filepath.Base(path) != meta.ID || strings.ContainsAny(meta.ID, `/\\`) {
 			return 0, fmt.Errorf("refusing unsafe agent-home path %q", path)
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := deleteArchivedPath(path, expectedParent, size); err != nil {
 			return 0, err
 		}
 		return size, nil
@@ -106,10 +108,19 @@ func pruneArchivedAgentHistory(meta sessionstore.Metadata) (int64, error) {
 	if info.IsDir() {
 		return 0, fmt.Errorf("refusing to remove shared agent-history directory %q", path)
 	}
-	if err := os.Remove(path); err != nil {
+	if err := deleteArchivedPath(path, filepath.Dir(path), size); err != nil {
 		return 0, err
 	}
 	return size, nil
+}
+
+func deleteArchivedPath(path, root string, size int64) error {
+	pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{Path: root})
+	if err != nil {
+		return err
+	}
+	_, err = pruner.Delete(context.Background(), coreRetention.Candidates{{Path: path, Bytes: size}}, coreRetention.Batch{MaxItems: 1})
+	return err
 }
 
 // copyCodexHome copies only the session-owned rollout tree from the orphan to

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +15,8 @@ import (
 	"time"
 
 	coreRetention "github.com/vrooli/api-core/retention"
+	"github.com/vrooli/api-core/storage"
+	platform "github.com/vrooli/platform-go"
 	"web-console/internal/sessionstore"
 )
 
@@ -63,18 +67,59 @@ type ownerOrphanReport struct {
 }
 
 type webConsoleCleanup struct {
-	server *Server
-	mu     sync.Mutex
-	done   map[string]ownerCleanupResult
+	server           *Server
+	recoveryLockPath string
+	mu               sync.Mutex
+	done             map[string]ownerCleanupResult
 }
 
 func (s *Server) registerOwnerCleanupRoutes() {
-	h := &webConsoleCleanup{server: s, done: make(map[string]ownerCleanupResult)}
+	h := &webConsoleCleanup{server: s, recoveryLockPath: webConsoleRecoveryLockPath(), done: make(map[string]ownerCleanupResult)}
 	s.router.HandleFunc("/api/v1/cleanup/estimate", h.estimate).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/cleanup/preview", h.preview).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/cleanup/apply", h.apply).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/cleanup/orphans", h.orphans).Methods(http.MethodGet)
 	h.startAutomaticRetention(context.Background())
+}
+
+func webConsoleRecoveryLockPath() string {
+	if resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto}); err == nil {
+		if paths, resolveErr := resolver.Resolve(storage.Options{}); resolveErr == nil && paths.StateDir != "" {
+			return filepath.Join(paths.StateDir, "recovery.lock")
+		}
+	}
+	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+	if base == "" {
+		base, _ = os.UserHomeDir()
+		base = filepath.Join(base, ".vrooli")
+	}
+	return filepath.Join(base, "state", "storage-manager", "recovery.lock")
+}
+
+func (h *webConsoleCleanup) acquireRecoveryLock() (func(), error) {
+	path := filepath.Clean(strings.TrimSpace(h.recoveryLockPath))
+	if path == "." || path == "" {
+		return func() {}, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, fmt.Errorf("create shared recovery lock directory: %w", err)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open shared recovery lock: %w", err)
+	}
+	release, err := platform.LockFile(file, true)
+	if err != nil {
+		_ = file.Close()
+		if errors.Is(err, platform.ErrLockUnavailable) {
+			return nil, fmt.Errorf("storage recovery lock is held")
+		}
+		return nil, fmt.Errorf("acquire shared recovery lock: %w", err)
+	}
+	return func() {
+		release()
+		_ = file.Close()
+	}, nil
 }
 
 // orphans reconciles the filesystem-owned agent roots against the session
@@ -217,6 +262,12 @@ func (h *webConsoleCleanup) startAutomaticRetention(ctx context.Context) {
 }
 
 func (h *webConsoleCleanup) autoSweep(ctx context.Context, seconds int64, keep int, maxBytes int64) {
+	release, err := h.acquireRecoveryLock()
+	if err != nil {
+		log.Printf("web-console automatic retention deferred: %v", err)
+		return
+	}
+	defer release()
 	rows := h.candidateRows(ctx, seconds, maxBytes, keep)
 	items := h.items(rows, maxBytes, keep)
 	byID := make(map[string]sessionstore.Metadata, len(rows))
@@ -302,6 +353,12 @@ func (h *webConsoleCleanup) apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.mu.Unlock()
+	release, lockErr := h.acquireRecoveryLock()
+	if lockErr != nil {
+		http.Error(w, lockErr.Error(), http.StatusConflict)
+		return
+	}
+	defer release()
 	rows, _, _, _ := h.candidates(r)
 	byID := make(map[string]sessionstore.Metadata, len(rows))
 	for _, row := range rows {

@@ -29,7 +29,10 @@ The prompt-manager is built on three coordination domains and one execution doma
 | Concept | Document | Description |
 |---------|----------|-------------|
 | **Relationship Graph** | [GRAPH.md](concepts/GRAPH.md) | Dependency graph mapping connections between teams, agents, skills, and CLIs |
-| **3D World** | [3D-WORLD-ARCHITECTURE.md](concepts/3D-WORLD-ARCHITECTURE.md) | React Three Fiber visualization for agents |
+| **World** | [WORLD-ARCHITECTURE.md](concepts/WORLD-ARCHITECTURE.md) | The /world diorama: layers, control surface, rendering, smoke tool |
+| **World simulation** | [WORLD-SIM.md](concepts/WORLD-SIM.md) | Place-is-state layout, the actor state machine, idle layer, determinism |
+| **World HUD** | [WORLD-HUD.md](concepts/WORLD-HUD.md) | What each signal means, every action, keyboard map, 2D mode |
+| **World assets** | [WORLD-ASSETS.md](guides/WORLD-ASSETS.md) | CC0 prop pipeline and how to add a prop |
 | **Store Migration** | [STORE-MIGRATION.md](concepts/STORE-MIGRATION.md) | Migration from legacy storage to per-entity files |
 
 ## Reference

@@ -32,9 +32,9 @@ interface UseResizableSidebarResult {
   /** Current sidebar width in pixels */
   width: number
   /** Ref for the sidebar panel whose width is live-mutated during drag */
-  panelRef: React.RefObject<HTMLDivElement>
+  panelRef: React.RefObject<HTMLDivElement | null>
   /** Ref to attach to the container element for ResizeObserver */
-  containerRef: React.RefObject<HTMLDivElement>
+  containerRef: React.RefObject<HTMLDivElement | null>
   /** Mouse down handler for the resize handle */
   handleResizeStart: (e: React.MouseEvent) => void
 }

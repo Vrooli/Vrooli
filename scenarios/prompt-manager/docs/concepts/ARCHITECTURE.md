@@ -285,7 +285,7 @@ React-based SPA with:
 - **Zustand** stores for UI state
 - **React Three Fiber** for 3D world visualization
 
-See [3D World Architecture](3D-WORLD-ARCHITECTURE.md) for visualization details.
+See [World Architecture](WORLD-ARCHITECTURE.md) for visualization details.
 
 The 3D world’s ground rendering now has a dedicated seam: `GroundSurface` composes grid vs textured planes, while `ui/src/lib/groundTextures.ts` and `ui/src/lib/groundShader.ts` own procedural texture generation and projection logic. This keeps shader/material concerns out of `WorldScene` and makes ground visuals configurable without touching scene orchestration.
 
@@ -348,7 +348,7 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 - [Relations](RELATIONS.md) - Team-member relations
 - [SOUL System](PERSONA-SYSTEM.md) - Agent personality via SOUL.md (plus optional agent .md files)
 - [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching
-- [3D World Architecture](3D-WORLD-ARCHITECTURE.md) - Visualization system
+- [World Architecture](WORLD-ARCHITECTURE.md) - Visualization system
 
 ### Internal
 - [Testing Seams](../internal/SEAMS.md) - Testing architecture details

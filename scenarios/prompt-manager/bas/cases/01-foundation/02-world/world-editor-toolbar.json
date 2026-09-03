@@ -1,0 +1,197 @@
+{
+  "metadata": {
+    "name": "world-editor-toolbar",
+    "description": "Edit mode in the 3D view (view=3d outranks any stored 2D preference): the toolbar appears with undo, redo and reset present, reset stays disabled until a room has moved, and the world reloads cleanly after leaving edit mode",
+    "labels": {
+      "reset": "none",
+      "safety": "read-only"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?intro=0&view=3d",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the world"
+        }
+      }
+    },
+    {
+      "id": "wait-summary",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.summary",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the HUD"
+        }
+      }
+    },
+    {
+      "id": "edit",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.editor.toggle"
+        },
+        "metadata": {
+          "label": "Enter edit mode"
+        }
+      }
+    },
+    {
+      "id": "assert-undo",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.editor.undo",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Editor toolbar did not expand"
+        },
+        "metadata": {
+          "label": "Undo visible"
+        }
+      }
+    },
+    {
+      "id": "assert-reset-disabled",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.editor.reset",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "disabled",
+          "expected": {
+            "string_value": ""
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Reset must be disabled while the layout has no overrides"
+        },
+        "metadata": {
+          "label": "Reset disabled with no overrides"
+        }
+      }
+    },
+    {
+      "id": "done",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/world.editor.toggle"
+        },
+        "metadata": {
+          "label": "Leave edit mode"
+        }
+      }
+    },
+    {
+      "id": "navigate-2",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?intro=0&view=3d",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Reload the world"
+        }
+      }
+    },
+    {
+      "id": "wait-summary-2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.hud.summary",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "HUD after reload"
+        }
+      }
+    },
+    {
+      "id": "shot-editor",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "After reload"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-summary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-summary",
+      "target": "edit",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "edit",
+      "target": "assert-undo",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-undo",
+      "target": "assert-reset-disabled",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-reset-disabled",
+      "target": "done",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "done",
+      "target": "navigate-2",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "navigate-2",
+      "target": "wait-summary-2",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "wait-summary-2",
+      "target": "shot-editor",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

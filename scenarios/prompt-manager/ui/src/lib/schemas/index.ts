@@ -320,19 +320,6 @@ export {
   type AgentFileTemplateListResponse,
 } from './template.schema'
 
-// World scale schemas
-export {
-  WorldScaleConfigSchema,
-  type WorldScaleConfig,
-} from './worldScale.schema'
-
-// World seats schemas
-export {
-  SeatPositionSchema,
-  WorldSeatsConfigSchema,
-  type WorldSeatsConfig,
-} from './worldSeats.schema'
-
 // Topic schemas
 export {
   TopicSchema,

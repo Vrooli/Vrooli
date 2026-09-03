@@ -1,0 +1,16 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "readiness-requirements-cover-sale",
+  "name": "readiness-requirements-cover-sale",
+  "description": "Deployment readiness check procedure",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-09-01T20:28:24Z",
+  "updatedAt": "2026-09-01T20:28:24Z"
+}

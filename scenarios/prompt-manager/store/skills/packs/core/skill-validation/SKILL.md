@@ -9,9 +9,9 @@ metadata:
   tags: ["skill"]
   icon: "check-circle"
   status: "active"
-  revision: 45
+  revision: 47
   createdAt: "2026-01-30T11:19:51-05:00"
-  updatedAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read"]
@@ -206,6 +206,24 @@ Procedure:
 1. Scan `Troubleshooting & Edge Cases` first. A clarification that repeats is a promotion candidate (usually at least **Gap**) — promote to a CLI output contract or tool capability before adding prose.
 2. Classify each major gate/workflow instruction per the canon output requirement. For `Collapse`/`Delete`, name the prerequisite CLI/tool contract (or existing contract evidence) and any residual risk.
 3. Record results in the report's `Prose Retirement Map`. Durable CLI/tool fixes rank above interim prose patches.
+
+---
+
+#### 3.12 Skill-Set Conformance Check (Scenario Roles)
+
+Applies when {{SKILL}} is declared as a scenario role in `scenarios/<scenario>/.vrooli/service.json` `skills` (roles and rungs: `docs/agent-system/SKILL_AUTHORING.md` §"Scenario skill sets"). Presence is read by the `prompt-manager.skill-set-read` program today; a validator for declaration drift is planned. This check covers what only reading can find.
+
+| Check | Finding when it fails | Severity |
+|---|---|---|
+| The declared role matches the body: a `usage` role is a decision tree with rung-labeled leaves; an `improve` role has the eight sections `improve-skill-authoring` §2 names, in order | Role/body mismatch | Major |
+| Every `[S3]` leaf satisfies the S3 row of canon's rung table (the program exists under `scenarios/<scenario>/.vrooli/program-runtime/` or in the library; branching uses only the contract's declared vocabulary) | Program reference unresolved, or undeclared vocabulary | Major |
+| Every `[S1]` leaf names one command that exists (§3.6) | Rung label dishonest | Major |
+| When `metadata.learning.scope` is set: a recall step before the tree, a capture step after it, entry kinds named, mechanics cited to `vrooli-memory` not restated | Spine incomplete, or restated mechanics (C2) | Major / Minor |
+| Improve role: every setpoint row has a sensor that is a measure, a corpus with a floor, a `bindings condition` row, or a friction digest — or is marked `pending-telemetry`; no band equals the row's current reading | Invented sensor / dead-sensor band | Critical |
+| Improve role: the setpoint table and `setpoint-read.json` declare the same rows | Skill and program disagree | Major |
+| Improve role: routes never edit another scenario | Instrument acting as controller | Critical |
+
+Record findings under `Validation Findings` with the row name; hand rung-promotion candidates to `skill-improvement-suggestions` (E10).
 
 ---
 
