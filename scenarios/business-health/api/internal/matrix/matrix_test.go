@@ -107,6 +107,21 @@ func TestUnprovenClaims(t *testing.T) {
 		require.Contains(t, kinds, "status_unearned")
 		require.Contains(t, kinds, "stale_snapshot")
 	})
+	t.Run("valid manual evidence earns a manual-only claim without snapshot", func(t *testing.T) {
+		attested := evidence.Attestation{RequirementID: "R-001", AttestedBy: "op", AttestedAt: now().Add(-time.Hour), ExpiresAt: now().Add(time.Hour)}
+		res := Join(Inputs{
+			Contract:     contractFixture(),
+			Attestations: map[string]evidence.Attestation{"R-001": attested},
+			Now:          now(),
+		})
+		for _, row := range res.Rows {
+			if row.RequirementID == "R-001" {
+				require.False(t, row.Unproven, "valid manual evidence should earn a manual-only claim")
+				return
+			}
+		}
+		t.Fatal("R-001 row not found")
+	})
 	t.Run("complete with only expired manual evidence", func(t *testing.T) {
 		expired := evidence.Attestation{RequirementID: "R-001", AttestedBy: "op", AttestedAt: now().Add(-100 * 24 * time.Hour), ExpiresAt: now().Add(-10 * 24 * time.Hour)}
 		res := Join(Inputs{

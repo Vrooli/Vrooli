@@ -17,7 +17,7 @@ func TestRegistryIncludesMigratedRuleIDs(t *testing.T) {
 		RuleESLintSafetyRules,
 		RuleTSDangerousPatterns,
 		RuleESLintTypedConfig,
-		RuleNodeBuildTypecheck,
+		RuleTypecheckPlannerCoverage,
 		RuleTestingConfigStrict,
 		RuleGoModPresent,
 		RuleGoLintConfigPresent,

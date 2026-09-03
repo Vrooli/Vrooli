@@ -47,7 +47,7 @@ func TestRegistryDerivesSurfaceAndScenarioApplicability(t *testing.T) {
 		rules.RuleESLintSafetyRules,
 		rules.RuleTSDangerousPatterns,
 		rules.RuleESLintTypedConfig,
-		rules.RuleNodeBuildTypecheck,
+		rules.RuleTypecheckPlannerCoverage,
 		rules.RuleUILazyChunkRecovery,
 	}, ids(ts))
 
@@ -88,7 +88,7 @@ func defaultFindingPath(t *testing.T, ruleID string) (string, string) {
 		path := filepath.Join(root, "eslint.config.js")
 		write(t, path, `export default { rules: {} }`)
 		return root, path
-	case rules.RuleNodeBuildTypecheck:
+	case rules.RuleTypecheckPlannerCoverage:
 		path := filepath.Join(root, "package.json")
 		write(t, path, `{"scripts":{"build":"vite build"}}`)
 		return root, path

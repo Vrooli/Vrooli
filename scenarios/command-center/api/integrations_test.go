@@ -184,6 +184,18 @@ func TestIntegrationActionRequiresConfirmationAndCannotMutateBusinessState(t *te
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "\"status\":\"ready\"") {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/integrations/swarm-manager/action", strings.NewReader(`{"action":"arbitrary_command","confirm":true}`))
+	w = httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "action_not_allowed") {
+		t.Fatalf("arbitrary action status=%d body=%s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/integrations/not-declared/action", strings.NewReader(`{"action":"scenario_start","confirm":true}`))
+	w = httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "integration_not_found") {
+		t.Fatalf("undeclared integration status=%d body=%s", w.Code, w.Body.String())
+	}
 }
 
 func setUnavailableUpstreams(t *testing.T) {

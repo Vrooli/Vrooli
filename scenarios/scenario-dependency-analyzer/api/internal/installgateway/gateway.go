@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Resolution is the resolved install plan for a request: where it runs, which
@@ -90,6 +92,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 		// retrying the requested governed mutation.
 		repair := exec.CommandContext(ctx, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--ignore-workspace")
 		repair.Dir = r.SurfaceRoot
+		repair.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 		repairOut, repairErr := repair.CombinedOutput()
 		out = append(out, repairOut...)
 		if repairErr != nil {
@@ -374,7 +377,14 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 		if v := strings.TrimSpace(version); v != "" {
 			spec = packageName + "==" + v
 		}
-		if fileExists(filepath.Join(surfaceRoot, "poetry.lock")) || fileExists(filepath.Join(surfaceRoot, "pyproject.toml")) {
+		if fileExists(filepath.Join(surfaceRoot, "uv.lock")) {
+			// A committed uv.lock is authoritative package-manager evidence.
+			// Keep uv projects on uv instead of routing pyproject.toml through
+			// Poetry and leaving the declared lockfile stale.
+			manager = "uv"
+			manifest = filepath.Join(surfaceRoot, "pyproject.toml")
+			argv = []string{"uv", "add", "--dev", spec}
+		} else if fileExists(filepath.Join(surfaceRoot, "poetry.lock")) || fileExists(filepath.Join(surfaceRoot, "pyproject.toml")) {
 			manager = "poetry"
 			manifest = filepath.Join(surfaceRoot, "pyproject.toml")
 			argv = []string{"poetry", "add", spec}

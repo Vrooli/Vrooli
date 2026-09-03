@@ -21,7 +21,7 @@ const (
 	RuleESLintSafetyRules           = "ESLINT_SAFETY_RULES"
 	RuleTSDangerousPatterns         = "TS_DANGEROUS_PATTERNS"
 	RuleESLintTypedConfig           = "ESLINT_TYPED_CONFIG"
-	RuleNodeBuildTypecheck          = "NODE_BUILD_TYPECHECK"
+	RuleTypecheckPlannerCoverage    = "TYPECHECK_PLANNER_COVERAGE"
 	RuleUILazyChunkRecovery         = "UI_LAZY_CHUNK_RECOVERY"
 	RuleTestingConfigStrict         = "TESTING_CONFIG_LINT_STRICT"
 	RuleGoModPresent                = "GO_MOD_PRESENT_FOR_API_OR_CLI"
@@ -46,6 +46,7 @@ const (
 
 type Applicability struct {
 	Language    string
+	Languages   []string
 	Framework   string
 	SurfaceKind string
 	// Scenario marks a rule that asserts a scenario contract — a Makefile
@@ -89,9 +90,10 @@ type Rule struct {
 type EvalFunc func(EvalContext) []Finding
 
 type EvalContext struct {
-	Inventory surfaces.Inventory
-	Surface   surfaces.Surface
-	Now       time.Time
+	Inventory      surfaces.Inventory
+	Surface        surfaces.Surface
+	Now            time.Time
+	TypecheckPlans map[string]bool
 }
 
 type Finding struct {
@@ -114,7 +116,7 @@ func Registry() []Rule {
 		{ID: RuleESLintSafetyRules, Title: "ESLint safety rules", Category: "typescript", Severity: "error", FixClass: FixClassAutofix, ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalESLintSafety},
 		{ID: RuleTSDangerousPatterns, Title: "TypeScript dangerous patterns", Category: "typescript", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Source-semantic suppressions require human intent and are not safe config rewrites.", ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalDangerousPatterns},
 		{ID: RuleESLintTypedConfig, Title: "Typed ESLint config", Category: "typescript", Severity: "error", FixClass: FixClassAutofix, ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalESLintTyped},
-		{ID: RuleNodeBuildTypecheck, Title: "Node build typecheck", Category: "typescript", Severity: "error", FixClass: FixClassAutofix, ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, Evaluate: evalPackage},
+		{ID: RuleTypecheckPlannerCoverage, Title: "Typecheck planner coverage", Category: "typescript", Severity: "error", FixClass: FixClassDetectionOnly, FixReason: "Planner coverage requires a matching unit-health adapter and cannot be safely inferred or created by a package rewrite.", ContractID: "typescript-static-quality", Applies: Applicability{Languages: []string{"typescript", "python"}}, Evaluate: evalPackage},
 		{ID: RuleUILazyChunkRecovery, Title: "Lazy-chunk deploy recovery", Category: "typescript", Severity: "error", FixClass: FixClassDetectionOnly, FixReason: "Installing the reload guard is an app-entry code change, not a safe config rewrite.", ContractID: "typescript-static-quality", Applies: Applicability{Language: "typescript"}, WhyItMatters: "Vite builds emit content-hashed chunks; a rebuild deletes the old ones, so any tab opened before the deploy crashes into its error boundary on the next lazy() navigation unless the app self-heals with a reload.", Remediation: "Call installChunkReloadGuard() from @vrooli/api-base at the app entry point (before React mounts), or handle Vite's vite:preloadError event directly.", Evaluate: evalLazyChunkRecovery},
 		{ID: RuleTestingConfigStrict, Title: "Testing strict lint handlers", Category: "scenario", Severity: "error", FixClass: FixClassAutofix, ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, Evaluate: evalTestingConfig},
 		{ID: RuleGoModPresent, Title: "Go module present", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoModPresent},
@@ -201,8 +203,14 @@ func NormalizeLanguage(language string) string {
 }
 
 func AppliesToFilter(rule Rule, language, framework, surfaceKind string) bool {
-	if language != "" && rule.Applies.Language != "" && !strings.EqualFold(rule.Applies.Language, NormalizeLanguage(language)) {
-		return false
+	if language != "" {
+		language = NormalizeLanguage(language)
+		if rule.Applies.Language != "" && !strings.EqualFold(rule.Applies.Language, language) {
+			return false
+		}
+		if len(rule.Applies.Languages) > 0 && !containsLanguage(rule.Applies.Languages, language) {
+			return false
+		}
 	}
 	if framework != "" && rule.Applies.Framework != "" && !strings.EqualFold(rule.Applies.Framework, framework) {
 		return false
@@ -217,6 +225,9 @@ func appliesToSurface(applies Applicability, surface surfaces.Surface) bool {
 	if applies.Language != "" && !strings.EqualFold(applies.Language, NormalizeLanguage(surface.Language)) {
 		return false
 	}
+	if len(applies.Languages) > 0 && !containsLanguage(applies.Languages, NormalizeLanguage(surface.Language)) {
+		return false
+	}
 	if applies.Framework != "" && !strings.EqualFold(applies.Framework, surface.Framework) {
 		return false
 	}
@@ -224,6 +235,15 @@ func appliesToSurface(applies Applicability, surface surfaces.Surface) bool {
 		return false
 	}
 	return true
+}
+
+func containsLanguage(languages []string, language string) bool {
+	for _, candidate := range languages {
+		if strings.EqualFold(candidate, language) {
+			return true
+		}
+	}
+	return false
 }
 
 func ruleFinding(ctx EvalContext, rule Rule, path, message, evidence, expected, observed string) Finding {
@@ -321,24 +341,31 @@ func evalESLintTyped(ctx EvalContext) []Finding {
 }
 
 func evalPackage(ctx EvalContext) []Finding {
-	rule, _ := ByID(RuleNodeBuildTypecheck)
+	rule, _ := ByID(RuleTypecheckPlannerCoverage)
 	path := filepath.Join(ctx.Surface.RootPath, "package.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil
+	if strings.EqualFold(ctx.Surface.Language, "python") {
+		path = filepath.Join(ctx.Surface.RootPath, "pyproject.toml")
+		raw, err := os.ReadFile(path)
+		if err != nil || !strings.Contains(string(raw), "[tool.mypy]") {
+			return []Finding{ruleFinding(ctx, rule, path, "Missing mypy planner input", "The Python surface does not declare a [tool.mypy] configuration for the unit-health planner.", "pyproject.toml with [tool.mypy]", "missing")}
+		}
+	} else {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var pkg struct {
+			Scripts map[string]string `json:"scripts"`
+		}
+		if err := json.Unmarshal(raw, &pkg); err != nil {
+			return []Finding{ruleFinding(ctx, rule, path, "package.json parse error", err.Error(), "valid package.json", "parse error")}
+		}
+		if strings.TrimSpace(pkg.Scripts["type-check"]) == "" {
+			return []Finding{ruleFinding(ctx, rule, path, "Missing typecheck planner input", "The package does not define a type-check script for the unit-health TypeScript planner.", "scripts.type-check consumed by a typecheck planner", "missing")}
+		}
 	}
-	var pkg struct {
-		Scripts map[string]string `json:"scripts"`
-	}
-	if err := json.Unmarshal(raw, &pkg); err != nil {
-		return []Finding{ruleFinding(ctx, rule, path, "package.json parse error", err.Error(), "valid package.json", "parse error")}
-	}
-	build := strings.TrimSpace(pkg.Scripts["build"])
-	if build == "" {
-		return []Finding{ruleFinding(ctx, rule, path, "Missing build script", "The package does not define a build script.", "build script that runs typecheck before bundling", "missing")}
-	}
-	if !strings.Contains(build, "tsc --noEmit") && !strings.Contains(build, "run type-check") && !strings.Contains(build, "type-check &&") {
-		return []Finding{ruleFinding(ctx, rule, path, "Build script skips TypeScript type checking", "Build script is `"+build+"`.", "tsc --noEmit or type-check before bundling", build)}
+	if ctx.TypecheckPlans != nil && !ctx.TypecheckPlans[ctx.Surface.ID] {
+		return []Finding{ruleFinding(ctx, rule, path, "Typecheck planner does not cover this surface", "unit-health returned no typecheck plan for this TypeScript surface.", "a unit-health plan with test_kind=typecheck", "missing")}
 	}
 	return nil
 }

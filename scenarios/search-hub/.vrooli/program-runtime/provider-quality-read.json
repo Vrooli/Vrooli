@@ -1,0 +1,167 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "search-hub.provider-quality-read",
+  "version": "1",
+  "purpose": "Join insights, providers list, federation status, and the newest eval run per suite into one bounded per-provider table with the out-of-band lists the improve skill files against provider owners.",
+  "inputs": {
+    "insights_window": {
+      "type": "string",
+      "default": "7",
+      "description": "insights window: a bare integer is days; a duration such as 15m or 2h is accepted."
+    },
+    "provider_group": {
+      "type": "string",
+      "default": "",
+      "description": "Restrict the table to one provider group (scenario)."
+    },
+    "max_rows": {
+      "type": "integer",
+      "default": 5,
+      "description": "Largest provider table returned (1..100); parsed in validate, a non-integer is invalid_input. The envelope must fit the 4 KB stdout bound, so filter with provider_group instead of raising it."
+    }
+  },
+  "assumptions": [
+    "search-hub is running and its insights, providers, federation, and evals bindings are reachable from the kernel",
+    "degradation band 0.20 is the degraded_rate_max every provider descriptor declares in search.json",
+    "the newest run per suite may carry a strategy-compare tag; the caller reads the tag before treating pass_rate as the incumbent's",
+    "a suite runs read that fails with a transport class other than scenario_unreachable is recorded as an error and the status is partial; search-hub going unreachable mid-collect is unavailable"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "one evals runs call per registered suite, limit 1, run concurrently; no retry",
+    "the envelope is printed exactly once, on every path",
+    "the envelope stays within the 4 KB stdout bound: providers are capped by max_rows, evidence at six run ids, and each derived list at five rows with a count beside it"
+  ],
+  "bindings": [
+    {
+      "id": "search-hub/insights/insights",
+      "effect": "read"
+    },
+    {
+      "id": "search-hub/providers/list",
+      "effect": "read"
+    },
+    {
+      "id": "search-hub/federation/status",
+      "effect": "read"
+    },
+    {
+      "id": "search-hub/evals/list",
+      "effect": "read"
+    },
+    {
+      "id": "search-hub/evals/runs",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "providers": "at most max_rows of {provider_id, lifecycle, reachable, circuit, routed, hits, degradation, reasons, p95_ms, retire, eval[{suite, pass, prec, at}]}; suite ids are cut to their first 40 characters",
+      "provider_count": "providers in the registry after the group filter",
+      "degraded_over_band": "providers whose windowed degradation_rate exceeds 0.20",
+      "unreachable": "providers federation status reports unreachable now, or whose insights degradation reasons in the window include unreachable: {provider_id, reachability, now, unreachable_in_window}",
+      "under_utilized": "providers insights lists as retirement candidates (zero hits over routed calls)",
+      "suites_without_runs": "registered suites with no stored run",
+      "suites_below_full_pass": "at most 8 suites whose newest run has pass_rate below 1.0",
+      "window": "insights window bounds",
+      "fleet": "fleet totals from insights: totalQueries, zeroResultQueries, zeroResultRate, degradedQueries, latencyP95Ms",
+      "suites_below_full_pass_count": "How many registered suites are below a full pass; the list carries at most five."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "search-hub://eval-run/<run_id> references, at most 4"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 100
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ]
+    },
+    {
+      "id": "one-group",
+      "inputs": {
+        "provider_group": "web-search"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ]
+    },
+    {
+      "id": "bad-rows",
+      "inputs": {
+        "max_rows": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "bad-rows-type",
+      "inputs": {
+        "max_rows": "many"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "search-hub-improve"
+}

@@ -54,7 +54,7 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 			hasUpload = true
 		}
 		if strings.Contains(step.Command, ".vrooli/bin/vrooli") &&
-			strings.Contains(step.Command, "--no-stale-check setup --yes yes --environment production") {
+			strings.Contains(step.Command, "setup --yes yes --environment production") {
 			hasSetup = true
 		}
 		if step.ID == "bootstrap" && strings.Contains(step.Command, "apt-get") {
@@ -199,10 +199,10 @@ func TestBuildSetupPlanUsesDeploymentLocalNativeCLIForSetupAndVerify(t *testing.
 	}
 
 	wantBinary := shellutil.QuotedRemoteVrooliPath(workdir)
-	if !strings.Contains(setupCmd, wantBinary) || !strings.Contains(setupCmd, "--no-stale-check setup --yes yes --environment production") {
+	if !strings.Contains(setupCmd, wantBinary) || !strings.Contains(setupCmd, "setup --yes yes --environment production") {
 		t.Fatalf("expected setup command to use deployment-local binary, got: %s", setupCmd)
 	}
-	if !strings.Contains(verifyCmd, wantBinary) || !strings.Contains(verifyCmd, "--no-stale-check --version") {
+	if !strings.Contains(verifyCmd, wantBinary) || !strings.Contains(verifyCmd, "--version") {
 		t.Fatalf("expected verify command to use deployment-local binary, got: %s", verifyCmd)
 	}
 }

@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "search-hub.setpoint-read",
+  "version": "1",
+  "purpose": "Read every row of search-hub's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating.",
+  "inputs": {
+    "window_token": { "type": "string", "default": "TIME_WINDOW_TOKEN_LAST_7D", "description": "TimeWindowToken enum name for the three declared measures." },
+    "insights_window": { "type": "string", "default": "7", "description": "insights window: bare integer days, or a duration such as 15m." },
+    "routing_suite": { "type": "string", "default": "router.routing", "description": "Composed routing suite whose newest run gives the precision, pass-rate, and recall rows." }
+  },
+  "assumptions": [
+    "search-hub is running and its evals, metrics, insights, and federation bindings are reachable from the kernel",
+    "the caller treats an unavailable row as unknown, never as zero",
+    "the newest router.routing run may be a strategy-compare candidate arm; the rows carry the tag so the caller does not mistake it for the incumbent",
+    "no eval suite records a floor; the eval-floors row reports the newest pass rates with reason pending_telemetry and no band until a floor is recorded"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no row set is materialized; every reading is head(1), meta, count, or filter",
+    "the envelope is printed exactly once, on every path",
+    "row reason values are the closed vocabulary in program-contracts.md; a permanent reason (pending_telemetry, unreliable:*) does not lower the status, only a transient scenario_unreachable row or a failed read makes the board partial",
+    "no floor is invented: a row whose band is not recorded reports target null and in_band null"
+  ],
+  "bindings": [
+    { "id": "search-hub/evals/runs", "effect": "read" },
+    { "id": "search-hub/evals/list", "effect": "read", "optional": true },
+    { "id": "search-hub/metrics/provider-degradation-rate", "effect": "read", "optional": true },
+    { "id": "search-hub/metrics/degraded-query-rate", "effect": "read", "optional": true },
+    { "id": "search-hub/metrics/federated-latency", "effect": "read", "optional": true },
+    { "id": "search-hub/insights/insights", "effect": "read", "optional": true },
+    { "id": "search-hub/federation/status", "effect": "read", "optional": true }
+  ],
+  "verbs": ["gather"],
+  "outputs": {
+    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
+    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: routing-precision, e2e-pass-rate, retrieval-recall, provider-degradation, degraded-query-rate, federated-latency, under-utilized-providers, zero-result-rate, provider-reachability, eval-floors; target and in_band are null for eval-floors",
+      "readable": "count of rows read from a governed binding and banded",
+      "unavailable": "count of rows marked unavailable, permanent reasons included",
+      "unavailable_transient": "count of unavailable rows whose reason is not permanent (scenario_unreachable or a failed read); the only count that lowers the status"
+    },
+    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"] },
+    "evidence": "sensor command names and search-hub://eval-run/<run_id> references"
+  },
+  "budget": { "wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 0 },
+  "fixtures": [
+    { "id": "live", "inputs": {}, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"], "note": "eval-floors is pending_telemetry by construction and does not lower the status; partial means a transient read failed." },
+    { "id": "bad-window", "inputs": { "window_token": "last_7d" }, "expect": { "status": ["failed"] } }
+  ],
+  "rung": "S3",
+  "owner_skill": "search-hub-improve"
+}

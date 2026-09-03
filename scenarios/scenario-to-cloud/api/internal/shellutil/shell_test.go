@@ -57,12 +57,9 @@ func TestVrooliCommand(t *testing.T) {
 			if !contains(result, "cd "+QuoteSingle(tt.workdir)) {
 				t.Errorf("VrooliCommand missing cd to workdir: %s", result)
 			}
-			// Must contain the deployment-local binary path and stale-check bypass
+			// Must contain the deployment-local binary path
 			if !contains(result, QuotedRemoteVrooliPath(tt.workdir)) {
 				t.Errorf("VrooliCommand missing remote binary path: %s", result)
-			}
-			if !contains(result, "--no-stale-check") {
-				t.Errorf("VrooliCommand missing stale-check bypass: %s", result)
 			}
 			// Must contain the normalized command tail
 			if !contains(result, tt.want) {
@@ -81,7 +78,7 @@ func TestVrooliCommandUsesDeploymentLocalBinaryInsteadOfGlobalCLI(t *testing.T) 
 	if contains(result, " ~/.vrooli/bin/vrooli") || contains(result, " /usr/local/bin/vrooli") {
 		t.Fatalf("expected deployment-local binary invocation, got: %s", result)
 	}
-	expectedBinary := QuotedRemoteVrooliPath(workdir) + " --no-stale-check stop"
+	expectedBinary := QuotedRemoteVrooliPath(workdir) + " stop"
 	if !contains(result, expectedBinary) {
 		t.Fatalf("expected explicit deployment-local invocation %q, got: %s", expectedBinary, result)
 	}

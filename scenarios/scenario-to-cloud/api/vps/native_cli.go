@@ -127,11 +127,11 @@ func buildLocalVrooliBinary(platform remotePlatform) (string, func(), error) {
 func buildLocalVrooliBinaryCommand(repoRoot, outputPath string, platform remotePlatform) *exec.Cmd {
 	cmd := execCommandForCLIInstall("go", "build", "-trimpath", "-o", outputPath, "./cmd/vrooli")
 	cmd.Dir = repoRoot
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
 		"GOOS=" + platform.GOOS,
 		"GOARCH=" + platform.GOARCH,
 		"GOWORK=off",
-	})
+	}), envkit.ToolchainOptions{})
 	return cmd
 }

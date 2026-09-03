@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/envkit-go"
 )
 
 // runVendor is the governed entry point for synchronising a module's
@@ -47,7 +48,7 @@ func runVendor(_ *cliapp.ScenarioApp, args []string) error {
 	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, "go", "mod", "vendor")
 	cmd.Dir = moduleDir
-	cmd.Env = cleanVendorEnvironment(os.Environ())
+	cmd.Env = envkit.Toolchain(vendorEnvironment(os.Environ()), envkit.ToolchainOptions{})
 	out, err := cmd.CombinedOutput()
 	result := struct {
 		Module       string   `json:"module"`
@@ -96,15 +97,10 @@ func repositoryModuleDir(root, module string) (string, error) {
 	return dir, nil
 }
 
-func cleanVendorEnvironment(environment []string) []string {
-	cleaned := make([]string, 0, len(environment)+2)
-	for _, entry := range environment {
-		if strings.HasPrefix(entry, "GOWORK=") || strings.HasPrefix(entry, "GOFLAGS=") {
-			continue
-		}
-		cleaned = append(cleaned, entry)
-	}
-	return append(cleaned, "GOWORK=off", "GOFLAGS=")
+// vendorEnvironment switches the workspace off and keeps the inherited
+// GOFLAGS; the spawn site composes the build width through envkit.Toolchain.
+func vendorEnvironment(environment []string) envkit.Env {
+	return envkit.WithOverlay(envkit.Env(environment), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 }
 
 func preserveVendorTrees(moduleDir, raw string) ([]string, func() error, error) {

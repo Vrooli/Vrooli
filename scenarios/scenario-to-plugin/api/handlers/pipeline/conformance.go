@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	conf "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/conformance"
 	"golang.org/x/text/unicode/norm"
 )
@@ -36,10 +37,14 @@ func (h *handler) conformance(p packageRecord) []*conf.Finding {
 		findings = append(findings, &conf.Finding{Code: code, Message: message, Path: path})
 	}
 
-	manifestBytes, err := os.ReadFile(filepath.Join(p.ScenarioRoot, "cli", "manifest.json"))
+	manifestRel, relErr := repocontract.ScenarioCLIManifestRel(h.root)
+	if relErr != nil {
+		manifestRel, _ = repocontract.ScenarioCLIManifestRel("")
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(p.ScenarioRoot, filepath.FromSlash(manifestRel)))
 	var manifest cliManifest
 	if err != nil || json.Unmarshal(manifestBytes, &manifest) != nil {
-		add("PLG-CONF-DRIFT", "pinned cli-manifest.json is missing or invalid", "cli/manifest.json")
+		add("PLG-CONF-DRIFT", "pinned cli-manifest.json is missing or invalid", manifestRel)
 	}
 	groups := map[string]bool{}
 	flags := map[string]map[string]bool{}

@@ -27,7 +27,7 @@ Missing files, parse errors, and unsupported config shapes are not autofixable f
 | `TS_CONFIG_STRICT` | TypeScript config | Add `strict: true`, `noUncheckedIndexedAccess: true`, and protective comment block. |
 | `ESLINT_SAFETY_RULES` | ESLint config | Add the safety-critical header, per-rule comments, and required rule entries when a safe config rewrite is available. |
 | `ESLINT_TYPED_CONFIG` | ESLint config | Add typed linting configuration, parser options, and TypeScript import resolver baseline when a safe config rewrite is available. |
-| `NODE_BUILD_TYPECHECK` | `package.json` | Ensure `build` runs `tsc --noEmit` before bundling. |
+Typecheck planner coverage is intentionally not autofixable. Add a `type-check` script and let unit-health select the registered planner.
 | `TESTING_CONFIG_LINT_STRICT` | `.vrooli/testing.json` | Enable strict Test Genie lint handlers for discovered Node and Go surfaces. |
 | `GO_MOD_PRESENT_FOR_API_OR_CLI` | `go.mod` | Create a minimal Go module file for Go surfaces. |
 | `GO_LINT_CONFIG_PRESENT` | `.golangci.yml` | Create baseline config for Go surfaces. |

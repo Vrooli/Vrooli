@@ -14,7 +14,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Surface-Aware Quality Audit | `quality-health audit <scenario> --json` calls Code Facts, returns a degraded result when discovery is unavailable, and emits normalized findings for TypeScript React/Vite UI, Go API, Go CLI, scenario Makefile gates, and `.vrooli/testing.json` quality policy.
-- [ ] OT-P0-002 | Rule-Parity Contract Registry | Quality Health preserves or strengthens the existing `TS_CONFIG_STRICT`, `ESLINT_SAFETY_RULES`, `TS_DANGEROUS_PATTERNS`, `ESLINT_TYPED_CONFIG`, `NODE_BUILD_TYPECHECK`, `TESTING_CONFIG_LINT_STRICT`, `GO_MOD_PRESENT_FOR_API_OR_CLI`, `GO_LINT_CONFIG_PRESENT`, `GO_LINT_REQUIRED_LINTERS`, and `MAKEFILE_QUALITY_GATES` semantics from Tidiness Manager / Scenario Auditor.
+- [ ] OT-P0-002 | Rule-Parity Contract Registry | Quality Health preserves or strengthens the existing TypeScript, planner-coverage, scenario-gate, and Go quality contracts from Tidiness Manager / Scenario Auditor.
 - [ ] OT-P0-003 | Protective Comment Enforcement | TypeScript and ESLint config audits treat safety-critical agent guidance comments as first-class contract evidence, so strict config values without the required guardrail text still fail.
 - [ ] OT-P0-004 | Agent-Readable Findings And Maturity | Audit responses include stable finding IDs, evidence, expected/observed values, why-it-matters copy, remediation, next steps, and a deterministic quality maturity rung.
 - [ ] OT-P0-005 | Safe Config Autofix Preview | `quality-health fix-config <scenario> --dry-run --json` previews deterministic config edits for supported rules without applying changes; `--apply` is required for mutation.

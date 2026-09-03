@@ -37,10 +37,11 @@ func metricsFrom(ctx context.Context) *metrics.Collector {
 }
 
 type Service struct {
-	Discoverer surfaces.Discoverer
-	Locator    surfaces.Locator
-	Executor   commands.Executor
-	Now        func() time.Time
+	Discoverer      surfaces.Discoverer
+	Locator         surfaces.Locator
+	Executor        commands.Executor
+	Now             func() time.Time
+	PlannerCoverage func(context.Context, surfaces.Inventory) (map[string]bool, error)
 }
 
 type Request struct {
@@ -146,6 +147,17 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		RunID:     "qh-" + now.UTC().Format("20060102-150405"),
 		Inventory: inv,
 	}
+	var typecheckPlans map[string]bool
+	if s.PlannerCoverage != nil {
+		var plannerErr error
+		typecheckPlans, plannerErr = s.PlannerCoverage(ctx, inv)
+		if plannerErr != nil {
+			// An unavailable provider is not silently treated as coverage. The
+			// rule receives an empty map and reports uncovered TypeScript
+			// surfaces, preserving an actionable quality finding.
+			typecheckPlans = map[string]bool{}
+		}
+	}
 
 	evaluate := collector.Stage("evaluate-rules")
 	var uncoveredSurfaces []string
@@ -164,7 +176,7 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		}
 		surfaceRules := rules.Filter(allSurfaceRules, req.RuleIDs)
 		before := len(res.Findings)
-		res.Findings = append(res.Findings, s.evaluateRules(inv, surface, surfaceRules, now)...)
+		res.Findings = append(res.Findings, s.evaluateRules(inv, surface, surfaceRules, now, typecheckPlans)...)
 		res.Contracts = append(res.Contracts, ContractEvaluation{
 			ContractID: contractIDForRules(allSurfaceRules),
 			SurfaceID:  surface.ID,
@@ -175,7 +187,7 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 	allScenarioRules := rules.ScenarioRules()
 	scenarioRules := rules.Filter(allScenarioRules, req.RuleIDs)
 	beforeScenario := len(res.Findings)
-	res.Findings = append(res.Findings, s.evaluateRules(inv, surfaces.Surface{ID: "scenario", Kind: "scenario"}, scenarioRules, now)...)
+	res.Findings = append(res.Findings, s.evaluateRules(inv, surfaces.Surface{ID: "scenario", Kind: "scenario"}, scenarioRules, now, typecheckPlans)...)
 	res.Contracts = append(res.Contracts, ContractEvaluation{
 		ContractID: "scenario-quality-gates",
 		SurfaceID:  "scenario",
@@ -309,7 +321,7 @@ func (s *Service) now() time.Time {
 	return time.Now()
 }
 
-func (s *Service) evaluateRules(inv surfaces.Inventory, surface surfaces.Surface, ruleList []rules.Rule, now time.Time) []Finding {
+func (s *Service) evaluateRules(inv surfaces.Inventory, surface surfaces.Surface, ruleList []rules.Rule, now time.Time, typecheckPlans map[string]bool) []Finding {
 	var out []Finding
 	for _, rule := range ruleList {
 		if rule.Evaluate == nil {
@@ -321,7 +333,7 @@ func (s *Service) evaluateRules(inv surfaces.Inventory, surface surfaces.Surface
 		if !rule.Applies.MatchesTargetKind(inv.ValidationTargetKind) {
 			continue
 		}
-		ctx := rules.EvalContext{Inventory: inv, Surface: surface, Now: now}
+		ctx := rules.EvalContext{Inventory: inv, Surface: surface, Now: now, TypecheckPlans: typecheckPlans}
 		for _, finding := range rule.Evaluate(ctx) {
 			out = append(out, findingFromRule(inv, finding, now))
 		}

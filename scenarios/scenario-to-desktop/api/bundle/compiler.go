@@ -3,9 +3,11 @@ package bundle
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/envkit-go"
@@ -29,11 +31,11 @@ func (b *defaultRuntimeBuilder) Build(srcDir, outPath, goos, goarch, target stri
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
 		"GOOS=" + goos,
 		"GOARCH=" + goarch,
-	})
+	}), envkit.ToolchainOptions{})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go build failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -118,18 +120,10 @@ func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest
 	}
 	args = append(args, entryPoint)
 
+	overlay := append(envkit.Env{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch}, buildOverlay(build.Env)...)
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
-		"CGO_ENABLED=0",
-		"GOOS=" + goos,
-		"GOARCH=" + goarch,
-	})
-
-	// Add custom environment variables
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, overlay), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -155,11 +149,7 @@ func compileRustBinary(srcDir, outPath, goos, goarch string, build *bundlemanife
 
 	cmd := exec.Command("cargo", args...)
 	cmd.Dir = srcDir
-
-	// Add custom environment variables
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, buildOverlay(build.Env)), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -234,10 +224,21 @@ func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifes
 	return assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos)
 }
 
+// buildOverlay renders a manifest's custom build environment as overlay
+// entries in key order, so a bundle's env is deterministic.
+func buildOverlay(env map[string]string) envkit.Env {
+	overlay := make(envkit.Env, 0, len(env))
+	for _, key := range slices.Sorted(maps.Keys(env)) {
+		overlay = append(overlay, key+"="+env[key])
+	}
+	return overlay
+}
+
 // npmInstallAll installs all dependencies (including devDependencies for build).
 func npmInstallAll(srcDir string) error {
 	cmd := exec.Command("npm", "install")
 	cmd.Dir = srcDir
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
@@ -253,11 +254,7 @@ func npmBuild(srcDir, goos, goarch string, build *bundlemanifest.BuildConfig) er
 
 	cmd := exec.Command("npm", buildArgs...)
 	cmd.Dir = srcDir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
-	cmd.Env = append(cmd.Env, "TARGET_OS="+goos, "TARGET_ARCH="+goarch)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, append(buildOverlay(build.Env), "TARGET_OS="+goos, "TARGET_ARCH="+goarch)), envkit.ToolchainOptions{})
 
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm build failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -283,6 +280,7 @@ func findNpmEntryPoint(distDir string) (string, error) {
 func npmInstallProd(srcDir string) error {
 	cmd := exec.Command("npm", "install", "--omit=dev")
 	cmd.Dir = srcDir
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install --omit=dev failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}

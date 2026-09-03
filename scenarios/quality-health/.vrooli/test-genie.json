@@ -240,6 +240,19 @@
         "fix_class": "auto",
         "fixer_status": "implemented"
       },
+      "TYPECHECK_PLANNER_COVERAGE": {
+        "capability_id": "typescript_quality",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "quality-health"
+        ],
+        "fix_class": "manual",
+        "reason": "Typecheck coverage is provided by the unit-health planner registry and cannot be repaired by changing a build script."
+      },
       "ESLINT_SAFETY_RULES": {
         "capability_id": "typescript_quality",
         "local_level_impact": "L2",

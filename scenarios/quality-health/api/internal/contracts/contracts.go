@@ -11,7 +11,7 @@ const (
 	RuleESLintSafetyRules           = rules.RuleESLintSafetyRules
 	RuleTSDangerousPatterns         = rules.RuleTSDangerousPatterns
 	RuleESLintTypedConfig           = rules.RuleESLintTypedConfig
-	RuleNodeBuildTypecheck          = rules.RuleNodeBuildTypecheck
+	RuleTypecheckPlannerCoverage    = rules.RuleTypecheckPlannerCoverage
 	RuleTestingConfigStrict         = rules.RuleTestingConfigStrict
 	RuleGoModPresent                = rules.RuleGoModPresent
 	RuleGoLintConfigPresent         = rules.RuleGoLintConfigPresent
@@ -61,7 +61,7 @@ func Registry() []Contract {
 			Language:     "typescript",
 			Framework:    "",
 			SurfaceKind:  "",
-			Description:  "Enforces strict TypeScript, typed ESLint, safety rules, guardrail comments, typechecked builds, and suppression visibility for any TypeScript or JavaScript surface.",
+			Description:  "Enforces strict TypeScript, typed ESLint, safety rules, planner-owned typecheck coverage, and suppression visibility for any TypeScript or JavaScript surface.",
 			WhyItMatters: "These rules prevent agents from hiding runtime crashes by weakening type and lint settings.",
 			Remediation:  "Restore the strict config values, keep the required safety comments, and fix source code with null checks, optional chaining, nullish coalescing, and type guards.",
 		},

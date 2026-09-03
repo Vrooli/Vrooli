@@ -4,7 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
+
+	"github.com/vrooli/envkit-go"
 )
 
 func TestRepositoryModuleDirRejectsPathsOutsideRepository(t *testing.T) {
@@ -48,13 +51,14 @@ func TestRepositoryModuleDirResolvesRepositoryRelativeModule(t *testing.T) {
 	}
 }
 
-func TestCleanVendorEnvironmentReplacesGoModuleOverrides(t *testing.T) {
+func TestVendorComposesGoflags(t *testing.T) {
 	t.Parallel()
 
-	got := cleanVendorEnvironment([]string{"PATH=/bin", "GOWORK=/tmp/go.work", "GOFLAGS=-mod=vendor", "OTHER=value"})
-	want := []string{"PATH=/bin", "OTHER=value", "GOWORK=off", "GOFLAGS="}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("cleanVendorEnvironment() = %#v, want %#v", got, want)
+	got := envkit.Toolchain(vendorEnvironment([]string{"PATH=/bin", "GOWORK=/tmp/go.work", "GOFLAGS=-mod=mod", "OTHER=value"}), envkit.ToolchainOptions{Width: 4})
+	for _, want := range []string{"PATH=/bin", "OTHER=value", "GOWORK=off", "GOFLAGS=-mod=mod -p=4"} {
+		if !slices.Contains(got, want) {
+			t.Fatalf("vendorEnvironment() = %#v, want it to carry %q", got, want)
+		}
 	}
 }
 

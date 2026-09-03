@@ -29,7 +29,7 @@ func QuotedRemoteVrooliPath(workdir string) string {
 
 // VrooliCommand wraps a remote vrooli command with PATH setup for SSH non-interactive sessions.
 // SSH non-interactive commands don't source shell profiles, so we make the deployment-local
-// binary location explicit and disable stale checks because the VPS install is a sealed artifact.
+// binary location explicit because the VPS install is a sealed artifact.
 func VrooliCommand(workdir, cmd string) string {
 	pathSetup := `export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`
 	trimmed := strings.TrimSpace(cmd)
@@ -40,7 +40,7 @@ func VrooliCommand(workdir, cmd string) string {
 		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "vrooli "))
 	}
 
-	base := fmt.Sprintf("%s && cd %s && %s --no-stale-check", pathSetup, QuoteSingle(workdir), QuotedRemoteVrooliPath(workdir))
+	base := fmt.Sprintf("%s && cd %s && %s", pathSetup, QuoteSingle(workdir), QuotedRemoteVrooliPath(workdir))
 	if trimmed == "" {
 		return base
 	}

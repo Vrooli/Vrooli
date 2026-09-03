@@ -250,12 +250,11 @@ func unprovenVerdict(row Row, in Inputs) (bool, string) {
 	if !claimsComplete {
 		return false, ""
 	}
-	// A complete claim with no snapshot ever written is pure assertion.
-	if !in.HasSnapshot {
-		return true, fmt.Sprintf("requirement %s is declared complete but no requirements-sync snapshot exists to earn it", row.RequirementID)
-	}
 	// A complete claim whose only validations are manual needs an unexpired
-	// attestation.
+	// attestation. Manual attestations are an independent evidence source, so
+	// they can earn the claim even when test-genie has never written a sync
+	// snapshot. This is important for manual-only requirements and is the
+	// contract described by the evidence maturity ladder.
 	onlyManual := len(row.Validations) > 0
 	for _, v := range row.Validations {
 		if v.Type != "manual" {
@@ -270,6 +269,12 @@ func unprovenVerdict(row Row, in Inputs) (bool, string) {
 		if row.Evidence.ManualExpired {
 			return true, fmt.Sprintf("requirement %s is declared complete but its only attestation expired %s", row.RequirementID, row.Evidence.Manual.ExpiresAt.UTC().Format(time.RFC3339))
 		}
+		return false, ""
+	}
+	// A complete non-manual claim with no snapshot ever written is pure
+	// assertion.
+	if !in.HasSnapshot {
+		return true, fmt.Sprintf("requirement %s is declared complete but no requirements-sync snapshot exists to earn it", row.RequirementID)
 	}
 	return false, ""
 }

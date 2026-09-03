@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-26T15:00:19-04:00"
+    "last_validated_at": "2026-09-02T15:37:54-04:00"
   },
   "requirements": [
     {
@@ -29,7 +29,7 @@
           "type": "automation",
           "ref": "test/playbooks/vps/setup.yaml",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Disposable-VPS smoke should verify native CLI upload, `vrooli setup --yes yes --environment production`, and deployment-local `vrooli --version`. Tag with [REQ:STC-P0-004]."
         }
       ]
@@ -37,7 +37,7 @@
     {
       "id": "STC-P0-010",
       "title": "Autoheal scope configured for mini-Vrooli",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "vps-setup",
       "description": "Deployment writes a scoped config so vrooli-autoheal monitors only the deployed scenario/resources and core lifecycle health signals.",
@@ -50,7 +50,7 @@
           "type": "automation",
           "ref": "test/playbooks/vps/autoheal-scope.yaml",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "E2E planned. Tag with [REQ:STC-P0-010]."
         }
       ]

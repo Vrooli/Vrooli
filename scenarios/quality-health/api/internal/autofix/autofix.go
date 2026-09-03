@@ -31,7 +31,6 @@ var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: contracts.RuleTSConfigStrict, Preview: previewTSConfigStrict, CanFix: canFixTSConfigStrict},
 	autofixcore.Fixer{RuleID: contracts.RuleESLintSafetyRules, Preview: previewESLintSafetyRules, CanFix: canFixESLint},
 	autofixcore.Fixer{RuleID: contracts.RuleESLintTypedConfig, Preview: previewESLintTypedConfig, CanFix: canFixESLint},
-	autofixcore.Fixer{RuleID: contracts.RuleNodeBuildTypecheck, Preview: previewNodeBuildTypecheck, CanFix: canFixNodeBuildTypecheck},
 	autofixcore.Fixer{RuleID: contracts.RuleTestingConfigStrict, Preview: previewTestingConfigStrict, CanFix: canFixTestingConfigStrict},
 	autofixcore.Fixer{RuleID: contracts.RuleGoModPresent, Preview: previewGoModPresent, CanFix: canFixGoModPresent},
 	autofixcore.Fixer{RuleID: contracts.RuleGoLintConfigPresent, Preview: previewGoLintConfigPresent, CanFix: canFixGoLintConfigPresent},
@@ -218,63 +217,6 @@ export default [
   },
 ];
 `
-}
-
-func previewNodeBuildTypecheck(root string) ([]Candidate, error) {
-	var out []Candidate
-	for _, path := range candidateFiles(root, "package.json", []string{"ui"}) {
-		before, after, changed, err := fixedPackageJSON(path)
-		if err != nil || !changed {
-			continue
-		}
-		out = append(out, Candidate{
-			RuleID:      contracts.RuleNodeBuildTypecheck,
-			FilePath:    path,
-			Description: "Ensure the build script runs TypeScript type checking before bundling.",
-			Before:      before,
-			After:       after,
-		})
-	}
-	return out, nil
-}
-
-func canFixNodeBuildTypecheck(root, findingPath string) bool {
-	path := findingPathOrDefault(root, findingPath, filepath.Join("ui", "package.json"))
-	_, _, changed, err := fixedPackageJSON(path)
-	return err == nil && changed
-}
-
-func fixedPackageJSON(path string) (string, string, bool, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return "", "", false, err
-	}
-	before := string(raw)
-	var pkg map[string]any
-	if err := json.Unmarshal(raw, &pkg); err != nil {
-		return before, before, false, err
-	}
-	scripts, _ := pkg["scripts"].(map[string]any)
-	if scripts == nil {
-		scripts = map[string]any{}
-		pkg["scripts"] = scripts
-	}
-	build, _ := scripts["build"].(string)
-	if strings.Contains(build, "tsc --noEmit") || strings.Contains(build, "run type-check") || strings.Contains(build, "type-check &&") {
-		return before, before, false, nil
-	}
-	if strings.TrimSpace(build) == "" {
-		build = "tsc --noEmit && vite build"
-	} else {
-		build = "tsc --noEmit && " + build
-	}
-	scripts["build"] = build
-	out, err := marshalJSONIndent(pkg)
-	if err != nil {
-		return before, before, false, err
-	}
-	after := string(out) + "\n"
-	return before, after, after != before, nil
 }
 
 func previewTestingConfigStrict(root string) ([]Candidate, error) {

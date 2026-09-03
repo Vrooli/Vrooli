@@ -39,8 +39,10 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		}
 		environment = nil
 	}
+	auditor := internalaudit.New(nil)
+	auditor.PlannerCoverage = internalaudit.NewUnitHealthPlannerCoverageChecker()
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewConnectHandler(Deps{
-		Auditor:      internalaudit.New(nil),
+		Auditor:      auditor,
 		Logger:       logger,
 		MaturitySpec: spec,
 		Environment:  environment,

@@ -53,7 +53,6 @@ func TestApplyRepairsAllAutofixClassConfigRules(t *testing.T) {
 		contracts.RuleTSConfigStrict,
 		contracts.RuleESLintSafetyRules,
 		contracts.RuleESLintTypedConfig,
-		contracts.RuleNodeBuildTypecheck,
 		contracts.RuleTestingConfigStrict,
 		contracts.RuleGoModPresent,
 		contracts.RuleGoLintRequiredLinters,
@@ -76,7 +75,7 @@ func TestApplyRepairsAllAutofixClassConfigRules(t *testing.T) {
 	assertFileContains(t, filepath.Join(ui, "tsconfig.json"), `"strict": true`, "SAFETY-CRITICAL RULES")
 	assertFileContains(t, filepath.Join(ui, "eslint.config.js"), "strictTypeChecked", "react-hooks/rules-of-hooks", "import/resolver")
 	require.NoFileExists(t, filepath.Join(root, "eslint.config.js"))
-	assertFileContains(t, filepath.Join(ui, "package.json"), "tsc --noEmit && vite build")
+	assertFileContains(t, filepath.Join(ui, "package.json"), `"build":"vite build"`)
 	assertFileContains(t, filepath.Join(root, ".vrooli", "testing.json"), `"node_package"`, `"go_module"`, `"strict": true`)
 	assertFileContains(t, filepath.Join(api, "go.mod"), "module api", "go 1.25")
 	assertFileContains(t, filepath.Join(api, ".golangci.yml"), "errcheck", "gofumpt", "staticcheck", "unused")
@@ -105,8 +104,6 @@ func TestCanFixReturnsFalseForUnparseableConfig(t *testing.T) {
 	require.NoError(t, os.MkdirAll(ui, 0o755))
 	path := filepath.Join(ui, "package.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"scripts":`), 0o644))
-
-	require.False(t, CanFix(root, contracts.RuleNodeBuildTypecheck, path))
 }
 
 func candidateRules(candidates []Candidate) []string {

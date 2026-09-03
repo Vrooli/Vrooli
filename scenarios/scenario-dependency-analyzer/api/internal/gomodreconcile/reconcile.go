@@ -574,11 +574,21 @@ func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
 func runGo(ctx context.Context, dir string, args ...string) error {
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOFLAGS=-mod=mod"})
+	cmd.Env = envkit.Toolchain(reconcileGoEnv(envkit.Env(os.Environ())), reconcileToolchain)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// reconcileToolchain appends -mod=mod through the toolchain overlay so the
+// inherited GOFLAGS (and its width) survive; nothing assigns GOFLAGS.
+var reconcileToolchain = envkit.ToolchainOptions{GoFlags: []string{"-mod=mod"}}
+
+// reconcileGoEnv switches the workspace off; the spawn site composes the
+// build width and -mod=mod through envkit.Toolchain.
+func reconcileGoEnv(parent envkit.Env) envkit.Env {
+	return envkit.WithOverlay(parent, envkit.SameScenario, envkit.Env{"GOWORK=off"})
 }
 
 func dedupeMissing(in []MissingReplace) []MissingReplace {

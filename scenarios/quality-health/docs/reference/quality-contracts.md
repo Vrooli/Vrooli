@@ -19,7 +19,7 @@ Routing lives in **one** registry: `api/internal/rules`. Each rule declares appl
 
 | Contract ID | Applies To | Rules |
 |---|---|---|
-| `typescript-static-quality` | any `typescript` or `javascript` surface (framework/kind wildcard) | `TS_CONFIG_STRICT`, `ESLINT_SAFETY_RULES`, `TS_DANGEROUS_PATTERNS`, `ESLINT_TYPED_CONFIG`, `NODE_BUILD_TYPECHECK` |
+| `typescript-static-quality` | any `typescript` or `javascript` surface (framework/kind wildcard) | `TS_CONFIG_STRICT`, `ESLINT_SAFETY_RULES`, `TS_DANGEROUS_PATTERNS`, `ESLINT_TYPED_CONFIG`, `TYPECHECK_PLANNER_COVERAGE` |
 | `go-static-quality` | any `go` surface (kind wildcard) | `GO_MOD_PRESENT_FOR_API_OR_CLI`, `GO_LINT_CONFIG_PRESENT`, `GO_LINT_REQUIRED_LINTERS`, `GO_DANGEROUS_PATTERNS` |
 | `scenario-quality-gates` | the scenario root | `TESTING_CONFIG_LINT_STRICT`, `MAKEFILE_QUALITY_GATES` |
 
@@ -33,7 +33,7 @@ A `javascript` surface is folded onto the `typescript` pack because those rules 
 | `ESLINT_SAFETY_RULES` | any TS/JS surface | `autofix` | Required React hooks, no-non-null-assertion, no-explicit-any, unsafe operation, and import cycle rules at or above minimum levels, plus required comments. |
 | `TS_DANGEROUS_PATTERNS` | TS/JS source | `detection_only` (source-semantic repair) | Count `as any`, broad type assertions, bare `@ts-ignore`, and non-null assertions with top-file evidence. |
 | `ESLINT_TYPED_CONFIG` | any TS/JS surface | `autofix` | Typed linting through `strictTypeChecked` plus `parserOptions.project` or accepted modern equivalent, and TypeScript import resolver when `import/no-cycle` is enabled. Commented-out config does not satisfy this rule. |
-| `NODE_BUILD_TYPECHECK` | any Node package surface | `autofix` | Build script must run type checking before bundling or have an equivalent type-check gate. |
+| `TYPECHECK_PLANNER_COVERAGE` | any TypeScript package surface | `detection_only` | The package must expose a `type-check` script consumed by the unit-health typecheck planner; the production build does not run the typecheck. |
 | `TESTING_CONFIG_LINT_STRICT` | `.vrooli/testing.json` | `autofix` | Scenario testing metadata must require strict lint/type handlers. |
 | `GO_MOD_PRESENT_FOR_API_OR_CLI` | any Go surface | `autofix` | Go surfaces require `go.mod`. |
 | `GO_LINT_CONFIG_PRESENT` | any Go surface | `autofix` | Go surfaces require `.golangci.yml` or equivalent config. |

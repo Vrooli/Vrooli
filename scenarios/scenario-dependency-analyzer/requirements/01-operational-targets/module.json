@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "SDA requirements mapped to literal PRD operational target IDs.",
-    "last_validated_at": "2026-08-24T05:41:16-04:00",
+    "last_validated_at": "2026-09-02T15:38:22-04:00",
     "module": "operational-targets",
     "prd_ref": "PRD.md",
     "priority": "P0-P2",

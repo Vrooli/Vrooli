@@ -287,21 +287,21 @@ func TestAuditRoutesGoSurfaceByLanguageNotName(t *testing.T) {
 }
 
 func TestAuditUncoveredSurfaceReportsGapNotPass(t *testing.T) {
-	// A discovered surface with no applicable contract (e.g. python) must report
+	// A discovered surface with no applicable contract (e.g. rust) must report
 	// `uncovered` + a coverage-gap info finding, never a clean pass.
 	root := t.TempDir()
-	pysvc := filepath.Join(root, "pysvc")
-	require.NoError(t, os.MkdirAll(pysvc, 0o755))
+	rsvc := filepath.Join(root, "rsvc")
+	require.NoError(t, os.MkdirAll(rsvc, 0o755))
 	// Keep scenario-level gates clean (no node/go surfaces here) so we isolate
 	// the coverage-gap behavior in the run status.
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".vrooli", "testing.json"), []byte(`{"lint":{"handlers":{}}}`), 0o644))
 
 	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
-		{ID: "pysvc", Kind: "api", Language: "python", RootPath: pysvc, Status: "known"},
+		{ID: "rsvc", Kind: "api", Language: "rust", RootPath: rsvc, Status: "known"},
 	}, nil)
 
-	c := contractStatusFor(report, "pysvc")
+	c := contractStatusFor(report, "rsvc")
 	require.Equal(t, "uncovered", c.Status)
 	require.Equal(t, "", c.ContractID)
 
@@ -309,21 +309,21 @@ func TestAuditUncoveredSurfaceReportsGapNotPass(t *testing.T) {
 	require.Equal(t, contracts.RuleCoverageGap, gap.RuleID)
 	require.Equal(t, "info", gap.Severity)
 	require.Equal(t, "coverage", gap.Category)
-	require.Contains(t, gap.Message, "pysvc")
-	require.Contains(t, gap.Message, "language=python")
+	require.Contains(t, gap.Message, "rsvc")
+	require.Contains(t, gap.Message, "language=rust")
 	// Info-only: run status is not failed.
 	require.Equal(t, "passed", report.Status)
 	require.Contains(t, report.Summary, "1 surface(s) uncovered")
 }
 
 func TestAuditNonGoApiSurfaceDoesNotRunGoEvaluator(t *testing.T) {
-	// A non-Go surface named "api" (python) must not run the Go evaluator.
+	// A non-Go surface named "api" (rust) must not run the Go evaluator.
 	root := t.TempDir()
 	api := filepath.Join(root, "api")
 	require.NoError(t, os.MkdirAll(api, 0o755))
 
 	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
-		{ID: "api", Kind: "api", Language: "python", RootPath: api, Status: "known"},
+		{ID: "api", Kind: "api", Language: "rust", RootPath: api, Status: "known"},
 	}, nil)
 
 	for _, f := range report.Findings {
@@ -351,9 +351,9 @@ func TestAuditJSOnlySurfaceSkipsTSConfig(t *testing.T) {
 		ruleIDs = append(ruleIDs, f.RuleID)
 		require.NotEqual(t, contracts.RuleTSConfigStrict, f.RuleID, "TS_CONFIG_STRICT must self-skip for JS-only surfaces")
 	}
-	// ESLint-missing and build-typecheck rules still apply.
+	// ESLint-missing and planner-coverage rules still apply.
 	require.Contains(t, ruleIDs, contracts.RuleESLintSafetyRules)
-	require.Contains(t, ruleIDs, contracts.RuleNodeBuildTypecheck)
+	require.Contains(t, ruleIDs, contracts.RuleTypecheckPlannerCoverage)
 	require.Equal(t, "typescript-static-quality", contractStatusFor(report, "web").ContractID)
 }
 

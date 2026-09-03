@@ -92,7 +92,7 @@ func TestResolvePrefersScenarioSurfaceWhenNamesOverlap(t *testing.T) {
 func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
-	mkSurface(t, repoRoot, "demo", "api", map[string]string{"go.mod": "module demo\n"})
+	mkSurface(t, repoRoot, "demo", "api", map[string]string{"go.mod": "module demo\n", "uv.lock": "", "pyproject.toml": "[project]\nname='demo'\n"})
 	mkSurface(t, repoRoot, "demo", "cli", map[string]string{"requirements.txt": ""})
 	mkSurface(t, repoRoot, "demo", "tools/mermaid-lint", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
 	mkSurface(t, repoRoot, "demo", "platforms/electron", map[string]string{"package-lock.json": "", "package.json": "{}"})
@@ -106,6 +106,7 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		{"ui", "npm", "zod", "", "pnpm", "pnpm add --ignore-scripts zod"},
 		{"api", "go", "github.com/foo/bar", "v1.2.3", "go", "go get github.com/foo/bar@v1.2.3"},
 		{"cli", "pip", "requests", "2.31.0", "pip", "pip install requests==2.31.0"},
+		{"api", "pip", "mypy", "", "uv", "uv add --dev mypy"},
 		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add --ignore-scripts mermaid@11.13.0"},
 		{"platforms/electron", "npm", "brace-expansion", "^5.0.8", "npm", "npm install --ignore-scripts brace-expansion@^5.0.8"},
 	}

@@ -904,6 +904,18 @@ func runGo(ctx context.Context, dir string, args ...string) (string, bool, error
 	return runGoEnv(ctx, dir, true, args...)
 }
 
+// freshnessGoEnv is the environment of every Go probe before the toolchain
+// floor: the workspace is switched off and offline probes pin GOPROXY=off.
+// The inherited GOFLAGS is kept, never cleared; the spawn site composes the
+// build width through envkit.Toolchain.
+func freshnessGoEnv(parent envkit.Env, offline bool) envkit.Env {
+	overlay := envkit.Env{"GOWORK=off"}
+	if offline {
+		overlay = append(overlay, "GOPROXY=off")
+	}
+	return envkit.WithOverlay(parent, envkit.SameScenario, overlay)
+}
+
 func runGoNetworkCommand(ctx context.Context, dir string, args ...string) (string, bool, error) {
 	return runGoEnv(ctx, dir, false, args...)
 }
@@ -913,11 +925,7 @@ func runGoEnv(ctx context.Context, dir string, offline bool, args ...string) (st
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	overlay := envkit.Env{"GOWORK=off", "GOFLAGS="}
-	if offline {
-		overlay = append(overlay, "GOPROXY=off")
-	}
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, overlay)
+	cmd.Env = envkit.Toolchain(freshnessGoEnv(envkit.Env(os.Environ()), offline), envkit.ToolchainOptions{})
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

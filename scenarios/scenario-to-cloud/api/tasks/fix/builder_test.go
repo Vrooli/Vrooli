@@ -95,13 +95,13 @@ func TestBuildPromptAndContext_UsesDeploymentLocalNativeCLIInSSHExamples(t *test
 	if !strings.Contains(out.Prompt, "/root/Vrooli/.vrooli/bin/vrooli") {
 		t.Fatalf("prompt should reference deployment-local vrooli binary: %q", out.Prompt)
 	}
-	if !strings.Contains(out.Prompt, "--no-stale-check scenario stop") || !strings.Contains(out.Prompt, "landing-page-business-suite") {
+	if !strings.Contains(out.Prompt, "scenario stop") || !strings.Contains(out.Prompt, "landing-page-business-suite") {
 		t.Fatalf("prompt should use native scenario stop command: %q", out.Prompt)
 	}
-	if !strings.Contains(out.Prompt, "--no-stale-check scenario start") {
+	if !strings.Contains(out.Prompt, "scenario start") {
 		t.Fatalf("prompt should use native scenario start command: %q", out.Prompt)
 	}
-	if !strings.Contains(out.Prompt, "--no-stale-check scenario status") {
+	if !strings.Contains(out.Prompt, "scenario status") {
 		t.Fatalf("prompt should use native scenario status command: %q", out.Prompt)
 	}
 }

@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Description: "Inspect approved third-party dependency governance records",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
+			{Name: "check", Description: "Run repository dependency consistency checks", Run: func(args []string) error { return runCheck(args) }},
 			{Name: "list", Description: "List approved dependency records", Run: func(args []string) error { return runList(core, args) }},
 			{Name: "search", Description: "Search approved dependency records", Run: func(args []string) error { return runSearch(core, args) }},
 			{Name: "explain", Description: "Explain one approved dependency record", Run: func(args []string) error { return runExplain(core, args) }},
@@ -137,7 +138,7 @@ func printSearchResults(records []*governancev1.ApprovedDependencyRecord, guidan
 		ResultsHeading: "Dependency Search",
 		Results:        results,
 		RetrievalHints: []string{
-				fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|playwright-driver|resource|tools/<package>>", support.AppName),
+			fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|playwright-driver|resource|tools/<package>>", support.AppName),
 			fmt.Sprintf("Propose a new package from observed usage: %s deps approved approve-observed <ecosystem>/<package> --from-findings --apply", support.AppName),
 			fmt.Sprintf("Inspect one record: %s deps approved explain <ecosystem>/<package>", support.AppName),
 		},

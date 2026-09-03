@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "search-hub.research",
+  "version": "1",
+  "purpose": "One federated project-research call at a named effort level (fast, standard, deep), returning bounded ranked rows plus routing meta and a verdict the skill branches on.",
+  "inputs": {
+    "query": { "type": "string", "required": true, "description": "Natural-language question." },
+    "effort": { "type": "string", "default": "standard", "enum": ["fast", "standard", "deep"], "description": "fast: classifier, limit 5; standard: classifier, limit 10; deep: every active provider, limit 20. Rows returned are capped at 6; ranked_count carries the total." },
+    "types": { "type": "array", "default": [], "description": "Explicit leaf-type tokens; the vocabulary of record is `search-hub providers list --json` `.providers[].type` (the program library is `library`). Overrides the classifier and the deep fan-out." },
+    "group": { "type": "string", "default": "", "description": "Scope the fan-out to one scenario's leaves." },
+    "scope": { "type": "string", "default": "", "description": "Optional corpus facet passed to scoped providers." }
+  },
+  "assumptions": [
+    "search-hub is running and search-hub/query/query is reachable from the kernel",
+    "the kernel passes `type` as a list of strings; a comma-joined string is refused by the proto encoder",
+    "the caller treats status unavailable as unknown and zero_result as a verdict, never as failure",
+    "when the router's reranker leg is absent the response has no fused `ranked` rows and every hit is in meta `groups[].hits`; the program reads them from the same call"
+  ],
+  "invariants": [
+    "exactly one binding call per run; no retry, no second query; the groups field is read from that call's meta()",
+    "no binding with effect write or destructive is called",
+    "ranked rows are at most 6 with snippets cut to 60 characters; nothing else is materialized; the envelope stays under the 4 KB stdout bound",
+    "a reranker outage is verdict answered_degraded with class reranker_absent; it is never zero_result and never sets escalate_to_web",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    { "id": "search-hub/query/query", "effect": "read" }
+  ],
+  "outputs": {
+    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
+    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "signals": {
+      "verdict": "one of answered, answered_degraded, zero_result, no_provider_selected, unavailable",
+      "ranked": "at most 6 hits (5 for fast) as {id,title,provider_id,type,path,score,rerank_score,snippet}; snippets cut to 60 characters so the envelope fits the 4 KB stdout bound",
+      "ranked_count": "count of hits: the fused ranked rows, or every groups[].hits entry when ranked is empty",
+      "ranked_source": "ranked when the rows are the router's fused list; groups when they were read from groups[].hits (reranker absent) and are ordered by provider score",
+      "corpora_searched": "first 6 provider ids the router searched",
+      "corpora_count": "count of provider ids the router searched",
+      "providers_hit": "provider id to count among the returned rows",
+      "degraded": "router reported a degraded leg",
+      "routing_degrade_reason": "router's degrade reason string when degraded",
+      "partial": "some provider legs had not answered within the timeout",
+      "pending_providers": "count of legs still pending when partial",
+      "latency_ms": "federated latency of this query as an integer (cast from the protojson int64 string)",
+      "selector_leg": "which selector chose the providers",
+      "reranker_leg": "which reranker ordered the rows; none when the leg is absent",
+      "ordered_by": "ordering the router applied",
+      "routing_explanation": "the --explain rationale, cut to 400 characters",
+      "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types"
+    },
+    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime", "degraded_leg", "reranker_absent"] },
+    "evidence": "ranked hit ids"
+  },
+  "budget": { "wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 20 },
+  "fixtures": [
+    { "id": "standard-live", "inputs": { "query": "how does search hub route queries" }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"] },
+    { "id": "typed-live", "inputs": { "query": "skill for writing tests", "effort": "fast", "types": ["skill", "doc"] }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"] },
+    { "id": "library-live", "inputs": { "query": "program runtime", "types": ["library"] }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"], "note": "With the reranker leg absent this returns partial, verdict answered_degraded, ranked_source groups; it must not return zero_result." },
+    { "id": "bad-effort", "inputs": { "query": "x", "effort": "max" }, "expect": { "status": ["failed"] } }
+  ],
+  "rung": "S3",
+  "owner_skill": "search-hub"
+}

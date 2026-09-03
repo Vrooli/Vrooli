@@ -66,6 +66,8 @@ func (a *App) normalizeArgs(args []string) []string {
 	case "deps":
 		if len(cleaned) >= 2 && cleaned[1] == "approved" {
 			cleaned = append([]string{"deps-approved"}, cleaned[2:]...)
+		} else if len(cleaned) >= 2 && cleaned[1] == "check" {
+			cleaned = append([]string{"deps-approved", "check"}, cleaned[2:]...)
 		}
 	case "dependencies":
 		cleaned[0] = "list"
