@@ -54,8 +54,8 @@ export default function RoomPage() {
         <ExperienceSurface surfaceId="sources" as="div" data-testid="room-sources" className="cc-sources" state={sourceState} aria-label="Source availability">
           {sources.length === 0 ? <span className="cc-source" data-answering="none">{isLoading ? "reading sources" : "no source read"}</span> : null}
           {sources.map(([name, meta]) => (
-            <span key={name} className="cc-source" data-answering={meta.staleness_ts ? "stale" : "yes"} title={meta.staleness_ts ? `last fetch failed ${meta.staleness_ts}` : "answering"}>
-              <span className="cc-source-dot" />{name}
+            <span key={name} className="cc-source" data-answering={meta.staleness_ts ? "stale" : meta.integration_status ?? "yes"} title={meta.staleness_ts ? `last fetch failed ${meta.staleness_ts}` : `${meta.integration_id ?? name} ${meta.integration_status ?? "unknown"}`}>
+              <span className="cc-source-dot" />{name}{meta.integration_status ? ` · ${meta.integration_status}` : ""}
             </span>
           ))}
           {isFetching ? <span className="cc-source cc-source-fetching" aria-label="refreshing">·</span> : null}

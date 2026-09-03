@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"landing-page-business-suite-api/internal/scenarioroot"
+
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
 )
@@ -90,11 +92,15 @@ func variantSpaceFilePath() string {
 	if override := strings.TrimSpace(envx.Get("VARIANT_SPACE_PATH")); override != "" {
 		return override
 	}
-	candidates := []string{
+	candidates := []string{}
+	if root := scenarioroot.Resolve(); root != "" {
+		candidates = append(candidates, filepath.Join(root, "config", "variant_space.json"))
+	}
+	candidates = append(candidates,
 		filepath.Join("..", "config", "variant_space.json"),
 		filepath.Join(".", "config", "variant_space.json"),
 		filepath.Join("..", "..", "config", "variant_space.json"),
-	}
+	)
 	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate

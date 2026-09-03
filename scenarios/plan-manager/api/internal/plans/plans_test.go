@@ -2042,3 +2042,137 @@ func TestStoredLegacyLongSlugStillResolves(t *testing.T) {
 	require.Equal(t, "legacy-plan-id", resolved.ID)
 	require.Equal(t, legacySlug, resolved.Slug, "the stored slug must not be rewritten")
 }
+
+// TestReconcileSkipsRenderedMirrorAgainstEmptyDatabase reproduces the failure
+// that created 640 slug-suffixed duplicate plans in a single day. Every other
+// idempotency guard keys on database contents, so a reconcile run against a
+// database that does not contain the plan treats the system's own rendered
+// mirror as a novel legacy source and re-imports it. The identity marker is
+// the only guard that holds in that state, so this test asserts the empty
+// database case specifically.
+func TestReconcileSkipsRenderedMirrorAgainstEmptyDatabase(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	mirrorFile := filepath.Join("docs", "plans", "already-rendered.md")
+	marker := plans.FormatMirrorMarker("9f1c1d6e-0000-4000-8000-000000000001", "already-rendered")
+	reader := fakeReader{files: map[string]string{
+		mirrorFile: marker + "\n\n# Already rendered\n\n## Purpose\nDo not re-import me.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	res, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
+	require.NoError(t, err)
+	require.Len(t, res.Items, 1)
+	require.Equal(t, plans.ReconcileActionSkippedDuplicate, res.Items[0].Action)
+	require.True(t, res.Items[0].SourceUntouched)
+
+	// The decisive assertion: no plan was created, so no `-2` slug can exist.
+	all, err := svc.List(ctx, plans.ListFilter{IncludeArchived: true})
+	require.NoError(t, err)
+	require.Empty(t, all, "a rendered mirror must never be imported as a new plan")
+}
+
+// TestReconcileRecognizesRenderedMirrorByIdentityMarker covers the normal case:
+// the plan exists, so its mirror is reported canonical rather than skipped.
+func TestReconcileRecognizesRenderedMirrorByIdentityMarker(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{files: map[string]string{}},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{Title: "Marked plan", Purpose: "Stay canonical."})
+	require.NoError(t, err)
+
+	marker := plans.FormatMirrorMarker(created.ID, created.Slug)
+	mirrorFile := filepath.Join("docs", "plans", created.Slug+".md")
+	svc = plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{files: map[string]string{mirrorFile: marker + "\n\n# Marked plan\n\n## Purpose\nStay canonical.\n"}},
+		Mirror: mirror,
+	})
+
+	res, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
+	require.NoError(t, err)
+	require.Len(t, res.Items, 1)
+	require.Equal(t, plans.ReconcileActionAlreadyCanonical, res.Items[0].Action)
+	require.Equal(t, created.ID, res.Items[0].PlanID)
+
+	all, err := svc.List(ctx, plans.ListFilter{IncludeArchived: true})
+	require.NoError(t, err)
+	require.Len(t, all, 1, "reconcile must not duplicate an existing plan from its own mirror")
+}
+
+// TestPruneIndexDropsDeadRecordsAndKeepsOrphanedMirrors covers the mirror index
+// removal path, which did not exist: upsertIndex only appended or replaced in
+// place, so the live index had grown to 2,787 records for 1,705 plans. Because
+// every plan write rewrites the whole index, dead records are a per-write cost
+// as well as wasted bytes.
+func TestPruneIndexDropsDeadRecordsAndKeepsOrphanedMirrors(t *testing.T) {
+	home := t.TempDir()
+	store := plans.NewOSMirrorStore(home)
+	// The store resolves its own root from the runtime-home contract, so derive
+	// it rather than assuming a layout.
+	meta, err := store.PathFor(context.Background(), plans.Plan{Slug: "probe"})
+	require.NoError(t, err)
+	root := filepath.Dir(meta.Path)
+	require.NoError(t, os.MkdirAll(root, 0o755))
+
+	present := filepath.Join(root, "present.md")
+	require.NoError(t, os.WriteFile(present, []byte("# Present\n"), 0o600))
+	orphan := filepath.Join(root, "orphan.md")
+	require.NoError(t, os.WriteFile(orphan, []byte("# Orphan\n"), 0o600))
+
+	index := map[string]any{
+		"version": 1,
+		"plans": []map[string]any{
+			{"id": "id-present", "slug": "present", "path": present},
+			{"id": "id-present", "slug": "present", "path": present},
+			{"id": "id-gone", "slug": "gone", "path": filepath.Join(root, "gone.md")},
+			{"id": "id-orphan", "slug": "orphan", "path": orphan},
+		},
+	}
+	raw, marshalErr := json.MarshalIndent(index, "", "  ")
+	require.NoError(t, marshalErr)
+	indexPath := filepath.Join(root, "_index.json")
+	require.NoError(t, os.WriteFile(indexPath, raw, 0o600))
+
+	pruner, ok := any(store).(plans.MirrorIndexPruner)
+	require.True(t, ok, "OSMirrorStore must implement MirrorIndexPruner")
+	res, err := pruner.PruneIndex()
+	require.NoError(t, err)
+
+	require.Equal(t, 4, res.Before)
+	require.Equal(t, 2, res.After)
+	require.Equal(t, 1, res.MissingFile, "the record whose file is gone must be dropped")
+	require.Equal(t, 1, res.DuplicateID, "the duplicate id must collapse to one record")
+
+	after, err := os.ReadFile(indexPath)
+	require.NoError(t, err)
+	var decoded struct {
+		Version int `json:"version"`
+		Plans   []struct {
+			ID string `json:"id"`
+		} `json:"plans"`
+	}
+	require.NoError(t, json.Unmarshal(after, &decoded))
+	require.Equal(t, 2, decoded.Version, "prune must also lift a v1 index to the current version")
+	ids := []string{}
+	for _, p := range decoded.Plans {
+		ids = append(ids, p.ID)
+	}
+	// An orphaned mirror keeps its record: its file still exists, and that is
+	// exactly the state an operator may want to recover from.
+	require.ElementsMatch(t, []string{"id-present", "id-orphan"}, ids)
+}

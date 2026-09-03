@@ -124,7 +124,11 @@ func parseFallbackLandingConfig(data []byte) (*LandingConfigPayload, error) {
 		return nil, fmt.Errorf("fallback config missing pricing")
 	}
 	var pricing commerce.PricingOverview
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw.Pricing, &pricing); err != nil {
+	pricingJSON, err := normalizeFallbackPricingJSON(raw.Pricing)
+	if err != nil {
+		return nil, fmt.Errorf("normalize fallback pricing: %w", err)
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(pricingJSON, &pricing); err != nil {
 		return nil, fmt.Errorf("parse fallback pricing: %w", err)
 	}
 	sections := normalizeFallbackSections(raw.Sections)
@@ -145,6 +149,95 @@ func parseFallbackLandingConfig(data []byte) (*LandingConfigPayload, error) {
 		payload.Variant.Axes = raw.Axes
 	}
 	return payload, nil
+}
+
+// normalizeFallbackPricingJSON accepts the ordinary JSON representation used
+// by checked-in fallback files and converts values inside metadata maps to the
+// explicit common.v1.JsonValue wire shape. Already-normalized JsonValue
+// objects pass through unchanged. This keeps hand-authored fallback data
+// readable while preserving the typed proto contract at the boundary.
+func normalizeFallbackPricingJSON(data []byte) ([]byte, error) {
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, err
+	}
+	normalizeFallbackMetadata(value)
+	return json.Marshal(value)
+}
+
+func normalizeFallbackMetadata(value any) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		if list, ok := value.([]any); ok {
+			for _, item := range list {
+				normalizeFallbackMetadata(item)
+			}
+		}
+		return
+	}
+	for key, item := range object {
+		if key == "metadata" {
+			if metadata, ok := item.(map[string]any); ok {
+				object[key] = normalizeFallbackJsonObject(metadata)
+			}
+			continue
+		}
+		normalizeFallbackMetadata(item)
+	}
+}
+
+func normalizeFallbackJsonObject(metadata map[string]any) map[string]any {
+	for key, value := range metadata {
+		if isFallbackJsonValue(value) {
+			continue
+		}
+		metadata[key] = normalizeFallbackJsonValue(value)
+	}
+	return metadata
+}
+
+func isFallbackJsonValue(value any) bool {
+	object, ok := value.(map[string]any)
+	if !ok || len(object) != 1 {
+		return false
+	}
+	for key := range object {
+		switch key {
+		case "bool_value", "boolValue", "int_value", "intValue", "double_value", "doubleValue", "string_value", "stringValue", "object_value", "objectValue", "list_value", "listValue", "null_value", "nullValue", "bytes_value", "bytesValue":
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeFallbackJsonValue(value any) map[string]any {
+	switch typed := value.(type) {
+	case nil:
+		return map[string]any{"null_value": "NULL_VALUE"}
+	case bool:
+		return map[string]any{"bool_value": typed}
+	case string:
+		return map[string]any{"string_value": typed}
+	case float64:
+		if typed == float64(int64(typed)) {
+			return map[string]any{"int_value": int64(typed)}
+		}
+		return map[string]any{"double_value": typed}
+	case []any:
+		values := make([]any, 0, len(typed))
+		for _, item := range typed {
+			values = append(values, normalizeFallbackJsonValue(item))
+		}
+		return map[string]any{"list_value": map[string]any{"values": values}}
+	case map[string]any:
+		fields := make(map[string]any, len(typed))
+		for key, item := range typed {
+			fields[key] = normalizeFallbackJsonValue(item)
+		}
+		return map[string]any{"object_value": map[string]any{"fields": fields}}
+	default:
+		return map[string]any{"string_value": fmt.Sprint(typed)}
+	}
 }
 
 // ParseFallbackLandingConfig parses and validates a scenario fallback payload.

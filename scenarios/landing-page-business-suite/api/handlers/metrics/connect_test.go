@@ -65,7 +65,8 @@ func TestConnectTrackEventMapsDomainValidationFailures(t *testing.T) {
 }
 
 func TestConnectAnalyticsSummaryPreservesRequestedWindowAndProjection(t *testing.T) {
-	reader := &connectReader{summary: &metrics.AnalyticsSummary{TotalVisitors: 12, TotalDownloads: 3, VariantStats: []metrics.VariantStats{{VariantSlug: "control", VariantName: "Control", Views: 10, CTAClicks: 4, Conversions: 2, Downloads: 1, ConversionRate: 20}}}}
+	observedAt := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	reader := &connectReader{summary: &metrics.AnalyticsSummary{TotalVisitors: 12, TotalDownloads: 3, ObservedAt: &observedAt, VariantStats: []metrics.VariantStats{{VariantSlug: "control", VariantName: "Control", Views: 10, CTAClicks: 4, Conversions: 2, Downloads: 1, ConversionRate: 20}}}}
 	handler := NewConnectHandler(ConnectDependencies{Reader: reader})
 	response, err := handler.GetAnalyticsSummary(context.Background(), connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{StartDate: "2026-01-01", EndDate: "2026-01-31"}))
 	if err != nil {
@@ -76,6 +77,9 @@ func TestConnectAnalyticsSummaryPreservesRequestedWindowAndProjection(t *testing
 	}
 	if response.Msg.GetTotalVisitors() != 12 || response.Msg.GetVariantStats()[0].GetCtaClicks() != 4 {
 		t.Fatalf("summary projection = %+v", response.Msg)
+	}
+	if response.Msg.GetObservedAt() == nil || !response.Msg.GetObservedAt().AsTime().Equal(observedAt) {
+		t.Fatalf("observed_at = %v, want %v", response.Msg.GetObservedAt(), observedAt)
 	}
 }
 

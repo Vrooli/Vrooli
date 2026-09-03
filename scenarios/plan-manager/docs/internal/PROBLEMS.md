@@ -79,6 +79,22 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `docs/concepts/DATA.md` (Migrations And Compatibility); `internal/app/plans` (existing store).
 
+**2026-09-02 update — the inverse risk fired.** This entry correctly named the shared home store as a
+hazard and prescribed non-destructive adoption, which was built. What nobody wrote down is that the
+mirror tree is *both* the output and an intake root, so the system re-imports its own renders. On
+2026-08-25 a reconcile against a database that did not contain those plans treated 1,300 rendered
+mirrors as novel legacy sources: 637 slug-suffixed duplicate plans in one day, 640 in total, and 669
+of 1,920 mirror files now carry a numeric suffix. Every guard in `reconcileIntakeSource` keyed on
+database contents, so all of them failed open in exactly that state.
+
+Fixed by stamping rendered mirrors with a `<!-- plan-manager:mirror id=... -->` identity marker and
+consulting it before any database-keyed guard (`internal/plans/render.go`, `internal/plans/mirror.go`,
+`internal/plans/resolver.go`), covered by `TestReconcileSkipsRenderedMirrorAgainstEmptyDatabase`.
+**Still open:** the 640 existing duplicates and 215 orphaned mirror files are not cleaned up by this
+change — reconcile now reports an orphaned mirror as `skipped_duplicate` and leaves it alone, because
+restoring a plan's original identity is a recovery operation rather than something a routine reconcile
+should infer. A dedup/recovery pass over the existing corpus is unwritten.
+
 ### 2026-06-25 — `prd-control-tower prd generate` (LLM path) returns HTTP 500
 
 **Symptom:** `prd-control-tower prd generate plan-manager --publish` fails with `api error (500)`.

@@ -2,7 +2,7 @@
 
 Known defects and divergences, newest first. This file is the honest record of where the code differs from the documents around it.
 
-**Standing note (2026-09-01):** the documentation in this scenario was rewritten to the instrument design before implementation. The core reading, read-surface, room, provenance, input, state-mode, and component-adoption divergences are now addressed; remaining rows describe upstream data ownership, evidence provenance, or validator/dependency infrastructure limitations.
+**Standing note (2026-09-02):** the immersive display and core reading surfaces are implemented. The integration registry, typed feature state, source-time qualification, Prompt Manager transmitter, CLI parity, and confirmed scenario lifecycle action seam are now implemented; remaining rows describe upstream data ownership, visual evidence limitations, or validator/dependency infrastructure limitations.
 
 ---
 
@@ -18,7 +18,7 @@ The BAS scene cases now evaluate actual canvas pixels rather than only checking 
 
 ### Resolved — Every live metric reported UNAVAILABLE
 
-**Observed** 2026-09-01. `GET /api/v1/rooms/mission-control` returned `value: null`, `trust: UNAVAILABLE` for all five `NOW` metrics with both sources healthy. Two causes: the Swarm Manager base URL fell back to a hardcoded port that was never assigned, and the value join (`findNumber`) walked the upstream JSON for keys that do not exist in either payload. Fixed by resolving source ports from the control plane's own scenario listing at fetch time (`api/directory.go`) and by naming an explicit selector per metric (`api/selectors.go`); an unknown selector is now a stated `trustReason`, never a guessed number. A cached value is now served as `CACHED` with its age when a fetch fails, instead of being dropped.
+**Observed** 2026-09-01. `GET /api/v1/rooms/mission-control` returned `value: null`, `trust: UNAVAILABLE` for all five `NOW` metrics with both sources healthy. Two causes: the Swarm Manager base URL fell back to a hardcoded port that was never assigned, and the value join (`findNumber`) walked the upstream JSON for keys that do not exist in either payload. Fixed by resolving source ports at fetch time through `api-core/discovery` (`api/directory.go`) and by naming an explicit selector per metric (`api/selectors.go`); an unknown selector is now a stated `trustReason`, never a guessed number. A cached value is now served as `CACHED` with its age when a fetch fails, instead of being dropped.
 
 ### Resolved — Provenance was rendered as alarm
 
@@ -88,6 +88,13 @@ Every schema error in these specs was fixed: static regions now declare `states:
 **Claim tiers.** Claims remain `aspirational` unless their named machine check is present in the
 experience suite. The `room-never-blank` claim is now machine-checked by the pixel assertions;
 the other claims retain their declared tiers until their checks are promoted.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: W0 goal/PRD comparison now agrees after reconciling the stale `command-center-dashboards` and `command-center-foundation` goal/milestone descriptions on 2026-09-03; `business-health validate scenario command-center` and `vrooli scenario requirements validate command-center` both pass with no findings; focused Command Center contracts and race tests pass; the rebuilt live dashboard reports Vrooli `active_scenarios` as `VALID` with a producer-owned timestamp.
+- Remaining: full-plan baseline coverage is still partial. Generation 7 has 3 ready, 3 pending, and 4 failed required members; Test Genie source-identity admission was repaired, but the collection retains admission saturation, in-progress-run conflicts, and deadline failures. Broad inherited suite findings remain separately logged. Targeted Command Center and Web Console contract runs pass; focused implementation, generated-contract, and live evidence is passing.
+- Measured: 2026-09-03
 
 ## Component library defects found while designing
 

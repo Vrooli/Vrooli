@@ -46,6 +46,7 @@ const (
 	SectionRegressionAnchor     SectionKey = "regression_anchor"
 	SectionRequiredReading      SectionKey = "required_reading"
 	SectionRelevantContext      SectionKey = "relevant_context"
+	SectionRisksHazards         SectionKey = "risks_hazards"
 	SectionValidationStrategy   SectionKey = "validation_strategy"
 	SectionDefinitionOfDone     SectionKey = "definition_of_done"
 	SectionPhases               SectionKey = "phases"

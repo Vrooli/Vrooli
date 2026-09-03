@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -163,4 +165,22 @@ func TestRenderEventUsesLiveOperatorTemplateForFacts(t *testing.T) {
 	require.Equal(t, "warning: disk-space", rendered.Title)
 	require.Equal(t, "low disk", rendered.Body)
 	require.Equal(t, "sensitive", rendered.SensitivityLabel)
+}
+
+func TestOperatorStateRecipientReadsTheOperatorSetting(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	resolve := OperatorStateRecipient()
+	if got := resolve(context.Background()); got != "" {
+		t.Fatalf("missing state resolved %q", got)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1","updated_at":"now","notifications":{"recipient":" operator@host "}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolve(context.Background()); got != "operator@host" {
+		t.Fatalf("resolved %q, want operator@host", got)
+	}
 }

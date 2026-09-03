@@ -1,6 +1,6 @@
 # UI Architecture
 
-**Status:** design contract, ahead of implementation. The governing design language is `DESIGN.md` (`vrooli-command-display`); this document is how that language is built.
+**Status:** verified implementation architecture. The governing design language is `DESIGN.md` (`vrooli-command-display`); integration condition is projected into the existing source strips and Focus surface without a new settings surface.
 
 ## The board is not an app shell
 

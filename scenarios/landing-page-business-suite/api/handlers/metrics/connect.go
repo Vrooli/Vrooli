@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	metrics "landing-page-business-suite-api/internal/metrics"
 )
 
@@ -105,7 +106,11 @@ func summaryProto(summary *metrics.AnalyticsSummary) *lpbsv1.AnalyticsSummary {
 	for _, stat := range summary.VariantStats {
 		stats = append(stats, statProto(stat))
 	}
-	return &lpbsv1.AnalyticsSummary{TotalVisitors: summary.TotalVisitors, TotalDownloads: summary.TotalDownloads, VariantStats: stats}
+	result := &lpbsv1.AnalyticsSummary{TotalVisitors: summary.TotalVisitors, TotalDownloads: summary.TotalDownloads, VariantStats: stats}
+	if summary.ObservedAt != nil {
+		result.ObservedAt = timestamppb.New(*summary.ObservedAt)
+	}
+	return result
 }
 
 func RegisterConnectRoutes(router *mux.Router, deps ConnectDependencies, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {

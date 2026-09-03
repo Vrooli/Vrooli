@@ -42,6 +42,33 @@ func TestAccountTransportReaderPropagatesSourceErrors(t *testing.T) {
 	}
 }
 
+func TestAccountTransportReaderRejectsNilCommercePayloads(t *testing.T) {
+	reader := accounthttp.NewCommerceReader(fakeAccountTransportSource{})
+	if _, err := reader.GetCreditsContext(context.Background(), "customer@example.test"); err == nil {
+		t.Fatal("expected nil credits payload to fail closed")
+	}
+	if _, err := reader.GetEntitlementsContext(context.Background(), "customer@example.test"); err == nil {
+		t.Fatal("expected nil entitlements payload to fail closed")
+	}
+	if _, err := reader.GetCommercialContext(context.Background(), "customer@example.test", "integrations", "github"); err == nil {
+		t.Fatal("expected nil commercial payload source to fail closed")
+	}
+}
+
+func TestAccountTransportReaderScopesCommercialContentToEligibleContext(t *testing.T) {
+	reader := accounthttp.NewCommerceReader(fakeAccountTransportSource{
+		entitlements: &commerce.EntitlementPayload{Status: "active", PlanTier: "free"},
+	})
+	got, err := reader.GetCommercialContext(context.Background(), "customer@example.test", "integrations", "github")
+	if err != nil || len(got.Content) != 1 || got.Content[0].ContentId != "integrations-capability-account-github" {
+		t.Fatalf("context=%#v err=%v", got, err)
+	}
+	other, err := reader.GetCommercialContext(context.Background(), "customer@example.test", "settings", "github")
+	if err != nil || len(other.Content) != 0 {
+		t.Fatalf("unexpected non-integrations content=%#v err=%v", other, err)
+	}
+}
+
 type fakeAccountTransportSource struct {
 	subscription *shared.SubscriptionStatus
 	credits      *commerce.CreditsEnvelope

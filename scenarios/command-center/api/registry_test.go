@@ -3,8 +3,31 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reg.Metrics) != 38 {
+		t.Fatalf("metrics = %d, want current authored set", len(reg.Metrics))
+	}
+	for _, metric := range reg.Metrics {
+		binding := metric.Source
+		if binding.IntegrationID == "" || binding.FeatureID == "" || binding.ContractVersion == "" || binding.Selector == "" || binding.ExpectedUnit == "" || binding.SourceTimePolicy != "producer_required" {
+			t.Errorf("metric %q has incomplete typed binding: %+v", metric.ID, binding)
+		}
+		if binding.IntegrationID == "none" && metric.Coverage != CoverageMissing {
+			t.Errorf("no-source metric %q has coverage %s", metric.ID, metric.Coverage)
+		}
+		if strings.TrimSpace(metric.Source.FeatureID) != strings.TrimSpace(metric.Source.Selector) {
+			t.Errorf("metric %q feature/selector mismatch", metric.ID)
+		}
+	}
+}
 
 func TestLoadRegistry_ValidFile(t *testing.T) {
 	reg, err := LoadRegistry(filepath.Join("..", "config", "gap-registry.json"))

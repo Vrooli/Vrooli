@@ -4,7 +4,7 @@ Command Center is `team:director-swarm`'s **instrument**: the one address the te
 
 It renders that answer as a **board** — six full-bleed rooms designed to run unattended on a wall, a desk, a phone, or a gamepad-controlled TV.
 
-> **Read this first if you are about to change something.** The documentation in this scenario was rewritten on 2026-09-01 to a design the code does not yet implement. The code still implements the 2026-04 read-only kiosk aggregator. [internal/PROBLEMS.md](internal/PROBLEMS.md) lists every divergence, dated, with the requirement that closes it.
+> **Read this first if you are about to change something.** The immersive display remains the protected visual contract. The API now also exposes manifest-driven integration state, typed feature compatibility, and explicitly confirmed allowlisted lifecycle actions; [internal/PROBLEMS.md](internal/PROBLEMS.md) records remaining gaps and inherited health debt.
 
 ## Read in this order
 
@@ -24,7 +24,7 @@ It renders that answer as a **board** — six full-bleed rooms designed to run u
 
 1. **Coverage and trust never merge.** "Is there a sensor" and "is this reading good" are independent fields with closed vocabularies. A source outage changes trust; it must never change coverage. Collapsing them into one status is the defect the previous model shipped.
 2. **A sample value may never originate from an upstream.** Illustrative numbers are checked-in, reviewed, stamped registry data. Generating a plausible number at runtime is indistinguishable from a bug and is forbidden.
-3. **There is no write path.** No work-item filing, no setpoint writes, no upstream mutation. Sensor implies no authority; an instrument that decided would be a controller with a bad boundary.
+3. **There is no business write path.** Integration actions are limited to explicit, confirmed, allowlisted lifecycle operations for declared scenario dependencies. Command Center never writes work items, setpoints, or upstream business state.
 
 ## Running it
 

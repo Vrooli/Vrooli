@@ -78,6 +78,7 @@ type AnalyticsSummary struct {
 	VariantStats   []VariantStats `json:"variant_stats"`
 	TopCTA         string         `json:"top_cta,omitempty"`
 	TopCTACTR      float64        `json:"top_cta_ctr,omitempty"`
+	ObservedAt     *time.Time     `json:"observed_at,omitempty"`
 }
 
 func (s *Service) TrackEvent(event Event) error {
@@ -195,5 +196,6 @@ func (s *Service) GetAnalyticsSummary(startDate, endDate time.Time) (*AnalyticsS
 	if topCTAViews > 0 {
 		topCTACTR = float64(topCTAClicks) / float64(topCTAViews) * 100
 	}
-	return &AnalyticsSummary{TotalVisitors: totalVisitors, TotalDownloads: totalDownloads, VariantStats: stats, TopCTA: topCTA, TopCTACTR: topCTACTR}, nil
+	observedAt := time.Now().UTC()
+	return &AnalyticsSummary{TotalVisitors: totalVisitors, TotalDownloads: totalDownloads, VariantStats: stats, TopCTA: topCTA, TopCTACTR: topCTACTR, ObservedAt: &observedAt}, nil
 }

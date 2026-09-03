@@ -26,12 +26,18 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		TechnicalApproach:    contentOf(sess.Sections, SectionTechnicalApproach),
 		Constraints:          contentOf(sess.Sections, SectionConstraints),
 		ProhibitedApproaches: contentOf(sess.Sections, SectionProhibitedApproaches),
+		RisksHazards:         contentOf(sess.Sections, SectionRisksHazards),
 		ValidationStrategy:   contentOf(sess.Sections, SectionValidationStrategy),
 		DefinitionOfDone:     contentOf(sess.Sections, SectionDefinitionOfDone),
 		References:           parsed.References,
 		Phases:               parsed.Phases,
 		RelevantContext:      append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
+	// Reuse the renderer's own grammar so a wizard-authored plan can express its
+	// final validation commands. Before this, FinalValidationCommands was an
+	// authored, hash-visible field that only the direct plans path could set,
+	// so every wizard-authored plan was structurally unable to declare one.
+	p.ValidationStrategy, p.FinalValidationCommands = planmodel.ParseValidationStrategy(p.ValidationStrategy)
 	p.Decisions = decisionsFromContent(contentOf(sess.Sections, SectionDecisions))
 	p.Definitions = definitionsFromContent(contentOf(sess.Sections, SectionDefinitions))
 	p.Assumptions, p.AssumptionRisks = splitAssumptionsContent(contentOf(sess.Sections, SectionAssumptions))

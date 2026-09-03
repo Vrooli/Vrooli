@@ -29,8 +29,10 @@ type eventPayload struct {
 	Payload          json.RawMessage `json:"payload"`
 }
 
-var ErrEventIntegrationUnconfigured = errors.New("event integration is not configured")
-var ErrProducerOwnedCopy = errors.New("event renderer owns notification copy")
+var (
+	ErrEventIntegrationUnconfigured = errors.New("event integration is not configured")
+	ErrProducerOwnedCopy            = errors.New("event renderer owns notification copy")
+)
 
 // EventWebhook is the single sanctioned REST exception for event ingress.
 // The signature covers the exact bytes that are decoded, and the event id is
@@ -80,7 +82,11 @@ func EventWebhookWithTemplatesAndSensitivity(service *hub.Service, secret string
 			writeJSONError(w, http.StatusBadRequest, "event_id, body, and sensitivity_label are required")
 			return
 		}
-		recipient := service.DefaultRecipient()
+		// The recipient is the operator (override, then operator state). With
+		// neither set the notification is still recorded, owned by the source
+		// scenario, and its delivery attempt is 'unroutable' with the setting
+		// that fixes it; it is never silently dropped.
+		recipient := service.ResolveRecipient(r.Context())
 		if recipient == "" {
 			recipient = payload.SourceScenario
 		}

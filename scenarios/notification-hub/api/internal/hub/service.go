@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -75,18 +76,19 @@ func (unavailablePush) Send(context.Context, PushSubscription, string, string) (
 }
 
 type Service struct {
-	db               *database.RoutedDB
-	clock            Clock
-	log              *log.Logger
-	mu               sync.RWMutex
-	push             PushSender
-	email            EmailSender
-	desktop          DesktopSender
-	remote           RemoteDelivery
-	channel          ChannelDelivery
-	defaultRecipient string
-	webPushPublicKey string
-	worker           chan string
+	db                *database.RoutedDB
+	clock             Clock
+	log               *log.Logger
+	mu                sync.RWMutex
+	push              PushSender
+	email             EmailSender
+	desktop           DesktopSender
+	remote            RemoteDelivery
+	channel           ChannelDelivery
+	defaultRecipient  string
+	recipientResolver func(context.Context) string
+	webPushPublicKey  string
+	worker            chan string
 }
 
 func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
@@ -157,11 +159,43 @@ func (s *Service) SetChannelDelivery(sender ChannelDelivery) {
 
 // SetDefaultRecipient supplies the owner subject for inbound integrations
 // that do not carry an end-user identity (for example durable event fanout).
+// It is the explicit environment override; SetRecipientResolver supplies the
+// durable operator setting consulted when no override is set.
 func (s *Service) SetDefaultRecipient(subject string) {
 	s.mu.Lock()
 	s.defaultRecipient = strings.TrimSpace(subject)
 	s.mu.Unlock()
 }
+
+// SetRecipientResolver supplies the operator-state lookup for the recipient
+// of inbound integrations; it is consulted after the explicit override.
+func (s *Service) SetRecipientResolver(resolve func(context.Context) string) {
+	s.mu.Lock()
+	s.recipientResolver = resolve
+	s.mu.Unlock()
+}
+
+// ResolveRecipient answers who an inbound integration's notification is for:
+// the explicit override first, then the operator state, else "". A caller
+// that gets "" must record the notification as unroutable with
+// RecipientSettingHint so the fix is named, never silently drop it.
+func (s *Service) ResolveRecipient(ctx context.Context) string {
+	s.mu.RLock()
+	override := s.defaultRecipient
+	resolve := s.recipientResolver
+	s.mu.RUnlock()
+	if override != "" {
+		return override
+	}
+	if resolve != nil {
+		return strings.TrimSpace(resolve(ctx))
+	}
+	return ""
+}
+
+// RecipientSettingHint names the settings that route an integration's
+// notifications to a person.
+const RecipientSettingHint = "set notifications.recipient in operator-state.json (vrooli-onboarding host set-recipient --subject <subject>) or VROOLI_NOTIFICATION_RECIPIENT, then register a channel address for that recipient"
 
 func (s *Service) DefaultRecipient() string {
 	s.mu.RLock()
@@ -445,7 +479,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	}
 	if len(targets) == 0 {
 		now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-		reason := "no recipient configured: no live web push subscription is registered for recipient"
+		reason := "no recipient configured: no channel address or live web push subscription is registered for recipient " + strconv.Quote(n.RequestedBy) + "; " + RecipientSettingHint
 		if _, err := s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, 'none', '', 1, 'unroutable', ?, '', ?)`, n.ID, reason, now); err != nil {
 			return err
 		}
@@ -542,7 +576,7 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		return push.Send(ctx, sub, n.Title, body)
 	case "email":
 		return email.Send(ctx, target.Address, n.Title, body)
-	case "macos_notification", "imessage":
+	case "macos_notification", "imessage", "linux_notification":
 		return desktop.Send(ctx, target.Channel, target.Address, n.Title, body)
 	case "in-app", "telegram", "slack":
 		s.mu.RLock()
@@ -972,3 +1006,71 @@ func safeReasonString(value string) string {
 	}
 	return value
 }
+
+// DeliveryProjection is one notification with its delivery attempts, as the
+// coverage checks of other scenarios read it. DedupeKey carries the producer's
+// join key ("<event type>:<incident id>" for autoheal incidents).
+type DeliveryProjection struct {
+	NotificationID string                  `json:"notification_id"`
+	RequestedBy    string                  `json:"requested_by"`
+	DedupeKey      string                  `json:"dedupe_key"`
+	IdempotencyKey string                  `json:"idempotency_key"`
+	CreatedAt      string                  `json:"created_at"`
+	Attempts       []DeliveryAttemptRecord `json:"attempts"`
+}
+
+// DeliveryAttemptRecord is one durable delivery attempt.
+type DeliveryAttemptRecord struct {
+	Channel   string `json:"channel"`
+	MachineID string `json:"machine_id"`
+	Attempt   int    `json:"attempt"`
+	Outcome   string `json:"outcome"`
+	Reason    string `json:"reason,omitempty"`
+	CreatedAt string `json:"created_at"`
+}
+
+// ListDeliveryProjection returns the newest notifications whose dedupe key
+// starts with prefix, each with every delivery attempt recorded for it. An
+// unroutable notification appears with its single 'unroutable' attempt, so a
+// reader can tell "never reached anyone" from "never entered delivery".
+func (s *Service) ListDeliveryProjection(ctx context.Context, prefix string, limit int) ([]DeliveryProjection, error) {
+	if limit <= 0 || limit > maxDeliveryProjection {
+		limit = maxDeliveryProjection
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, requested_by, dedupe_key, idempotency_key, created_at FROM notifications WHERE dedupe_key LIKE ? ORDER BY created_at DESC LIMIT ?`, prefix+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	var out []DeliveryProjection
+	for rows.Next() {
+		var item DeliveryProjection
+		if err := rows.Scan(&item.NotificationID, &item.RequestedBy, &item.DedupeKey, &item.IdempotencyKey, &item.CreatedAt); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		attempts, err := s.db.QueryContext(ctx, `SELECT channel, machine_id, attempt_number, outcome, reason, created_at FROM delivery_attempts WHERE notification_id=? ORDER BY created_at, attempt_number`, out[i].NotificationID)
+		if err != nil {
+			return nil, err
+		}
+		for attempts.Next() {
+			var record DeliveryAttemptRecord
+			if err := attempts.Scan(&record.Channel, &record.MachineID, &record.Attempt, &record.Outcome, &record.Reason, &record.CreatedAt); err != nil {
+				attempts.Close()
+				return nil, err
+			}
+			out[i].Attempts = append(out[i].Attempts, record)
+		}
+		if err := attempts.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+const maxDeliveryProjection = 200

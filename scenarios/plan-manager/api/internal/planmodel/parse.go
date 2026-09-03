@@ -1268,6 +1268,14 @@ func referenceKindFromMarker(marker string) ReferenceKind {
 
 // parseValidationStrategy splits a Validation Strategy section into its prose and
 // the trailing "**Final validation commands:**" list (backticked commands).
+// ParseValidationStrategy splits an authored validation-strategy block into the
+// prose strategy and the final validation commands. It is exported so the
+// authoring projection uses the same grammar the renderer round-trips through,
+// rather than a second, drifting copy.
+func ParseValidationStrategy(block string) (string, []string) {
+	return parseValidationStrategy(block)
+}
+
 func parseValidationStrategy(block string) (string, []string) {
 	block = strings.TrimSpace(block)
 	if block == "" {

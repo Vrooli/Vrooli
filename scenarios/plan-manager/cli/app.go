@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"plan-manager/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -24,14 +25,18 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
+	// Manifest parse / binding wiring is a programmer error caught at NewApp
+	// time. It must still fail loudly on the first CLI invocation, but a panic
+	// in a library entrypoint gives the caller a stack trace instead of a
+	// message and denies it any chance to report cleanly. The builder callback
+	// cannot return an error, so capture it and propagate through NewApp, which
+	// already has an error return.
+	var subcommandGroupErr error
 	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		groups, err := domains.SubcommandGroups(core, manifestBytes)
 		if err != nil {
-			// Manifest parse / binding wiring is a programmer error caught
-			// at NewApp time; surface it as a panic so misconfigured builds
-			// fail loudly during the first CLI invocation rather than after
-			// a user actually runs a command.
-			panic(err)
+			subcommandGroupErr = err
+			return nil
 		}
 		return groups
 	}
@@ -51,6 +56,9 @@ func NewApp() (*App, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if subcommandGroupErr != nil {
+		return nil, fmt.Errorf("build plan-manager subcommand groups: %w", subcommandGroupErr)
 	}
 	app.core = core
 	return app, nil

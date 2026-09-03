@@ -1,6 +1,6 @@
 # Data
 
-**Status:** design contract, ahead of implementation. Shapes below are the target for the P0 set; the code has not been changed. Where a field is new, the requirement that introduces it is named.
+**Status:** verified data contract for the current implementation. Authored coverage and live reading trust remain separate axes; integration lifecycle and feature state are exposed alongside the reading projections.
 
 ## Storage posture
 

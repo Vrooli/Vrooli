@@ -64,6 +64,43 @@ func TestGetEntitlementsRejectsOutOfRangeBillingCycleStart(t *testing.T) {
 	}
 }
 
+func TestGetCommercialContextUsesAuthenticatedIdentityAndPreservesBoundaries(t *testing.T) {
+	called := ""
+	handler := NewHandler(fakeReader{commercial: func(_ context.Context, user, placement, capability string) (*CommercialContext, error) {
+		called = user + ":" + placement + ":" + capability
+		return &CommercialContext{
+			SubscriptionStatus: "active",
+			PlanTier:           "solo",
+			CreditBalance:      12,
+			Content: []*lpbsv1.CommercialContent{{
+				ContentId:      "capability-account",
+				Placement:      placement,
+				Eligible:       true,
+				CtaDestination: "/account",
+			}},
+		}, nil
+	}}, testUser)
+	response, err := handler.GetCommercialContext(context.Background(), connect.NewRequest(&lpbsv1.CommercialContextRequest{Placement: "integrations", CapabilityId: "github"}))
+	if err != nil || called != "user@example.test:integrations:github" {
+		t.Fatalf("called=%q response=%#v err=%v", called, response, err)
+	}
+	if response.Msg.GetAccount().GetPlanTier() != "solo" || response.Msg.GetContent()[0].GetCtaDestination() != "/account" {
+		t.Fatalf("response=%#v", response.Msg)
+	}
+}
+
+func TestGetCommercialContextRequiresIdentityBeforeLookup(t *testing.T) {
+	calls := 0
+	handler := NewHandler(fakeReader{commercial: func(context.Context, string, string, string) (*CommercialContext, error) {
+		calls++
+		return nil, nil
+	}}, func(context.Context) string { return "" })
+	_, err := handler.GetCommercialContext(context.Background(), connect.NewRequest(&lpbsv1.CommercialContextRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated || calls != 0 {
+		t.Fatalf("code=%v calls=%d", connect.CodeOf(err), calls)
+	}
+}
+
 func TestRegisterRoutesServesGeneratedAccountProcedures(t *testing.T) {
 	router := mux.NewRouter()
 	RegisterRoutes(router, fakeReader{subscription: func(context.Context, string) (*shared.SubscriptionStatus, error) {
@@ -84,6 +121,14 @@ type fakeReader struct {
 	subscription func(context.Context, string) (*shared.SubscriptionStatus, error)
 	credits      func(context.Context, string) (*Credits, error)
 	entitlements func(context.Context, string) (*Entitlements, error)
+	commercial   func(context.Context, string, string, string) (*CommercialContext, error)
+}
+
+func (f fakeReader) GetCommercialContext(c context.Context, u, placement, capability string) (*CommercialContext, error) {
+	if f.commercial != nil {
+		return f.commercial(c, u, placement, capability)
+	}
+	return &CommercialContext{}, nil
 }
 
 func (f fakeReader) GetSubscriptionContext(c context.Context, u string) (*shared.SubscriptionStatus, error) {

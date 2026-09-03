@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -22,8 +23,18 @@ type dashboardResponse struct {
 }
 
 type sourceMetadata struct {
-	FromCache   bool       `json:"from_cache"`
-	StalenessTS *time.Time `json:"staleness_ts,omitempty"`
+	FromCache         bool              `json:"from_cache"`
+	StalenessTS       *time.Time        `json:"staleness_ts,omitempty"`
+	IntegrationID     string            `json:"integration_id,omitempty"`
+	IntegrationStatus string            `json:"integration_status,omitempty"`
+	IntegrationReason string            `json:"integration_reason_code,omitempty"`
+	FeatureStatus     map[string]string `json:"feature_status,omitempty"`
+}
+
+type capabilityStateView struct {
+	Status        string
+	ReasonCode    string
+	FeatureStatus map[string]string
 }
 
 func (s *Server) registerDashboardRoutes() {
@@ -55,7 +66,11 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	out := make([]MetricEntry, len(entries))
 	copy(out, entries)
 	sources := map[string]sourceMetadata{}
-	teamDeclarations := loadTeamDeclarations()
+	integrations := map[string]capabilityStateView{}
+	for _, state := range s.integrationSnapshot(ctx, false).States {
+		integrations[state.ID] = capabilityStateView{Status: string(state.Status), ReasonCode: state.ReasonCode, FeatureStatus: state.FeatureStatus}
+	}
+	teamDeclarations := s.teamDeclarations(ctx)
 	for i := range out {
 		m := &out[i]
 		m.Value = nil
@@ -94,36 +109,66 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if name == "" {
 			name = "none"
 		}
+		integrationID := first(m.Source.IntegrationID, strings.TrimPrefix(strings.TrimPrefix(m.Source.Binding, "scenario:"), "resource:"), name)
+		state := integrations[integrationID]
+		metadata := sourceMetadata{IntegrationID: integrationID, IntegrationStatus: state.Status, IntegrationReason: state.ReasonCode, FeatureStatus: state.FeatureStatus}
 		if env.Data != nil {
-			sources[name] = sourceMetadata{FromCache: env.FromCache, StalenessTS: env.StalenessTS}
+			metadata.FromCache, metadata.StalenessTS = env.FromCache, env.StalenessTS
 		}
+		sources[name] = metadata
 		if env.Data == nil {
 			m.TrustReason = unavailableReason(err)
 			continue
 		}
-		pick, known := selectors[m.Source.Select]
+		selectorID := first(m.Source.Selector, m.Source.Select)
+		pick, known := selectors[selectorID]
 		if !known {
-			if m.Coverage == CoverageNow {
-				m.TrustReason = "no selector named " + m.Source.Select
-			}
+			m.Trust = TrustUntrusted
+			m.TrustReason = "no selector named " + selectorID
 			continue
 		}
 		var payload any
 		if json.Unmarshal(env.Data, &payload) != nil {
+			m.Trust = TrustUntrusted
 			m.TrustReason = "source returned a body that is not JSON"
 			continue
 		}
 		value, found := pick(payload)
 		if !found {
-			m.TrustReason = "selector " + m.Source.Select + " found no number in the source payload"
+			m.Trust = TrustUntrusted
+			m.TrustReason = "selector " + selectorID + " found no number in the source payload"
+			continue
+		}
+		if version := sourceContractVersion(env.Data); version != "" && m.Source.ContractVersion != "" && version != m.Source.ContractVersion {
+			m.Trust = TrustUntrusted
+			m.TrustReason = "producer contract version " + version + " does not match expected " + m.Source.ContractVersion
+			continue
+		}
+		if unit := sourceUnit(env.Data, selectorID); unit != "" && !sameUnit(unit, m.Source.ExpectedUnit, m.Unit) {
+			m.Trust = TrustUntrusted
+			m.TrustReason = "producer unit " + unit + " does not match expected " + first(m.Source.ExpectedUnit, m.Unit)
+			continue
+		}
+		unit := first(m.Unit, m.Source.ExpectedUnit)
+		if !plausibleMetricValue(value, unit) {
+			m.Trust = TrustUntrusted
+			m.TrustReason = "selector " + selectorID + " returned an implausible value for unit " + unit
 			continue
 		}
 		m.Value = value
-		observed := env.CachedAt
+		if env.ObservationAt == nil {
+			m.Trust = TrustUntrusted
+			m.TrustReason = "producer did not supply observation time"
+			continue
+		}
+		observed := env.ObservationAt.UTC()
 		m.ObservedAt = &observed
 		switch {
-		case err == nil && time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second:
+		case err == nil && !env.FromCache && !observed.After(time.Now().UTC()) && time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second:
 			m.Trust = TrustValid
+		case observed.After(time.Now().UTC()):
+			m.Trust = TrustUntrusted
+			m.TrustReason = "producer observation time is in the future"
 		default:
 			// The source stopped answering, or the cached observation aged
 			// past its TTL. Either way the last good reading is served with
@@ -134,6 +179,20 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	}
 	s.joinPredictions(out)
 	return out, sources
+}
+
+func plausibleMetricValue(value float64, unit string) bool {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return false
+	}
+	switch strings.ToLower(unit) {
+	case "count", "integer", "usd", "currency", "seconds", "minutes":
+		return value >= 0
+	case "percent", "%":
+		return value >= 0 && value <= 100
+	default:
+		return true
+	}
 }
 
 func unavailableReason(err error) string {
@@ -218,12 +277,68 @@ func (s *Server) primeSinglePath(ctx context.Context, src UpstreamSource, path s
 		FromCache: false,
 		Source:    string(src),
 	}
+	env.ObservationAt = observationTime(raw)
 	ttl := TTLFor(src)
 	if ttlSeconds > 0 {
 		ttl = time.Duration(ttlSeconds) * time.Second
 	}
 	s.cache.Put(key, env, ttl)
 	return env, nil
+}
+
+func observationTime(raw json.RawMessage) *time.Time {
+	var v map[string]any
+	if json.Unmarshal(raw, &v) != nil {
+		return nil
+	}
+	for _, key := range []string{"observedAt", "observed_at", "observationTime", "timestamp", "generatedAt", "generated_at"} {
+		if value, ok := v[key].(string); ok {
+			if t, err := time.Parse(time.RFC3339, value); err == nil {
+				return ptrTime(t)
+			}
+		}
+	}
+	return nil
+}
+
+// sourceContractVersion and sourceUnit inspect optional metadata emitted by a
+// producer envelope. Older compatibility projections may omit these fields;
+// the binding's declared contract remains authoritative in that case. When a
+// producer does emit metadata, disagreement is deterministic evidence of an
+// incompatible observation and must not be presented as trustworthy.
+func sourceContractVersion(raw json.RawMessage) string {
+	var envelope struct {
+		ContractVersion      string `json:"contractVersion"`
+		ContractVersionSnake string `json:"contract_version"`
+	}
+	if json.Unmarshal(raw, &envelope) != nil {
+		return ""
+	}
+	return first(envelope.ContractVersion, envelope.ContractVersionSnake)
+}
+
+func sourceUnit(raw json.RawMessage, selector string) string {
+	var envelope struct {
+		Unit  string            `json:"unit"`
+		Units map[string]string `json:"units"`
+	}
+	if json.Unmarshal(raw, &envelope) != nil {
+		return ""
+	}
+	if unit := strings.TrimSpace(envelope.Units[selector]); unit != "" {
+		return unit
+	}
+	return strings.TrimSpace(envelope.Unit)
+}
+
+func sameUnit(actual string, expected ...string) bool {
+	actual = strings.ToLower(strings.TrimSpace(actual))
+	for _, candidate := range expected {
+		if candidate != "" && actual == strings.ToLower(strings.TrimSpace(candidate)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) clientFor(src UpstreamSource) upstream.Client {

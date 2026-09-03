@@ -103,6 +103,7 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 	service := hub.New(db, schedule.System(), log.Default())
 	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
+	service.SetRecipientResolver(integrations.OperatorStateRecipient())
 	configureWebPush(service, fileRoots)
 	posture := "personal"
 	if state, postureErr := trustposture.LoadWorkingTree(); postureErr != nil {
@@ -168,6 +169,7 @@ func main() {
 	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookWithTemplatesAndSensitivity(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"), func() map[string]integrations.EventTemplate {
 		return eventConfig.Get().Templates
 	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }))
+	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
 	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
 		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
 	}))

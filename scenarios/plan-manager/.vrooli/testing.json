@@ -1,8 +1,8 @@
 {
   "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
-    "last_updated": "2026-05-03T00:00:00Z"
+    "description": "Test Genie configuration for plan-manager: Go API + Go CLI + React/Vite UI, with a tidiness ratchet seeded from the measured fleet baseline.",
+    "last_updated": "2026-09-02T00:00:00Z"
   },
   "version": "1.0.0",
   "lint": {

@@ -8,8 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"sort"
+
+	"landing-page-business-suite-api/internal/scenarioroot"
 
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
@@ -545,11 +546,10 @@ var (
 type fallbackProvider func() *LandingConfigPayload
 
 func init() {
-	_, sourcePath, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("resolve landing config source path")
+	scenarioRoot := scenarioroot.Resolve()
+	if scenarioRoot == "" {
+		logx.Printf("scenario root unresolved (VROOLI_SCENARIO_DIR unset and binary built with -trimpath); fallback config read relative to the working directory")
 	}
-	scenarioRoot := filepath.Clean(filepath.Join(filepath.Dir(sourcePath), "..", "..", ".."))
 	primaryPath := filepath.Join(scenarioRoot, ".vrooli", "fallback", "fallback.json")
 	legacyPath := filepath.Join(scenarioRoot, ".vrooli", "variants", "fallback.json")
 	path := primaryPath

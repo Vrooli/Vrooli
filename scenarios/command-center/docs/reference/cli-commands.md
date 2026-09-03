@@ -1,6 +1,6 @@
 # CLI Commands
 
-**Status:** design contract, ahead of implementation.
+**Status:** verified implementation contract.
 
 ## Why this exists
 
@@ -8,11 +8,11 @@ The outcomes charter already records the gap this closes:
 
 > Both sensors are HTTP-only today: the command-center CLI exposes no `gaps` or `dashboards` verb and the scenario runs on demand — that CLI gap is a standing `outcome-gap` candidate.
 
-Today `command-center --help` offers `status`, `configure`, `help` and `version`. An instrument that can only be read by a human looking at a television is not one address; it is one *display*. Invariant 1 requires that members read the same surface programmatically (`CC-P0-012`).
+Today `command-center --help` offers the board, room, focus, open-loop, capability, gap, and integration inspection surfaces, plus explicit integration refresh and action commands. An instrument that can only be read by a human looking at a television is not one address; it is one *display*. Invariant 1 requires that members read the same surface programmatically (`CC-P0-012`).
 
 ## Verbs
 
-All verbs are reads. **The CLI has no write path** — no verb files a work item, writes the setpoint, or mutates an upstream (`CC-P0-013`).
+Read commands never mutate business state. `integration-action` is the sole operational mutation command and requires `--confirm`; it can invoke only a lifecycle action returned for a declared scenario dependency.
 
 ### `command-center board`
 
@@ -65,6 +65,30 @@ Compatibility alias for `open-loop` filtered to non-`NOW` coverage grouped by ro
 ### `command-center describe`
 
 The full projection of this instrument's sensor space, from the shared capabilities module. The programmatic answer to "what can this instrument see, and what can it not."
+
+### `command-center integrations`
+
+Lists declared integrations with lifecycle, feature, origin, criticality, and action metadata. The command uses the generated Connect client and shared protobuf contract.
+
+```
+command-center integrations --json
+```
+
+### `command-center integrations-refresh`
+
+Refreshes the integration snapshot through the typed Command Center service.
+
+```
+command-center integrations-refresh --json
+```
+
+### `command-center integration-action <id> <action> --confirm`
+
+Runs one eligible, allowlisted lifecycle action for a declared scenario dependency. It cannot accept arbitrary commands or mutate upstream business state.
+
+```
+command-center integration-action swarm-manager scenario_restart --confirm --json
+```
 
 ## Global options
 

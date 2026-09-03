@@ -22,6 +22,19 @@ type Reader interface {
 	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
 	GetCreditsContext(context.Context, string) (*Credits, error)
 	GetEntitlementsContext(context.Context, string) (*Entitlements, error)
+	GetCommercialContext(context.Context, string, string, string) (*CommercialContext, error)
+}
+
+type CommercialContext struct {
+	SubscriptionStatus string
+	PlanTier           string
+	CreditBalance      int64
+	EntitlementIDs     []string
+	EvaluatedAt        string
+	Content            []*lpbsv1.CommercialContent
+	GeneratedAt        string
+	StaleAfter         string
+	Source             string
 }
 
 // Credits and Entitlements are Connect transport DTOs. The API composition
@@ -97,6 +110,37 @@ func (h *Handler) GetEntitlements(ctx context.Context, _ *connect.Request[lpbsv1
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("billing cycle start is outside the protocol range"))
 	}
 	return connect.NewResponse(&lpbsv1.GetEntitlementsResponse{Status: payload.Status, PlanTier: payload.PlanTier, PriceId: payload.PriceID, Features: payload.Features, Credits: payload.Credits, Subscription: payload.Subscription, BillingCycleStart: int32(payload.BillingCycleStart)}), nil
+}
+
+// GetCommercialContext returns account facts plus server-selected,
+// presentation-only content. It deliberately does not expose a client-side
+// entitlement decision or any credential material.
+func (h *Handler) GetCommercialContext(ctx context.Context, req *connect.Request[lpbsv1.CommercialContextRequest]) (*connect.Response[lpbsv1.CommercialContextResponse], error) {
+	user, err := h.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	request := req.Msg
+	if request == nil {
+		request = &lpbsv1.CommercialContextRequest{}
+	}
+	context, err := h.reader.GetCommercialContext(ctx, user, request.GetPlacement(), request.GetCapabilityId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get commercial context: %w", err))
+	}
+	return connect.NewResponse(&lpbsv1.CommercialContextResponse{
+		Account: &lpbsv1.CommercialAccountFacts{
+			SubscriptionStatus: context.SubscriptionStatus,
+			PlanTier:           context.PlanTier,
+			CreditBalance:      context.CreditBalance,
+			EntitlementIds:     context.EntitlementIDs,
+			EvaluatedAt:        context.EvaluatedAt,
+		},
+		Content:     context.Content,
+		GeneratedAt: context.GeneratedAt,
+		StaleAfter:  context.StaleAfter,
+		Source:      context.Source,
+	}), nil
 }
 
 // RegisterRoutes mounts all generated AccountService procedures behind the

@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** design contract, ahead of implementation. This document describes the target architecture agreed on 2026-09-01. The code still implements the 2026-04 read-only aggregator; see [../internal/PROBLEMS.md](../internal/PROBLEMS.md) for the gap between the two.
+**Status:** verified implementation architecture. The immersive display is protected; the API composition also owns the shared integration registry, typed feature state, and explicit lifecycle action boundary.
 
 Command Center is `team:director-swarm`'s instrument. What that obliges it to be is in [INSTRUMENT-MODEL.md](INSTRUMENT-MODEL.md); this document is how it is built.
 
@@ -48,7 +48,7 @@ Go on `api-core/server`, per-domain handler files.
 
 `/api/v1/dashboards/{id}` and `/api/v1/gaps` remain as compatibility aliases onto `rooms` and a filtered `open-loop`, because the outcomes charter's sensor map cites them by name. They are aliases, not a second model.
 
-**No non-GET route exists outside the debug telemetry sink** (`CC-P0-013`). There is no path that writes the setpoint, mutates an upstream, or files a work item. Sensor implies no authority.
+Integration POST routes are limited to refresh and explicitly confirmed allowlisted lifecycle actions. No path writes the setpoint, mutates upstream business state, or files a work item. Sensor implies no business authority.
 
 ## Source clients
 
@@ -82,7 +82,7 @@ Two rules bind the UI to this architecture:
 - **No database in the P0 set.** Numerators are live; there is nothing to persist that would not make the board capable of being stale.
 - **No write paths.** See above.
 - **No derived-set cache.** The board recomputes its shape per request. A cached fleet map is a fleet map that can be wrong.
-- **No per-user auth.** This is a local read-only surface; the outward-facing concern is handled by `samples=hide`, not by authentication.
+- **No per-user auth.** This is a local operator surface; lifecycle actions still require explicit confirmation and are constrained by the shared declaration/action policy.
 - **No hardcoded room list, metric list or source list.** All three are derived.
 
 ## Cross-references

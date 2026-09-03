@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -101,6 +102,20 @@ func NewService(d Deps) Service {
 }
 
 var _ Service = (*service)(nil)
+
+// saveExecutionBestEffort persists a state update from a void-returning
+// freshen/preflight path.
+//
+// These updates cannot propagate an error to a caller without changing several
+// signatures, but discarding it silently meant an execution could report a
+// stale freshen status forever with nothing recorded anywhere. Logging keeps
+// the failure observable without pretending the caller can act on it.
+func (s *service) saveExecutionBestEffort(ctx context.Context, e Execution, path string) {
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		slog.Default().Warn("plan-manager: execution state update not persisted",
+			"execution", e.ID, "path", path, "error", err)
+	}
+}
 
 func (s *service) Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error) {
 	s.startMu.Lock()
@@ -686,7 +701,7 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 			Detail: "historical plan requires explicit baseline adoption before normal phase work; recapture only when the current worktree is a trustworthy before-state, otherwise record a degraded partial-handoff path",
 		}
 		e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_adoption_required", e.BaselineSet.Detail, s.now()
-		_ = s.repo.SaveExecution(ctx, *e)
+		s.saveExecutionBestEffort(ctx, *e, "baseline_adoption_required")
 		return
 	}
 	if strings.TrimSpace(plan.BaselineSet.Name) == "" {
@@ -728,7 +743,7 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 	}
 	e.BaselineSet = state
 	e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
-	_ = s.repo.SaveExecution(ctx, *e)
+	s.saveExecutionBestEffort(ctx, *e, "baseline_required")
 }
 
 func sourcePreflightDetail(preflight SourceEvidencePreflight) string {
@@ -776,7 +791,7 @@ func (s *service) RepairSourceScope(ctx context.Context, executionID string, req
 	if preflight.RepairRequired {
 		e.BaselineSet.Detail = sourcePreflightDetail(preflight)
 		e.UpdatedAt = s.now()
-		_ = s.repo.SaveExecution(ctx, e)
+		s.saveExecutionBestEffort(ctx, e, "source_preflight_repair")
 		pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 		s.applyFreshenContext(&pctx, e)
 		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil

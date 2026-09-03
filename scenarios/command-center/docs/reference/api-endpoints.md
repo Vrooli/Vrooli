@@ -1,12 +1,39 @@
 # API Endpoints
 
-**Status:** design contract, ahead of implementation. Shapes are the target for the P0 set. Ports are assigned by the lifecycle manager and exposed as `API_PORT`; never hardcode one.
+**Status:** verified implementation contract. Ports are assigned by the lifecycle manager and exposed as `API_PORT`; never hardcode one.
 
-All read surfaces are `GET`. **No non-`GET` route exists outside the debug telemetry sink** (`CC-P0-013`).
+Typed integration state is exposed through generated Connect-RPC, with JSON REST projections for operator-readable surfaces. Recovery endpoints only return allowlisted owner guidance and never execute business mutations.
 
 ## `GET /api/v1/health`
 
-Readiness plus per-source dependency status. An unreadable source appears here with its reason and does not prevent readiness.
+Readiness plus per-source dependency status. An unreadable source appears here with its reason and does not prevent readiness. This remains a deliberately small operational REST probe; it is not a proto-owned business payload.
+
+## Integration state
+
+The generated `IntegrationsService` is mounted under `/vrooli.command_center.v1.integrations.IntegrationsService/` and provides `List`, `Get`, `Refresh`, and `RunAction`. The JSON projections are:
+
+- `GET /api/v1/integrations` — cached lifecycle and feature state.
+- `POST /api/v1/integrations/refresh` — explicitly refreshes state.
+- `GET /api/v1/integrations/{id}` — one integration and its feature states.
+- `GET /api/v1/integrations/{id}/features/{feature}` — one feature with lifecycle state kept separate.
+- `POST /api/v1/integrations/{id}/action` — confirmed, allowlisted lifecycle action or non-actuating owner guidance.
+
+Lifecycle availability does not imply feature compatibility. A healthy process with no producer-side feature probe reports feature status `unknown`; a missing feature is not repaired by restarting its process.
+
+The current typed probes report compatibility only after the producer contract
+answers successfully:
+
+- Swarm Manager's `StatsService.GetPortfolioStats` proves its canonical
+  portfolio and agent-stat features.
+- LPBS's `MetricsService.GetAnalyticsSummary` proves only `visitors`,
+  `cta_clicks`, `conversions`, and `variant_ab`; other declared LPBS features
+  remain `unknown` until their producer contract returns them.
+- Prompt Manager's `MemberflowService.GetInstruments` proves
+  `team_instrument`.
+
+Compatibility is not inferred from `/health`. A typed adapter rejects a
+canonical read when the generated producer contract is unavailable; it does
+not fall back to an untyped REST payload.
 
 ## `GET /api/v1/board`
 

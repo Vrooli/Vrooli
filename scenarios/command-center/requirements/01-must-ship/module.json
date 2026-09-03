@@ -24,7 +24,7 @@
         },
         {
           "type": "test",
-          "ref": "api/handlers_dashboards_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A successful upstream fetch produces a non-null value on the composed payload [REQ:CC-P0-001]."
@@ -41,7 +41,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/reading_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Closed-vocabulary validation on both axes and rejection of merged status [REQ:CC-P0-002]."
@@ -58,7 +58,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/sample_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A composed payload with a live upstream never emits a sample-provenance reading for that source [REQ:CC-P0-003]."
@@ -109,7 +109,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/registry_migration_test.go",
+          "ref": "api/registry_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Version gate, id stability, and tombstone resolution [REQ:CC-P0-006]."
@@ -126,14 +126,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/derivation_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A registry with a seventh category yields a seventh room with no code change [REQ:CC-P0-007]."
         },
         {
           "type": "test",
-          "ref": "ui/src/routes/routes.test.tsx",
+          "ref": "ui/src/lib/boardContext.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Routes are generated from the fetched board shape, not from a literal list [REQ:CC-P0-007]."
@@ -150,7 +150,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/fleet_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Source-team maturity is attached and an absent instrument is reported as its own finding class [REQ:CC-P0-008]."
@@ -167,7 +167,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/degradation_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Source outage produces UNAVAILABLE with a reason and never mutates coverage [REQ:CC-P0-009]."
@@ -184,7 +184,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_focus_test.go",
+          "ref": "api/integrations_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Merge, order, and per-entry owner attribution [REQ:CC-P0-010]."
@@ -201,7 +201,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_openloop_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Gap dating, ageing, and the unregistered count [REQ:CC-P0-011]."
@@ -218,7 +218,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_capabilities_test.go",
+          "ref": "api/integrations_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Describe surface conforms to the shared module contract [REQ:CC-P0-012]."
@@ -266,14 +266,14 @@
         },
         {
           "type": "test",
-          "ref": "api/handlers_dashboards_test.go",
+          "ref": "api/handlers_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "A MISS verdict leaves coverage, trust and the rendered ink unchanged [REQ:CC-P0-014]."
         },
         {
           "type": "test",
-          "ref": "api/handlers_focus_test.go",
+          "ref": "api/integrations_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "An UNMEASURABLE verdict appears on the ranked surface naming the missing sensor [REQ:CC-P0-014]."

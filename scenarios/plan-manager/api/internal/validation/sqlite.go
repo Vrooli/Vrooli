@@ -119,14 +119,25 @@ func scanResult(row *sql.Row, label string) (Result, bool, error) {
 	}
 	res.Verdict = Verdict(verdict)
 	res.Staleness = planmodel.StalenessTier(staleness)
+	// A corrupt stored payload used to be discarded silently, so the caller got
+	// an empty CommandsRun / RequiredMembers / SelectedMembers and could not
+	// tell "nothing was recorded" from "the record is unreadable". For a domain
+	// whose whole output is a trustworthy verdict, silently empty evidence is
+	// the wrong failure mode.
 	if commands != "" {
-		_ = json.Unmarshal([]byte(commands), &res.CommandsRun)
+		if err := json.Unmarshal([]byte(commands), &res.CommandsRun); err != nil {
+			return Result{}, false, fmt.Errorf("decode %s commands_run: %w", label, err)
+		}
 	}
 	if requiredMembers != "" {
-		_ = json.Unmarshal([]byte(requiredMembers), &res.RequiredMembers)
+		if err := json.Unmarshal([]byte(requiredMembers), &res.RequiredMembers); err != nil {
+			return Result{}, false, fmt.Errorf("decode %s required_members: %w", label, err)
+		}
 	}
 	if selectedMembers != "" {
-		_ = json.Unmarshal([]byte(selectedMembers), &res.SelectedMembers)
+		if err := json.Unmarshal([]byte(selectedMembers), &res.SelectedMembers); err != nil {
+			return Result{}, false, fmt.Errorf("decode %s selected_members: %w", label, err)
+		}
 	}
 	return res, true, nil
 }

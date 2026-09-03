@@ -26,7 +26,7 @@ var selectors = map[string]selector{
 	"dashboard_stats":      number("dashboard", "total_backlog_size"),
 	"composite_throughput": number("dashboard", "total_completed_all_time"),
 	"review_stats":         number("review", "rounds_completed"),
-	"scope_stats":          arrayLength("scope", "goals"),
+	"scope_stats":          scopeCount,
 
 	// landing-page-business-suite · GET /api/v1/admin/dashboard/summary
 	"visitors":           number("visitors"),
@@ -130,4 +130,14 @@ func arrayLength(path ...string) selector {
 		}
 		return float64(len(arr)), true
 	}
+}
+
+// scopeCount accepts the typed producer projection and the legacy REST
+// envelope during mixed-version rollout. The typed contract owns the count;
+// the legacy fallback derives it from the goals array.
+func scopeCount(payload any) (float64, bool) {
+	if value, ok := number("scope_stats")(payload); ok {
+		return value, true
+	}
+	return arrayLength("scope", "goals")(payload)
 }

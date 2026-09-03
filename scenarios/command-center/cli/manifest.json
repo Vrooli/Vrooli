@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "command-center",
-  "description": "Read surface for the Director Swarm instrument. Every verb is a read; the CLI has no write path (CC-P0-013).",
+  "description": "Read surface for the Director Swarm instrument, plus explicitly confirmed allowlisted integration recovery actions.",
   "groups": [
     {
       "name": "board",
@@ -152,6 +152,37 @@
           "semantics": {
             "kind": "query"
           }
+        },
+        {
+          "name": "integrations",
+          "description": "Show declared integration lifecycle and feature state.",
+          "binding": { "kind": "local", "handler": "integrations" },
+          "governance": { "effect": "read", "run_eligible": true },
+          "architecture": { "primitive": "operational" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "integrations-refresh",
+          "description": "Refresh declared integration lifecycle and feature state.",
+          "binding": { "kind": "local", "handler": "integrations-refresh" },
+          "governance": { "effect": "read", "run_eligible": true },
+          "architecture": { "primitive": "operational" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "integration-action",
+          "description": "Run one explicitly confirmed allowlisted integration action.",
+          "positionals": [
+            { "name": "id", "description": "Declared integration id.", "required": true },
+            { "name": "action", "description": "Action kind returned by integrations.", "required": true }
+          ],
+          "flags": [
+            { "name": "confirm", "description": "Confirm the lifecycle action." }
+          ],
+          "binding": { "kind": "local", "handler": "integration-action" },
+          "governance": { "effect": "write", "run_eligible": true },
+          "architecture": { "primitive": "operational" },
+          "semantics": { "kind": "mutate" }
         }
       ]
     },

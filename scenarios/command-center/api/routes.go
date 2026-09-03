@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/vrooli/api-core/health"
+	integrationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/integrations/integrations_v1connect"
 )
 
 func (s *Server) setupRoutes() {
@@ -15,4 +18,7 @@ func (s *Server) setupRoutes() {
 	s.registerGapRoutes()
 	s.registerBoardRoutes()
 	s.registerDebugRoutes()
+	s.registerIntegrationRoutes()
+	path, handler := integrationconnect.NewIntegrationsServiceHandler(integrationsConnectService{server: s})
+	s.router.PathPrefix(path).Handler(http.HandlerFunc(handler.ServeHTTP))
 }

@@ -1,6 +1,12 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { createClient } from "@connectrpc/connect";
+import { createScenarioConnectTransport } from "@vrooli/api-base";
+import { IntegrationsService } from "@vrooli/proto-types/command-center/v1/integrations/integrations_pb";
+import type { ListIntegrationsResponse } from "@vrooli/proto-types/common/v1/integrations_pb";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
+const connectTransport = createScenarioConnectTransport({ baseUrl: resolveApiBase() });
+const integrationsClient = createClient(IntegrationsService, connectTransport);
 
 export type Coverage = "NOW" | "IN-REACH" | "MISSING" | "UNREGISTERED";
 export type Trust = "VALID" | "CACHED" | "UNAVAILABLE" | "UNTRUSTED";
@@ -11,6 +17,12 @@ export interface SourceBinding {
   binding?: string;
   read?: string;
   select?: string;
+	 integrationId?: string;
+	 featureId?: string;
+	 contractVersion?: string;
+	 selector?: string;
+	 expectedUnit?: string;
+	 sourceTimePolicy?: string;
   ttlSeconds?: number;
   instrumentStatus?: string;
   instrumentArchetype?: string;
@@ -48,6 +60,10 @@ export interface Reading {
 export interface SourceMetadata {
   from_cache: boolean;
   staleness_ts: string | null;
+  integration_id?: string;
+  integration_status?: "available" | "unavailable" | "unknown";
+  integration_reason_code?: string;
+  feature_status?: Record<string, string>;
 }
 
 export interface BoardRoom {
@@ -66,7 +82,11 @@ export interface BoardSource {
   instrumentArchetype: string;
   readable: boolean;
   reason: string;
+	 integrationId?: string;
+	state?: { status: string; reasonCode?: string; checkedAt?: string; featureStatus?: Record<string, string> };
 }
+
+export type IntegrationsResponse = ListIntegrationsResponse;
 
 export interface BoardResponse {
   schemaVersion: string;
@@ -124,6 +144,7 @@ export const fetchBoard = (): Promise<BoardResponse> => getJSON("/board");
 export const fetchRoom = (id: string, samples: string): Promise<RoomResponse> => getJSON(`/rooms/${id}?samples=${samples}`);
 export const fetchFocus = (): Promise<FocusResponse> => getJSON("/focus");
 export const fetchOpenLoop = (): Promise<OpenLoopResponse> => getJSON("/open-loop");
+export const fetchIntegrations = (): Promise<IntegrationsResponse> => integrationsClient.list({});
 
 export const hasValue = (reading: Pick<Reading, "value">): reading is Reading & { value: number } =>
   typeof reading.value === "number" && Number.isFinite(reading.value);

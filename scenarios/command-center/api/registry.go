@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -62,6 +63,12 @@ type SourceBinding struct {
 	Binding             string `json:"binding"`
 	Read                string `json:"read"`
 	Select              string `json:"select"`
+	IntegrationID       string `json:"integrationId,omitempty"`
+	FeatureID           string `json:"featureId,omitempty"`
+	ContractVersion     string `json:"contractVersion,omitempty"`
+	Selector            string `json:"selector,omitempty"`
+	ExpectedUnit        string `json:"expectedUnit,omitempty"`
+	SourceTimePolicy    string `json:"sourceTimePolicy,omitempty"`
 	TTLSeconds          int    `json:"ttlSeconds"`
 	InstrumentStatus    string `json:"instrumentStatus,omitempty"`
 	InstrumentArchetype string `json:"instrumentArchetype,omitempty"`
@@ -186,6 +193,28 @@ func LoadRegistry(path string) (*Registry, error) {
 		if m.TTLSeconds == 0 {
 			m.TTLSeconds = m.Source.TTLSeconds
 		}
+		if m.Source.IntegrationID == "" {
+			m.Source.IntegrationID = strings.TrimPrefix(m.Source.Binding, "scenario:")
+			m.Source.IntegrationID = strings.TrimPrefix(m.Source.IntegrationID, "resource:")
+		}
+		if m.Source.FeatureID == "" {
+			m.Source.FeatureID = first(m.Source.Select, m.ID)
+		}
+		if m.Source.Selector == "" {
+			m.Source.Selector = first(m.Source.Select, m.ID)
+		}
+		if m.Source.ContractVersion == "" {
+			m.Source.ContractVersion = "legacy.v1"
+		}
+		if m.Source.ExpectedUnit == "" {
+			m.Source.ExpectedUnit = m.Unit
+		}
+		if m.Source.SourceTimePolicy == "" {
+			m.Source.SourceTimePolicy = "producer_required"
+		}
+		if err := validateMetricBinding(*m); err != nil {
+			return nil, err
+		}
 		if m.TTLSeconds == 0 {
 			m.TTLSeconds = 60
 		}
@@ -199,6 +228,32 @@ func LoadRegistry(path string) (*Registry, error) {
 		}
 	}
 	return &reg, nil
+}
+
+func validateMetricBinding(m MetricEntry) error {
+	s := m.Source
+	if strings.TrimSpace(s.IntegrationID) == "" {
+		return fmt.Errorf("metric %s binding is missing integrationId", m.ID)
+	}
+	if strings.TrimSpace(s.FeatureID) == "" {
+		return fmt.Errorf("metric %s binding is missing featureId", m.ID)
+	}
+	if strings.TrimSpace(s.ContractVersion) == "" {
+		return fmt.Errorf("metric %s binding is missing contractVersion", m.ID)
+	}
+	if strings.TrimSpace(s.Selector) == "" {
+		return fmt.Errorf("metric %s binding is missing selector", m.ID)
+	}
+	if s.FeatureID != s.Selector {
+		return fmt.Errorf("metric %s binding featureId %q differs from selector %q", m.ID, s.FeatureID, s.Selector)
+	}
+	if s.ExpectedUnit != m.Unit {
+		return fmt.Errorf("metric %s binding expectedUnit %q differs from unit %q", m.ID, s.ExpectedUnit, m.Unit)
+	}
+	if s.SourceTimePolicy != "producer_required" {
+		return fmt.Errorf("metric %s has unsupported sourceTimePolicy %q", m.ID, s.SourceTimePolicy)
+	}
+	return nil
 }
 
 func coverageFromLegacy(v DataSourceStatus) Coverage {

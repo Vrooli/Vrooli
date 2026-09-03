@@ -263,6 +263,32 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 		}
 		result.Items = append(result.Items, items...)
 	}
+	// Repairing mirrors is also when their index gets swept. The index had no
+	// removal path, so records for deleted files and duplicate ids accumulated
+	// forever — and because every plan write rewrites the whole index, that dead
+	// weight is a per-write cost, not just wasted bytes. A store that keeps no
+	// index simply does not implement the optional interface.
+	if req.RepairMirrors && !req.DryRun {
+		if pruner, ok := s.mirror.(MirrorIndexPruner); ok {
+			pruned, pruneErr := pruner.PruneIndex()
+			switch {
+			case pruneErr != nil:
+				result.Items = append(result.Items, ReconcileItem{
+					Action:          ReconcileActionConflict,
+					SourcePath:      mirrorIndexFilename,
+					SourceUntouched: true,
+					Error:           "prune mirror index: " + pruneErr.Error(),
+				})
+			case pruned.MissingFile > 0 || pruned.DuplicateID > 0:
+				result.Items = append(result.Items, ReconcileItem{
+					Action:     ReconcileActionMirrorRepaired,
+					SourcePath: mirrorIndexFilename,
+					Error: fmt.Sprintf("pruned mirror index: %d -> %d records (%d missing file, %d duplicate id)",
+						pruned.Before, pruned.After, pruned.MissingFile, pruned.DuplicateID),
+				})
+			}
+		}
+	}
 	return result, nil
 }
 
@@ -317,6 +343,7 @@ type sourceIntakeIndex struct {
 	importedSources      map[string]Plan
 	contentHashes        map[string]Plan
 	slugs                map[string]Plan
+	ids                  map[string]Plan
 }
 
 func (s *service) buildSourceIntakeIndex(ctx context.Context, plans []Plan) *sourceIntakeIndex {
@@ -325,6 +352,7 @@ func (s *service) buildSourceIntakeIndex(ctx context.Context, plans []Plan) *sou
 		importedSources:      make(map[string]Plan, len(plans)),
 		contentHashes:        make(map[string]Plan, len(plans)),
 		slugs:                make(map[string]Plan, len(plans)),
+		ids:                  make(map[string]Plan, len(plans)),
 	}
 	for _, p := range plans {
 		if meta, err := s.mirror.PathFor(ctx, p); err == nil && strings.TrimSpace(meta.Path) != "" {
@@ -338,6 +366,9 @@ func (s *service) buildSourceIntakeIndex(ctx context.Context, plans []Plan) *sou
 		}
 		if strings.TrimSpace(p.Slug) != "" {
 			index.slugs[p.Slug] = p
+		}
+		if strings.TrimSpace(p.ID) != "" {
+			index.ids[p.ID] = p
 		}
 	}
 	return index
@@ -367,6 +398,35 @@ func (s *service) reconcileIntakeSource(ctx context.Context, req ReconcileReques
 	raw, err := s.reader.ReadFile(clean)
 	if err != nil {
 		return ReconcileItem{Action: ReconcileActionConflict, SourcePath: clean, SourceUntouched: true, Error: err.Error()}
+	}
+	// A file this system rendered is never a novel intake source. Check that
+	// before the database-keyed guards below, because every one of them fails
+	// open when the plan is absent from the database — which is exactly the
+	// state that re-imported the mirror tree as 640 slug-suffixed duplicates.
+	if markerID, markerSlug, marked := ParseMirrorMarker(string(raw)); marked {
+		if match, known := index.ids[markerID]; known {
+			return ReconcileItem{
+				Action:          ReconcileActionAlreadyCanonical,
+				PlanID:          match.ID,
+				Slug:            match.Slug,
+				Title:           match.Title,
+				SourcePath:      clean,
+				Mirror:          match.Mirror,
+				SourceUntouched: true,
+			}
+		}
+		// Marked, but its plan is gone: an orphaned mirror. Importing it would
+		// mint a suffixed duplicate rather than restore the original, so report
+		// it and leave the file alone. Restoring identity is a recovery
+		// operation, not something a routine reconcile should infer.
+		return ReconcileItem{
+			Action:          ReconcileActionSkippedDuplicate,
+			PlanID:          markerID,
+			Slug:            markerSlug,
+			SourcePath:      clean,
+			SourceUntouched: true,
+			Error:           "rendered mirror has no matching plan; re-importing would create a suffixed duplicate rather than restore plan " + markerID,
+		}
 	}
 	parsed, err := ParsePlanMarkdown(string(raw))
 	if err != nil {

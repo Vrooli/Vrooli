@@ -462,6 +462,21 @@ defer meteredInferenceRateLimiter.UseTimeProvider(nil)
 
 ---
 
+### Commercial-context presentation seam
+
+`AccountService.GetCommercialContext` is the optional consumer-facing seam for
+account-aware presentation. `handlers/account/commerce_reader.go` reads
+authoritative subscription, credit, and entitlement state, then emits facts
+separately from cacheable content. Content is allow-listed to supported
+placements and capability-scoped requests; it contains stable IDs, eligibility,
+expiration, dismissal, freshness, and owned CTA metadata.
+
+Consumers may cache or dismiss presentation content, but neither operation can
+change entitlements or authorize a billable operation. Authenticated identity
+is taken from the request context before the commerce source is queried. Tests
+for identity enforcement, placement filtering, and transport mapping live
+beside the account handler and adapter.
+
 ## See Also
 
 ### Administrator Authentication Persistence Seam

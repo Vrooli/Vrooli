@@ -209,6 +209,18 @@ func renderHeader(b *strings.Builder, p Plan, opts RenderOptions) {
 	if title == "" {
 		title = p.Slug
 	}
+	// Stamp the rendered mirror with its own plan identity. The mirror root is
+	// also a reconcile intake root, so without a self-identifying marker a
+	// reconcile cannot tell a generated mirror from a hand-authored legacy
+	// plan and re-imports it as a new, slug-suffixed duplicate. Every other
+	// idempotency guard keys on database contents, so all of them fail open
+	// against a database that does not contain the plan yet. This marker does
+	// not, which is the point. It is an HTML comment so it stays invisible in
+	// rendered markdown, and it is excluded from the content hash because the
+	// hash is computed over authored Plan fields, never over the rendered text.
+	if id := strings.TrimSpace(p.ID); id != "" {
+		fmt.Fprintf(b, "%s\n\n", FormatMirrorMarker(id, p.Slug))
+	}
 	fmt.Fprintf(b, "# %s\n\n", title)
 	fmt.Fprintf(b, "> Status: **%s**", statusLabel(p.Status))
 	if p.ContentHash != "" {

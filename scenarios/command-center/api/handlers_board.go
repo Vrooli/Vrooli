@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
 type BoardShape struct {
@@ -56,8 +54,12 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 			rooms = append(rooms, Room{ID: id, Title: id})
 		}
 	}
-	sources := s.sourceDeclarations()
-	writeJSON(w, http.StatusOK, BoardShape{SchemaVersion: first(s.registry.SchemaVersion, s.registry.Version), GeneratedAt: time.Now().UTC(), Rooms: rooms, Denominator: map[string]any{"outcomeCategories": len(rooms), "confidence": "partial", "rationale": "The denominator is derived from the checked-in outcome registry and is partial until the objective transmitter is readable."}, Sources: sources})
+	sources := s.integrationSources(r.Context())
+	confidence, rationale := "partial", "The denominator is derived from the checked-in outcome registry and is partial until the objective transmitter is readable."
+	if s.objectivesAvailable(r.Context()) {
+		confidence, rationale = "declared", "The denominator is joined to the objective set supplied by Prompt Manager and the checked-in outcome registry."
+	}
+	writeJSON(w, http.StatusOK, BoardShape{SchemaVersion: first(s.registry.SchemaVersion, s.registry.Version), GeneratedAt: time.Now().UTC(), Rooms: rooms, Denominator: map[string]any{"outcomeCategories": len(rooms), "confidence": confidence, "rationale": rationale}, Sources: sources})
 }
 
 func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
@@ -170,27 +172,52 @@ func (s *Server) handleOpenLoop(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDescribe(w http.ResponseWriter, r *http.Request) {
 	b := s.registry
-	writeJSON(w, 200, map[string]any{"name": "command-center", "schemaVersion": first(b.SchemaVersion, b.Version), "rooms": b.Rooms, "metrics": b.Metrics, "sources": s.sourceDeclarations()})
+	writeJSON(w, 200, map[string]any{"name": "command-center", "schemaVersion": first(b.SchemaVersion, b.Version), "rooms": b.Rooms, "metrics": b.Metrics, "sources": s.integrationSources(r.Context())})
 }
 
-func (s *Server) sourceDeclarations() []map[string]any {
-	seen := map[string]bool{}
-	teams := loadTeamDeclarations()
-	out := []map[string]any{}
-	for _, m := range s.registry.Metrics {
-		name := m.Source.Binding
-		if name == "" {
-			name = string(m.UpstreamSource)
+// integrationSources projects the shared operational registry directly. The
+// metric registry remains the authority for authored coverage and binding
+// semantics, but it must not manufacture lifecycle state or readable flags.
+func (s *Server) integrationSources(ctx context.Context) []map[string]any {
+	teams := s.teamDeclarations(ctx)
+	states := s.integrationSnapshot(ctx, false).States
+	teamByIntegration := map[string]string{}
+	bindingByIntegration := map[string]string{}
+	for _, metric := range s.registry.Metrics {
+		integrationID := metric.Source.IntegrationID
+		if integrationID == "" {
+			integrationID = string(sourceFromBinding(metric.Source.Binding))
 		}
-		if seen[name] {
+		if integrationID == "" || integrationID == "none" {
 			continue
 		}
-		seen[name] = true
-		decl := teams[m.Source.Team]
-		status := first(m.Source.InstrumentStatus, decl["status"])
-		status = first(status, "partial")
-		archetype := first(m.Source.InstrumentArchetype, decl["archetype"])
-		out = append(out, map[string]any{"name": name, "team": m.Source.Team, "instrumentStatus": status, "instrumentArchetype": archetype, "readable": name != "none", "reason": map[bool]string{true: "", false: "No instrument surface declared"}[name != "none"]})
+		if teamByIntegration[integrationID] == "" {
+			teamByIntegration[integrationID] = metric.Source.Team
+		}
+		if bindingByIntegration[integrationID] == "" {
+			bindingByIntegration[integrationID] = metric.Source.Binding
+		}
+	}
+	out := []map[string]any{}
+	for _, state := range states {
+		integrationID := state.ID
+		name := bindingByIntegration[integrationID]
+		if name == "" {
+			name = state.DependencySlug
+		}
+		team := teamByIntegration[integrationID]
+		decl := teams[team]
+		row := map[string]any{
+			"name":                name,
+			"integrationId":       integrationID,
+			"team":                team,
+			"instrumentStatus":    first(decl["status"], "partial"),
+			"instrumentArchetype": first(decl["archetype"], "production-ledger"),
+			"readable":            state.Status == capreg.StatusAvailable,
+			"reason":              state.Message,
+			"state":               state,
+		}
+		out = append(out, row)
 	}
 	return out
 }
@@ -241,25 +268,13 @@ func first(values ...string) string {
 	return ""
 }
 
-func loadTeamDeclarations() map[string]map[string]string {
-	out := map[string]map[string]string{}
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		root = "../../"
+func (s *Server) teamDeclarations(ctx context.Context) map[string]map[string]string {
+	if s.instrumentProvider == nil {
+		return map[string]map[string]string{}
 	}
-	matches, _ := filepath.Glob(filepath.Join(root, "scenarios/prompt-manager/store/teams/*/team.json"))
-	for _, p := range matches {
-		var v struct {
-			Instrument struct {
-				Status    string `json:"status"`
-				Archetype string `json:"archetype"`
-			} `json:"instrument"`
-		}
-		if b, e := os.ReadFile(p); e == nil && json.Unmarshal(b, &v) == nil {
-			out[filepath.Base(filepath.Dir(p))] = map[string]string{"status": v.Instrument.Status, "archetype": v.Instrument.Archetype}
-		}
-	}
-	return out
+	return s.instrumentProvider.Declarations(ctx)
 }
 
-var _ = strings.TrimSpace
+func (s *Server) objectivesAvailable(ctx context.Context) bool {
+	return s.objectiveProvider != nil && s.objectiveProvider.ObjectivesAvailable(ctx)
+}

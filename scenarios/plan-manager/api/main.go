@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"plan-manager/internal/server"
 	internalvalidation "plan-manager/internal/validation"
 
+	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -83,6 +85,32 @@ func main() {
 		executionH.Module(db, schedule.System(), log.Default()),
 		planlogH.Module(db, schedule.System(), log.Default(), newPlanLogResolver(db, schedule.System())),
 	)
+
+	// Operational-table retention. Nothing in this API deleted anything before
+	// now: a repository-wide search for DELETE statements found exactly one, and
+	// it is a foreign-key cleanup, not retention. log_entries, validation
+	// operations and candidate revisions therefore grew without bound.
+	//
+	// The budgets live in .vrooli/service.json and are enforced by the shared
+	// engine; all three use the builtin age/bytes pruner, so no custom selection
+	// rule is registered here. Deliberately NOT bounded: the plans table itself
+	// (a plan is the durable product, not regenerable state), the authoring
+	// sessions table (an age rule alone cannot tell a finished session from an
+	// open one and would delete in-progress authoring), and the rendered mirror
+	// tree at ~/.vrooli/plans, which the repo contract declares protected with
+	// cleanup "never". Retention being unavailable is not fatal: a scenario that
+	// cannot reclaim space still serves plans correctly.
+	if retentionManager, retentionErr := retention.NewForScenario(retention.ScenarioConfig{
+		Scenario:   "plan-manager",
+		Registry:   retention.NewRegistry(),
+		RunOnStart: true,
+		Logger:     slog.Default(),
+	}); retentionErr != nil {
+		log.Printf("plan-manager: retention unavailable, operational tables will grow unbounded: %v", retentionErr)
+	} else {
+		retentionManager.Start(context.Background())
+		defer retentionManager.Stop()
+	}
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a

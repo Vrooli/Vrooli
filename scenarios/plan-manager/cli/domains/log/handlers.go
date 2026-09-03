@@ -35,7 +35,7 @@ func (h *handlers) decisionAdd(ctx cliapp.RunContext) error {
 		PhaseId:         ctx.Flag("phase"),
 		Title:           ctx.Flag("title"),
 		Detail:          ctx.Flag("detail"),
-		Evidence:        splitCSV(ctx.Flag("evidence")),
+		Evidence:        evidenceFlags(ctx, "evidence", "evidence-item"),
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
@@ -53,7 +53,7 @@ func (h *handlers) findingAdd(ctx cliapp.RunContext) error {
 		Title:           ctx.Flag("title"),
 		Detail:          ctx.Flag("detail"),
 		Severity:        severityFlag(ctx.Flag("severity")),
-		Evidence:        splitCSV(ctx.Flag("evidence")),
+		Evidence:        evidenceFlags(ctx, "evidence", "evidence-item"),
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
@@ -71,7 +71,7 @@ func (h *handlers) bugAdd(ctx cliapp.RunContext) error {
 		Title:           ctx.Flag("title"),
 		Detail:          ctx.Flag("detail"),
 		Severity:        severityFlag(ctx.Flag("severity")),
-		Evidence:        splitCSV(ctx.Flag("evidence")),
+		Evidence:        evidenceFlags(ctx, "evidence", "evidence-item"),
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
@@ -95,7 +95,7 @@ func (h *handlers) recordAdd(ctx cliapp.RunContext) error {
 		PhaseId:         ctx.Flag("phase"),
 		Title:           ctx.Flag("title"),
 		Detail:          ctx.Flag("detail"),
-		Evidence:        splitCSV(ctx.Flag("evidence")),
+		Evidence:        evidenceFlags(ctx, "evidence", "evidence-item"),
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
@@ -119,7 +119,7 @@ func (h *handlers) noteAdd(ctx cliapp.RunContext) error {
 		PhaseId:         ctx.Flag("phase"),
 		Title:           ctx.Flag("title"),
 		Detail:          ctx.Flag("detail"),
-		Evidence:        splitCSV(ctx.Flag("evidence")),
+		Evidence:        evidenceFlags(ctx, "evidence", "evidence-item"),
 		SourceCommand:   ctx.Flag("source-command"),
 		IdempotencyKey:  ctx.Flag("idempotency-key"),
 		RunId:           ctx.Flag("run-id"),
@@ -173,7 +173,7 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		Detail:      ctx.Flag("detail"),
 		Severity:    severityFlag(ctx.Flag("severity")),
 		Triage:      triageFlag(ctx.Flag("triage")),
-		AddEvidence: splitCSV(ctx.Flag("add-evidence")),
+		AddEvidence: evidenceFlags(ctx, "add-evidence", "add-evidence-item"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update log entry", err, nil)
@@ -359,6 +359,29 @@ func captureLines(c *sharedv1.CaptureDisposition) []string {
 		lines = append(lines, "repair: "+strings.Join(c.GetNextAction(), " "))
 	}
 	return lines
+}
+
+// evidenceFlags merges the comma-separated evidence flag with its repeatable
+// per-item variant.
+//
+// The CSV flag splits on every comma with no quoting or escaping, so any
+// locator containing a comma is silently torn into two entries. The phase
+// commands already solved this by pairing a plural CSV flag with a repeatable
+// singular one; evidence simply never got the singular. Values from the
+// repeatable flag are preserved verbatim.
+func evidenceFlags(ctx cliapp.RunContext, csvFlag, itemFlag string) []string {
+	var out []string
+	if ctx.FlagDeclared(itemFlag) {
+		for _, value := range ctx.FlagValues(itemFlag) {
+			if strings.TrimSpace(value) != "" {
+				out = append(out, strings.TrimSpace(value))
+			}
+		}
+	}
+	if ctx.FlagDeclared(csvFlag) && ctx.FlagProvided(csvFlag) {
+		out = append(out, splitCSV(ctx.Flag(csvFlag))...)
+	}
+	return out
 }
 
 func splitCSV(s string) []string {

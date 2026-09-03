@@ -353,6 +353,9 @@ func TestGetAnalyticsSummary(t *testing.T) {
 	if summary.TotalDownloads != 1 {
 		t.Errorf("Expected 1 download, got %d", summary.TotalDownloads)
 	}
+	if summary.ObservedAt == nil || summary.ObservedAt.After(time.Now().UTC()) {
+		t.Errorf("Expected producer observation time at or before now, got %v", summary.ObservedAt)
+	}
 }
 
 func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {

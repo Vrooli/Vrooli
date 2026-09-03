@@ -9,11 +9,12 @@ import (
 // Envelope wraps a cached upstream response with freshness metadata.
 // Consumers use StalenessTS to decide whether to render a "stale" badge.
 type Envelope struct {
-	Data        json.RawMessage `json:"data"`
-	CachedAt    time.Time       `json:"cached_at"`
-	StalenessTS *time.Time      `json:"staleness_ts,omitempty"`
-	FromCache   bool            `json:"from_cache"`
-	Source      string          `json:"source"`
+	Data          json.RawMessage `json:"data"`
+	CachedAt      time.Time       `json:"cached_at"`
+	StalenessTS   *time.Time      `json:"staleness_ts,omitempty"`
+	FromCache     bool            `json:"from_cache"`
+	Source        string          `json:"source"`
+	ObservationAt *time.Time      `json:"observation_at,omitempty"`
 }
 
 // cacheEntry holds an envelope plus a per-key TTL.

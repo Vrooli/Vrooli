@@ -56,7 +56,8 @@ export default function FocusPage() {
                 <li key={`${source.team}:${source.name}`} data-readable={source.readable}>
                   <span className="cc-source-dot" />
                   <span className="cc-source-name">{source.name.replace(/^scenario:/, "")}</span>
-                  <span className="cc-source-meta">{source.team} · {source.instrumentStatus}{source.reason ? ` · ${source.reason}` : ""}</span>
+                  <span className="cc-source-meta">{source.team} · {source.instrumentStatus}{source.state?.status ? ` · ${source.state.status}` : ""}{source.reason ? ` · ${source.reason}` : ""}</span>
+                  {source.state?.featureStatus ? <span className="cc-source-meta">features: {Object.entries(source.state.featureStatus).map(([feature, status]) => `${feature}=${status}`).join(", ")}</span> : null}
                 </li>
               ))}
             </ul>

@@ -3263,6 +3263,10 @@
               "description": "Comma-separated supporting evidence locators"
             },
             {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
               "name": "source-command",
               "description": "The plan-manager command that produced this entry"
             },
@@ -3328,6 +3332,10 @@
               "description": "Comma-separated supporting evidence locators"
             },
             {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
               "name": "source-command",
               "description": "The plan-manager command that produced this entry"
             },
@@ -3391,6 +3399,10 @@
             {
               "name": "evidence",
               "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
             },
             {
               "name": "source-command",
@@ -3488,6 +3500,10 @@
               "description": "Comma-separated supporting evidence locators"
             },
             {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
               "name": "source-command",
               "description": "The plan-manager command that produced this entry"
             },
@@ -3568,6 +3584,10 @@
             {
               "name": "evidence",
               "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
             },
             {
               "name": "source-command",
@@ -3712,6 +3732,10 @@
             {
               "name": "add-evidence",
               "description": "Comma-separated evidence locators to append"
+            },
+            {
+              "name": "add-evidence-item",
+              "description": "One evidence locator to append, preserved verbatim; repeat as needed. Use this instead of --add-evidence when a locator contains a comma."
             }
           ],
           "binding": {

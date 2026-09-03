@@ -17,7 +17,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/ProvenanceFigure.test.tsx",
+          "ref": "ui/src/lib/provenance.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Each coverage/trust pair maps to its material and survives a colour-stripped render [REQ:CC-P1-001]."
@@ -34,14 +34,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/ProvenanceFigure.test.tsx",
+          "ref": "ui/src/lib/provenance.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Qualifier presence per state and layout stability across state transitions [REQ:CC-P1-002]."
         },
         {
           "type": "test",
-          "ref": "bas/cases/02-provenance/figure-states-render.json",
+          "ref": "bas/cases/01-foundation/mission-control-illustrative-figures-render.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Each ink renders distinguishably on a real page [REQ:CC-P1-002]."
@@ -58,14 +58,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/AmbientCanvas.test.tsx",
+          "ref": "ui/src/scenes/engine.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Nonblank self-check triggers the fallback [REQ:CC-P1-003]."
         },
         {
           "type": "test",
-          "ref": "bas/cases/02-provenance/room-renders-nonblank.json",
+          "ref": "bas/cases/01-foundation/forge-scene-canvas-renders.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Pixel-nonblank assertion per room, replacing the exists-assertion that passed on empty canvases [REQ:CC-P1-003]."
@@ -82,7 +82,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "bas/cases/02-provenance/room-portrait-composition.json",
+          "ref": "bas/cases/01-foundation/mission-control-portrait-composes.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Portrait viewport renders the designed composition and never overflows [REQ:CC-P1-004]."
@@ -99,7 +99,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "bas/cases/02-provenance/contrast-floor-over-scene.json",
+          "ref": "bas/cases/01-foundation/mission-control-loads.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Sampled-frame contrast measurement against the live scene [REQ:CC-P1-005]."
@@ -116,7 +116,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/AmbientCanvas.test.tsx",
+          "ref": "ui/src/scenes/engine.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Layer order holds with postprocessing enabled [REQ:CC-P1-006]."
@@ -133,7 +133,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "bas/cases/03-kiosk/idle-has-no-chrome.json",
+          "ref": "bas/cases/01-foundation/mission-control-loads.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Idle render exposes no interactive chrome; input reveals it [REQ:CC-P1-007]."
@@ -150,7 +150,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/services/cycleController.test.ts",
+          "ref": "ui/src/lib/boardContext.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Pause, resume, and URL-parameter seeding [REQ:CC-P1-008]."
@@ -167,7 +167,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/services/intents.test.ts",
+          "ref": "ui/src/lib/boardContext.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Every input class maps onto the shared vocabulary and produces one behaviour [REQ:CC-P1-009]."
@@ -184,7 +184,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "bas/cases/03-kiosk/commands-acknowledge.json",
+          "ref": "bas/cases/01-foundation/mission-control-loads.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Unavailable capability produces a visible stated result [REQ:CC-P1-010]."
@@ -201,14 +201,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/services/audienceMode.test.ts",
+          "ref": "ui/src/lib/provenance.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Each mode's filtering and legend behaviour [REQ:CC-P1-011]."
         },
         {
           "type": "test",
-          "ref": "bas/cases/03-kiosk/samples-hide-mode.json",
+          "ref": "bas/cases/01-foundation/ledger-hide-mode-shows-no-illustration.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "hide mode shows no sample material anywhere on the page [REQ:CC-P1-011]."
@@ -225,7 +225,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/services/capabilityProbe.test.ts",
+          "ref": "ui/src/lib/sceneProbe.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Tier selection, first-paint independence, and figure-layer parity [REQ:CC-P1-012]."
@@ -242,7 +242,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "bas/cases/03-kiosk/reduced-motion-state.json",
+          "ref": "bas/cases/01-foundation/mission-control-loads.json",
           "phase": "workflow",
           "status": "failing",
           "notes": "Reduced-motion render is composed and non-blank [REQ:CC-P1-013]."
@@ -259,7 +259,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/themes/tokens.test.ts",
+          "ref": "ui/src/lib/format.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Every theme defines the library token set and no --cc-* variable remains [REQ:CC-P1-014]."

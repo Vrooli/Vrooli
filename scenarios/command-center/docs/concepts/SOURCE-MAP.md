@@ -56,3 +56,33 @@ The inverse is also true and worth stating plainly: **this board makes the fleet
 - [COVERAGE-MODEL.md](COVERAGE-MODEL.md) § The third axis — how source maturity qualifies a coverage status
 - [OUTCOME-TAXONOMY.md](OUTCOME-TAXONOMY.md) — how these declarations become the board's shape
 - `path:docs/agent-system/TARGET_MODEL.md` § 9 — the deviation catalogue, including D1 "no instrument"
+# Operational source projection
+
+Command Center treats `.vrooli/service.json` as the runtime dependency
+authority. The API projects its enabled scenario dependencies through
+`capability-registry-go` and adds the Vrooli control plane as a distinct
+`control_plane` integration. Current read paths are intentionally narrow:
+
+| Integration | Read surface | Feature evidence | Failure meaning |
+|---|---|---|---|
+| `vrooli-core` | typed `ScenarioControlPlaneService.ListScenarios` (Connect); `/health` only for liveness | scenario inventory and health | control-plane availability |
+| `swarm-manager` | typed `StatsService.GetPortfolioStats` (Connect); `/health` only for liveness | throughput and agent statistics | producer availability and independently proven feature state |
+| `landing-page-business-suite` | typed `MetricsService.GetAnalyticsSummary` (Connect); `/health` only for liveness | funnel and revenue selectors | producer availability; absent surface is not guessed |
+| `prompt-manager` | typed `MemberflowService.GetInstruments` transmitter | team instrument | owner guidance when the typed transmitter is unavailable |
+
+The Swarm and LPBS read paths above remain producer-owned aggregate projections.
+Their canonical aggregate reads use generated Connect contracts through
+producer-owned typed projections; REST is retained only for the operational
+health probe. A typed adapter rejects undeclared paths instead of falling back
+to an untyped producer surface. Swarm and LPBS carry producer-owned observation
+time through their generated responses. Prompt Manager's objective and
+instrument reads also use its generated Connect contract.
+
+The browser calls Command Center only. Explicit integration reads use the
+generated TypeScript Connect client and shared protobuf response; the remaining
+board, room, Focus, and open-loop projections use Command Center's read routes.
+Source strips and the Focus panel read the same integration snapshot exposed by
+Command Center; they do not infer readiness from a metric binding. Metric coverage remains authored in
+`config/outcome-registry.json`, while trust is qualified from producer-owned
+observation time. A response without observation metadata is `UNTRUSTED`, not
+freshened with the consumer fetch time.

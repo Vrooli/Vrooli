@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -32,6 +33,10 @@ const (
 	// concrete decision-add example and a short variant list.
 	RendererVersion     = "plan-manager-renderer-v6"
 	mirrorIndexFilename = "_index.json"
+	// mirrorIndexVersion is the schema version this build writes. It is stamped
+	// after decoding so an older on-disk version is upgraded in place rather
+	// than pinned forever by the decode.
+	mirrorIndexVersion = 2
 )
 
 // RenderResult is the read model for a rendered markdown request.
@@ -203,7 +208,7 @@ func (s OSMirrorStore) upsertIndex(p Plan, meta RenderedPlanMirror) error {
 		return err
 	}
 	path := filepath.Join(root, mirrorIndexFilename)
-	idx := mirrorIndex{Version: 2}
+	idx := mirrorIndex{Version: mirrorIndexVersion}
 	if raw, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(raw, &idx); err != nil {
 			return fmt.Errorf("decode mirror index: %w", err)
@@ -211,6 +216,10 @@ func (s OSMirrorStore) upsertIndex(p Plan, meta RenderedPlanMirror) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read mirror index: %w", err)
 	}
+	// Decoding overwrites Version with whatever the file carried, so an index
+	// first written at v1 would report v1 forever and any version-keyed
+	// migration would never fire. Restamp it after the decode.
+	idx.Version = mirrorIndexVersion
 	record := mirrorIndexPlanRecord{
 		ID:            p.ID,
 		Title:         p.Title,
@@ -234,6 +243,12 @@ func (s OSMirrorStore) upsertIndex(p Plan, meta RenderedPlanMirror) error {
 	if !replaced {
 		idx.Plans = append(idx.Plans, record)
 	}
+	return s.writeIndex(root, path, idx)
+}
+
+// writeIndex atomically replaces the mirror index. Extracted so upsertIndex and
+// PruneIndex share one durable-write path rather than two copies that can drift.
+func (s OSMirrorStore) writeIndex(root, path string, idx mirrorIndex) error {
 	raw, err := json.MarshalIndent(idx, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode mirror index: %w", err)
@@ -305,4 +320,111 @@ func fsyncDir(path string) error {
 	}
 	defer dir.Close()
 	return dir.Sync()
+}
+
+// mirrorMarkerRe matches the self-identifying comment stamped at the top of
+// every rendered mirror by renderHeader.
+var mirrorMarkerRe = regexp.MustCompile(`<!--\s*plan-manager:mirror\s+id=([^\s]+)(?:\s+slug=([^\s]*))?\s*-->`)
+
+// FormatMirrorMarker renders the marker comment for a plan identity.
+func FormatMirrorMarker(id, slug string) string {
+	return fmt.Sprintf("<!-- plan-manager:mirror id=%s slug=%s -->", id, slug)
+}
+
+// ParseMirrorMarker reports whether markdown is a mirror this system rendered,
+// and returns the plan identity it was rendered from. A document without the
+// marker is either a hand-authored plan or a mirror written before the marker
+// existed; both are treated as un-marked, so callers must keep their existing
+// database-keyed guards rather than relying on this alone.
+func ParseMirrorMarker(markdown string) (id string, slug string, ok bool) {
+	m := mirrorMarkerRe.FindStringSubmatch(markdown)
+	if m == nil {
+		return "", "", false
+	}
+	return strings.TrimSpace(m[1]), strings.TrimSpace(m[2]), true
+}
+
+// MirrorIndexPruner is implemented by mirror stores that keep a durable index
+// beside the rendered files. It is an optional interface rather than a method
+// on MirrorStore so stores that hold no index (and test fakes) are unaffected.
+type MirrorIndexPruner interface {
+	PruneIndex() (MirrorIndexPruneResult, error)
+}
+
+// MirrorIndexPruneResult reports what a prune removed.
+type MirrorIndexPruneResult struct {
+	Before      int
+	After       int
+	MissingFile int
+	DuplicateID int
+}
+
+// PruneIndex drops index records that can no longer describe anything: records
+// whose rendered file is gone, and duplicate records for one plan id.
+//
+// The index had no removal path at all. upsertIndex only ever appends or
+// replaces in place, so a rendered file that is deleted, or a plan re-rendered
+// under a second identity, leaves its record behind forever. Because every plan
+// write rewrites the whole index, that dead weight is also a direct per-write
+// cost, not just wasted bytes.
+//
+// This is deliberately keyed on the filesystem rather than on the database: an
+// index entry whose file exists is kept even when the plan row is missing,
+// because that is exactly the orphaned-mirror case an operator may still want
+// to recover from.
+func (s OSMirrorStore) PruneIndex() (MirrorIndexPruneResult, error) {
+	var res MirrorIndexPruneResult
+	root, err := s.root()
+	if err != nil {
+		return res, err
+	}
+	path := filepath.Join(root, mirrorIndexFilename)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return res, nil
+		}
+		return res, fmt.Errorf("read mirror index: %w", err)
+	}
+	var idx mirrorIndex
+	if err := json.Unmarshal(raw, &idx); err != nil {
+		return res, fmt.Errorf("decode mirror index: %w", err)
+	}
+	res.Before = len(idx.Plans)
+	idx.Version = mirrorIndexVersion
+
+	seen := make(map[string]int, len(idx.Plans))
+	kept := make([]mirrorIndexPlanRecord, 0, len(idx.Plans))
+	for _, record := range idx.Plans {
+		recordPath := strings.TrimSpace(record.Path)
+		if recordPath == "" {
+			recordPath = filepath.Join(root, record.Slug+".md")
+		}
+		if _, statErr := os.Stat(recordPath); statErr != nil {
+			if errors.Is(statErr, os.ErrNotExist) {
+				res.MissingFile++
+				continue
+			}
+			return res, fmt.Errorf("stat indexed mirror %q: %w", recordPath, statErr)
+		}
+		key := strings.TrimSpace(record.ID)
+		if key == "" {
+			key = "slug:" + record.Slug
+		}
+		if at, dup := seen[key]; dup {
+			// Keep the later record; upsert semantics already treat the most
+			// recent write as authoritative.
+			kept[at] = record
+			res.DuplicateID++
+			continue
+		}
+		seen[key] = len(kept)
+		kept = append(kept, record)
+	}
+	idx.Plans = kept
+	res.After = len(kept)
+	if res.MissingFile == 0 && res.DuplicateID == 0 {
+		return res, nil
+	}
+	return res, s.writeIndex(root, path, idx)
 }

@@ -34,7 +34,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/history_test.go",
+          "ref": "api/cache_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Verdicts recompute at query time; no band verdict is stored [REQ:CC-P2-002]."

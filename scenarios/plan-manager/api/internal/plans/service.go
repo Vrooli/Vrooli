@@ -1056,7 +1056,12 @@ func (s *service) publishMirror(ctx context.Context, p Plan) (Plan, error) {
 		meta.RenderVersion = RendererVersion
 		meta.LastError = err.Error()
 		p.Mirror = meta
-		_ = s.repo.Save(ctx, p)
+		// The mirror write already failed; recording that failure on the plan is
+		// the only thing keeping the row honest about its own state. Discarding
+		// this error too left a plan claiming a healthy mirror it does not have.
+		if saveErr := s.repo.Save(ctx, p); saveErr != nil {
+			return p, fmt.Errorf("record mirror write failure on plan %s: %w", p.ID, saveErr)
+		}
 		return p, nil
 	}
 	p.Mirror = meta
