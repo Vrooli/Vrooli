@@ -32,7 +32,8 @@ func ValidateSelectorCoverage(scope Scope) (Result, error) {
 				if element.Tag != "button" && element.Tag != "a" && element.Tag != "input" && element.Tag != "select" && element.Tag != "textarea" {
 					continue
 				}
-				testIDs := element.Attributes["data-testid"]
+				testIDs := append([]string{}, element.Attributes["data-testid"]...)
+				testIDs = append(testIDs, element.Attributes["data-rcl-selector"]...)
 				if len(testIDs) > 0 && strings.Contains(strings.Join(testIDs, " "), asset.Asset.ID) {
 					continue
 				}
@@ -51,7 +52,7 @@ func ValidateSelectorCoverage(scope Scope) (Result, error) {
 			if len(match) == 0 {
 				continue
 			}
-			testID := regexp.MustCompile(`data-testid\s*=`).FindStringIndex(tag)
+			testID := regexp.MustCompile(`(?:data-testid|data-rcl-selector)\s*=`).FindStringIndex(tag)
 			if testID == nil || !strings.Contains(tag, asset.Asset.ID) {
 				return defect{
 					Message:     fmt.Sprintf("interactive <%s> has no data-testid derived from %s", match[1], asset.Asset.ID),

@@ -320,11 +320,11 @@ LIMIT ?
 func (s *sqliteRepository) ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.id, a.component_id, a.library_id, a.scenario, a.adopted_path, a.adopted_version, a.source_sha256, a.adopted_snapshot_sha256, a.library_version_status, a.local_status, a.status_detail, a.created_at, a.refreshed_at, a.applied_at, a.drift_backlog_ref,
-       f.source_asset_id, f.source_library_id, f.source_version
-FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id
-WHERE f.source_asset_id = ?
+       COALESCE(f.source_asset_id, a.component_id), COALESCE(f.source_library_id, a.library_id), COALESCE(f.source_version, a.adopted_version)
+FROM adoption_records a LEFT JOIN adoption_files f ON a.id = f.adoption_id
+WHERE a.component_id = ? OR f.source_asset_id = ?
 ORDER BY a.created_at DESC, a.id ASC, f.adopted_path ASC
-LIMIT ?`, componentID, limit)
+LIMIT ?`, componentID, componentID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list effective adoptions: %w", err)
 	}

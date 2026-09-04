@@ -299,6 +299,22 @@
           }
         },
         {
+          "path": "concepts/GESTURES.md",
+          "docType": "concept",
+          "title": "Gesture Contract",
+          "aliases": ["gestures", "gesture-system", "pointer-kernel"],
+          "description": "Axis ownership, nested claims, interaction feel, and the shared gesture kernels",
+          "audience": ["developers", "agents", "designers"],
+          "canonicalFor": ["gesture-contract", "pointer-kernel", "axis-ownership"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Axis ownership", "Nested gesture claims", "Touch-action policy", "Feel constants", "Kernel contract", "Safe polygon", "Kernel decision table", "Authoring recipe"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "concepts/DATA.md",
           "docType": "data",
           "title": "Data",

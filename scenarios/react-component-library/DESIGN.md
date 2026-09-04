@@ -220,6 +220,11 @@ Example primitives (illustrative, not a feature checklist — include whatever y
 - **Shells:** desktop sidebars, collapsible panes, resizable inspectors, bottom mobile navigation, route-level mobile panels.
 - **Dialogs:** compact modal on desktop; bottom sheet or full-screen panel on mobile when content is more than a short confirmation.
 - **Lists and tables:** dense rows, sticky headers when useful, clear selected state, empty/loading/error states, and bulk action affordances.
+
+For card-oriented collections, use the four-layer `CollectionList` contract
+documented in [COLLECTIONS.md](docs/concepts/COLLECTIONS.md). Use `DataTable`
+and `ResourceCollection` when the user needs columns, headers, sorting, or
+tabular density; do not force card content into a table-shaped API.
 - **Status:** semantic chips, health indicators, badges, progress bars, and validation summaries with both text and color.
 - **Code and files:** monospace text, stable line height, visible focus, preserved whitespace, horizontal scroll affordances, and clear added/modified/deleted states.
 - **Actions:** primary action near the active work surface; destructive actions separated, confirmed, and visually distinct.

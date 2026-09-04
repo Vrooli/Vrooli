@@ -70,6 +70,21 @@
     "reason": "The foundation exports pure direction-resolution functions only; it renders nothing and has no DOM-owned root."
   },
   {
+    "asset": "foundations.gesture-tokens",
+    "kind": "permanent",
+    "reason": "The foundation exports gesture feel tokens and a merge helper only; it renders nothing and has no DOM-owned root."
+  },
+  {
+    "asset": "components.gesture-tokens",
+    "kind": "permanent",
+    "reason": "The token-only gesture foundation is temporarily indexed under components by the ingest API; it has no DOM-owned root."
+  },
+  {
+    "asset": "components.use-hover-intent",
+    "kind": "permanent",
+    "reason": "The behavior-only hover controller is temporarily indexed under components by the ingest API; it has no DOM-owned root."
+  },
+  {
     "asset": "primitives.slot",
     "kind": "permanent",
     "reason": "Slot clones a consumer-owned element and does not own a DOM root to stamp."

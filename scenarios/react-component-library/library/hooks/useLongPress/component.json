@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-long-press",
+  "deprecatedVersions": [],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:useLongPress"
+}

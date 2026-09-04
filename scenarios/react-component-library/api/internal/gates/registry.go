@@ -43,7 +43,8 @@ var readOverrides = map[string]Reads{
 	"restyle-contract": ReadsAsset, "manifest-identity": ReadsAsset, "manifest-metadata": ReadsAsset,
 	"style-injection": ReadsAsset, "style-ownership": ReadsAsset, "utility-class": ReadsAsset,
 	"provenance-stamp": ReadsAsset, "evidence-freshness": ReadsAsset, "composition": ReadsAsset,
-	"composition-contract": ReadsAsset,
+	"composition-contract":     ReadsAsset,
+	"scenario-canonical-layer": ReadsCorpus,
 }
 
 // Runner is the compatibility shape used by direct calibration/unit callers.
@@ -82,6 +83,7 @@ var registry = []Definition{
 	registeredDefinition("affinity-compatible", true, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
 	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete, "catalog/assets/**", "library/**"),
 	registeredDefinition("scenario-token-requirements", true, ValidateScenarioTokenRequirements, "catalog/config.json", "library/**", "ui/src/**"),
+	registeredDefinition("scenario-canonical-layer", true, ValidateScenarioCanonicalLayer, "library/**", "scenarios/*/ui/src/**"),
 	registeredDefinition("released-version-immutable", true, ValidateReleasedVersionImmutable, "library/released-version-hashes.json", "library/**"),
 	registeredDefinition("version-mirror-integrity", true, ValidateVersionMirrorIntegrity, "library/**"),
 	registeredDefinition("specifier-shape", true, ValidateSpecifierShape, "library/**", "catalog/config.json"),

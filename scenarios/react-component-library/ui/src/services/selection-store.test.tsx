@@ -2,22 +2,21 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  createScopedStore,
+  createSelectionStore,
   useSelectionStore,
-} from "@vrooli/react-component-library/SelectionStore/1";
+} from "@vrooli/react-component-library/SelectionStore/2";
 
 describe("selection store", () => {
   afterEach(cleanup);
 
-  it("updates subscribers for direct and functional writes", () => {
-    const store = createScopedStore(["one"]);
+  it("updates subscribers for keyed writes and range selection", () => {
+    const store = createSelectionStore(["one"], "multi");
     const listener = () => undefined;
     const unsubscribe = store.subscribe(listener);
-    expect(store.get()).toEqual(["one"]);
-    store.set(["two"]);
-    expect(store.get()).toEqual(["two"]);
-    store.set((previous) => [...previous, "three"]);
-    expect(store.get()).toEqual(["two", "three"]);
+    expect([...store.getSnapshot().keys]).toEqual(["one"]);
+    store.setSelected(["two"]);
+    store.extendTo("three", ["two", "three"]);
+    expect([...store.getSnapshot().keys]).toEqual(["two", "three"]);
     unsubscribe();
   });
 

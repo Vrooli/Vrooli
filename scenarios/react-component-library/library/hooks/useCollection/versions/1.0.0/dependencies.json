@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:useCollection",
+  "version": "1.0.0",
+  "resolvedAt": "2026-09-03T23:45:33.774Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:SelectionStore",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useLongPress",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

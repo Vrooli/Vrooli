@@ -1,0 +1,7 @@
+{
+  "catalogId": "data-display.plan-summary",
+  "deprecatedVersions": [],
+  "draft": "0.1.0-draft.1",
+  "latest": "0.1.0",
+  "libraryId": "react-component-library:PlanSummary"
+}

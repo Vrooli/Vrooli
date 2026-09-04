@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Menu",
+  "version": "2.0.0",
+  "resolvedAt": "2026-09-03T18:04:31.158Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Popover",
+      "major": 1,
+      "observed": "1.2.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useHoverIntent",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useRovingFocus",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useTypeahead",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

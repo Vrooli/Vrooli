@@ -213,6 +213,22 @@ func TestSQLiteRepository_ListEffectiveReturnsMediatedParent(t *testing.T) {
 	require.Equal(t, "drawer", effective[0].ParentAdoption.ComponentID)
 }
 
+func TestSQLiteRepository_ListEffectiveReturnsDirectLinkedAdoption(t *testing.T) {
+	repo, _ := newAdoptionsDB(t)
+	_, err := repo.Create(context.Background(), adoptions.CreateInput{
+		ID: "linked-adoption", ComponentID: "collection-list", LibraryID: "rcl:CollectionList", Scenario: "swarm-manager", AdoptedPath: "./CollectionList/1.0.0", AdoptedVersion: "1.0.0", Mode: adoptions.AdoptionModeLinked,
+	})
+	require.NoError(t, err)
+
+	effective, err := repo.ListEffective(context.Background(), "collection-list", 10)
+	require.NoError(t, err)
+	require.Len(t, effective, 1)
+	require.False(t, effective[0].Mediated)
+	require.Equal(t, "rcl:CollectionList", effective[0].SourceLibraryID)
+	require.Equal(t, "1.0.0", effective[0].SourceVersion)
+	require.Equal(t, "linked-adoption", effective[0].ParentAdoption.ID)
+}
+
 func TestSQLiteRepository_DeleteAndApplyRefresh(t *testing.T) {
 	repo, clk := newAdoptionsDB(t)
 	ctx := context.Background()

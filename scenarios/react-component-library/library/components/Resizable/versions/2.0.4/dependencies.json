@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:Resizable",
   "version": "2.0.4",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T17:30:02.462Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ResizeHandle",
@@ -13,7 +13,7 @@
     {
       "libraryId": "react-component-library:useResizablePanel",
       "major": 1,
-      "observed": "1.0.1",
+      "observed": "1.1.0",
       "rank": 2
     }
   ]

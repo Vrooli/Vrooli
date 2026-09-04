@@ -46,6 +46,23 @@ func ValidateScenarioTokenRequirements(scope Scope) (Result, error) {
 			continue
 		}
 		result.Inspected++
+		mainPath := filepath.Join(scenariosRoot, scenario, "ui", "src", "main.tsx")
+		mainSource, mainErr := os.ReadFile(mainPath)
+		if mainErr != nil && !os.IsNotExist(mainErr) {
+			return Result{}, mainErr
+		}
+		mainText := string(mainSource)
+		if !containsCanonicalLayerMount(mainText) {
+			first := specifiers[0]
+			result.Findings = append(result.Findings, Finding{
+				Code:        "catalog.scenario_canonical_layer_unmounted",
+				AssetID:     "__corpus__.scenario-token-requirements",
+				File:        repoRel(root, mainPath),
+				Message:     fmt.Sprintf("scenario %s imports %s but does not mount the canonical BaseStyles provider", scenario, first.Name),
+				Remediation: fmt.Sprintf("Add `import { BaseStyles } from \"@vrooli/react-component-library/BaseStyles/1\";` to %s and render `<BaseStyles />` above the application root.", repoRel(root, mainPath)),
+				DocsRef:     "docs/concepts/ARCHITECTURE.md#design-tokens",
+			})
+		}
 		required := map[string]bool{}
 		for _, specifier := range specifiers {
 			asset, exists := assets[specifier.Name]

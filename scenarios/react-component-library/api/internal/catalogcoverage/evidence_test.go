@@ -166,6 +166,19 @@ func TestCurrentRevisionForVersionIgnoresLockResolutionTimestamp(t *testing.T) {
 	require.Equal(t, first, second, "generator bookkeeping must not invalidate evidence")
 }
 
+func TestCurrentRevisionForVersionChangesWhenStoryContractChanges(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "button", "Button", "")
+	story := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "button", "versions", "1.0.0", "story.json")
+	require.NoError(t, os.WriteFile(story, []byte(`{"schemaVersion":5,"stories":[{"id":"default"}]}`), 0o644))
+	first, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(story, []byte(`{"schemaVersion":5,"stories":[{"id":"updated"}]}`), 0o644))
+	second, err := CurrentRevisionForVersion(root, "rcl:Button", "1.0.0")
+	require.NoError(t, err)
+	require.NotEqual(t, first, second, "story contract changes must invalidate browser evidence")
+}
+
 func writeAsset(t *testing.T, root, name, libraryName, dependencies string) {
 	t.Helper()
 	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")

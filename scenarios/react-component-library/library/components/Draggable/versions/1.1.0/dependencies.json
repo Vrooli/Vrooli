@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Draggable",
+  "version": "1.1.0",
+  "resolvedAt": "2026-09-03T17:28:40Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:DragDropStore",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useAnnounce",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useDrag",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

@@ -6,7 +6,7 @@
     "id": "sidebar-shell",
     "title": "SidebarShell",
     "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
-    "storyRef": "../../library/components/SidebarShell/versions/2.6.3/story.json"
+      "storyRef": "../../library/components/SidebarShell/versions/2.7.2/story.json"
   },
   "states": [
     {
@@ -15,7 +15,7 @@
       "description": "The desktop navigation rail is visible."
     },
     {
-      "id": "mobile-open",
+      "id": "drawer-open",
       "example": "overlay-open",
       "description": "The mobile drawer is open and dismissible."
     }
@@ -34,14 +34,14 @@
       "statement": "The responsive shell exposes a navigation surface.",
       "tier": "machine",
       "elements": ["shell"],
-      "states": ["default", "mobile-open"]
+      "states": ["default", "drawer-open"]
     },
     {
       "id": "shell-no-overflow",
       "type": "no-document-horizontal-overflow",
       "statement": "The shell remains bounded by the document viewport in both presentations.",
       "tier": "machine",
-      "states": ["default", "mobile-open"]
+      "states": ["default", "drawer-open"]
     }
   ],
   "bindings": { "elements": { "shell": { "testid": "sidebar-shell" } } }

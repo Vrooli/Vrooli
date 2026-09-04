@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:SwipeActions",
+  "version": "1.3.1",
+  "resolvedAt": "2026-09-03T17:46:02Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useHandedness",
+      "major": 1,
+      "observed": "1.1.3",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useSwipeGesture",
+      "major": 2,
+      "observed": "2.0.1",
+      "rank": 2
+    }
+  ]
+}

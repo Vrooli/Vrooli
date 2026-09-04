@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "shell": {
+        "testid": "sidebar-shell"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["shell"],
+      "id": "shell-present",
+      "statement": "The responsive shell exposes a navigation surface.",
+      "states": ["default", "drawer-open"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "shell-no-overflow",
+      "statement": "The shell remains bounded by the document viewport in both presentations.",
+      "states": ["default", "drawer-open"],
+      "tier": "machine",
+      "type": "no-document-horizontal-overflow"
+    }
+  ],
+  "component": {
+    "id": "sidebar-shell",
+    "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+    "storyRef": "../../library/components/SidebarShell/versions/2.7.2/story.json",
+    "title": "SidebarShell"
+  },
+  "elements": [
+    {
+      "description": "The responsive navigation shell.",
+      "id": "shell",
+      "role": "x-navigation-shell"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "The desktop navigation rail is visible.",
+      "example": "persistent",
+      "id": "default"
+    },
+    {
+      "description": "The mobile drawer is open and dismissible.",
+      "example": "overlay-open",
+      "id": "drawer-open"
+    }
+  ]
+}

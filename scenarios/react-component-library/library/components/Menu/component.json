@@ -19,8 +19,9 @@
     "1.1.2",
     "1.2.2",
     "1.2.3",
-    "1.2.4"
+    "1.2.4",
+    "1.2.5"
   ],
-  "latest": "1.2.5",
+  "latest": "2.0.0",
   "libraryId": "react-component-library:Menu"
 }

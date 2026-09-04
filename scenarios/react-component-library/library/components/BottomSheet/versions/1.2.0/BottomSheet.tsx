@@ -137,7 +137,7 @@ export function BottomSheet({
     },
     modal: true,
     kind: "sheet",
-    dismiss: { escape: true, backdrop: true, swipe: "down" },
+    dismiss: { escape: true, backdrop: true, swipe: "bottom" },
     initialFocusRef,
     returnFocusRef,
   });

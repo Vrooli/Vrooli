@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:AppShell",
   "version": "2.0.2",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T18:19:07.403Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:BottomNav",
@@ -31,7 +31,7 @@
     {
       "libraryId": "react-component-library:SidebarShell",
       "major": 2,
-      "observed": "2.6.3",
+      "observed": "2.7.2",
       "rank": 4
     },
     {

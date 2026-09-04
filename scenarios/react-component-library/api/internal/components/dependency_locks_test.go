@@ -35,3 +35,12 @@ func TestValidateVersionDependencyLocksAllowsProvenancedColdTarget(t *testing.T)
 	}
 	require.NoError(t, ValidateVersionDependencyLocks(fsys))
 }
+
+func TestValidateVersionDependencyLocksUsesObservedForSchemaV2(t *testing.T) {
+	fsys := fstest.MapFS{
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte("export const Button = 1")},
+		"components/Button/versions/1.0.0/dependencies.json": {Data: []byte(`{"schemaVersion":2,"libraryId":"react-component-library:Button","version":"1.0.0","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[{"libraryId":"react-component-library:Icon","observed":"1.0.0","rank":3}]}`)},
+		"components/Icon/versions/1.0.0/Icon.tsx":              {Data: []byte("export const Icon = 1")},
+	}
+	require.NoError(t, ValidateVersionDependencyLocks(fsys))
+}

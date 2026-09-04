@@ -12,6 +12,13 @@
     "1.0.8",
     "1.0.1"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible",
+      "reason": "Immersive presentation is suitable when chart chrome is suppressed."
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -22,6 +29,6 @@
     "1.0.8",
     "1.0.1"
   ],
-  "latest": "1.0.10",
+  "latest": "1.0.11",
   "libraryId": "react-component-library:Chart"
 }

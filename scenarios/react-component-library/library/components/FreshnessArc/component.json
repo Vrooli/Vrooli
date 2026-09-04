@@ -4,6 +4,13 @@
     "0.1.1",
     "0.1.0"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Shows freshness as a quiet display hairline."
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "0.1.0"

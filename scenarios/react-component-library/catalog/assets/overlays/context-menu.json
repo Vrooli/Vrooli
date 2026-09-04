@@ -22,8 +22,8 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "overlays.menu",
-        "reason": "Item semantics, keyboard model, and dismissal are shared."
+        "asset": "react-component-library:Portal",
+        "reason": "The menu is rendered in the shared overlay portal."
       }
     ]
   },

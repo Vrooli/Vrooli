@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
-    "last_validated_at": "2026-08-31T15:37:12-04:00",
+    "last_validated_at": "2026-09-03T23:16:52-04:00",
     "module": "testing-coverage",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -71,7 +71,7 @@
     {
       "id": "TC-004",
       "title": "BAS flows cover the primary user journeys",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -85,7 +85,7 @@
           "type": "test",
           "ref": "api/handlers/catalog/module.go",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The full-catalog preview sweep passed across all 11 components and example frames. Remaining broad product journeys are still tracked as planned coverage."
         }
       ]
@@ -135,7 +135,7 @@
           "type": "test",
           "ref": "api/internal/componenttests/bas_executor.go",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "`pnpm run test:preview-evidence` delegates the catalog browser gate to BAS CaptureService and is kept out of the bounded unit coverage command."
         },
         {

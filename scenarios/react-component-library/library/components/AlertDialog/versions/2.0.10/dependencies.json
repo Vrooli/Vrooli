@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:AlertDialog",
   "version": "2.0.10",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T17:41:36.708Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -31,7 +31,7 @@
     {
       "libraryId": "react-component-library:useOverlaySurface",
       "major": 1,
-      "observed": "1.3.12",
+      "observed": "1.4.2",
       "rank": 4
     }
   ]

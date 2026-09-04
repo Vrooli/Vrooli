@@ -22,16 +22,16 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "services.selection-store",
-        "reason": "Selection uses the shared model with stable identities across paging and reorder."
+        "asset": "controls.button",
+        "reason": "The action surface uses the shared button primitive."
       },
       {
         "asset": "controls.button-group",
         "reason": "Actions and overflow are shared."
       },
       {
-        "asset": "feedback.task-progress",
-        "reason": "Long-running bulk work reports progress through the shared component."
+        "asset": "controls.button-group",
+        "reason": "Actions are laid out through the shared button group."
       },
       {
         "asset": "hooks.use-locale",

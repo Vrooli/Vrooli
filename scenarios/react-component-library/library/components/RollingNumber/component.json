@@ -5,6 +5,13 @@
     "0.1.0",
     "0.1.1"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Provides the board's large animated figure treatment."
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "0.1.0",

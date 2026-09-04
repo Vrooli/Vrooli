@@ -889,8 +889,11 @@ func versionSourcePaths(versionDir string) []string {
 		matches, _ := filepath.Glob(filepath.Join(versionDir, extension))
 		paths = append(paths, matches...)
 	}
-	if lockPath := filepath.Join(versionDir, "dependencies.json"); fileExists(lockPath) {
-		paths = append(paths, lockPath)
+	for _, generated := range []string{"dependencies.json", "story.json"} {
+		path := filepath.Join(versionDir, generated)
+		if fileExists(path) {
+			paths = append(paths, path)
+		}
 	}
 	sort.Strings(paths)
 	return paths
@@ -899,7 +902,8 @@ func versionSourcePaths(versionDir string) []string {
 // revisionFileData removes generator bookkeeping that is intentionally
 // refreshed on every catalog build. The lock's dependency choices remain in
 // the digest; only resolvedAt is non-semantic and must not invalidate test
-// evidence or cache entries by itself.
+// evidence or cache entries by itself. Story contracts remain fully semantic:
+// changing a story must invalidate its browser evidence.
 func revisionFileData(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil || filepath.Base(path) != "dependencies.json" {

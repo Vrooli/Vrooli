@@ -25,7 +25,7 @@ import {
   type AsyncBoundaryStatus,
 } from "@vrooli/react-component-library/AsyncBoundary/1";
 import { Table } from "@vrooli/react-component-library/Table/1";
-import { useSelectionStore } from "@vrooli/react-component-library/SelectionStore/1";
+import { useSelectionStore } from "@vrooli/react-component-library/SelectionStore/2";
 
 export interface DataTableColumn<Row> {
   id: string;

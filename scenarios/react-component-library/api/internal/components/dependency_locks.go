@@ -59,6 +59,11 @@ func ValidateVersionDependencyLocks(fsys fs.FS) error {
 			libraryID := strings.TrimSpace(dependency.LibraryID)
 			name := strings.TrimPrefix(libraryID, "react-component-library:")
 			version := strings.TrimSpace(dependency.Version)
+			if version == "" {
+				// Schema v2 records the resolved dependency under observed;
+				// version is retained for schema-v1 compatibility.
+				version = strings.TrimSpace(dependency.Observed)
+			}
 			if name == "" || name == libraryID || (!dependencyTargetExists(fsys, name, version) && !provenanced[libraryID+"@"+version]) {
 				findings = append(findings, fmt.Sprintf("%s: dependency %s@%s has no materialized version directory", directory, dependency.LibraryID, dependency.Version))
 			}

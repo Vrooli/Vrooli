@@ -7,7 +7,7 @@
     "name": "useLongPress",
     "kind": "runtime-hook",
     "domain": "hooks",
-    "description": "A long-press primitive with movement tolerance, cancellation, context-menu coordination, and a required accessible alternative.",
+    "description": "A token-backed long-press hook with movement tolerance, pointer cancellation, origin capture, and click/context-menu coordination.",
     "targets": [
       "react-vite"
     ],
@@ -22,12 +22,14 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "hooks.use-press",
-        "reason": "Long press is a press variant and must share its cancellation semantics."
+        "asset": "foundations.gesture-direction",
+        "reason": "Pointer capture uses the shared gesture capability helper."
       }
     ]
   },
   "requiredCapabilities": [
-    "gesture-alternative"
+    "gesture-alternative",
+    "pointer-independence",
+    "keyboard-operable"
   ]
 }

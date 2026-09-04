@@ -17,8 +17,9 @@
     "1.0.4",
     "1.0.6",
     "1.0.7",
-    "1.0.8"
+    "1.0.8",
+    "1.0.9"
   ],
-  "latest": "1.0.9",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:Sortable"
 }

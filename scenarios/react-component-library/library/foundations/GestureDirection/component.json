@@ -4,7 +4,11 @@
   "catalogId": "foundations.gesture-direction",
   "deprecatedVersions": [],
   "draft": "",
-  "evictedVersions": [],
-  "latest": "1.0.0",
+  "evictedVersions": [
+    "1.2.0",
+    "1.1.0",
+    "1.0.0"
+  ],
+  "latest": "1.3.0",
   "libraryId": "react-component-library:GestureDirection"
 }

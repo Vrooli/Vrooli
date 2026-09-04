@@ -220,11 +220,18 @@ func exportedImplementationSources(root, manifest, latest string, deprecated []s
 		versionDir := filepath.Join(rootDir, "versions", version)
 		source := filepath.Join(versionDir, name+".tsx")
 		if _, err := os.Stat(source); err != nil {
-			matches := versionSources(versionDir)
-			if len(matches) == 0 {
-				continue
+			// Hooks and services commonly use a .ts entrypoint while their
+			// story.tsx is also present. Prefer the named implementation before
+			// falling back to any version source; gates must inspect the public
+			// implementation, not the preview specimen.
+			source = filepath.Join(versionDir, name+".ts")
+			if _, err := os.Stat(source); err != nil {
+				matches := versionSources(versionDir)
+				if len(matches) == 0 {
+					continue
+				}
+				source = matches[0]
 			}
-			source = matches[0]
 		}
 		result = append(result, implementationSourceEntry{Manifest: manifest, Path: source, Version: version, Latest: latest})
 	}

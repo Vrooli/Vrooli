@@ -208,6 +208,7 @@ export default defineConfig(({ mode }): UserConfig => {
           ? "../library/**/*.{test,spec}.{ts,tsx}"
           : "src/**/*.{test,spec}.{ts,tsx}",
       ],
+      exclude: isLibrary ? ["../library/.retired/**"] : [],
     },
   };
 });

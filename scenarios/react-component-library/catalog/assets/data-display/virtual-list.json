@@ -22,10 +22,6 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "data-display.list",
-        "reason": "Row semantics are shared."
-      },
-      {
         "asset": "hooks.use-locale",
         "reason": "User-facing copy resolves through the adopting host locale bridge."
       }

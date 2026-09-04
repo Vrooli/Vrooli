@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:Tabs",
   "version": "1.2.3",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-03T23:03:12.911Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:BaseStyles",
       "major": 1,
-      "observed": "1.2.3",
+      "observed": "1.2.4",
       "rank": 1
     },
     {

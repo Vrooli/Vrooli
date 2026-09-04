@@ -23,12 +23,6 @@
       "maturity": "production-ready"
     }
   },
-  "dependencies": {
-    "requires": [
-      {
-        "asset": "services.create-scoped-store",
-        "reason": "Selection belongs to one collection instance and must not be global."
-      }
-    ]
-  }
+  "dependencies": {"requires": []},
+  "budgets": {"mountMs": 3000}
 }

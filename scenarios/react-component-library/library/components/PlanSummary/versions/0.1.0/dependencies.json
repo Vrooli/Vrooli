@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:PlanSummary",
+  "version": "0.1.0",
+  "resolvedAt": "2026-09-03T23:16:34Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Button",
+      "major": 2,
+      "observed": "2.2.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StatusBadge",
+      "major": 1,
+      "observed": "1.2.2",
+      "rank": 4
+    }
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "runtime-hook",
-  "catalogId": "hooks.use-press",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:usePress"
-}

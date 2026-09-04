@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:CollectionList",
+  "version": "1.0.0",
+  "resolvedAt": "2026-09-03T21:55:20.544Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:BulkActionBar",
+      "major": 1,
+      "observed": "1.0.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:CardShell",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "major": 1,
+      "observed": "1.3.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:SwipeActions",
+      "major": 1,
+      "observed": "1.3.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useCollection",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:VirtualList",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 4
+    }
+  ]
+}

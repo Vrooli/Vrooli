@@ -180,6 +180,17 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			return "", func() {}, err
 		}
 	}
+	if fixture.Mutation == "scenario-canonical-layer" {
+		consumerDir := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src")
+		if err := os.MkdirAll(consumerDir, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(consumerDir, "App.tsx"), []byte(`import { Button } from "@vrooli/react-component-library/Button/1"; export const App = Button;`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
 	if fixture.Mutation == "dependency-rank" {
 		library := filepath.Join(tmp, "scenarios", "react-component-library", "library")
 		primitive := filepath.Join(library, "primitives", "CalibrationPrimitive")

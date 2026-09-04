@@ -159,7 +159,7 @@ export function ResponsiveDialog({
     },
     modal: true,
     kind: desktop ? "dialog" : "sheet",
-    dismiss: { escape: true, backdrop: true, swipe: showGrabber ? "down" : false },
+    dismiss: { escape: true, backdrop: true, swipe: showGrabber ? "bottom" : false },
     initialFocusRef,
     returnFocusRef,
   });

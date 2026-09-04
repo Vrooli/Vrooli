@@ -17,6 +17,7 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		"token-vocabulary":            ValidateTokenVocabulary,
 		"token-ramp-complete":         ValidateTokenRampComplete,
 		"scenario-token-requirements": ValidateScenarioTokenRequirements,
+		"scenario-canonical-layer":    ValidateScenarioCanonicalLayer,
 		"released-version-immutable":  ValidateReleasedVersionImmutable,
 		"types":                       ValidateTypes,
 		"api":                         ValidateAPI,

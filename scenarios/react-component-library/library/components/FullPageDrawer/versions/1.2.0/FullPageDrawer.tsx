@@ -164,7 +164,7 @@ export function FullPageDrawer({
     },
     modal: true,
     kind: "drawer",
-    dismiss: { escape: true, backdrop: true, swipe: showGrabber ? "down" : false },
+    dismiss: { escape: true, backdrop: true, swipe: showGrabber ? "bottom" : false },
     initialFocusRef,
     returnFocusRef,
   });

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "CollectionList",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Collection list",
+      "mode": "live",
+      "role": "anatomy",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [{ "kind": "text", "value": "Example" }]
+    }
+  ]
+}

@@ -657,7 +657,7 @@ func TestScenarioTokenRequirementsGateRejectsMissingImportedProperty(t *testing.
 	write("templates/design/_base/tokens.css", ":root {\n  /* @tier Expression */\n  --color-needed: blue;\n  /* @tier Contract */\n  --layer-modal: 400;\n}\n")
 	write("scenarios/react-component-library/library/components/Fixture/component.json", `{"libraryId":"react-component-library:Fixture"}`)
 	write("scenarios/react-component-library/library/components/Fixture/versions/1.0.0/Fixture.tsx", `export const Fixture = () => <div style={{ color: "var(--color-needed)", zIndex: "var(--layer-modal)" }} />;`)
-	write("scenarios/fixture/ui/src/App.tsx", `import { Fixture } from "@vrooli/react-component-library/Fixture"; export const App = Fixture;`)
+	write("scenarios/fixture/ui/src/main.tsx", `import { Fixture } from "@vrooli/react-component-library/Fixture"; export const App = () => <><BaseStyles /><Fixture /></>;`)
 	write("scenarios/fixture/ui/src/design-tokens.css", ":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n")
 
 	result, err := ValidateScenarioTokenRequirements(Scope{Root: root})
@@ -666,6 +666,15 @@ func TestScenarioTokenRequirementsGateRejectsMissingImportedProperty(t *testing.
 	require.Equal(t, "catalog.scenario_token_requirements", result.Findings[0].Code)
 	require.Contains(t, result.Findings[0].Message, "--color-needed")
 	require.NotContains(t, result.Findings[0].Message, "--layer-modal")
+}
+
+func TestCanonicalLayerMountDetection(t *testing.T) {
+	if !containsCanonicalLayerMount(`import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1"; export const Root = () => <><BaseStyles /><App /></>;`) {
+		t.Fatal("mounted BaseStyles was not detected")
+	}
+	if containsCanonicalLayerMount(`import { Button } from "@vrooli/react-component-library/Button/2"; export const Root = () => <Button />;`) {
+		t.Fatal("unmounted BaseStyles was incorrectly accepted")
+	}
 }
 
 func TestFallbackParityReportsOnlyDisagreeingExternalFallback(t *testing.T) {

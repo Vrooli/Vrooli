@@ -261,6 +261,22 @@
       }
     },
     {
+      "id": "scenario-canonical-layer", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Every scenario that imports React Component Library assets mounts the canonical BaseStyles provider at its application root.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates scenario-canonical-layer"
+      }
+    },
+    {
       "id": "released-version-immutable", "reads": "corpus",
       "rung": "verified",
       "description": "Every indexed released version still matches its on-disk source bytes.",
