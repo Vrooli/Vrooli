@@ -3,7 +3,7 @@ import type { GamepadAction } from "@vrooli/iframe-bridge/spatial";
 import type { BoardResponse, BoardRoom } from "./api";
 
 /** Four input classes resolve to this one vocabulary before anything reacts. */
-export type BoardIntent = GamepadAction | "pause-cycle" | "reveal-controls" | "show-help" | "inspect" | "toggle-fullscreen";
+export type BoardIntent = GamepadAction | "pause-cycle" | "reveal-controls" | "show-help" | "inspect" | "toggle-fullscreen" | "navigate-beat-prev" | "navigate-beat-next";
 export type SamplesMode = "hide" | "mark" | "full";
 
 export interface BoardControllerValue {
@@ -17,10 +17,15 @@ export interface BoardControllerValue {
   /** 0..1 progress through the current cycle interval. */
   progress: number;
   cycleSeconds: number;
+  beatIndex: number;
+  beatProgress: number;
+  beatDurations: number[];
   transitioning: boolean;
   dispatch: (intent: BoardIntent) => void;
   setSamples: (mode: SamplesMode) => void;
   goTo: (path: string) => void;
+  seekCycle: (progress: number) => void;
+  selectBeat: (index: number) => void;
 }
 
 export const BoardContext = createContext<BoardControllerValue | null>(null);

@@ -40,6 +40,8 @@ export function buildTerrain({ seed, tuning }: BuildTerrainInput): TerrainField 
   const moisture = new Float32Array(cols * rows)
   const terrainSeed = hashString(`terrain:${seed}`)
   const moistureSeed = hashString(`terrain-moisture:${seed}`)
+  const detailSeed = hashString(`terrain-detail:${seed}`)
+  const warpSeed = hashString(`terrain-warp:${seed}`)
   const falloffRadius = tuning.radius * tuning.falloffStart
 
   for (let row = 0; row < rows; row += 1) {
@@ -50,8 +52,12 @@ export function buildTerrain({ seed, tuning }: BuildTerrainInput): TerrainField 
       const radius = Math.hypot(x, z)
       if (radius >= tuning.radius) continue
       const falloff = 1 - smoothstep(falloffRadius, tuning.radius, radius)
-      height[index] = tuning.amplitude * fbm(x * tuning.frequency, z * tuning.frequency, terrainSeed, tuning.octaves, tuning.lacunarity, tuning.gain) * falloff
-      const wetness = fbm(x * tuning.moistureFrequency, z * tuning.moistureFrequency, moistureSeed, tuning.octaves, tuning.lacunarity, tuning.gain)
+      const landform = tuning.amplitude * fbm(x * tuning.frequency, z * tuning.frequency, terrainSeed, tuning.octaves, tuning.lacunarity, tuning.gain)
+      const detail = tuning.detailAmplitude * fbm(x * tuning.detailFrequency, z * tuning.detailFrequency, detailSeed, tuning.octaves, tuning.lacunarity, tuning.gain)
+      height[index] = (landform + detail) * falloff
+      const warpX = fbm(x * tuning.moistureFrequency, z * tuning.moistureFrequency, warpSeed, tuning.octaves, tuning.lacunarity, tuning.gain) * tuning.moistureWarp
+      const warpZ = fbm(x * tuning.moistureFrequency, z * tuning.moistureFrequency, warpSeed + 1, tuning.octaves, tuning.lacunarity, tuning.gain) * tuning.moistureWarp
+      const wetness = fbm((x + warpX) * tuning.moistureFrequency, (z + warpZ) * tuning.moistureFrequency, moistureSeed, tuning.octaves, tuning.lacunarity, tuning.gain)
       moisture[index] = Math.max(0, Math.min(1, wetness * 0.5 + 0.5))
     }
   }

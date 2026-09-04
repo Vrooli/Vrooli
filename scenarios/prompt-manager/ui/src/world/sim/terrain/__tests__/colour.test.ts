@@ -9,6 +9,9 @@ describe('terrain colour', () => {
     const colour = bakeVertexColour({ moisture: 0.5, path: 0.8, ao: 0.25 }, biome)
     expect(colour.every((channel) => channel >= 0 && channel <= 1)).toBe(true)
     expect(colour).not.toEqual(bakeVertexColour({ moisture: 0.5, path: 0, ao: 0 }, biome))
+    const wet = bakeVertexColour({ moisture: 0.5, path: 0, ao: 0, wetShore: 1, wetShoreDarkening: tuning.terrain.wetShoreDarkening }, biome)
+    const dry = bakeVertexColour({ moisture: 0.5, path: 0, ao: 0, wetShore: 0 }, biome)
+    expect(wet.every((channel, index) => channel < (dry[index] ?? 0))).toBe(true)
   })
 
   it('returns a bounded height-field occlusion term', () => {

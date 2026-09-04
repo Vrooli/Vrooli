@@ -1,0 +1,15 @@
+{
+  "metadata": { "name": "world-office-seed-change", "description": "Changing the office seed produces a second deterministic building view", "labels": { "reset": "none", "safety": "read-only" }, "execution_mode": "observer" },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    { "id": "navigate-one", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&scene=office&profile=high&actors=25&seed=1&diag=1&capture=1&intro=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open office seed 1" } } },
+    { "id": "shot-one", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Office seed 1" } } },
+    { "id": "navigate-seven", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&scene=office&profile=high&actors=25&seed=7&diag=1&capture=1&intro=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open office seed 7" } } },
+    { "id": "shot-seven", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Office seed 7" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-one", "target": "shot-one", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "shot-one", "target": "navigate-seven", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "navigate-seven", "target": "shot-seven", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

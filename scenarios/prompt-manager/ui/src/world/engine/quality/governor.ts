@@ -5,9 +5,29 @@ export { isQualityProfileId }
 
 export type { QualityState }
 
+export interface QualityVerdictRecord {
+  verdict: 'decline' | 'incline'
+  measuredFps: number
+  boundFps: number
+  from: QualityProfileId
+  to: QualityProfileId
+  reason: string
+  at: string
+}
+
 /** Frame-rate bounds the performance monitor compares against, derived from the active profile's own cap. */
-export function governorBounds(profile: QualityProfile, quality: QualityTuning): [lower: number, upper: number] {
-  return [profile.frameCapFps * quality.degradedRatio, profile.frameCapFps * quality.recoverRatio]
+export function governorBounds(profile: QualityProfile, quality: QualityTuning, refreshRate = profile.frameCapFps): [lower: number, upper: number] {
+  const reachableCap = Math.min(profile.frameCapFps, refreshRate)
+  return [reachableCap * quality.degradedRatio, reachableCap * quality.recoverRatio]
+}
+
+/** Choose a conservative first profile from sustained display-relative FPS. */
+export function chooseInitialProfile(measuredFps: number, refreshRate: number): QualityProfileId {
+  const ratio = measuredFps / Math.max(1, refreshRate)
+  if (refreshRate >= 90 && ratio >= 0.92) return 'ultra'
+  if (ratio >= 0.92) return 'high'
+  if (ratio >= 0.72) return 'medium'
+  return 'low'
 }
 
 export function stepDown(id: QualityProfileId): QualityProfileId {
@@ -39,4 +59,3 @@ export function pickProfile(profileId: QualityProfileId): QualityState {
 export function setAuto(state: QualityState, auto: boolean): QualityState {
   return { ...state, auto }
 }
-

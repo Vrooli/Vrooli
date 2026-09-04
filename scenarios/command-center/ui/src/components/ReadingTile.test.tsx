@@ -38,4 +38,10 @@ describe("ReadingTile", () => {
     expect(screen.getByText("Production instance")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/https?:\/\/|127\.0\.0\.1|:\d{2,5}/);
   });
+  it("uses compact notation for a large supporting count and keeps freshness inside its measure", () => {
+    const observedAt = new Date().toISOString();
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ format: "integer", value: 2134, observedAt, trust: "VALID", coverage: "NOW" })} /></ul>);
+    expect(container.querySelector("[data-rcl-figure-digits]")?.getAttribute("aria-label")).toBe("2.1K");
+    expect(container.querySelector(".cc-reading-measure [data-rcl-freshness]")).not.toBeNull();
+  });
 });

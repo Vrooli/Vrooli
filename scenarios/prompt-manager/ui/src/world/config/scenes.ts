@@ -2,7 +2,7 @@ import parkRaw from './scenes/park.json'
 import officeRaw from './scenes/office.json'
 import { SceneSchema, type Scene } from './scenes.schema'
 import { tuning } from './tuning'
-import type { LightingPeriod, PeriodId, SceneId, WorldTuning } from './tuning.schema'
+import type { LightingPeriod, PeriodId, SceneId, TerrainTuning, WorldTuning } from './tuning.schema'
 
 function parseScene(raw: unknown, name: string): Scene {
   const result = SceneSchema.safeParse(raw)
@@ -27,4 +27,8 @@ export function resolvePeriod(scene: Scene, period: PeriodId, base: WorldTuning 
   const global = base.lighting.periods[period]
   const override = scene.lighting?.periods?.[period]
   return override ? { ...global, ...override } : global
+}
+
+export function resolveTerrain(scene: Scene, base: Pick<WorldTuning, 'terrain'> = tuning): TerrainTuning {
+  return scene.terrain ? { ...base.terrain, ...scene.terrain } : base.terrain
 }

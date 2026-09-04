@@ -7,6 +7,7 @@ import type { LightingPeriod, LightingTuning, QualityProfile, Scene } from '../.
 import { WORLD_ASSETS, worldAssetUrl } from '../assets/urls'
 import type { WorldBounds } from '../types'
 import { fitDistance } from '../camera/pose'
+import { useShadowRefresh, type ShadowWorldStore } from './shadowRefresh'
 
 interface LightingRigProps {
   scene: Scene
@@ -16,6 +17,7 @@ interface LightingRigProps {
   bounds: WorldBounds
   /** Vertical field of view, so fog distances follow the framing. */
   fovDeg: number
+  store: ShadowWorldStore
 }
 
 const DEG = Math.PI / 180
@@ -34,7 +36,7 @@ function sunDirection(elevationDeg: number, azimuthDeg: number): [number, number
  * dome for outdoor scenes and exponential fog. Every number comes from the
  * resolved lighting period.
  */
-export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg }: LightingRigProps) {
+export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, store }: LightingRigProps) {
   const threeScene = useThree((s) => s.scene)
   const gl = useThree((s) => s.gl)
   // Load the HDRI before the environment portal mounts: the portal captures
@@ -48,14 +50,17 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg }
     () => sunDirection(Math.max(period.sunElevationDeg, lighting.keyLight.elevationDeg), lighting.keyLight.azimuthDeg),
     [period.sunElevationDeg, lighting.keyLight.elevationDeg, lighting.keyLight.azimuthDeg],
   )
-  const half = Math.max(bounds.width, bounds.depth) * 0.62
+  const half = Math.max(bounds.footprint.width, bounds.footprint.depth) * 0.62 + 6
+  const shadowCenter = bounds.footprint.center
   // Fog is framed relative to the slab so a bigger world does not sink into it.
   const fit = fitDistance({ width: bounds.width, depth: bounds.depth, fovDeg, aspect: 1 })
   const keyPosition: [number, number, number] = [
-    bounds.center[0] + keyDir[0] * SUN_DISTANCE,
+    shadowCenter[0] + keyDir[0] * SUN_DISTANCE,
     keyDir[1] * SUN_DISTANCE,
-    bounds.center[1] + keyDir[2] * SUN_DISTANCE,
+    shadowCenter[1] + keyDir[2] * SUN_DISTANCE,
   ]
+
+  useShadowRefresh(store, scene, profile, `${period.backgroundColor}:${period.keyColor}:${period.keyIntensity}:${period.exposure}`)
 
   useEffect(() => {
     threeScene.background = new Color(period.backgroundColor)
@@ -74,7 +79,7 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg }
       <directionalLight
         castShadow={profile.shadows}
         position={keyPosition}
-        target-position={[bounds.center[0], 0, bounds.center[1]]}
+        target-position={[shadowCenter[0], 0, shadowCenter[1]]}
         intensity={period.keyIntensity}
         color={period.keyColor}
         shadow-mapSize={[profile.shadowMapSize, profile.shadowMapSize]}

@@ -5,6 +5,17 @@ export default defineConfig({
   // INTEROP-CRITICAL: relative assets remain valid behind proxy/tunnel paths.
   base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/world-atlas") || id.includes("node_modules/topojson") || id.includes("node_modules/d3-geo")) return "geo-runtime";
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router")) return "react-runtime";
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

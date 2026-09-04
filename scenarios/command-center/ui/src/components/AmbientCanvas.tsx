@@ -66,7 +66,9 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
     let incomingComposition = "";
     let incomingSeed = "";
     let transitionStarted = 0;
-    const transitionDuration = readMotionDuration(canvas);
+    // Beat content changes in one coordinated visual beat; a long scene-only
+    // fade leaves the previous composition visibly hanging behind the new one.
+    const transitionDuration = Math.min(readMotionDuration(canvas), 420);
     const ratio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
     let width = 0;
     let height = 0;

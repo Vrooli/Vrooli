@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { AmbientDisplayShell } from "@vrooli/react-component-library/AmbientDisplayShell/0.1.2";
+import { AmbientDisplayShell } from "./AmbientDisplayShell";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { useBoardController, type SamplesMode } from "../lib/boardContext";
@@ -14,10 +14,6 @@ interface AmbientShellProps {
   status?: ReactNode;
   /** Shown bottom-right whenever illustrative readings are on screen in mark mode. */
   legend?: boolean;
-  /** Beat state for rooms that rotate several complete pages during a dwell. */
-  beatIndex?: number;
-  beatCount?: number;
-  beatProgress?: number;
   children: ReactNode;
 }
 
@@ -25,7 +21,7 @@ interface AmbientShellProps {
  * Full-bleed, zero idle chrome. The only persistent elements are the cycle
  * rail at the top edge and the eyebrow; controls reveal on input and fade.
  */
-export function AmbientShell({ theme, title, position, status, legend = false, beatIndex = 0, beatCount = 0, beatProgress = 0, children }: AmbientShellProps) {
+export function AmbientShell({ theme, title, position, status, legend = false, children }: AmbientShellProps) {
   const board = useBoardController();
   const legendContent = legend && board.samples === "mark" ? (
     <ExperienceSurface surfaceId="legend" as="div" data-testid="room-legend" className="cc-legend" state="static" aria-label="Provenance legend">
@@ -33,7 +29,7 @@ export function AmbientShell({ theme, title, position, status, legend = false, b
     </ExperienceSurface>
   ) : null;
   return (
-    <AmbientDisplayShell theme={theme} title={title} position={position} status={status} legend={legendContent} samples={board.samples} paused={board.paused} progress={board.progress} cycleSeconds={board.cycleSeconds} beatIndex={beatIndex} beatCount={beatCount} beatProgress={beatProgress}>
+    <AmbientDisplayShell theme={theme} title={title} position={position} status={status} legend={legendContent} samples={board.samples} paused={board.paused} progress={board.progress} beatIndex={board.beatIndex} beatCount={board.beatDurations.length} beatProgress={board.beatProgress} beatDurations={board.beatDurations} onBeatSelect={board.selectBeat}>
       {children}
       <ControlBar />
       {board.helpVisible ? <HelpOverlay /> : null}
@@ -81,6 +77,7 @@ function HelpOverlay() {
   const board = useBoardController();
   const rows: Array<[string, string, string, string]> = [
     ["Next / previous room", "← → · 1–9", "D-pad ◀ ▶", "swipe"],
+    ["Next / previous section", "[ ]", "—", "cycle rail"],
     ["Pause / resume cycle", "space", "A", "long-press"],
     ["Fullscreen", "F", "menu (hold)", "control bar"],
     ["Show controls", "any key", "Y", "tap"],

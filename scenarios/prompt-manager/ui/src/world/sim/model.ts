@@ -5,7 +5,7 @@
 
 export type Vec2 = readonly [x: number, z: number]
 
-export type PlaceKind = 'room' | 'desk' | 'table' | 'commons' | 'campfire' | 'board'
+export type PlaceKind = 'room' | 'desk' | 'table' | 'gathering' | 'hearth' | 'board' | 'corridor' | 'door' | 'filler'
 
 /** A spot an actor can occupy: standing at a desk, sitting at a table or around the campfire. */
 export interface Seat {
@@ -46,6 +46,9 @@ export interface DecorSpot {
   position: Vec2
   rotation: number
   scale: number
+  /** Per-instance RGB multiplier used by vegetation materials. */
+  tint?: readonly [number, number, number]
+  roomId?: string
 }
 
 /** An axis-aligned extent on the ground plane. */
@@ -200,6 +203,7 @@ export interface NavGrid {
 }
 
 export interface WorldState {
+  scene: import('../config').SceneId
   seed: number
   rngState: number
   tick: number
@@ -256,6 +260,5 @@ export interface CreateWorldInput {
   overrides?: LayoutOverride[]
   /** Points the layout keeps clear of trees (the hero camera ground point). */
   clearPoints?: Vec2[]
-  /** Outdoor scenes get trees; indoor scenes get none. */
-  trees: boolean
+  scene: import('../config').SceneId
 }

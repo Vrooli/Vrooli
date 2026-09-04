@@ -6,7 +6,7 @@ import type { SimTuning } from '../../config'
 import type { Actor, ActorState, EmoteKind, Signal, WorldState } from '../model'
 import { findPath, type PathCache } from '../nav/astar'
 import { nearestWalkable } from '../nav/grid'
-import { COMMONS_ID } from '../layout/generate'
+import { GATHERING_ID } from '../layout/generate'
 
 /** Record without one key; the sim never deletes in place. */
 function without<T>(record: Record<string, T>, key: string): Record<string, T> {
@@ -80,7 +80,7 @@ export function routeToSeat(state: WorldState, actor: Actor, seatId: string, ctx
 }
 
 function commonsSpot(state: WorldState, actor: Actor): readonly [number, number] {
-  const commons = state.places[COMMONS_ID]
+  const commons = state.places[GATHERING_ID]
   return commons ? commons.position : actor.position
 }
 

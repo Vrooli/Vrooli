@@ -5,7 +5,7 @@
  * came from the host GPU. Budgets are levers: this script is how they are
  * earned from measurement rather than guessed.
  *
- *   node scripts/world-smoke/calibrate.mjs [--headroom 1.2]
+ *   node scripts/world-smoke/calibrate.mjs [--headroom 1.15]
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -14,7 +14,7 @@ const uiRoot = resolve(import.meta.dirname, '..', '..')
 const evidenceDir = resolve(uiRoot, 'evidence', 'world-smoke')
 const tuningPath = resolve(uiRoot, 'src/world/config/world.tuning.json')
 const args = process.argv.slice(2)
-const headroom = Number(args.includes('--headroom') ? args[args.indexOf('--headroom') + 1] : '1.2')
+const headroom = Number(args.includes('--headroom') ? args[args.indexOf('--headroom') + 1] : '1.15')
 const tuning = JSON.parse(readFileSync(tuningPath, 'utf8'))
 
 const records = readdirSync(evidenceDir)
@@ -36,8 +36,13 @@ for (const record of records) {
   budget.provenance = {
     actors: record.actors,
     gpu: record.diagnostics.gpu || 'unreported renderer',
+    renderer: record.renderer || record.diagnostics.gpu || 'unreported renderer',
+    gpuTier: record.gpuTier,
+    deviceScaleFactor: record.deviceScaleFactor,
+    measuredP95Ms: Number((record.diagnostics.gpuMsP95 || record.diagnostics.frameMsP95).toFixed(2)),
+    target: false,
     calibratedAt: new Date(record.capturedAt).toISOString().slice(0, 10),
-    method: record.timingMethod,
+    method: `${record.timingMethod}; ${record.gpuTier}; dsf ${record.deviceScaleFactor}; observed-plus-${Math.round((headroom - 1) * 100)}pct-headroom`,
   }
 }
 writeFileSync(tuningPath, `${JSON.stringify(tuning, null, 2)}\n`)

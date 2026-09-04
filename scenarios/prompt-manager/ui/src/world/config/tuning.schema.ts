@@ -92,6 +92,25 @@ export const LayoutTuningSchema = z.object({
   scatterJitter: ratio('Share of one terrain cell available for decor position jitter'),
   decorSpacingFactor: ratio('Decor spacing as a fraction of tree spacing'),
   decorScale: range(0.1, 4, 'Seeded decor scale', 'multiplier'),
+  decorColorJitter: ratio('Maximum seeded per-channel vegetation colour variation'),
+  floorplan: z.object({
+    corridorWidth: metres(1, 10, 'Primary and secondary corridor width'),
+    secondaryCorridors: range(0, 8, 'Secondary corridor count', 'count'),
+    splitRatio: range(0.25, 0.75, 'Seeded room split ratio', 'ratio'),
+    maxAspect: z.number().min(1).max(6).describe('Maximum room aspect ratio (ratio)'),
+    roomAreaPerMember: z.number().min(2).max(50).describe('Target room area per team member (square metres)'),
+    roomMinArea: z.number().min(8).max(200).describe('Minimum room area (square metres)'),
+    plateMargin: metres(1, 30, 'Floorplate margin around rooms'),
+    doorWidth: metres(0.8, 4, 'Room doorway width'),
+    lobbyRadius: metres(1, 15, 'Lobby gathering radius'),
+    plateAspect: range(1, 3, 'Seeded office floorplate aspect ratio', 'ratio'),
+    primaryOffset: ratio('Maximum seeded primary-corridor offset as a fraction of corridor width'),
+    secondaryJitter: ratio('Maximum seeded secondary-corridor jitter within its even spacing'),
+  }),
+  interior: z.object({
+    tableMinMembers: count(1, 100, 'Minimum team size for a meeting table'),
+    fillerMax: count(0, 3, 'Maximum seeded filler props per room'),
+  }),
 })
 
 export const TerrainTuningSchema = z.object({
@@ -99,13 +118,19 @@ export const TerrainTuningSchema = z.object({
   cellSize: metres(0.25, 8, 'Spacing between terrain field samples'),
   amplitude: metres(0, 20, 'Maximum absolute terrain elevation'),
   frequency: z.number().min(0.001).max(1).describe('Base terrain noise frequency (cycles per metre)'),
+  detailAmplitude: metres(0, 5, 'Higher-frequency surface-detail amplitude'),
+  detailFrequency: z.number().min(0.001).max(2).describe('Surface-detail noise frequency (cycles per metre)'),
   octaves: count(1, 8, 'Fractal noise octaves used for height and moisture'),
   lacunarity: z.number().min(1).max(4).describe('Frequency multiplier between terrain noise octaves (multiplier)'),
   gain: ratio('Amplitude multiplier between terrain noise octaves'),
   moistureFrequency: z.number().min(0.001).max(1).describe('Base moisture noise frequency (cycles per metre)'),
+  moistureWarp: metres(0, 50, 'Domain-warp distance applied to moisture sampling'),
   falloffStart: ratio('Fraction of terrain radius where elevation begins fading to zero'),
   waterLevel: metres(-20, 20, 'Water surface elevation'),
   shoreMargin: metres(0, 20, 'Dry navigation margin around water'),
+  waterSurfaceLift: metres(0, 0.2, 'Water surface lift above its terrain threshold'),
+  wetShoreWidth: metres(0.1, 10, 'Width of terrain darkening immediately inside water'),
+  wetShoreDarkening: ratio('Maximum terrain darkening immediately inside water'),
   maxSiteSlope: z.number().min(0).max(Math.PI / 2).describe('Steepest ground eligible for a team site (radians)'),
   maxWalkSlope: z.number().min(0).max(Math.PI / 2).describe('Steepest ground eligible for navigation (radians)'),
   kerbWidth: metres(0.25, 10, 'Width over which a level site pad blends into terrain'),
@@ -119,6 +144,7 @@ export const TerrainTuningSchema = z.object({
   padClearance: metres(0, 5, 'Minimum terrace elevation above the configured water surface'),
   siteLevelTolerance: metres(0.001, 1, 'Maximum elevation variation allowed across a site pad'),
 })
+export const TerrainOverrideSchema = TerrainTuningSchema.partial()
 
 export const CameraTuningSchema = z.object({
   fov: degrees(10, 90, 'Vertical field of view'),
@@ -186,6 +212,7 @@ export const LabelsTuningSchema = z.object({
   collapseDistance: metres(1, 500, 'Camera distance past which room labels collapse into one count label'),
   fontSize: z.number().min(0.05).max(2).describe('SDF label height in world units (metres)'),
   offsetY: metres(0, 5, 'Label height above the actor origin'),
+  roomOffsetY: metres(0, 8, 'Static height for clustered room labels above props'),
   minScreenPx: z.number().min(4).max(64).describe('Labels never render smaller than this on screen (pixels)'),
   maxScreenPx: z.number().min(4).max(128).describe('Labels never render larger than this on screen (pixels)'),
   paddingPx: z.number().min(0).max(32).describe('Collision padding around a projected label (pixels)'),
@@ -239,7 +266,9 @@ export const QualityProfileSchema = z.object({
   dpr: z.number().min(0.5).max(3).describe('Device pixel ratio cap (multiplier)'),
   shadows: z.boolean().describe('Directional shadow map on or off (flag)'),
   shadowMapSize: count(256, 8192, 'Shadow map resolution (pixels, square)'),
+  shadowRefreshHz: count(0, 60, 'Maximum shadow-map refreshes per second while actors move'),
   ao: z.boolean().describe('N8AO ambient occlusion pass on or off (flag)'),
+  aoQuality: z.enum(['off', 'low', 'medium']).describe('Ambient-occlusion quality; off is the mount switch'),
   bloom: z.boolean().describe('Selective bloom pass on or off (flag)'),
   msaa: count(0, 8, 'Multisample anti-aliasing samples on the composer target; 0 disables (samples)'),
   labelBudget: count(0, 200, 'Label budget override for this profile'),
@@ -251,7 +280,7 @@ export const QualityProfileSchema = z.object({
   vegetationDensityScale: ratio('Share of deterministic vegetation instances rendered'),
   weatherParticleScale: ratio('Share of weather particles rendered'),
   waterEnabled: z.boolean().describe('Whether the water surface is rendered (flag)'),
-  vegetationTileBudget: count(0, 500, 'Maximum vegetation tiles rendered at once'),
+  vegetationInstanceBudget: count(0, 5000, 'Maximum visible vegetation instances rendered at once'),
 })
 
 export const QualityTuningSchema = z.object({
@@ -289,6 +318,11 @@ export const SceneBudgetSchema = z.object({
   provenance: z.object({
     actors: count(1, 100000, 'Pinned synthetic actor count used for calibration'),
     gpu: z.string().min(1).describe('GPU renderer string used for calibration (renderer name)'),
+    renderer: z.string().min(1).describe('Exact hardware renderer string reported by WebGL'),
+    gpuTier: z.enum(['igpu', 'dgpu']).describe('Hardware tier used for the gating calibration'),
+    deviceScaleFactor: z.number().min(0.5).max(3).describe('Device pixel ratio used for calibration'),
+    measuredP95Ms: z.number().positive().describe('Observed GPU p95 before headroom was applied'),
+    target: z.boolean().describe('True when p95Ms is a delivery target rather than observed-plus-headroom'),
     calibratedAt: z.string().min(1).describe('Calibration date (ISO 8601 date)'),
     method: z.string().min(1).describe('Frame-time measurement method (method name)'),
   }),

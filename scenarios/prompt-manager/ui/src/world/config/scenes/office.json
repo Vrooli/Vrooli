@@ -4,15 +4,24 @@
   "environment": "indoor",
   "assetSet": "office",
   "biomeSet": "office",
+  "layoutStrategy": "floorplan",
+  "terrain": {
+    "amplitude": 0,
+    "detailAmplitude": 0,
+    "moistureBasinDepth": 0,
+    "waterLevel": -20
+  },
   "props": {
     "desk": "desk",
     "chair": "chair_desk",
     "table": "table_round",
     "seat": "chair_lounge",
-    "campfire": "coffee_table",
+    "hearth": "coffee_table",
     "lamp": "lamp_floor",
-    "board": "display_board"
+    "board": "display_board",
+    "filler": ["plant_small", "rug_round", "side_table", "bookcase"]
   },
+  "gatheringLabel": "Lobby",
   "palette": {
     "horizon": "#c6c0b4",
     "ground": "#d9d3c8",

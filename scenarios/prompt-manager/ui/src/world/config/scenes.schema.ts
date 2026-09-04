@@ -6,7 +6,7 @@
  * overrides an indoor scene needs.
  */
 import { z } from 'zod'
-import { PeriodSchema } from './tuning.schema'
+import { PeriodSchema, TerrainOverrideSchema } from './tuning.schema'
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
@@ -25,15 +25,20 @@ export const SceneSchema = z.object({
   environment: z.enum(['outdoor', 'indoor']),
   assetSet: z.string().regex(/^[a-z0-9-]+$/).describe('Directory under public/assets/world holding this scene props'),
   biomeSet: z.enum(['park', 'office']).describe('Biome set that supplies terrain colours and ground-bound props'),
+  layoutStrategy: z.enum(['clearings', 'floorplan']),
+  terrain: TerrainOverrideSchema.optional(),
   props: z.object({
     desk: PropIdSchema,
     chair: PropIdSchema,
     table: PropIdSchema,
     seat: PropIdSchema,
-    campfire: PropIdSchema,
+    hearth: PropIdSchema,
     lamp: PropIdSchema,
     board: PropIdSchema,
+    door: PropIdSchema.optional(),
+    filler: z.array(PropIdSchema).default([]),
   }),
+  gatheringLabel: z.string().min(1),
   palette: z.object({
     /** Terrain beyond the lot, out to the fogged horizon. */
     horizon: hex,

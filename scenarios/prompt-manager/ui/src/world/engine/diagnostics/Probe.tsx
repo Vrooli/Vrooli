@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Box3, InstancedMesh, Raycaster, Vector3, WebGLRenderTarget } from 'three'
 import type { PeriodId, QualityProfile, QualityProfileId, SceneId } from '../../config'
 import type { WorldBounds } from '../types'
-import { frameStats, recordFrame, updateDiagnostics } from './store'
+import { frameStats, readDiagnostics, recordFrame, updateDiagnostics } from './store'
 import { GpuTimer } from './gpuTimer'
+import { addPassDraws, beginPassDrawFrame, disposePassTimer, passDrawsFor, passTimerFor } from './passTimer'
 
 interface ProbeProps {
   scene: SceneId
@@ -33,6 +34,8 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
   const camera = useThree((s) => s.camera)
   const { active, progress } = useProgress()
   const frames = useRef(0)
+  const framesPerSecond = useRef(0)
+  const frameWindow = useRef({ startedAt: performance.now(), frames: 0 })
   const raycaster = useRef(new Raycaster())
   const direction = useRef(new Vector3())
   const corner = useRef(new Vector3())
@@ -93,6 +96,21 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
           groupCosts.push({ name: child.name || child.type, calls: gl.info.render.calls, triangles: gl.info.render.triangles })
           child.visible = false
         })
+        const passDraws = passDrawsFor(gl)
+        if (passDraws.shadow.calls > 0 || passDraws.shadow.triangles > 0) groupCosts.push({ name: 'shadow-pass', ...passDraws.shadow })
+        if (passDraws.post.calls > 0 || passDraws.post.triangles > 0) groupCosts.push({ name: 'post-pass', ...passDraws.post })
+        // EffectComposer owns the frame after the scene render and may create
+        // its internal passes after diagnostic effects mount. Renderer totals
+        // are authoritative, so account for that pipeline remainder instead
+        // of reporting known post-process work as "unattributed".
+        const frame = readDiagnostics()
+        const attributedCalls = groupCosts.reduce((sum, group) => sum + group.calls, 0)
+        const attributedTriangles = groupCosts.reduce((sum, group) => sum + group.triangles, 0)
+        const pipelineCalls = Math.max(0, frame.drawCalls - attributedCalls)
+        const pipelineTriangles = Math.max(0, frame.triangles - attributedTriangles)
+        if (pipelineCalls > 0 || pipelineTriangles > 0) {
+          groupCosts.push({ name: 'compositor-pipeline', calls: pipelineCalls, triangles: pipelineTriangles })
+        }
       } finally {
         threeScene.children.forEach((child, index) => { child.visible = visibility[index] ?? true })
         gl.setRenderTarget(originalTarget)
@@ -107,6 +125,10 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
       footprint: { width: bounds.footprint.width, depth: bounds.footprint.depth, center: [bounds.footprint.center[0], bounds.footprint.center[1]] },
       sceneGraph,
       ...(attributeGroups ? { groupCosts } : {}),
+      ...(attributeGroups ? {
+        drawCallsUnattributed: Math.max(0, readDiagnostics().drawCalls - groupCosts.reduce((sum, group) => sum + group.calls, 0)),
+        trianglesUnattributed: Math.max(0, readDiagnostics().triangles - groupCosts.reduce((sum, group) => sum + group.triangles, 0)),
+      } : {}),
     })
   }, [bounds, camera, gl, measureFill, threeScene])
 
@@ -123,6 +145,35 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
       gl.info.autoReset = true
     }
   }, [gl])
+
+  useEffect(() => {
+    if (!measureEnabled) return
+    const timer = passTimerFor(gl, gl.getContext() as WebGL2RenderingContext)
+    const shadowMap = gl.shadowMap
+    const originalShadowRender = shadowMap.render.bind(shadowMap)
+    shadowMap.render = function (...args: Parameters<typeof originalShadowRender>) {
+      const beforeCalls = gl.info.render.calls
+      const beforeTriangles = gl.info.render.triangles
+      timer.begin('shadow')
+      try {
+        return originalShadowRender(...args)
+      } finally {
+        timer.end('shadow')
+        addPassDraws(gl, 'shadow', gl.info.render.calls - beforeCalls, gl.info.render.triangles - beforeTriangles)
+      }
+    }
+    const removeBefore = addEffect(() => {
+      beginPassDrawFrame(gl)
+      timer.beginFrame()
+    })
+    const removeAfter = addAfterEffect(() => timer.endFrame())
+    return () => {
+      removeBefore()
+      removeAfter()
+      shadowMap.render = originalShadowRender
+      disposePassTimer(gl)
+    }
+  }, [gl, measureEnabled])
 
   useEffect(() => {
     const timer = new GpuTimer(gl.getContext() as WebGL2RenderingContext)
@@ -154,20 +205,28 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
   }, [active, progress])
 
   useEffect(() => {
-    updateDiagnostics({ scene, profile: profileId, auto, period, ao: profile.ao, bloom: profile.bloom })
-  }, [scene, profileId, auto, period, profile.ao, profile.bloom])
+    updateDiagnostics({ scene, profile: profileId, auto, period, ao: profile.ao, bloom: profile.bloom, msaa: profile.msaa })
+  }, [scene, profileId, auto, period, profile.ao, profile.bloom, profile.msaa])
 
   useFrame((state, delta) => {
     recordFrame(delta)
     frames.current += 1
+    frameWindow.current.frames += 1
+    const now = performance.now()
+    const elapsed = now - frameWindow.current.startedAt
+    if (elapsed >= 1000) {
+      framesPerSecond.current = Math.round((frameWindow.current.frames * 1000) / elapsed)
+      frameWindow.current = { startedAt: now, frames: 0 }
+    }
     if (frames.current % PUBLISH_EVERY_FRAMES !== 0) {
       gl.info.reset()
       return
     }
     const { p50, p95 } = frameStats()
     const gpu = gpuTimer.current?.stats()
+    const pass = measureEnabled ? passTimerFor(gl, gl.getContext() as WebGL2RenderingContext).stats() : null
     updateDiagnostics({
-      framesRendered: frames.current,
+      framesRendered: framesPerSecond.current,
       drawCalls: gl.info.render.calls,
       triangles: gl.info.render.triangles,
       programs: gl.info.programs?.length ?? 0,
@@ -179,6 +238,7 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
       gpuMsP95: gpu?.p95 ?? 0,
       gpuSamples: gpu?.samples ?? 0,
       gpuTimerReason: gpu?.reason ?? 'timer not initialized',
+      ...(pass && !pass.reason ? { passMs: { shadow: pass.shadow, main: pass.main, post: pass.post, total: pass.total } } : {}),
       dpr: state.viewport.dpr,
       toneMapping: toneMappingName(gl.toneMapping),
       cameraPosition: [camera.position.x, camera.position.y, camera.position.z],

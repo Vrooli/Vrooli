@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tuning, type WorldTuning } from '../../config'
-import { COMMONS_ID } from '../layout/generate'
+import { GATHERING_ID } from '../layout/generate'
 import { atHome, insideCommons } from '../idle/behaviors'
 import { NOW, run, world } from './fixtures'
 
@@ -41,7 +41,7 @@ describe('idle layer', () => {
     let seated = 0
     for (let i = 0; i < 3000 && seated === 0; i += 1) {
       s = run(s, 1, {}, t)
-      seated = Object.values(s.actors).filter((a) => a.anim.seated && a.seatId?.startsWith('seat:campfire')).length
+      seated = Object.values(s.actors).filter((a) => a.anim.seated && a.seatId?.startsWith('seat:hearth')).length
     }
     expect(seated).toBeGreaterThan(0)
     const holders = Object.values(s.occupancy)
@@ -51,7 +51,7 @@ describe('idle layer', () => {
   it('wander outings target the commons and keep their spacing from everyone else', () => {
     const t = withWeights({ rest: 0, wander: 100, socialize: 0, sit: 0 }, { maxMoversRatio: 1 })
     let s = world(1, 6)
-    const commons = s.places[COMMONS_ID]
+    const commons = s.places[GATHERING_ID]
     if (!commons) throw new Error('no commons')
     let outings = 0
     for (let i = 0; i < 4000; i += 1) {

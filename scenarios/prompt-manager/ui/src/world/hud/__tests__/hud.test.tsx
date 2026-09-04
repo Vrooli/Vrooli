@@ -16,7 +16,7 @@ const NOW = 1_700_000_000
 function makeStore(actors = 4) {
   const teams = [{ id: 'team-a', name: 'Alpha', memberIds: ['a1', 'a2'] }, { id: 'team-b', name: 'Beta', memberIds: ['b1', 'b2'] }]
   const agents = ['a1', 'a2', 'b1', 'b2'].slice(0, actors).map((id) => ({ id, name: id.toUpperCase(), skillCount: 3 }))
-  return createWorldStore({ seed: 1, now: NOW, teams, agents, trees: false }, tuning, 0)
+  return createWorldStore({ seed: 1, now: NOW, teams, agents, scene: 'office' }, tuning, 0)
 }
 
 type FakeActions = WorldActions & {
@@ -201,7 +201,7 @@ describe('WorldHud', () => {
 
 describe('TwoDMode', () => {
   it('groups unassigned agents under the commons', () => {
-    const store = createWorldStore({ seed: 1, now: NOW, teams: [], agents: [{ id: 'solo', name: 'Solo' }], trees: false }, tuning, 0)
+    const store = createWorldStore({ seed: 1, now: NOW, teams: [], agents: [{ id: 'solo', name: 'Solo' }], scene: 'office' }, tuning, 0)
     render(<TwoDMode actors={store.getView().actors} teams={[]} now={NOW} focusedId={null} onFocus={vi.fn()} />)
     expect(screen.getByText('Commons')).toBeInTheDocument()
     expect(screen.getByTestId('world-hud-actor-list-solo')).toBeInTheDocument()

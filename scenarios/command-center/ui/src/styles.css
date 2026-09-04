@@ -22,7 +22,9 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-cycle-rail > span { display: block; height: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 0.25s linear; }
 .cc-cycle-rail[data-paused] > span { background: var(--color-warning); box-shadow: none; }
 .cc-cycle-rail-segmented { display: flex; gap: 2px; background: transparent; }
-.cc-cycle-rail-segment { display: block; flex: 1 1 0; overflow: hidden; background: color-mix(in srgb, var(--color-primary) 14%, transparent); }
+.cc-cycle-rail-segment { display: block; min-width: 0; overflow: hidden; padding: 0; border: 0; border-inline-end: 2px solid var(--color-background); background: color-mix(in srgb, var(--color-primary) 14%, transparent); cursor: pointer; }
+.cc-cycle-rail-segment:last-child { border-inline-end: 0; }
+.cc-cycle-rail-segment:hover, .cc-cycle-rail-segment:focus-visible { background: color-mix(in srgb, var(--color-primary) 32%, transparent); outline: none; }
 .cc-cycle-rail-segment > span { display: block; block-size: 100%; background: var(--color-primary); box-shadow: 0 0 10px var(--color-glow); transform-origin: left; transition: transform 0.25s linear; }
 .cc-cycle-rail[data-paused] .cc-cycle-rail-segment > span { background: var(--color-warning); box-shadow: none; }
 .cc-eyebrow { position: absolute; top: 0; right: 0; left: 0; z-index: 20; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding: calc(var(--viewport-pad) * 0.7) var(--viewport-pad) 0; pointer-events: none; }
@@ -44,7 +46,8 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-scene-layer, .cc-scene { position: absolute; inset: 0; }
 .cc-scene canvas { display: block; width: 100%; height: 100%; }
 .cc-scene-still { position: absolute; inset: 0; background: radial-gradient(60% 60% at 68% 50%, color-mix(in srgb, var(--color-primary) 22%, transparent), transparent 70%), repeating-radial-gradient(circle at 68% 50%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0 1px, transparent 1px 42px); }
-.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto 1fr auto; padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; }
+@keyframes cc-beat-enter { from { opacity: 0; transform: translateY(0.45rem); } to { opacity: 1; transform: none; } }
+.cc-figure-layer { position: absolute; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); grid-template-rows: auto 1fr auto; padding: calc(var(--viewport-pad) * 3.2) var(--viewport-pad) calc(var(--viewport-pad) + 1.6rem); pointer-events: none; animation: cc-beat-enter var(--motion-room) ease both; }
 .cc-figure-layer > * { pointer-events: auto; }
 .cc-hero-region { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .cc-hero { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; max-width: 100%; padding: var(--space-4) var(--space-6) var(--space-4) 0; isolation: isolate; }
@@ -56,7 +59,10 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 .cc-room-stamp { grid-column: 1 / -1; grid-row: 1; align-self: start; justify-self: start; margin: 0; padding: 0.4em 0.9em; border: 1.5px dotted color-mix(in srgb, var(--color-foreground) 60%, var(--color-gap)); border-radius: var(--radius-pill); font: 600 var(--text-micro) var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--color-foreground) 80%, var(--color-gap)); }
 .cc-supporting-region { grid-column: 1 / -1; grid-row: 3; min-width: 0; padding-top: var(--space-4); }
 .cc-readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 14vw, 15rem), 1fr)); gap: var(--space-4) var(--space-6); margin: 0; padding: var(--space-4) 0 0; list-style: none; border-top: 1px solid var(--color-border); }
-.cc-reading { display: flex; flex-direction: column; min-width: 0; padding: 0.2rem 0; }
+.cc-reading { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 0.2rem 0; }
+.cc-reading-measure { display: inline-flex; max-width: 100%; flex-direction: column; align-items: flex-start; }
+.cc-reading-measure [data-rcl-freshness] { width: 100%; max-width: 100%; min-height: 3px; opacity: .9; }
+.cc-reading [data-rcl-figure] { max-width: 100%; }
 .cc-reading-label { margin-bottom: 0.35rem; font: 600 var(--text-micro) var(--font-sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-muted-foreground); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cc-reading .cc-qualifier { margin-top: 0.15rem; font-size: var(--text-micro); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cc-reading-origin { display: block; margin-top: 0.35rem; font: 500 var(--text-micro) var(--font-mono); color: var(--color-muted-foreground); }
@@ -166,12 +172,12 @@ body { margin: 0; overflow: hidden; background: var(--color-background); color: 
 /* ── Reduced motion ────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .cc-source-fetching, .cc-loading-figure { animation: none; }
-    .cc-veil, .cc-controls { transition-duration: 0.001ms; }
+    .cc-veil, .cc-controls, .cc-figure-layer { transition-duration: 0.001ms; animation: none; }
 }
 /* Ranked panels keep the hero footprint while exposing honest shares. */
 .cc-panel-readout { width: min(24rem, 32vw); min-height: 20rem; display: flex; flex-direction: column; gap: .7rem; }
 .cc-panel-readout__heading { font-size: var(--text-label-size, .75rem); letter-spacing: .14em; text-transform: uppercase; }
-.cc-panel-readout__row { position: relative; min-height: 2.5rem; padding: .35rem .5rem; border-left: 2px solid currentColor; overflow: hidden; }
+.cc-panel-readout__row { position: relative; width: min(100%, 16rem); min-height: 2.5rem; box-sizing: border-box; padding: .35rem .5rem; border-left: 2px solid currentColor; overflow: hidden; }
 .cc-panel-readout__label { position: relative; z-index: 1; font-size: var(--text-label-size, .72rem); letter-spacing: .05em; }
 .cc-panel-readout__value { position: relative; z-index: 1; font-size: var(--text-display-size, 1.35rem); font-variant-numeric: tabular-nums; }
 .cc-panel-readout__bar { position: absolute; inset: 0 auto 0 0; background: currentColor; opacity: .14; }

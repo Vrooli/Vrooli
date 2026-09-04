@@ -30,7 +30,7 @@ export {
   type PeriodId,
   type SceneId,
 } from './tuning.schema'
-export { scenes, isSceneId, resolvePeriod } from './scenes'
+export { scenes, isSceneId, resolvePeriod, resolveTerrain } from './scenes'
 export { SceneSchema, type Scene, type CameraPose } from './scenes.schema'
 export { BiomeSchema, BiomeSetSchema, BiomeSetsSchema, type Biome, type BiomeSet } from './biomes.schema'
 export { biomeSets } from './biomes'

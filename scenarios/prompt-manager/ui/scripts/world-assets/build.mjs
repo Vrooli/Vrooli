@@ -33,7 +33,11 @@ function sceneFiles() {
 
 function propIds(scene) {
   const p = scene.props
-  return [...new Set([p.desk, p.chair, p.table, p.seat, p.campfire, p.lamp, p.board, ...p.trees, ...p.decor])]
+  const named = [p.desk, p.chair, p.table, p.seat, p.hearth, p.lamp, p.board, p.door, ...(p.filler ?? [])].filter(Boolean)
+  // Biome vegetation also resolves through this registry. Build the full
+  // governed source map, while retaining scene prop ids so missing mappings
+  // still fail below instead of silently dropping a configured prop.
+  return [...new Set([...named, ...Object.keys(sources.props[scene.id] ?? {})])]
 }
 
 /** Read bounds and triangle count straight from the GLB JSON chunk; no runtime dependency. */

@@ -15,7 +15,7 @@ const LABEL_COLOR = '#ffffff'
 // Stroke instead of outline: troika's outline path builds a second material
 // through a prototype chain that three 0.185 materials no longer support.
 const LABEL_STROKE = '#101423'
-const STROKE_WIDTH = '6%'
+const STROKE_WIDTH = '10%'
 const CHAR_WIDTH_FACTOR = 0.58
 const REFRESH_EVERY_FRAMES = 3
 const BASE_PX_PER_UNIT = 40
@@ -116,7 +116,7 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
     }
     for (const cluster of clustered.clusters) {
       const room = state.places[cluster.roomId]
-      consider(`cluster:${cluster.roomId}`, `${room?.label ?? cluster.roomId} · ${cluster.count}`, cluster.x, t.labels.offsetY, cluster.z, PRIORITY.working)
+      consider(`cluster:${cluster.roomId}`, `${room?.label ?? cluster.roomId} · ${cluster.count}`, cluster.x, t.labels.roomOffsetY, cluster.z, PRIORITY.working)
     }
     const visible = [...resolveCollisions(rects, { paddingPx: labels.paddingPx, budget, pinned })]
     // Keep stable slots for ids already shown so text does not jump between meshes.

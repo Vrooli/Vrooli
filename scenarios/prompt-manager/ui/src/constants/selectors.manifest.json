@@ -192,6 +192,10 @@
       "testId": "world-diagnostics",
       "selector": "[data-testid=\"world-diagnostics\"]"
     },
+    "world.qualityNotice": {
+      "testId": "world-quality-notice",
+      "selector": "[data-testid=\"world-quality-notice\"]"
+    },
     "world.webglBanner": {
       "testId": "world-webgl-banner",
       "selector": "[data-testid=\"world-webgl-banner\"]"

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T04:36:00-04:00"
+    "last_validated_at": "2026-09-04T13:46:21-04:00"
   },
   "requirements": [
     {
@@ -29,14 +29,14 @@
           "type": "test",
           "ref": "ui/src/world/engine/camera/pose.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Hero and establishing poses fit the terrain footprint and stay inside the orbit clamps"
         },
         {
           "type": "test",
           "ref": "ui/scripts/world-smoke/run.mjs",
           "phase": "performance",
-          "status": "passing",
+          "status": "failing",
           "notes": "pnpm world:smoke: draw-call and triangle budgets from world.tuning.json, first-frame clearance, goldens under ui/src/world/__goldens__"
         }
       ]
@@ -53,14 +53,14 @@
           "type": "test",
           "ref": "ui/src/world/scene/actors/pose.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Body pose from animation phase: hop, squash, seated scale, facing offsets"
         },
         {
           "type": "test",
           "ref": "ui/src/world/engine/materials/slime.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Instance colour, seed and squash attributes injected once into the slime material"
         },
         {
@@ -84,21 +84,21 @@
           "type": "test",
           "ref": "ui/src/world/sim/__tests__/determinism.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "The same seed and signal script hash identically after 10,000 ticks; 50 actors remain on walkable terrain"
         },
         {
           "type": "test",
           "ref": "ui/src/world/sim/__tests__/machine.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "One test per transition of the actor state machine"
         },
         {
           "type": "test",
           "ref": "api/internal/world/layout_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Layout override round trip, validation and malformed-file handling"
         },
         {
@@ -122,7 +122,7 @@
           "type": "test",
           "ref": "ui/src/world/hud/__tests__/hud.test.tsx",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Strip filters, card actions and error reporting, 2D mode actions, axe at two widths"
         },
         {
@@ -153,14 +153,14 @@
           "type": "test",
           "ref": "ui/src/world/engine/quality/governor.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Threshold derives from the profile cap; manual profiles are never changed"
         },
         {
           "type": "test",
           "ref": "ui/src/world/config/tuning.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Budgets and every lever validated by schema and documented"
         },
         {
@@ -184,21 +184,21 @@
           "type": "test",
           "ref": "api/handlers/world/connect_handler_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Snapshot first, then RUN_STARTED and RUN_FAILED with the error over a real Connect stream"
         },
         {
           "type": "test",
           "ref": "api/internal/world/feed_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Ring replay by seq, slow-subscriber drop, subscriber cleanup on cancel"
         },
         {
           "type": "test",
           "ref": "ui/src/world/data/__tests__/feed.test.ts",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Polling starts within fallbackAfterMs when the stream fails and stops when it recovers"
         }
       ]
@@ -211,10 +211,34 @@
       "category": "ui",
       "description": "When a world seed is supplied, the system shall deterministically generate one height field, moisture field, water mask, biome grid, and terrain digest from that seed.",
       "validation": [
-        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/field.test.ts", "phase": "unit", "status": "passing", "notes": "Seeded height and moisture fields are deterministic and bounded" },
-        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/water.test.ts", "phase": "unit", "status": "passing", "notes": "Water, shore clearance, and navigation are derived from the terrain field" },
-        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/biomes.test.ts", "phase": "unit", "status": "passing", "notes": "Every terrain cell receives one deterministic biome" },
-        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-terrain-first-frame.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/terrain/__tests__/field.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Seeded height and moisture fields are deterministic and bounded"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/terrain/__tests__/water.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Water, shore clearance, and navigation are derived from the terrain field"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/terrain/__tests__/biomes.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Every terrain cell receives one deterministic biome"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-terrain-first-frame.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
+        }
       ]
     },
     {
@@ -225,8 +249,20 @@
       "category": "ui",
       "description": "When the same team ids and seed are reloaded, the system shall choose the same non-overlapping, dry, level team sites and preserve existing team positions when the graph grows.",
       "validation": [
-        { "type": "test", "ref": "ui/src/world/sim/layout/__tests__/sites.test.ts", "phase": "unit", "status": "passing", "notes": "Site scoring, spacing, rotations, and seed stability are deterministic" },
-        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-seed-stability.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/layout/__tests__/sites.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Site scoring, spacing, rotations, and seed stability are deterministic"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-seed-stability.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
+        }
       ]
     },
     {
@@ -237,9 +273,27 @@
       "category": "ui",
       "description": "While the world advances, the system shall evolve seeded weather from its state machine, increase storm pressure from unhealthy swarm signals, and explain the active state in the HUD.",
       "validation": [
-        { "type": "test", "ref": "ui/src/world/sim/weather/__tests__/machine.test.ts", "phase": "unit", "status": "passing", "notes": "Seeded weather transitions and duration gates are deterministic" },
-        { "type": "test", "ref": "ui/src/world/sim/weather/__tests__/pressure.test.ts", "phase": "unit", "status": "passing", "notes": "Run failures, failed actors, and expired gatherings produce smoothed pressure" },
-        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-weather-legend.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/weather/__tests__/machine.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Seeded weather transitions and duration gates are deterministic"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/weather/__tests__/pressure.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Run failures, failed actors, and expired gatherings produce smoothed pressure"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-weather-legend.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
+        }
       ]
     },
     {
@@ -250,7 +304,88 @@
       "category": "performance",
       "description": "When diagnostics or smoke validation requests measurement, the system shall report CPU and GPU percentiles, attribute direct calls and triangles by group, require an actor count, and record renderer provenance for reproducible sweeps.",
       "validation": [
-        { "type": "test", "ref": "ui/scripts/world-smoke/run.mjs", "phase": "performance", "status": "passing", "notes": "Two consecutive calibrated eight-case SwiftShader matrices were stable, the 1,000-actor medium sweep stayed within geometry budgets with zero invariants, and renderer provenance was recorded; physical-GPU p95 remains pending because this host exposes no WebGL hardware context" }
+        {
+          "type": "test",
+          "ref": "ui/scripts/world-smoke/run.mjs",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "The initial hardware matrices ran on Mesa AMD iGPU and NVIDIA dGPU; final post-change capture is blocked before navigation because Chrome cannot create host threads (pthread_create EAGAIN)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-037",
+      "title": "Office is one deterministic connected building",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "Given an office scene and roster, the system shall generate one flat dry floorplate with seeded rooms, doors, corridors and a lobby while preserving deterministic desk-seat ids.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/layout/floorplan/floorplan.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Deterministic places, two corridors, one door per team and all world invariants pass."
+        },
+        {
+          "type": "test",
+          "ref": "ui/scripts/world-smoke/run.mjs",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Final browser evidence could not execute because the shared host exhausted Chrome thread creation before page navigation."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-038",
+      "title": "Room interiors are stable by team identity",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "For a seed and team id, the system shall derive stable interior choices independent of API order and unrelated teams.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/layout/interior.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Same identity is stable and sampled team identities vary."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-039",
+      "title": "Terrain is owned by scene data",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "The system shall merge scene terrain overrides before generation so indoor scenes can declare flat dry ground without changing the park.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/world/sim/layout/floorplan/floorplan.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Office creation passes indoor flatness and no-water invariants."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-040",
+      "title": "Hardware budgets carry reproducible provenance",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "performance",
+      "description": "A hardware budget gate shall match GPU tier, renderer, device scale factor and actor count and shall reject unattributed draw-call share above ten percent.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/scripts/world-smoke/run.mjs",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Harness gates provenance and attribution in code; the final required hardware run was blocked by host thread exhaustion and is not represented as passing."
+        }
       ]
     }
   ]

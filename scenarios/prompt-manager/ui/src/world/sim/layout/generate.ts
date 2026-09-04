@@ -13,6 +13,7 @@ import type { TerrainField } from '../terrain'
 import { selectSites } from './sites'
 import { terraceSite } from './terrace'
 import { scatterDecor } from './scatter'
+import { interiorDesks, interiorFor, interiorTablePosition } from './interior'
 
 export interface GeneratedLayout {
   places: Place[]
@@ -24,7 +25,7 @@ export interface GeneratedLayout {
 
 export interface GenerateOptions {
   seed: number
-  trees: boolean
+  scatterDecor: boolean
   /** Number of tree prop variants the scene offers. */
   treeVariants: number
   clearPoints?: Vec2[]
@@ -34,6 +35,8 @@ export interface GenerateOptions {
   biomes?: Uint8Array
   biomeSet?: BiomeSet
   treePropIds?: readonly string[]
+  gatheringLabel?: string
+  fillerIds?: readonly string[]
 }
 
 const HALF = 0.5
@@ -52,8 +55,8 @@ export function deskSeatId(agentId: string): string {
 export function tableId(teamId: string): string {
   return `table:${teamId}`
 }
-export const COMMONS_ID = 'commons'
-export const CAMPFIRE_ID = 'campfire'
+export const GATHERING_ID = 'gathering'
+export const HEARTH_ID = 'hearth'
 export const BOARD_ID = 'board'
 
 function facingToward(from: Vec2, to: Vec2): number {
@@ -92,9 +95,10 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
     const desks = team.memberIds.filter((id) => agentIds.has(id)).length
     const columns = Math.max(1, Math.ceil(Math.sqrt(desks)))
     const rows = Math.max(1, Math.ceil(desks / columns))
-    const width = Math.max(layout.roomWidth, columns * layout.deskPitch + layout.deskInset * 2)
+    const gridSpan = Math.max(columns, rows) * layout.deskPitch + layout.deskInset * 2
+    const width = Math.max(layout.roomWidth, gridSpan + layout.tableSeatRadius * 2)
     const meetingDepth = layout.tableSeatRadius * 2 + layout.deskInset
-    const depth = Math.max(layout.roomDepth, rows * layout.deskPitch + layout.deskInset * 2 + meetingDepth)
+    const depth = Math.max(layout.roomDepth, gridSpan + meetingDepth)
     return { width, depth, columns }
   })
   const selected = selectSites(options.terrain, { layout, terrain: options.terrainTuning }, teamSizes.map(({ width, depth }) => [width, depth]), options.seed)
@@ -121,20 +125,19 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
     }
     places.push(room)
 
+    const interior = interiorFor(options.seed, team.id, members.length, room.size, layout, options.fillerIds?.length)
+    const deskLayout = interiorDesks(interior, members.length, room.size, layout)
+
     members.forEach((agentId, m) => {
-      const row = Math.floor(m / teamSize.columns)
-      const column = m % teamSize.columns
-      const rowMembers = Math.min(teamSize.columns, members.length - row * teamSize.columns)
-      const localX = (column - (rowMembers - 1) * HALF) * layout.deskPitch
-      const localZ = -roomDepth * HALF + layout.deskInset + row * layout.deskPitch
-      const deskPosition = rotate(center, localX, localZ, site.rotation)
-      const seatClearance = Math.max(layout.deskSeatOffset, layout.deskInset * HALF + layout.cellSize)
-      const seatPosition = rotate(center, localX, localZ + seatClearance, site.rotation)
+      const desk = deskLayout[m]
+      if (!desk) return
+      const deskPosition = rotate(center, desk.position[0], desk.position[1], site.rotation)
+      const seatPosition = rotate(center, desk.seat[0], desk.seat[1], site.rotation)
       const seat: Seat = {
         id: deskSeatId(agentId),
         placeId: deskId(agentId),
         position: seatPosition,
-        facing: FACING_BACK + site.rotation,
+        facing: FACING_BACK + site.rotation + desk.rotation,
         sitting: false,
       }
       places.push({
@@ -144,7 +147,7 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
         ownerAgentId: agentId,
         parentId: room.id,
         position: deskPosition,
-        rotation: FACING_FRONT + site.rotation,
+        rotation: FACING_FRONT + site.rotation + desk.rotation,
         size: [layout.deskPitch * HALF, layout.deskInset],
         seats: [seat],
         label: agents.find((a) => a.id === agentId)?.name ?? agentId,
@@ -152,8 +155,10 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
       deskSeatByAgent[agentId] = seat.id
     })
 
-    const tableCenter = rotate(center, 0, roomDepth * HALF - layout.tableSeatRadius - layout.deskInset, site.rotation)
-    places.push({
+    const tableLocal = interiorTablePosition(interior, room.size, layout)
+    if (tableLocal) {
+      const tableCenter = rotate(center, tableLocal[0], tableLocal[1], site.rotation)
+      places.push({
       id: tableId(team.id),
       kind: 'table',
       teamId: team.id,
@@ -163,28 +168,29 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
       size: [layout.tableRadius * 2, layout.tableRadius * 2],
       seats: ringSeats(tableId(team.id), tableCenter, layout.tableSeatRadius, layout.tableSeats, true, `seat:${tableId(team.id)}`),
       label: `${team.name} table`,
-    })
+      })
+    }
   })
 
   // Commons, campfire and board.
   const commonsCenter = commonsSite.position
   places.push({
-    id: COMMONS_ID,
-    kind: 'commons',
+    id: GATHERING_ID,
+    kind: 'gathering',
     position: commonsCenter,
     rotation: 0,
     size: [layout.commonsRadius * 2, layout.commonsRadius * 2],
     seats: [],
-    label: 'Commons',
+    label: options.gatheringLabel ?? 'Commons',
   })
   places.push({
-    id: CAMPFIRE_ID,
-    kind: 'campfire',
-    parentId: COMMONS_ID,
+    id: HEARTH_ID,
+    kind: 'hearth',
+    parentId: GATHERING_ID,
     position: commonsCenter,
     rotation: 0,
     size: [layout.commonsSeatRadius * HALF, layout.commonsSeatRadius * HALF],
-    seats: ringSeats(CAMPFIRE_ID, commonsCenter, layout.commonsSeatRadius, layout.commonsSeats, true, 'seat:campfire'),
+    seats: ringSeats(HEARTH_ID, commonsCenter, layout.commonsSeatRadius, layout.commonsSeats, true, 'seat:hearth'),
     label: 'Campfire',
   })
   // boardOffset is defined from the commons centre. Keeping the board inside
@@ -223,9 +229,20 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
   const center: Vec2 = [0, 0]
   const bounds: WorldBounds = { width, depth, center, footprint: { width: maxX - minX, depth: maxZ - minZ, center: footprintCenter }, outline: outlinePoints(places, layout) }
 
-  const decor = options.trees && options.biomes && options.biomeSet
+  const decor = options.scatterDecor && options.biomes && options.biomeSet
     ? scatterDecor({ field: options.terrain, biomes: options.biomes, biomeSet: options.biomeSet, places, bounds, layout, seed: options.seed, clearPoints: options.clearPoints ?? [], treePropIds: options.treePropIds ?? [] })
     : []
+  for (const room of places.filter((place) => place.kind === 'room')) {
+    if (!room.teamId || !options.fillerIds?.length) continue
+    const members = orderedTeams.find((team) => team.id === room.teamId)?.memberIds.length ?? 0
+    const interior = interiorFor(options.seed, room.teamId, members, room.size, layout, options.fillerIds.length)
+    for (const filler of interior.fillers) {
+      const propId = options.fillerIds[filler.propIndex % options.fillerIds.length]
+      if (!propId) continue
+      const position = rotate(room.position, filler.local[0], filler.local[1], room.rotation)
+      decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
+    }
+  }
   return { places, bounds, decor, deskSeatByAgent: survivingDesks }
 }
 
@@ -234,7 +251,7 @@ export function outlinePoints(places: Place[], layout: LayoutTuning): Vec2[] {
   const points: Vec2[] = []
   for (const place of places) {
     if (place.parentId) continue
-    if (place.kind === 'commons') {
+    if (place.kind === 'gathering') {
       for (let i = 0; i < layout.outlineRimSamples; i += 1) {
         const angle = (i / layout.outlineRimSamples) * Math.PI * 2
         points.push([place.position[0] + Math.sin(angle) * layout.commonsRadius, place.position[1] + Math.cos(angle) * layout.commonsRadius])

@@ -24,12 +24,17 @@ export function DiagnosticsOverlay({ seed, seedDigest, testId = 'world-diagnosti
 
   const rows: Array<[string, string]> = [
     ['scene', `${snapshot.scene} · ${snapshot.period}`],
-    ['profile', `${snapshot.profile}${snapshot.auto ? ' (auto)' : ''} · dpr ${snapshot.dpr.toFixed(2)}`],
+    ['profile', `${snapshot.profile}${snapshot.auto ? ' (auto)' : ''} · dpr ${snapshot.dpr.toFixed(2)} · msaa ${snapshot.msaa}`],
     ['draw calls', String(snapshot.drawCalls)],
     ['triangles', snapshot.triangles.toLocaleString()],
     ['programs', String(snapshot.programs)],
+    ['rendered frames / sec', String(snapshot.framesRendered)],
     ['frame p50 / p95', `${snapshot.frameMsP50.toFixed(1)} / ${snapshot.frameMsP95.toFixed(1)} ms`],
     ['GPU p50 / p95', snapshot.gpuTimerReason ? snapshot.gpuTimerReason : `${snapshot.gpuMsP50.toFixed(2)} / ${snapshot.gpuMsP95.toFixed(2)} ms`],
+    ['passes (shadow/main/post/total)', `${snapshot.passMs.shadow.toFixed(2)} / ${snapshot.passMs.main.toFixed(2)} / ${snapshot.passMs.post.toFixed(2)} / ${snapshot.passMs.total.toFixed(2)} ms`],
+    ['unattributed', `${snapshot.drawCallsUnattributed} draws · ${snapshot.trianglesUnattributed.toLocaleString()} tris`],
+    ['shadow refreshes', String(snapshot.shadowRefreshes)],
+    ['quality verdict', snapshot.qualityHistory[snapshot.qualityHistory.length - 1]?.reason ?? 'none'],
     ['tone mapping', snapshot.toneMapping],
     ['post', `ao ${snapshot.ao ? 'on' : 'off'} · bloom ${snapshot.bloom ? 'on' : 'off'}`],
     ['nearest hit', snapshot.nearestHit < 0 ? '—' : `${snapshot.nearestHit.toFixed(1)} m`],

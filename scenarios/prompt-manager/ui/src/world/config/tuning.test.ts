@@ -35,6 +35,9 @@ describe('world.tuning.json', () => {
     for (const id of QUALITY_PROFILE_IDS) expect(tuning.quality.profiles[id]).toBeDefined()
     for (const id of PERIOD_IDS) expect(tuning.lighting.periods[id]).toBeDefined()
     for (const id of SCENE_IDS) expect(tuning.budgets.scenes[id]).toBeDefined()
+    for (const id of QUALITY_PROFILE_IDS) {
+      expect(tuning.quality.profiles[id].ao).toBe(tuning.quality.profiles[id].aoQuality !== 'off')
+    }
   })
 
   it('every lever is documented in the schema', () => {

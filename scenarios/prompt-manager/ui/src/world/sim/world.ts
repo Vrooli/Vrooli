@@ -1,8 +1,8 @@
 /**
  * createWorld: build the initial state from the team graph.
  */
-import { biomeSets, type LayoutTuning, type SimTuning, type TerrainTuning } from '../config'
-import { generateLayout } from './layout/generate'
+import { biomeSets, resolveTerrain, scenes, type LayoutTuning, type SimTuning, type TerrainTuning } from '../config'
+import { layoutStrategies } from './layout/strategy'
 import { pathMask as buildPathMask } from './layout/terrace'
 import { buildNavGrid, nearestWalkable } from './nav/grid'
 import type { Actor, ActorColors, ActorVariant, CreateWorldInput, Seat, WorldState } from './model'
@@ -33,28 +33,34 @@ export function variantFor(id: string): ActorVariant {
 }
 
 export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, treeVariants = 0): WorldState {
-  const terrain = buildTerrain({ seed: input.seed, tuning: tuning.terrain })
-  const biomeSet = input.trees ? biomeSets.park : biomeSets.office
-  const biomes = biomeGrid(terrain, tuning.terrain, biomeSet)
-  const layout = generateLayout(input.teams, input.agents, tuning.layout, {
+  const scene = scenes[input.scene]
+  const terrainTuning = resolveTerrain(scene, tuning)
+  const terrain = buildTerrain({ seed: input.seed, tuning: terrainTuning })
+  const biomeSet = biomeSets[scene.biomeSet]
+  const biomes = biomeGrid(terrain, terrainTuning, biomeSet)
+  const strategy = layoutStrategies[scene.layoutStrategy]
+  if (!strategy) throw new Error(`layout strategy ${scene.layoutStrategy} is not registered`)
+  const layout = strategy.generate({ teams: input.teams, agents: input.agents, tuning: tuning.layout, options: {
     seed: input.seed,
-    trees: input.trees,
+    scatterDecor: scene.environment === 'outdoor',
     treeVariants,
     clearPoints: input.clearPoints,
     overrides: input.overrides,
     terrain,
-    terrainTuning: tuning.terrain,
+    terrainTuning,
     biomes,
     biomeSet,
     treePropIds: [...new Set(biomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation)))],
-  })
+    gatheringLabel: scene.gatheringLabel,
+    fillerIds: scene.props.filler,
+  } })
   const places: WorldState['places'] = {}
   const seats: Record<string, Seat> = {}
   for (const place of layout.places) {
     places[place.id] = place
     for (const seat of place.seats) seats[seat.id] = seat
   }
-  const commonsPlace = layout.places.find((place) => place.kind === 'commons')
+  const commonsPlace = layout.places.find((place) => place.kind === 'gathering')
   const roomSites = layout.places.filter((place) => place.kind === 'room').map((place) => {
     const exitDistance = place.size[1] / 2 + tuning.layout.cellSize
     return {
@@ -67,11 +73,11 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
   // Route paths over dry ground before the terrace kerbs apply the normal
   // walking-slope gate. The final nav admits those explicit paths, then stamps
   // walls and props over them so a path never cuts through a place.
-  const routingNav = buildNavGrid(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, { ...tuning.terrain, maxWalkSlope: Math.PI / 2 })
+  const routingNav = buildNavGrid(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, { ...terrainTuning, maxWalkSlope: Math.PI / 2 })
   const commonsCenter = commonsPlace?.position ?? [0, 0]
   const commonsPathTarget = [commonsCenter[0], commonsCenter[1] + tuning.layout.commonsSeatRadius] as const
-  const paintedPaths = buildPathMask(terrain, tuning.terrain, routingNav, roomSites, commonsPathTarget)
-  const nav = buildNavGrid(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, tuning.terrain, paintedPaths)
+  const paintedPaths = buildPathMask(terrain, terrainTuning, routingNav, roomSites, commonsPathTarget)
+  const nav = buildNavGrid(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, terrainTuning, paintedPaths)
   const rng = new Rng(seedRng(input.seed))
   const weather = initialWeather(input.now, rng, tuning.weather)
   const teamOf = new Map<string, string>()
@@ -80,7 +86,7 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
   }
   const actors: Record<string, Actor> = {}
   const actorOrder: string[] = []
-  const commons = places.commons
+  const commons = places.gathering
   const spawnRadius = tuning.layout.commonsRadius - tuning.layout.clearingRadius * HALF
   const occupancy: Record<string, string> = {}
   for (const agent of [...input.agents].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -124,6 +130,7 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
     actorOrder.push(actor.id)
   }
   return {
+    scene: input.scene,
     seed: input.seed,
     rngState: rng.state,
     tick: 0,

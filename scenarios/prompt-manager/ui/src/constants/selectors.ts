@@ -73,6 +73,7 @@ const literalSelectors = {
     view: 'world-view',
     canvas: 'world-canvas',
     diagnostics: 'world-diagnostics',
+    qualityNotice: 'world-quality-notice',
     webglBanner: 'world-webgl-banner',
     webglRetry: 'world-webgl-retry',
     hud: {

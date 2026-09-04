@@ -468,8 +468,26 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `layout.siteRotationSnapRad` | number | min 0.01, max 1.5707963267948966 | `0.2617993878` | Angular increment used to snap generated site rotations (radians) |
 | `layout.scatterJitter` | number | min 0, max 1 | `0.45` | Share of one terrain cell available for decor position jitter (0..1) |
 | `layout.decorSpacingFactor` | number | min 0, max 1 | `0.55` | Decor spacing as a fraction of tree spacing (0..1) |
-| `layout.decorScale.min` | number | min 0.1, max 4 | `0.75` | Seeded decor scale lower bound (multiplier) |
-| `layout.decorScale.max` | number | min 0.1, max 4 | `1.35` | Seeded decor scale upper bound (multiplier) |
+| `layout.decorScale.min` | number | min 0.1, max 4 | `0.6` | Seeded decor scale lower bound (multiplier) |
+| `layout.decorScale.max` | number | min 0.1, max 4 | `1.55` | Seeded decor scale upper bound (multiplier) |
+| `layout.decorColorJitter` | number | min 0, max 1 | `0.08` | Maximum seeded per-channel vegetation colour variation (0..1) |
+| `layout.floorplan.corridorWidth` | number | min 1, max 10 | `3` | Primary and secondary corridor width (metres) |
+| `layout.floorplan.secondaryCorridors.min` | number | min 0, max 8 | `1` | Secondary corridor count lower bound (count) |
+| `layout.floorplan.secondaryCorridors.max` | number | min 0, max 8 | `2` | Secondary corridor count upper bound (count) |
+| `layout.floorplan.splitRatio.min` | number | min 0.25, max 0.75 | `0.4` | Seeded room split ratio lower bound (ratio) |
+| `layout.floorplan.splitRatio.max` | number | min 0.25, max 0.75 | `0.6` | Seeded room split ratio upper bound (ratio) |
+| `layout.floorplan.maxAspect` | number | min 1, max 6 | `2.5` | Maximum room aspect ratio (ratio) |
+| `layout.floorplan.roomAreaPerMember` | number | min 2, max 50 | `7` | Target room area per team member (square metres) |
+| `layout.floorplan.roomMinArea` | number | min 8, max 200 | `30` | Minimum room area (square metres) |
+| `layout.floorplan.plateMargin` | number | min 1, max 30 | `4` | Floorplate margin around rooms (metres) |
+| `layout.floorplan.doorWidth` | number | min 0.8, max 4 | `1.4` | Room doorway width (metres) |
+| `layout.floorplan.lobbyRadius` | number | min 1, max 15 | `3` | Lobby gathering radius (metres) |
+| `layout.floorplan.plateAspect.min` | number | min 1, max 3 | `1.15` | Seeded office floorplate aspect ratio lower bound (ratio) |
+| `layout.floorplan.plateAspect.max` | number | min 1, max 3 | `1.65` | Seeded office floorplate aspect ratio upper bound (ratio) |
+| `layout.floorplan.primaryOffset` | number | min 0, max 1 | `0.25` | Maximum seeded primary-corridor offset as a fraction of corridor width (0..1) |
+| `layout.floorplan.secondaryJitter` | number | min 0, max 1 | `0.12` | Maximum seeded secondary-corridor jitter within its even spacing (0..1) |
+| `layout.interior.tableMinMembers` | integer | min 1, max 100 | `2` | Minimum team size for a meeting table (count) |
+| `layout.interior.fillerMax` | integer | min 0, max 3 | `3` | Maximum seeded filler props per room (count) |
 
 ### `terrain`
 
@@ -479,13 +497,19 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `terrain.cellSize` | number | min 0.25, max 8 | `1` | Spacing between terrain field samples (metres) |
 | `terrain.amplitude` | number | min 0, max 20 | `1.5` | Maximum absolute terrain elevation (metres) |
 | `terrain.frequency` | number | min 0.001, max 1 | `0.018` | Base terrain noise frequency (cycles per metre) |
+| `terrain.detailAmplitude` | number | min 0, max 5 | `0.1` | Higher-frequency surface-detail amplitude (metres) |
+| `terrain.detailFrequency` | number | min 0.001, max 2 | `0.07` | Surface-detail noise frequency (cycles per metre) |
 | `terrain.octaves` | integer | min 1, max 8 | `4` | Fractal noise octaves used for height and moisture (count) |
 | `terrain.lacunarity` | number | min 1, max 4 | `2` | Frequency multiplier between terrain noise octaves (multiplier) |
 | `terrain.gain` | number | min 0, max 1 | `0.5` | Amplitude multiplier between terrain noise octaves (0..1) |
-| `terrain.moistureFrequency` | number | min 0.001, max 1 | `0.008` | Base moisture noise frequency (cycles per metre) |
+| `terrain.moistureFrequency` | number | min 0.001, max 1 | `0.025` | Base moisture noise frequency (cycles per metre) |
+| `terrain.moistureWarp` | number | min 0, max 50 | `12` | Domain-warp distance applied to moisture sampling (metres) |
 | `terrain.falloffStart` | number | min 0, max 1 | `0.55` | Fraction of terrain radius where elevation begins fading to zero (0..1) |
 | `terrain.waterLevel` | number | min -20, max 20 | `-0.45` | Water surface elevation (metres) |
 | `terrain.shoreMargin` | number | min 0, max 20 | `1.2` | Dry navigation margin around water (metres) |
+| `terrain.waterSurfaceLift` | number | min 0, max 0.2 | `0.015` | Water surface lift above its terrain threshold (metres) |
+| `terrain.wetShoreWidth` | number | min 0.1, max 10 | `2` | Width of terrain darkening immediately inside water (metres) |
+| `terrain.wetShoreDarkening` | number | min 0, max 1 | `0.22` | Maximum terrain darkening immediately inside water (0..1) |
 | `terrain.maxSiteSlope` | number | min 0, max 1.5707963267948966 | `0.14` | Steepest ground eligible for a team site (radians) |
 | `terrain.maxWalkSlope` | number | min 0, max 1.5707963267948966 | `0.45` | Steepest ground eligible for navigation (radians) |
 | `terrain.kerbWidth` | number | min 0.25, max 10 | `2` | Width over which a level site pad blends into terrain (metres) |
@@ -646,19 +670,19 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `weather.states.rain.maxSeconds` | number | min 1, max 3600 | `240` | Maximum state duration (seconds) |
 | `weather.states.snow.fogNearScale` | number | min 0, max 3 | `0.55` | Fog near-distance scale (multiplier) |
 | `weather.states.snow.fogFarScale` | number | min 0, max 3 | `0.45` | Fog far-distance scale (multiplier) |
-| `weather.states.snow.exposureScale` | number | min 0, max 3 | `0.85` | Exposure scale (multiplier) |
-| `weather.states.snow.keyIntensityScale` | number | min 0, max 3 | `0.5` | Directional light intensity scale (multiplier) |
-| `weather.states.snow.ambientScale` | number | min 0, max 3 | `1` | Ambient light intensity scale (multiplier) |
+| `weather.states.snow.exposureScale` | number | min 0, max 3 | `0.95` | Exposure scale (multiplier) |
+| `weather.states.snow.keyIntensityScale` | number | min 0, max 3 | `0.55` | Directional light intensity scale (multiplier) |
+| `weather.states.snow.ambientScale` | number | min 0, max 3 | `1.1` | Ambient light intensity scale (multiplier) |
 | `weather.states.snow.skyBlurAdd` | number | min 0, max 1 | `0.3` | Additional sky blur (0..1) |
 | `weather.states.snow.cloudCoverage` | number | min 0, max 1 | `0.8` | Cloud layer coverage (0..1) |
 | `weather.states.snow.particleRate` | number | min 0, max 1 | `0.75` | Weather particle rate (0..1) |
-| `weather.states.snow.wetness` | number | min 0, max 1 | `0.45` | Terrain wetness (0..1) |
-| `weather.states.snow.terrainTint` | string | — | `"#eef7ff"` | Terrain weather tint (hex colour) |
-| `weather.states.snow.terrainTintMix` | number | min 0, max 1 | `0.95` | Share of the terrain colour replaced by the weather tint (0..1) |
-| `weather.states.snow.terrainShadowTint` | string | — | `"#7a234f"` | Secondary terrain tint used for weather variation (hex colour) |
-| `weather.states.snow.terrainTintVariation` | number | min 0, max 1 | `1` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
-| `weather.states.snow.skyTint` | string | — | `"#b39ddb"` | Sky and fog weather tint (hex colour) |
-| `weather.states.snow.skyTintMix` | number | min 0, max 1 | `0.9` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
+| `weather.states.snow.wetness` | number | min 0, max 1 | `0.25` | Terrain wetness (0..1) |
+| `weather.states.snow.terrainTint` | string | — | `"#f5fbff"` | Terrain weather tint (hex colour) |
+| `weather.states.snow.terrainTintMix` | number | min 0, max 1 | `1` | Share of the terrain colour replaced by the weather tint (0..1) |
+| `weather.states.snow.terrainShadowTint` | string | — | `"#c7e3f2"` | Secondary terrain tint used for weather variation (hex colour) |
+| `weather.states.snow.terrainTintVariation` | number | min 0, max 1 | `0.25` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
+| `weather.states.snow.skyTint` | string | — | `"#dceeff"` | Sky and fog weather tint (hex colour) |
+| `weather.states.snow.skyTintMix` | number | min 0, max 1 | `0.95` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
 | `weather.states.snow.minSeconds` | number | min 1, max 3600 | `60` | Minimum state duration (seconds) |
 | `weather.states.snow.maxSeconds` | number | min 1, max 3600 | `180` | Maximum state duration (seconds) |
 | `weather.pressure.recentFailureWeight` | number | min 0, max 1 | `0.5` | Weight of recent run failures (0..1) |
@@ -677,6 +701,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `labels.collapseDistance` | number | min 1, max 500 | `34` | Camera distance past which room labels collapse into one count label (metres) |
 | `labels.fontSize` | number | min 0.05, max 2 | `0.34` | SDF label height in world units (metres) |
 | `labels.offsetY` | number | min 0, max 5 | `1.45` | Label height above the actor origin (metres) |
+| `labels.roomOffsetY` | number | min 0, max 8 | `2.8` | Static height for clustered room labels above props (metres) |
 | `labels.minScreenPx` | number | min 4, max 64 | `11` | Labels never render smaller than this on screen (pixels) |
 | `labels.maxScreenPx` | number | min 4, max 128 | `20` | Labels never render larger than this on screen (pixels) |
 | `labels.paddingPx` | number | min 0, max 32 | `4` | Collision padding around a projected label (pixels) |
@@ -734,10 +759,12 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.low.dpr` | number | min 0.5, max 3 | `1` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.low.shadows` | boolean | — | `false` | Directional shadow map on or off (flag) |
 | `quality.profiles.low.shadowMapSize` | integer | min 256, max 8192 | `512` | Shadow map resolution (pixels, square) (count) |
+| `quality.profiles.low.shadowRefreshHz` | integer | min 0, max 60 | `0` | Maximum shadow-map refreshes per second while actors move (count) |
 | `quality.profiles.low.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.low.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.low.bloom` | boolean | — | `false` | Selective bloom pass on or off (flag) |
 | `quality.profiles.low.msaa` | integer | min 0, max 8 | `0` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
-| `quality.profiles.low.labelBudget` | integer | min 0, max 200 | `8` | Label budget override for this profile (count) |
+| `quality.profiles.low.labelBudget` | integer | min 0, max 200 | `3` | Label budget override for this profile (count) |
 | `quality.profiles.low.frameCapFps` | integer | min 15, max 240 | `60` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.low.wobble` | boolean | — | `false` | Slime vertex wobble on or off (flag) |
 | `quality.profiles.low.clouds` | boolean | — | `false` | Volumetric clouds on or off (flag) |
@@ -746,11 +773,13 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.low.vegetationDensityScale` | number | min 0, max 1 | `0.45` | Share of deterministic vegetation instances rendered (0..1) |
 | `quality.profiles.low.weatherParticleScale` | number | min 0, max 1 | `0` | Share of weather particles rendered (0..1) |
 | `quality.profiles.low.waterEnabled` | boolean | — | `false` | Whether the water surface is rendered (flag) |
-| `quality.profiles.low.vegetationTileBudget` | integer | min 0, max 500 | `20` | Maximum vegetation tiles rendered at once (count) |
+| `quality.profiles.low.vegetationInstanceBudget` | integer | min 0, max 5000 | `300` | Maximum visible vegetation instances rendered at once (count) |
 | `quality.profiles.medium.dpr` | number | min 0.5, max 3 | `1` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.medium.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.medium.shadowMapSize` | integer | min 256, max 8192 | `1024` | Shadow map resolution (pixels, square) (count) |
+| `quality.profiles.medium.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
 | `quality.profiles.medium.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.medium.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.medium.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
 | `quality.profiles.medium.msaa` | integer | min 0, max 8 | `2` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
 | `quality.profiles.medium.labelBudget` | integer | min 0, max 200 | `16` | Label budget override for this profile (count) |
@@ -762,11 +791,13 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.medium.vegetationDensityScale` | number | min 0, max 1 | `0.7` | Share of deterministic vegetation instances rendered (0..1) |
 | `quality.profiles.medium.weatherParticleScale` | number | min 0, max 1 | `0.5` | Share of weather particles rendered (0..1) |
 | `quality.profiles.medium.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
-| `quality.profiles.medium.vegetationTileBudget` | integer | min 0, max 500 | `35` | Maximum vegetation tiles rendered at once (count) |
+| `quality.profiles.medium.vegetationInstanceBudget` | integer | min 0, max 5000 | `600` | Maximum visible vegetation instances rendered at once (count) |
 | `quality.profiles.high.dpr` | number | min 0.5, max 3 | `1` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.high.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.high.shadowMapSize` | integer | min 256, max 8192 | `2048` | Shadow map resolution (pixels, square) (count) |
+| `quality.profiles.high.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
 | `quality.profiles.high.ao` | boolean | — | `true` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.high.aoQuality` | "off" \| "low" \| "medium" | — | `"low"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.high.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
 | `quality.profiles.high.msaa` | integer | min 0, max 8 | `4` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
 | `quality.profiles.high.labelBudget` | integer | min 0, max 200 | `24` | Label budget override for this profile (count) |
@@ -778,13 +809,15 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.high.vegetationDensityScale` | number | min 0, max 1 | `0.85` | Share of deterministic vegetation instances rendered (0..1) |
 | `quality.profiles.high.weatherParticleScale` | number | min 0, max 1 | `0.8` | Share of weather particles rendered (0..1) |
 | `quality.profiles.high.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
-| `quality.profiles.high.vegetationTileBudget` | integer | min 0, max 500 | `50` | Maximum vegetation tiles rendered at once (count) |
+| `quality.profiles.high.vegetationInstanceBudget` | integer | min 0, max 5000 | `900` | Maximum visible vegetation instances rendered at once (count) |
 | `quality.profiles.ultra.dpr` | number | min 0.5, max 3 | `1.5` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.ultra.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
-| `quality.profiles.ultra.shadowMapSize` | integer | min 256, max 8192 | `4096` | Shadow map resolution (pixels, square) (count) |
-| `quality.profiles.ultra.ao` | boolean | — | `true` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.ultra.shadowMapSize` | integer | min 256, max 8192 | `2048` | Shadow map resolution (pixels, square) (count) |
+| `quality.profiles.ultra.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
+| `quality.profiles.ultra.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.ultra.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.ultra.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
-| `quality.profiles.ultra.msaa` | integer | min 0, max 8 | `8` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
+| `quality.profiles.ultra.msaa` | integer | min 0, max 8 | `2` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
 | `quality.profiles.ultra.labelBudget` | integer | min 0, max 200 | `40` | Label budget override for this profile (count) |
 | `quality.profiles.ultra.frameCapFps` | integer | min 15, max 240 | `120` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.ultra.wobble` | boolean | — | `true` | Slime vertex wobble on or off (flag) |
@@ -794,7 +827,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.ultra.vegetationDensityScale` | number | min 0, max 1 | `1` | Share of deterministic vegetation instances rendered (0..1) |
 | `quality.profiles.ultra.weatherParticleScale` | number | min 0, max 1 | `1` | Share of weather particles rendered (0..1) |
 | `quality.profiles.ultra.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
-| `quality.profiles.ultra.vegetationTileBudget` | integer | min 0, max 500 | `70` | Maximum vegetation tiles rendered at once (count) |
+| `quality.profiles.ultra.vegetationInstanceBudget` | integer | min 0, max 5000 | `1200` | Maximum visible vegetation instances rendered at once (count) |
 
 ### `data`
 
@@ -826,61 +859,101 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `budgets.periodPixelDelta` | number | min 0, max 1 | `0.25` | Minimum fraction of pixels that must differ between day and night goldens (0..1) |
 | `budgets.framing.minFill` | number | min 0, max 1 | `0.7` | Smallest share of the viewport the layout outline may occupy on the hero pose (0..1) |
 | `budgets.framing.maxFill` | number | min 0, max 1 | `0.97` | Largest share of the viewport the layout outline may occupy on the hero pose (0..1) |
-| `budgets.scenes.park.low.drawCalls` | integer | min 1, max 5000 | `70` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.low.drawCalls` | integer | min 1, max 5000 | `66` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
 | `budgets.scenes.park.low.triangles` | integer | min 1, max 50000000 | `67000` | Maximum triangles per frame (count) |
-| `budgets.scenes.park.low.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.park.low.p95Ms` | number | min 1, max 200 | `5.2` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.park.low.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.park.low.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.low.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.low.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.park.low.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.park.low.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.park.low.provenance.measuredP95Ms` | number | — | `4.51` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.park.low.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.park.low.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.park.low.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
-| `budgets.scenes.park.medium.drawCalls` | integer | min 1, max 5000 | `210` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.medium.triangles` | integer | min 1, max 50000000 | `140000` | Maximum triangles per frame (count) |
-| `budgets.scenes.park.medium.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.park.low.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.medium.drawCalls` | integer | min 1, max 5000 | `196` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.medium.triangles` | integer | min 1, max 50000000 | `142000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.medium.p95Ms` | number | min 1, max 200 | `7.8` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.park.medium.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.park.medium.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.medium.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.medium.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.park.medium.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.park.medium.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.park.medium.provenance.measuredP95Ms` | number | — | `6.78` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.park.medium.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.park.medium.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.park.medium.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
-| `budgets.scenes.park.high.drawCalls` | integer | min 1, max 5000 | `280` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.high.triangles` | integer | min 1, max 50000000 | `225000` | Maximum triangles per frame (count) |
-| `budgets.scenes.park.high.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.park.medium.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.high.drawCalls` | integer | min 1, max 5000 | `265` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.high.triangles` | integer | min 1, max 50000000 | `226000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.high.p95Ms` | number | min 1, max 200 | `18.8` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.park.high.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.park.high.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.high.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.high.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.park.high.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.park.high.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.park.high.provenance.measuredP95Ms` | number | — | `16.32` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.park.high.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.park.high.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.park.high.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
-| `budgets.scenes.park.ultra.drawCalls` | integer | min 1, max 5000 | `360` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.ultra.triangles` | integer | min 1, max 50000000 | `255000` | Maximum triangles per frame (count) |
-| `budgets.scenes.park.ultra.p95Ms` | number | min 1, max 200 | `24` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.park.high.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.ultra.drawCalls` | integer | min 1, max 5000 | `326` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.ultra.triangles` | integer | min 1, max 50000000 | `249000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.ultra.p95Ms` | number | min 1, max 200 | `16.7` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.park.ultra.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.park.ultra.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.ultra.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.ultra.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.park.ultra.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.park.ultra.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1.5` | Device pixel ratio used for calibration |
+| `budgets.scenes.park.ultra.provenance.measuredP95Ms` | number | — | `47.96` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.park.ultra.provenance.target` | boolean | — | `true` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.park.ultra.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.park.ultra.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
-| `budgets.scenes.office.low.drawCalls` | integer | min 1, max 5000 | `35` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.ultra.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1.5; 16.7ms-target"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.low.drawCalls` | integer | min 1, max 5000 | `34` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
 | `budgets.scenes.office.low.triangles` | integer | min 1, max 50000000 | `67000` | Maximum triangles per frame (count) |
-| `budgets.scenes.office.low.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.office.low.p95Ms` | number | min 1, max 200 | `4.7` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.office.low.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.office.low.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.low.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.low.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.office.low.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.office.low.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.office.low.provenance.measuredP95Ms` | number | — | `4.05` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.office.low.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.office.low.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.office.low.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
-| `budgets.scenes.office.medium.drawCalls` | integer | min 1, max 5000 | `70` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.office.low.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.medium.drawCalls` | integer | min 1, max 5000 | `69` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
 | `budgets.scenes.office.medium.triangles` | integer | min 1, max 50000000 | `115000` | Maximum triangles per frame (count) |
-| `budgets.scenes.office.medium.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.office.medium.p95Ms` | number | min 1, max 200 | `7.3` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.office.medium.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.office.medium.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.medium.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.medium.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.office.medium.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.office.medium.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.office.medium.provenance.measuredP95Ms` | number | — | `6.27` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.office.medium.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.office.medium.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.office.medium.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.medium.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
 | `budgets.scenes.office.high.drawCalls` | integer | min 1, max 5000 | `90` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
 | `budgets.scenes.office.high.triangles` | integer | min 1, max 50000000 | `167000` | Maximum triangles per frame (count) |
-| `budgets.scenes.office.high.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.office.high.p95Ms` | number | min 1, max 200 | `18.2` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.office.high.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.office.high.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.high.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.high.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.office.high.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.office.high.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1` | Device pixel ratio used for calibration |
+| `budgets.scenes.office.high.provenance.measuredP95Ms` | number | — | `15.82` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.office.high.provenance.target` | boolean | — | `false` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.office.high.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.office.high.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.high.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom"` | Frame-time measurement method (method name) |
 | `budgets.scenes.office.ultra.drawCalls` | integer | min 1, max 5000 | `90` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
 | `budgets.scenes.office.ultra.triangles` | integer | min 1, max 50000000 | `167000` | Maximum triangles per frame (count) |
-| `budgets.scenes.office.ultra.p95Ms` | number | min 1, max 200 | `24` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.office.ultra.p95Ms` | number | min 1, max 200 | `16.7` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
 | `budgets.scenes.office.ultra.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
-| `budgets.scenes.office.ultra.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.ultra.provenance.gpu` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.ultra.provenance.renderer` | string | — | `"ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)"` | Exact hardware renderer string reported by WebGL |
+| `budgets.scenes.office.ultra.provenance.gpuTier` | "igpu" \| "dgpu" | — | `"igpu"` | Hardware tier used for the gating calibration |
+| `budgets.scenes.office.ultra.provenance.deviceScaleFactor` | number | min 0.5, max 3 | `1.5` | Device pixel ratio used for calibration |
+| `budgets.scenes.office.ultra.provenance.measuredP95Ms` | number | — | `45.78` | Observed GPU p95 before headroom was applied |
+| `budgets.scenes.office.ultra.provenance.target` | boolean | — | `true` | True when p95Ms is a delivery target rather than observed-plus-headroom |
 | `budgets.scenes.office.ultra.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
-| `budgets.scenes.office.ultra.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.ultra.provenance.method` | string | — | `"gpu-timer; igpu; dsf 1.5; 16.7ms-target"` | Frame-time measurement method (method name) |
 
 <!-- world-tuning:end -->

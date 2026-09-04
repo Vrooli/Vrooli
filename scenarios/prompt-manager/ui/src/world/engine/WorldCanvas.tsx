@@ -10,6 +10,7 @@ interface WorldCanvasProps {
   /** Passed to the underlying canvas element for BAS and the smoke tool. */
   testId?: string
   onCreated?: () => void
+  capture?: boolean
 }
 
 /**
@@ -17,13 +18,13 @@ interface WorldCanvasProps {
  * chain) so the sky background and the scene agree; the profile owns dpr and
  * shadow settings; the camera tuning owns the lens.
  */
-export function WorldCanvas({ profile, camera, children, testId = 'world-canvas', onCreated }: WorldCanvasProps) {
+export function WorldCanvas({ profile, camera, children, testId = 'world-canvas', onCreated, capture = false }: WorldCanvasProps) {
   return (
     <Canvas
       shadows={profile.shadows ? { type: PCFSoftShadowMap } : false}
       dpr={[1, profile.dpr]}
-      frameloop="always"
-      gl={{ antialias: false, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: true }}
+      frameloop="demand"
+      gl={{ antialias: false, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: capture }}
       camera={{ fov: camera.fov, near: camera.near, far: camera.far, position: [0, 20, 40] }}
       onCreated={onCreated}
       data-testid={testId}

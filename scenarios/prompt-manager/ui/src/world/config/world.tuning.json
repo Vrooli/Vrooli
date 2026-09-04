@@ -66,20 +66,45 @@
     "siteRotationSnapRad": 0.2617993878,
     "scatterJitter": 0.45,
     "decorSpacingFactor": 0.55,
-    "decorScale": { "min": 0.75, "max": 1.35 }
+    "decorScale": { "min": 0.6, "max": 1.55 },
+    "decorColorJitter": 0.08,
+    "floorplan": {
+      "corridorWidth": 3,
+      "secondaryCorridors": { "min": 1, "max": 2 },
+      "splitRatio": { "min": 0.4, "max": 0.6 },
+      "maxAspect": 2.5,
+      "roomAreaPerMember": 7,
+      "roomMinArea": 30,
+      "plateMargin": 4,
+      "doorWidth": 1.4,
+      "lobbyRadius": 3,
+      "plateAspect": { "min": 1.15, "max": 1.65 },
+      "primaryOffset": 0.25,
+      "secondaryJitter": 0.12
+    },
+    "interior": {
+      "tableMinMembers": 2,
+      "fillerMax": 3
+    }
   },
   "terrain": {
     "radius": 90,
     "cellSize": 1,
     "amplitude": 1.5,
     "frequency": 0.018,
+    "detailAmplitude": 0.1,
+    "detailFrequency": 0.07,
     "octaves": 4,
     "lacunarity": 2,
     "gain": 0.5,
-    "moistureFrequency": 0.008,
+    "moistureFrequency": 0.025,
+    "moistureWarp": 12,
     "falloffStart": 0.55,
     "waterLevel": -0.45,
     "shoreMargin": 1.2,
+    "waterSurfaceLift": 0.015,
+    "wetShoreWidth": 2,
+    "wetShoreDarkening": 0.22,
     "maxSiteSlope": 0.14,
     "maxWalkSlope": 0.45,
     "kerbWidth": 2,
@@ -204,7 +229,7 @@
       "clear": { "fogNearScale": 1, "fogFarScale": 1, "exposureScale": 1, "keyIntensityScale": 1, "ambientScale": 1, "skyBlurAdd": 0, "cloudCoverage": 0.05, "particleRate": 0, "wetness": 0, "terrainTint": "#ffffff", "terrainTintMix": 0, "terrainShadowTint": "#ffffff", "terrainTintVariation": 0, "skyTint": "#ffffff", "skyTintMix": 0, "minSeconds": 90, "maxSeconds": 240 },
       "cloudy": { "fogNearScale": 0.85, "fogFarScale": 0.8, "exposureScale": 0.92, "keyIntensityScale": 0.65, "ambientScale": 1.08, "skyBlurAdd": 0.2, "cloudCoverage": 0.65, "particleRate": 0, "wetness": 0.15, "terrainTint": "#aab6c2", "terrainTintMix": 0.35, "terrainShadowTint": "#aab6c2", "terrainTintVariation": 0, "skyTint": "#8894a0", "skyTintMix": 0.35, "minSeconds": 60, "maxSeconds": 180 },
       "rain": { "fogNearScale": 0.7, "fogFarScale": 0.6, "exposureScale": 0.85, "keyIntensityScale": 0.45, "ambientScale": 1.15, "skyBlurAdd": 0.25, "cloudCoverage": 0.85, "particleRate": 1, "wetness": 0.8, "terrainTint": "#335b78", "terrainTintMix": 0.65, "terrainShadowTint": "#335b78", "terrainTintVariation": 0, "skyTint": "#243b55", "skyTintMix": 0.65, "minSeconds": 60, "maxSeconds": 240 },
-      "snow": { "fogNearScale": 0.55, "fogFarScale": 0.45, "exposureScale": 0.85, "keyIntensityScale": 0.5, "ambientScale": 1, "skyBlurAdd": 0.3, "cloudCoverage": 0.8, "particleRate": 0.75, "wetness": 0.45, "terrainTint": "#eef7ff", "terrainTintMix": 0.95, "terrainShadowTint": "#7a234f", "terrainTintVariation": 1, "skyTint": "#b39ddb", "skyTintMix": 0.9, "minSeconds": 60, "maxSeconds": 180 }
+      "snow": { "fogNearScale": 0.55, "fogFarScale": 0.45, "exposureScale": 0.95, "keyIntensityScale": 0.55, "ambientScale": 1.1, "skyBlurAdd": 0.3, "cloudCoverage": 0.8, "particleRate": 0.75, "wetness": 0.25, "terrainTint": "#f5fbff", "terrainTintMix": 1, "terrainShadowTint": "#c7e3f2", "terrainTintVariation": 0.25, "skyTint": "#dceeff", "skyTintMix": 0.95, "minSeconds": 60, "maxSeconds": 180 }
     },
     "pressure": { "recentFailureWeight": 0.5, "failedActorWeight": 0.4, "expiredGatheringWeight": 0.1, "eventWindowSeconds": 1200 },
     "pressureSmoothingSeconds": 45,
@@ -216,6 +241,7 @@
     "collapseDistance": 34,
     "fontSize": 0.34,
     "offsetY": 1.45,
+    "roomOffsetY": 2.8,
     "minScreenPx": 11,
     "maxScreenPx": 20,
     "paddingPx": 4
@@ -279,9 +305,11 @@
         "dpr": 1,
         "shadows": false,
         "shadowMapSize": 512,
+        "shadowRefreshHz": 0,
         "ao": false,
+        "aoQuality": "off",
         "bloom": false,
-        "labelBudget": 8,
+        "labelBudget": 3,
         "frameCapFps": 60,
         "wobble": false,
         "clouds": false,
@@ -291,13 +319,15 @@
         "vegetationDensityScale": 0.45,
         "weatherParticleScale": 0,
         "waterEnabled": false,
-        "vegetationTileBudget": 20
+        "vegetationInstanceBudget": 300
       },
       "medium": {
         "dpr": 1,
         "shadows": true,
         "shadowMapSize": 1024,
+        "shadowRefreshHz": 4,
         "ao": false,
+        "aoQuality": "off",
         "bloom": true,
         "labelBudget": 16,
         "frameCapFps": 60,
@@ -309,13 +339,15 @@
         "vegetationDensityScale": 0.7,
         "weatherParticleScale": 0.5,
         "waterEnabled": true,
-        "vegetationTileBudget": 35
+        "vegetationInstanceBudget": 600
       },
       "high": {
         "dpr": 1,
         "shadows": true,
         "shadowMapSize": 2048,
+        "shadowRefreshHz": 4,
         "ao": true,
+        "aoQuality": "low",
         "bloom": true,
         "labelBudget": 24,
         "frameCapFps": 60,
@@ -327,25 +359,27 @@
         "vegetationDensityScale": 0.85,
         "weatherParticleScale": 0.8,
         "waterEnabled": true,
-        "vegetationTileBudget": 50
+        "vegetationInstanceBudget": 900
       },
       "ultra": {
         "dpr": 1.5,
         "shadows": true,
-        "shadowMapSize": 4096,
-        "ao": true,
+        "shadowMapSize": 2048,
+        "shadowRefreshHz": 4,
+        "ao": false,
+        "aoQuality": "off",
         "bloom": true,
         "labelBudget": 40,
         "frameCapFps": 120,
         "wobble": true,
         "clouds": true,
-        "msaa": 8,
+        "msaa": 2,
         "terrainInnerRadius": 90,
         "terrainCellScale": 1,
         "vegetationDensityScale": 1,
         "weatherParticleScale": 1,
         "waterEnabled": true,
-        "vegetationTileBudget": 70
+        "vegetationInstanceBudget": 1200
       }
     }
   },
@@ -371,54 +405,54 @@
     "scenes": {
       "park": {
         "low": {
-          "drawCalls": 70,
+          "drawCalls": 66,
           "triangles": 67000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "p95Ms": 5.2,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 4.51, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "medium": {
-          "drawCalls": 210,
-          "triangles": 140000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "drawCalls": 196,
+          "triangles": 142000,
+          "p95Ms": 7.8,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 6.78, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "high": {
-          "drawCalls": 280,
-          "triangles": 225000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "drawCalls": 265,
+          "triangles": 226000,
+          "p95Ms": 18.8,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 16.32, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "ultra": {
-          "drawCalls": 360,
-          "triangles": 255000,
-          "p95Ms": 24,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "drawCalls": 326,
+          "triangles": 249000,
+          "p95Ms": 16.7,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1.5, "measuredP95Ms": 47.96, "target": true, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1.5; 16.7ms-target" }
         }
       },
       "office": {
         "low": {
-          "drawCalls": 35,
+          "drawCalls": 34,
           "triangles": 67000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "p95Ms": 4.7,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 4.05, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "medium": {
-          "drawCalls": 70,
+          "drawCalls": 69,
           "triangles": 115000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "p95Ms": 7.3,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 6.27, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "high": {
           "drawCalls": 90,
           "triangles": 167000,
-          "p95Ms": 18,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "p95Ms": 18.2,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1, "measuredP95Ms": 15.82, "target": false, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1; observed-plus-15pct-headroom" }
         },
         "ultra": {
           "drawCalls": 90,
           "triangles": 167000,
-          "p95Ms": 24,
-          "provenance": { "actors": 25, "gpu": "Google SwiftShader (Vulkan)", "calibratedAt": "2026-09-04", "method": "geometry-observation-plus-15pct-headroom; host-p95-gate-pending" }
+          "p95Ms": 16.7,
+          "provenance": { "actors": 25, "gpu": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "renderer": "ANGLE (AMD, AMD Ryzen 9 7950X 16-Core Processor (radeonsi raphael_mendocino LLVM 20.1.2), OpenGL ES 3.2)", "gpuTier": "igpu", "deviceScaleFactor": 1.5, "measuredP95Ms": 45.78, "target": true, "calibratedAt": "2026-09-04", "method": "gpu-timer; igpu; dsf 1.5; 16.7ms-target" }
         }
       }
     },

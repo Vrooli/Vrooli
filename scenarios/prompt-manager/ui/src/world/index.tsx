@@ -5,7 +5,8 @@
  *   ?scene=park|office   ?profile=low|medium|high|ultra (manual, disables auto)
  *   ?period=dawn|day|dusk|night   ?intro=0 (skip the dolly)   ?diag=1 (overlay)
  *   ?seed=<int> (sim seed)   ?actors=<n> (synthetic roster, no feed: goldens and demos)
- *   ?ao=0 ?bloom=0 ?shadows=0 (diagnostic overrides of the active profile's effects)
+ *   ?ao=0 ?bloom=0 ?shadows=0 ?dpr=<0.5..3> ?msaa=<0..8>
+ *     (diagnostic overrides of the active profile's rendering cost)
  *   ?view=3d|2d (deep-link intent: outranks stored preferences and narrow screens)
  *   ?forceWebglFail=1 (permanent fallback/retry test lever)
  */
@@ -21,6 +22,7 @@ import {
   isSceneId,
   periodForHour,
   resolvePeriod,
+  resolveTerrain,
   scenes,
   tuning as shippedTuning,
   withTuningOverride,
@@ -35,19 +37,23 @@ import {
   CameraRig,
   DiagnosticsOverlay,
   DiagnosticsProbe,
+  FrameDriver,
   LightingRig,
   PostChain,
   QualityGovernor,
   WorldCanvas,
   applyWeather,
   applyVerdict,
+  chooseInitialProfile,
   pickProfile,
   probeWebGL,
   resolveTwoD,
   retryWebGL,
+  readDiagnostics,
   setAuto,
   updateDiagnostics,
   type CameraRigHandle,
+  type QualityVerdictRecord,
   type WorldBounds,
 } from './engine'
 import { ActorPoseProvider, Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Terrain, Vegetation, Water, Weather, WorldStoreContext } from './scene'
@@ -79,6 +85,11 @@ function parseInt10(value: string | null, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback
 }
 
+function clampedNumber(value: string | null, fallback: number, min: number, max: number): number {
+  const parsed = value === null ? NaN : Number(value)
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback
+}
+
 export function WorldView(props: WorldViewProps) {
   const [params] = useSearchParams()
   const sceneParam = params.get('scene')
@@ -87,6 +98,7 @@ export function WorldView(props: WorldViewProps) {
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const intro = params.get('intro') !== '0'
   const showDiagnosticsParam = params.get('diag') === '1'
+  const capture = showDiagnosticsParam || params.get('capture') === '1'
 
   const [sceneId, setSceneId] = useState<SceneId>(() => (isSceneId(sceneParam) ? sceneParam : 'park'))
   const [quality, setQuality] = useState<QualityState>(() =>
@@ -98,6 +110,8 @@ export function WorldView(props: WorldViewProps) {
     isPeriodId(periodParam) ? { kind: 'fixed', period: periodParam } : { kind: 'clock' },
   )
   const [showDiagnostics, setShowDiagnostics] = useState(showDiagnosticsParam)
+  const [qualityNotice, setQualityNotice] = useState<string | null>(null)
+  const calibrated = useRef(false)
   const cameraRig = useRef<CameraRigHandle | null>(null)
   const seed = parseInt10(params.get('seed'), DEFAULT_SEED)
   const syntheticActors = parseInt10(params.get('actors'), 0)
@@ -140,8 +154,17 @@ export function WorldView(props: WorldViewProps) {
   // Diagnostic overrides let the smoke tool isolate one effect without a new profile.
   const profile = useMemo(() => {
     const off = (key: string) => params.get(key) === '0'
-    if (!off('ao') && !off('bloom') && !off('shadows')) return baseProfile
-    return { ...baseProfile, ao: baseProfile.ao && !off('ao'), bloom: baseProfile.bloom && !off('bloom'), shadows: baseProfile.shadows && !off('shadows') }
+    const dpr = clampedNumber(params.get('dpr'), baseProfile.dpr, 0.5, 3)
+    const msaa = Math.round(clampedNumber(params.get('msaa'), baseProfile.msaa, 0, 8))
+    if (!off('ao') && !off('bloom') && !off('shadows') && dpr === baseProfile.dpr && msaa === baseProfile.msaa) return baseProfile
+    return {
+      ...baseProfile,
+      dpr,
+      msaa,
+      ao: baseProfile.ao && !off('ao'),
+      bloom: baseProfile.bloom && !off('bloom'),
+      shadows: baseProfile.shadows && !off('shadows'),
+    }
   }, [baseProfile, params])
   const periodId: PeriodId =
     periodMode.kind === 'fixed' ? periodMode.period : periodForHour(new Date().getHours(), tuning.lighting)
@@ -186,6 +209,7 @@ export function WorldView(props: WorldViewProps) {
   const pressureRaw = Number(params.get('pressure'))
   const pinnedPressure = Number.isFinite(pressureRaw) && params.has('pressure') ? Math.max(0, Math.min(1, pressureRaw)) : null
   const weatherId = pinnedWeather ?? (pinnedPressure !== null && pinnedPressure >= 0.75 ? 'rain' : runtime.store.getState().weather.state)
+  const terrainTuning = useMemo(() => resolveTerrain(scene, tuning), [scene, tuning])
   const weatherPreset = tuning.weather.states[weatherId]
   const period = useMemo(() => applyWeather(basePeriod, weatherId, tuning.weather), [basePeriod, weatherId, tuning.weather])
   useEffect(() => updateDiagnostics({ weather: weatherId, weatherPressure: pinnedPressure ?? runtime.store.getState().weather.pressure }), [pinnedPressure, runtime.store, weatherId])
@@ -293,9 +317,26 @@ export function WorldView(props: WorldViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- adopt once when the saved preferences arrive
   }, [preferences.loaded])
 
-  const onVerdict = useCallback((verdict: 'decline' | 'incline') => {
-    setQuality((state) => applyVerdict(state, verdict))
-  }, [])
+  const onVerdict = useCallback((record: QualityVerdictRecord) => {
+    const history = [...readDiagnostics().qualityHistory, record].slice(-12)
+    updateDiagnostics({ qualityHistory: history })
+    if (!calibrated.current && record.verdict === 'incline' && quality.auto && !isQualityProfileId(profileParam) && preferences.preferences.qualityProfile === shippedTuning.quality.defaultProfile) {
+      calibrated.current = true
+      const selected = chooseInitialProfile(record.measuredFps, record.boundFps / tuning.quality.recoverRatio)
+      setQuality({ auto: true, profileId: selected })
+      preferences.update({ qualityProfile: selected, qualityAuto: true })
+      if (selected !== record.from) {
+        setQualityNotice(`Quality calibrated to ${selected}: ${record.reason}`)
+        window.setTimeout(() => setQualityNotice(null), 5000)
+      }
+      return
+    }
+    if (record.to === record.from) return
+    setQuality((state) => applyVerdict(state, record.verdict))
+    setQualityNotice(`Quality adjusted to ${record.to}: ${record.reason}`)
+    window.setTimeout(() => setQualityNotice(null), 5000)
+    preferences.update({ qualityProfile: record.to, qualityAuto: true })
+  }, [preferences, profileParam, quality.auto, tuning.quality.recoverRatio])
   const getTarget = useCallback(
     (): [number, number, number] => cameraRig.current?.target() ?? [bounds.center[0], 0, bounds.center[1]],
     [bounds],
@@ -304,8 +345,7 @@ export function WorldView(props: WorldViewProps) {
   return (
     <div className="relative h-full w-full overflow-hidden" data-testid="world-view">
       {!twoD && (
-      <WorldCanvas profile={profile} camera={tuning.camera}>
-        <LightingRig scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} />
+      <WorldCanvas profile={profile} camera={tuning.camera} capture={capture}>
         <CameraRig
           ref={cameraRig}
           scene={scene}
@@ -315,11 +355,13 @@ export function WorldView(props: WorldViewProps) {
           reducedMotion={reducedMotion}
         />
         <WorldStoreContext.Provider value={runtime.store}>
-          <Terrain tuning={tuning.terrain} profile={profile} weather={weatherPreset} />
-          <Water tuning={tuning.terrain} profile={profile} />
+          <FrameDriver store={runtime.store} weatherActive={weatherId === 'rain' || weatherId === 'snow'} diagnosticsOpen={showDiagnostics} continuous={params.get('capture') === '1'} intro={intro} settleSeconds={tuning.camera.smoothTime} />
+          <LightingRig scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} store={runtime.store} />
+          <Terrain scene={scene} tuning={terrainTuning} profile={profile} weather={weatherPreset} />
+          <Water scene={scene} tuning={terrainTuning} profile={profile} />
           <Places scene={scene} layout={tuning.layout} />
-          <Props scene={scene} period={period} />
-          <Vegetation scene={scene} tuning={tuning.terrain} profile={profile} />
+          <Props scene={scene} period={period} tuning={tuning.layout} />
+          <Vegetation scene={scene} profile={profile} />
           <ActorPoseProvider>
             <Actors profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
             {editing && (
@@ -336,8 +378,8 @@ export function WorldView(props: WorldViewProps) {
           <SceneEnvironment scene={scene} profile={profile} period={period} bounds={bounds} weather={weatherPreset} altitude={tuning.weather.cloudAltitude} />
           <Weather id={weatherId} preset={weatherPreset} tuning={tuning.weather} profile={profile} getTarget={getTarget} />
         </WorldStoreContext.Provider>
-        <PostChain profile={profile} />
-        <QualityGovernor auto={quality.auto} profile={profile} quality={tuning.quality} onVerdict={onVerdict} />
+        <PostChain profile={profile} diagnosticsEnabled={showDiagnostics} />
+        <QualityGovernor auto={quality.auto} profile={profile} profileId={quality.profileId} quality={tuning.quality} onVerdict={onVerdict} />
         <DiagnosticsProbe
           scene={sceneId}
           profileId={quality.profileId}
@@ -393,6 +435,12 @@ export function WorldView(props: WorldViewProps) {
         weather={pinnedWeather || pinnedPressure !== null ? { state: weatherId, pressure: pinnedPressure ?? runtime.store.getState().weather.pressure } : undefined}
       />
       {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} />}
+      {qualityNotice && (
+        <div className="pointer-events-auto absolute right-3 top-3 z-40 max-w-sm rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-lg" role="status" data-testid="world-quality-notice">
+          <span>{qualityNotice}</span>
+          <button type="button" className="ml-3 text-muted-foreground" onClick={() => setQualityNotice(null)} aria-label="Dismiss quality notice">×</button>
+        </div>
+      )}
       {!twoD && (
         <div className="pointer-events-none absolute right-3 top-14 z-20">
           <EditorToolbar

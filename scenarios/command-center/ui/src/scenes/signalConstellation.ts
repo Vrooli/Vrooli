@@ -1,4 +1,4 @@
-import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, mulberry32, read, rgba, seedFrom, type Scene } from "./engine";
 
 interface Receiver { x: number; y: number; lit: number }
 
@@ -9,8 +9,9 @@ export function signalConstellation(): Scene {
   const travel = 9;
   return {
     init(frame) {
-      const { rng, tier } = frame;
-      receivers = Array.from({ length: tier === "full" ? 140 : 60 }, () => ({ x: rng(), y: rng(), lit: 0 }));
+      const { tier } = frame;
+      const stableRng = mulberry32(seedFrom("broadcast-receivers"));
+      receivers = Array.from({ length: tier === "full" ? 140 : 60 }, () => ({ x: stableRng(), y: stableRng(), lit: 0 }));
     },
     draw(frame) {
       const { ctx, w, h, t, dt, palette, quiet, data } = frame;

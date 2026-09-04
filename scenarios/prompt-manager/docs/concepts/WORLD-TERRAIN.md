@@ -1,12 +1,15 @@
 # World terrain
 
-The world uses one deterministic generator for park and office scenes. A scene
-selects a biome set; it does not select a second layout implementation.
+Each scene selects its biome set, layout strategy and optional terrain override.
+Overrides merge over global terrain tuning before field, layout and navigation
+generation. The office sets both height amplitudes to zero and lowers its water
+level below reachable terrain; its renderer mounts a two-triangle flat plate and
+no water mesh.
 
 ## Generation stages
 
-1. Build seeded height and moisture arrays with value-noise FBM and radial edge
-   falloff.
+1. Build seeded height and moisture arrays with low-frequency landform FBM,
+   higher-frequency detail, moisture domain warp and radial edge falloff.
 2. Derive water and shore distance from height, moisture, and the configured
    water level.
 3. Classify every cell into exactly one ordered biome. The last biome is the
@@ -34,6 +37,6 @@ unreachable, an actor enters water or blocked navigation, or weather is not
 defined.
 
 The `low` profile draws a coarser terrain mesh, omits water and weather
-particles, lowers vegetation density, and limits visible vegetation tiles. It
+particles, lowers vegetation density, and limits visible vegetation instances. It
 does not change simulation geometry, site choice, navigation, or the terrain
 digest.

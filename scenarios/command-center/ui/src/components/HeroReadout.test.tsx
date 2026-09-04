@@ -13,7 +13,7 @@ const reading = (overrides: Partial<Reading>): Reading => makeReading({
 describe("HeroReadout", () => {
   it("renders an absent metric as a dotted figure with its owner and days open", () => {
     renderWithProviders(<HeroReadout reading={reading({})} />);
-    expect(screen.getByLabelText("$12.4k").closest("[data-figure]")).toHaveAttribute("data-ink", "dotted");
+    expect(screen.getByLabelText("$12.4K").closest("[data-figure]")).toHaveAttribute("data-ink", "dotted");
     expect(screen.getByText(/no substrate · monetization · open 3 days/)).toBeInTheDocument();
   });
   it("renders a measured metric solid with its source and freshness", () => {

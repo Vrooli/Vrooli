@@ -15,9 +15,11 @@ describe('prop registry', () => {
         p.chair,
         p.table,
         p.seat,
-        p.campfire,
+        p.hearth,
         p.lamp,
         p.board,
+        ...(p.door ? [p.door] : []),
+        ...p.filler,
         ...biomeSet.biomes.flatMap((biome) => [...Object.keys(biome.vegetation), ...Object.keys(biome.decor)]),
       ]
       for (const id of ids) {

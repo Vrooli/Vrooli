@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
-import { applyVerdict, governorBounds, pickProfile, setAuto, stepDown, stepUp, type QualityState } from './governor'
+import { applyVerdict, chooseInitialProfile, governorBounds, pickProfile, setAuto, stepDown, stepUp, type QualityState } from './governor'
 
 describe('quality governor', () => {
   it('derives the degraded threshold from the profile cap, not a fixed number', () => {
@@ -36,5 +36,16 @@ describe('quality governor', () => {
   it('re-enabling auto keeps the current profile as the starting point', () => {
     const state = setAuto(pickProfile('low'), true)
     expect(state).toEqual({ auto: true, profileId: 'low' })
+  })
+
+  it('calibrates a fast 60 Hz display to high and a slow one to low', () => {
+    expect(chooseInitialProfile(59, 60)).toBe('high')
+    expect(chooseInitialProfile(35, 60)).toBe('low')
+    expect(chooseInitialProfile(116, 120)).toBe('ultra')
+  })
+
+  it('caps an ultra governor bound at the reachable refresh rate', () => {
+    const [, upper] = governorBounds(tuning.quality.profiles.ultra, tuning.quality, 60)
+    expect(upper).toBeLessThan(60)
   })
 })

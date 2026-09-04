@@ -15,6 +15,9 @@ export interface ColourSample {
   moisture: number
   path: number
   ao: number
+  /** 0..1 darkening immediately inside a water contour. */
+  wetShore?: number
+  wetShoreDarkening?: number
 }
 
 export function bakeVertexColour(sample: ColourSample, biome: Biome): Rgb {
@@ -23,7 +26,8 @@ export function bakeVertexColour(sample: ColourSample, biome: Biome): Rgb {
   let colour = mix(first, last, Math.max(0, Math.min(1, sample.moisture)))
   colour = mix(colour, rgb(biome.path), Math.max(0, Math.min(1, sample.path)))
   const shade = 1 - Math.max(0, Math.min(1, sample.ao)) * biome.aoStrength
-  return [colour[0] * shade, colour[1] * shade, colour[2] * shade]
+  const wetShade = 1 - Math.max(0, Math.min(1, sample.wetShore ?? 0)) * Math.max(0, Math.min(1, sample.wetShoreDarkening ?? 0))
+  return [colour[0] * shade * wetShade, colour[1] * shade * wetShade, colour[2] * shade * wetShade]
 }
 
 export function heightFieldAo(field: TerrainField, x: number, z: number, radius: number, samples: number): number {

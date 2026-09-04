@@ -22,7 +22,7 @@ export function makeTeams(teamCount: number, membersPerTeam: number): { teams: T
 
 export function makeInput(teamCount = 2, membersPerTeam = 3, extra: Partial<CreateWorldInput> = {}): CreateWorldInput {
   const { teams, agents } = makeTeams(teamCount, membersPerTeam)
-  return { seed: 7, now: NOW, teams, agents, trees: true, ...extra }
+  return { seed: 7, now: NOW, teams, agents, scene: 'park', ...extra }
 }
 
 export function world(teamCount = 2, membersPerTeam = 3, extra: Partial<CreateWorldInput> = {}, t: WorldTuning = tuning) {
@@ -48,7 +48,7 @@ export function quietTuning(base: WorldTuning = tuning): WorldTuning {
 export function awayFromHome(state: ReturnType<typeof createWorld>, id: string): ReturnType<typeof createWorld> {
   const actor = state.actors[id]
   if (!actor) throw new Error(`no actor ${id}`)
-  const commons = state.places.commons
+  const commons = state.places.gathering
   if (actor.seatId) state.occupancy = Object.fromEntries(Object.entries(state.occupancy).filter(([seat]) => seat !== actor.seatId))
   actor.seatId = undefined
   actor.position = commons ? [commons.position[0] + 1, commons.position[1] + 1] : [1, 1]

@@ -5,6 +5,7 @@
  */
 import type { PeriodId, QualityProfileId, SceneId, WeatherId } from '../../config'
 import type { WebGLProbeResult } from '../webgl'
+import type { QualityVerdictRecord } from '../quality/governor'
 
 export interface WorldDiagnostics {
   webgl: WebGLProbeResult | null
@@ -13,6 +14,7 @@ export interface WorldDiagnostics {
   ready: boolean
   assetsLoaded: boolean
   introDone: boolean
+  /** Rendered frames in the most recent wall-clock second. */
   framesRendered: number
   scene: SceneId
   profile: QualityProfileId
@@ -31,10 +33,12 @@ export interface WorldDiagnostics {
   gpuMsP95: number
   gpuSamples: number
   gpuTimerReason: string
+  passMs: { shadow: number; main: number; post: number; total: number }
   toneMapping: string
   ao: boolean
   bloom: boolean
   dpr: number
+  msaa: number
   cameraPosition: [number, number, number]
   cameraTarget: [number, number, number]
   /** Distance from the camera to the nearest geometry along its view axis; -1 when nothing is hit. */
@@ -44,8 +48,12 @@ export interface WorldDiagnostics {
   /** The extent the camera rig frames (metres), so evidence records what the fill was measured against. */
   footprint: { width: number; depth: number; center: [number, number] }
   gpu: string
-  /** Direct-render attribution. Post-processing passes remain in the total renderer counters. */
+  /** Direct scene groups plus explicit shadow/post pass attribution. */
   groupCosts: Array<{ name: string; calls: number; triangles: number }>
+  drawCallsUnattributed: number
+  trianglesUnattributed: number
+  shadowRefreshes: number
+  qualityHistory: QualityVerdictRecord[]
   /** Top-level scene groups with child counts and the world-space bounds of their content (debugging). */
   sceneGraph: Array<{ name: string; type: string; visible: boolean; children: number; minY: number; maxY: number; instances: number }>
 }
@@ -76,10 +84,12 @@ const initial: WorldDiagnostics = {
   gpuMsP95: 0,
   gpuSamples: 0,
   gpuTimerReason: 'timer not initialized',
+  passMs: { shadow: 0, main: 0, post: 0, total: 0 },
   toneMapping: 'none',
   ao: false,
   bloom: false,
   dpr: 1,
+  msaa: 0,
   cameraPosition: [0, 0, 0],
   cameraTarget: [0, 0, 0],
   nearestHit: -1,
@@ -87,6 +97,10 @@ const initial: WorldDiagnostics = {
   footprint: { width: 0, depth: 0, center: [0, 0] },
   gpu: '',
   groupCosts: [],
+  drawCallsUnattributed: 0,
+  trianglesUnattributed: 0,
+  shadowRefreshes: 0,
+  qualityHistory: [],
   sceneGraph: [],
 }
 

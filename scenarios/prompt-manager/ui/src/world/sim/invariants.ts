@@ -15,7 +15,8 @@
  */
 import type { ActorTuning, LayoutTuning, TerrainTuning } from '../config'
 import type { Actor, Place, Vec2, WorldState } from './model'
-import { COMMONS_ID } from './layout/generate'
+import { GATHERING_ID } from './layout/generate'
+import { interiorFor } from './layout/interior'
 import { heightAt } from './terrain'
 import { findPath } from './nav/astar'
 import { isWalkable, nearestWalkable } from './nav/grid'
@@ -33,6 +34,13 @@ export type InvariantRule =
   | 'every-team-sited'
   | 'commons-reachable'
   | 'weather-defined'
+  | 'indoor-has-no-water'
+  | 'indoor-is-flat'
+  | 'floorplan-rooms-inside-plate'
+  | 'floorplan-every-room-has-a-door'
+  | 'floorplan-corridors-connect'
+  | 'interior-varies-by-team'
+  | 'interior-stable-by-team'
 
 export interface Violation {
   rule: InvariantRule
@@ -132,7 +140,7 @@ export function checkPlaces(state: WorldState, layout: LayoutTuning): Violation[
   const out: Violation[] = []
   const places = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => Boolean(p))
   const rooms = places.filter((p) => p.kind === 'room')
-  const commons = state.places[COMMONS_ID]
+  const commons = state.places[GATHERING_ID]
   for (const place of places) {
     if (!place.parentId || (place.kind !== 'desk' && place.kind !== 'table')) continue
     const room = state.places[place.parentId]
@@ -155,8 +163,8 @@ export function checkPlaces(state: WorldState, layout: LayoutTuning): Violation[
       const b = rooms[j]
       if (b && rectsOverlap(a, b)) out.push({ rule: 'sites-disjoint', ids: [a.id, b.id], detail: `${a.id} overlaps ${b.id}` })
     }
-    if (commons && rectDiscOverlap(a, commons.position, layout.commonsRadius)) {
-      out.push({ rule: 'sites-disjoint', ids: [a.id, COMMONS_ID], detail: `${a.id} overlaps the commons` })
+    if (state.scene !== 'office' && commons && rectDiscOverlap(a, commons.position, layout.commonsRadius)) {
+      out.push({ rule: 'sites-disjoint', ids: [a.id, GATHERING_ID], detail: `${a.id} overlaps the gathering place` })
     }
   }
   return out
@@ -183,7 +191,7 @@ export function checkSeparation(state: WorldState, tuning: InvariantTuning): Vio
 /** A resting idle actor is at its desk seat, on the commons, or on a seat it holds. */
 export function checkRestingInPlace(state: WorldState, layout: LayoutTuning): Violation[] {
   const out: Violation[] = []
-  const commons = state.places[COMMONS_ID]
+  const commons = state.places[GATHERING_ID]
   for (const actor of actors(state)) {
     if (actor.state !== 'idle' || actor.path.length > 0) continue
     const seat = actor.seatId ? state.seats[actor.seatId] : undefined
@@ -240,12 +248,12 @@ export function checkSites(state: WorldState, terrain: TerrainTuning): Violation
     }
     if (maximum - minimum > terrain.siteLevelTolerance) out.push({ rule: 'site-level', ids: [room.id], detail: `${room.id} varies ${(maximum - minimum).toFixed(3)} m across its pad` })
   }
-  const commons = state.places[COMMONS_ID]
+  const commons = state.places[GATHERING_ID]
   if (commons) {
     for (const seat of Object.values(state.seats).filter((seat) => seat.id.startsWith('seat:desk:'))) {
       const start = nearestWalkable(state.nav, seat.position, 6)
       const goal = nearestWalkable(state.nav, commons.position, 6)
-      if (!start || !goal || !findPath(state.nav, start, goal)) out.push({ rule: 'commons-reachable', ids: [seat.id, COMMONS_ID], detail: `${seat.id} cannot reach the commons` })
+      if (!start || !goal || !findPath(state.nav, start, goal)) out.push({ rule: 'commons-reachable', ids: [seat.id, GATHERING_ID], detail: `${seat.id} cannot reach the gathering place` })
     }
   }
   return out
@@ -258,6 +266,67 @@ export function checkWeather(state: WorldState): Violation[] {
     : [{ rule: 'weather-defined', ids: [state.weather.state], detail: `unknown weather state ${state.weather.state}` }]
 }
 
+export function checkIndoorTerrain(state: WorldState, terrain: TerrainTuning): Violation[] {
+  if (state.scene !== 'office') return []
+  const heights = state.terrain.height
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  let wet = false
+  for (const height of heights) {
+    min = Math.min(min, height)
+    max = Math.max(max, height)
+    if (height < terrain.waterLevel) wet = true
+  }
+  const out: Violation[] = []
+  if (wet) out.push({ rule: 'indoor-has-no-water', ids: [state.scene], detail: 'indoor terrain contains cells below its water level' })
+  if (max - min > Number.EPSILON) out.push({ rule: 'indoor-is-flat', ids: [state.scene], detail: `indoor terrain relief is ${(max - min).toFixed(4)} m` })
+  return out
+}
+
+export function checkFloorplan(state: WorldState): Violation[] {
+  if (state.scene !== 'office') return []
+  const out: Violation[] = []
+  const rooms = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'room')
+  const doors = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'door')
+  const halfPlateWidth = state.bounds.footprint.width / 2
+  const halfPlateDepth = state.bounds.footprint.depth / 2
+  const lobby = state.places[GATHERING_ID]
+  for (const room of rooms) {
+    const inside = Math.abs(room.position[0] - state.bounds.footprint.center[0]) + room.size[0] / 2 <= halfPlateWidth + Number.EPSILON
+      && Math.abs(room.position[1] - state.bounds.footprint.center[1]) + room.size[1] / 2 <= halfPlateDepth + Number.EPSILON
+    if (!inside) out.push({ rule: 'floorplan-rooms-inside-plate', ids: [room.id], detail: `${room.id} extends outside the office floorplate` })
+    const roomDoors = doors.filter((door) => door.parentId === room.id)
+    if (roomDoors.length !== 1) out.push({ rule: 'floorplan-every-room-has-a-door', ids: [room.id, ...roomDoors.map((door) => door.id)], detail: `${room.id} has ${roomDoors.length} doors` })
+    const door = roomDoors[0]
+    if (door && lobby) {
+      const start = nearestWalkable(state.nav, door.position, 2)
+      const goal = nearestWalkable(state.nav, lobby.position, 6)
+      if (!start || !goal || !findPath(state.nav, start, goal)) out.push({ rule: 'floorplan-corridors-connect', ids: [room.id, door.id, lobby.id], detail: `${room.id}'s doorway cannot reach the lobby` })
+    }
+  }
+  return out
+}
+
+export function checkInteriors(state: WorldState, layout: LayoutTuning): Violation[] {
+  const out: Violation[] = []
+  const rooms = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'room' && Boolean(place.teamId))
+  const byMemberCount = new Map<number, Array<{ room: Place; signature: string }>>()
+  for (const room of rooms) {
+    const memberCount = state.placeOrder.map((id) => state.places[id]).filter((place) => place?.kind === 'desk' && place.parentId === room.id).length
+    const first = interiorFor(state.seed, room.teamId ?? room.id, memberCount, room.size, layout)
+    const again = interiorFor(state.seed, room.teamId ?? room.id, memberCount, room.size, layout)
+    if (JSON.stringify(first) !== JSON.stringify(again)) out.push({ rule: 'interior-stable-by-team', ids: [room.id], detail: `${room.id}'s interior is not repeatable from its seed and team id` })
+    const entries = byMemberCount.get(memberCount) ?? []
+    entries.push({ room, signature: JSON.stringify(first) })
+    byMemberCount.set(memberCount, entries)
+  }
+  for (const entries of byMemberCount.values()) {
+    if (entries.length < 2) continue
+    if (new Set(entries.map(({ signature }) => signature)).size === 1) out.push({ rule: 'interior-varies-by-team', ids: entries.map(({ room }) => room.id), detail: `all ${entries.length} equal-headcount rooms have the same interior` })
+  }
+  return out
+}
+
 /** Every rule at once. Empty means the state is well formed. */
 export function checkWorldInvariants(state: WorldState, tuning: InvariantTuning): Violation[] {
   return [
@@ -268,6 +337,9 @@ export function checkWorldInvariants(state: WorldState, tuning: InvariantTuning)
     ...checkRestingInPlace(state, tuning.layout),
     ...(tuning.terrain ? checkAboveWater(state, tuning.terrain) : []),
     ...(tuning.terrain ? checkSites(state, tuning.terrain) : []),
+    ...(tuning.terrain ? checkIndoorTerrain(state, tuning.terrain) : []),
+    ...checkFloorplan(state),
+    ...checkInteriors(state, tuning.layout),
     ...checkWeather(state),
   ]
 }

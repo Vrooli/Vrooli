@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { biomeSets, tuning } from '../../config'
 import { biomeGrid, buildTerrain } from '../terrain'
-import { generateLayout, COMMONS_ID, CAMPFIRE_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
+import { generateLayout, GATHERING_ID, HEARTH_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
 import { makeTeams } from './fixtures'
 
 function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
@@ -10,7 +10,7 @@ function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
   const biomeSet = overrides.biomeSet ?? biomeSets.park
   return {
     seed,
-    trees: true,
+    scatterDecor: true,
     treeVariants: 3,
     terrain,
     terrainTuning: tuning.terrain,
@@ -29,8 +29,8 @@ describe('layout generation', () => {
     expect(kinds.room).toBe(3)
     expect(kinds.table).toBe(3)
     expect(kinds.desk).toBe(12)
-    expect(kinds.commons).toBe(1)
-    expect(kinds.campfire).toBe(1)
+    expect(kinds.gathering).toBe(1)
+    expect(kinds.hearth).toBe(1)
     expect(kinds.board).toBe(1)
     expect(layout.places.map((p) => p.id)).toContain(roomId('team-1'))
     expect(layout.places.map((p) => p.id)).toContain(deskId('agent-2-3'))
@@ -81,7 +81,7 @@ describe('layout generation', () => {
 
   it('an empty team graph still yields the commons, campfire and board in the terrain bounds', () => {
     const layout = generateLayout([], [], tuning.layout, options())
-    expect(layout.places.map((p) => p.id).sort()).toEqual([BOARD_ID, CAMPFIRE_ID, COMMONS_ID].sort())
+    expect(layout.places.map((p) => p.id).sort()).toEqual([BOARD_ID, HEARTH_ID, GATHERING_ID].sort())
     expect(layout.bounds.width).toBe(tuning.terrain.radius * 2)
     expect(layout.bounds.depth).toBe(tuning.terrain.radius * 2)
   })
@@ -99,7 +99,12 @@ describe('layout generation', () => {
       const localZ = dx * Math.sin(room.rotation) + dz * Math.cos(room.rotation)
       expect(Math.abs(localX)).toBeLessThan(room.size[0] / 2)
       expect(Math.abs(localZ)).toBeLessThan(room.size[1] / 2)
-      expect(desk.seats[0]?.facing).toBeCloseTo(Math.PI + room.rotation, 6)
+      const seat = desk.seats[0]
+      expect(seat).toBeDefined()
+      if (!seat) continue
+      const towardDesk = Math.atan2(desk.position[0] - seat.position[0], desk.position[1] - seat.position[1])
+      expect(Math.cos(seat.facing)).toBeCloseTo(Math.cos(towardDesk), 6)
+      expect(Math.sin(seat.facing)).toBeCloseTo(Math.sin(towardDesk), 6)
     }
   })
 
@@ -130,7 +135,7 @@ describe('layout generation', () => {
 
   it('indoor scenes get no trees', () => {
     const { teams, agents } = makeTeams(1, 1)
-    expect(generateLayout(teams, agents, tuning.layout, options({ trees: false })).decor).toEqual([])
+    expect(generateLayout(teams, agents, tuning.layout, options({ scatterDecor: false })).decor).toEqual([])
   })
 
   it('overrides move a room with its desks and seats, and remove a room with its children', () => {

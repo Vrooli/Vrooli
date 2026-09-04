@@ -13,6 +13,7 @@ export function parseTuning(input: unknown): WorldTuning {
       .join('\n')
     throw new Error(`world.tuning.json is invalid:\n${issues}`)
   }
+  for (const profile of Object.values(result.data.quality.profiles)) profile.ao = profile.aoQuality !== 'off'
   return result.data
 }
 

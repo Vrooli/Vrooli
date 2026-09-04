@@ -154,8 +154,8 @@
       "beats": [
         {"hero": "traffic_countries", "composition": "meridian-arc", "dwellSeconds": 10},
         {"hero": "visitors", "dwellSeconds": 10},
-        {"hero": "traffic_referrers", "composition": "meridian-arc", "dwellSeconds": 16},
-        {"hero": "traffic_campaigns", "composition": "meridian-arc", "dwellSeconds": 16},
+        {"hero": "traffic_referrers", "dwellSeconds": 16},
+        {"hero": "traffic_campaigns", "dwellSeconds": 16},
         {"hero": "conversions", "dwellSeconds": 10},
         {"hero": "variant_ab", "dwellSeconds": 10}
       ]
@@ -182,8 +182,8 @@
   "metrics": [
     {
       "id": "active_scenarios",
-      "label": "Scenarios running",
-      "description": "Scenarios the control plane reports as running.",
+      "label": "Apps running",
+      "description": "Apps the control plane reports as running.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -204,8 +204,8 @@
     },
     {
       "id": "scenario_health",
-      "label": "Healthy scenarios",
-      "description": "Running scenarios whose health probe reports healthy.",
+      "label": "Healthy apps",
+      "description": "Running apps whose health probe reports healthy.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -344,8 +344,8 @@
     },
     {
       "id": "total_scenarios",
-      "label": "Scenarios in the portfolio",
-      "description": "Every scenario the control plane knows about, running or not.",
+      "label": "Apps in the portfolio",
+      "description": "Every app the control plane knows about, running or not.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -367,7 +367,7 @@
     {
       "id": "scenario_completeness",
       "label": "Running and healthy",
-      "description": "Scenarios that are both running and passing their health probe.",
+      "description": "Apps that are both running and passing their health probe.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -388,8 +388,8 @@
     },
     {
       "id": "scenario_health_detail",
-      "label": "Degraded scenarios",
-      "description": "Running scenarios whose health probe reports degraded or unhealthy.",
+      "label": "Degraded apps",
+      "description": "Running apps whose health probe reports degraded or unhealthy.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -410,8 +410,8 @@
     },
     {
       "id": "scenario_ports",
-      "label": "Scenarios with ports",
-      "description": "Scenarios currently holding at least one assigned port.",
+      "label": "Apps with ports",
+      "description": "Apps currently holding at least one assigned port.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -432,8 +432,8 @@
     },
     {
       "id": "scenario_usage_frequency",
-      "label": "Scenario opens \u00b7 7 days",
-      "description": "How often scenarios are opened or invoked.",
+      "label": "App opens \u00b7 7 days",
+      "description": "How often apps are opened or invoked.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -1308,8 +1308,8 @@
     },
     {
       "id": "composite_system_health",
-      "label": "Healthy scenarios",
-      "description": "Running scenarios passing their health probe, fleet-wide.",
+      "label": "Healthy apps",
+      "description": "Running apps passing their health probe, fleet-wide.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -1426,8 +1426,8 @@
     },
     {
       "id": "composite_portfolio",
-      "label": "Scenarios running",
-      "description": "Scenarios the control plane reports as running, the Hive room's headline.",
+      "label": "Apps running",
+      "description": "Apps the control plane reports as running, the Hive room's headline.",
       "unit": "count",
       "format": "integer",
       "tags": [],

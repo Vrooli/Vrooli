@@ -4,7 +4,7 @@ import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-co
 import { AmbientShell } from "../components/AmbientShell";
 import { useBoardController } from "../lib/boardContext";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
-import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.2";
+import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
 import { fetchOpenLoop, type Reading } from "../lib/api";
 
 const MAX_AGE_DAYS = 90;
@@ -31,10 +31,10 @@ export default function OpenLoopPage() {
         <ExperienceSurface surfaceId="blind-spots" as="section" data-testid="open-loop-blind-spots" data-requested-state={forcedState ?? undefined} className="cc-read-main" state={surfaceState} statusMessage={failed ? "The open-loop report is unavailable." : undefined} aria-labelledby="open-loop-title">
           <h2 id="open-loop-title" className="cc-read-title">What the board cannot see</h2>
           <div className="cc-tally" role="group" aria-label="Open loop tally">
-            <div className="cc-tally-item"><RollingNumber value={missing.length} ink="dotted" scale="display" /><span>missing cells</span></div>
-            <div className="cc-tally-item"><RollingNumber value={unregistered.length} ink="dotted" scale="display" /><span>unregistered outcomes</span></div>
-            <div className="cc-tally-item"><RollingNumber value={self.length} ink="dotted" scale="display" /><span>own blind spots</span></div>
-            <div className="cc-tally-item"><RollingNumber value={oldest} ink="solid" scale="display" /><span>days, oldest hole</span></div>
+            <div className="cc-tally-item"><RollingNumber value={missing.length} format="compact" ink="dotted" scale="display" /><span>missing cells</span></div>
+            <div className="cc-tally-item"><RollingNumber value={unregistered.length} format="compact" ink="dotted" scale="display" /><span>unregistered outcomes</span></div>
+            <div className="cc-tally-item"><RollingNumber value={self.length} format="compact" ink="dotted" scale="display" /><span>own blind spots</span></div>
+            <div className="cc-tally-item"><RollingNumber value={oldest} format="compact" ink="solid" scale="display" /><span>days, oldest hole</span></div>
           </div>
           {failed ? <p role="alert" className="cc-degraded">The open-loop report is unavailable.</p> : null}
           {state === "partial" ? <p role="status" className="cc-degraded cc-degraded-quiet">This report is partial: one or more source declarations could not be read.</p> : null}
@@ -64,7 +64,7 @@ export default function OpenLoopPage() {
           </ExperienceSurface>
           <ExperienceSurface surfaceId="denominator" as="section" data-testid="open-loop-denominator" className="cc-panel" state={state === "partial" ? "partial" : "ready"} aria-label="Denominator">
             <h3>Denominator</h3>
-            <p className="cc-denominator"><RollingNumber value={denominator?.outcomeCategories ?? board.rooms.length} ink="solid" scale="display" /> outcome categories · <InkMark ink="hollow">{denominator?.confidence ?? "partial"} confidence</InkMark></p>
+            <p className="cc-denominator"><RollingNumber value={denominator?.outcomeCategories ?? board.rooms.length} format="compact" ink="solid" scale="display" /> outcome categories · <InkMark ink="hollow">{denominator?.confidence ?? "partial"} confidence</InkMark></p>
             <p className="cc-panel-note">{denominator?.rationale ?? "The declared outcome registry is the searched denominator."}</p>
           </ExperienceSurface>
         </aside>

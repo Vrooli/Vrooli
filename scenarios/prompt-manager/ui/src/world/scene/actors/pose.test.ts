@@ -4,7 +4,7 @@ import { createWorld } from '../../sim'
 import { actorSeed, bodyOffset, bodyPose } from './pose'
 
 function actor() {
-  const state = createWorld({ seed: 1, now: 0, teams: [], agents: [{ id: 'a', name: 'A' }], trees: false }, tuning)
+  const state = createWorld({ seed: 1, now: 0, teams: [], agents: [{ id: 'a', name: 'A' }], scene: 'office' }, tuning)
   const a = state.actors.a
   if (!a) throw new Error('missing')
   return a

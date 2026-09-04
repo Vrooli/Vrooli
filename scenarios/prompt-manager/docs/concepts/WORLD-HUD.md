@@ -60,6 +60,10 @@ silently.
 
 Deep links: `/world?focus=<agentId>` opens on an actor;
 `?scene=`, `?profile=`, `?period=`, `?intro=0`, `?diag=1` pin the settings.
+When automatic quality changes profile, a dismissible notice names the new
+profile and the diagnostics overlay retains the measured FPS and bound that
+caused the verdict. Clustered room labels use a stronger stroke and a static
+above-prop height so geometry cannot hide them.
 
 ## 2D mode
 

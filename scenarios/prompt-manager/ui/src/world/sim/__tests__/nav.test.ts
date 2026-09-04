@@ -15,7 +15,7 @@ describe('nav grid', () => {
     const s = world(1, 3)
     const room = Object.values(s.places).find((p) => p.kind === 'room')
     const desk = Object.values(s.places).find((p) => p.kind === 'desk')
-    const fire = s.places.campfire
+    const fire = s.places.hearth
     expect(room && desk && fire).toBeTruthy()
     if (!room || !desk || !fire) return
     expect(isWalkable(s.nav, desk.position)).toBe(false)

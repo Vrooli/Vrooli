@@ -3,7 +3,7 @@
  * World smoke tool.
  *
  * Loads /world for every scene and quality profile in headless Chrome
- * (SwiftShader by default, --gpu for the host GPU), waits for
+ * (SwiftShader by default, --gpu for hardware through ANGLE gl-egl), waits for
  * window.__worldDiagnostics.ready, reads the renderer counters and the sim
  * invariants, screenshots the frame, asserts the budgets declared in
  * world.tuning.json and diffs the frame against the checked-in golden.
@@ -14,8 +14,13 @@
  *
  *   pnpm world:smoke                 run every scene × profile, fail on budget/golden
  *   pnpm world:goldens               rewrite the goldens from this run
- *   node scripts/world-smoke/run.mjs --gpu --scene park --profile high --period night
+ *   node scripts/world-smoke/run.mjs --gpu --gpu-tier igpu --scene park --profile high --period night
+ *   node scripts/world-smoke/run.mjs --gpu --scene park --profile ultra --dsf 1.5 --query msaa=4
  *   node scripts/world-smoke/run.mjs --scene park --profile medium --seeds 1,7,99,12345 --sweep 25,100,400,1000
+ *
+ * Hardware tiers are igpu (default) and dgpu. This host's former
+ * --use-angle=vulkan path creates no WebGL context, so hardware runs use
+ * --use-gl=angle --use-angle=gl-egl and fail if Chrome falls back to SwiftShader.
  *
  * Evidence: evidence/world-smoke/<scene>-<profile>[-<period>].{json,png,diff.png}
  */
@@ -41,6 +46,13 @@ const opt = (name, fallback) => {
 }
 const updateGoldens = flag('--update-goldens')
 const useGpu = flag('--gpu')
+const gpuTier = opt('--gpu-tier', 'igpu')
+if (!['igpu', 'dgpu'].includes(gpuTier)) throw new Error('world-smoke: --gpu-tier must be igpu or dgpu')
+const requestedDsf = opt('--dsf', null)
+const dsfOverride = requestedDsf === null ? null : Number(requestedDsf)
+if (dsfOverride !== null && (!Number.isFinite(dsfOverride) || dsfOverride < 0.5 || dsfOverride > 3)) {
+  throw new Error('world-smoke: --dsf must be a number between 0.5 and 3')
+}
 const noVsync = flag('--no-vsync')
 const onlyScene = opt('--scene', null)
 const onlyProfile = opt('--profile', null)
@@ -72,6 +84,7 @@ const width = 1600
 const height = 1000
 const readyTimeoutMs = Number(opt('--ready-timeout', '90000'))
 const settleFrames = Number(opt('--settle-frames', '30'))
+const passAttributionGating = true
 
 function resolveBaseUrl() {
   try {
@@ -87,16 +100,24 @@ const scenes = weatherMatrix ? [onlyScene ?? 'park'] : onlyScene ? [onlyScene] :
 const profiles = weatherMatrix ? [onlyProfile ?? 'high'] : onlyProfile ? [onlyProfile] : Object.keys(tuning.quality.profiles)
 
 const chromeArgs = useGpu
-  ? ['--headless=new', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=vulkan', '--use-vulkan=native', '--enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan', '--no-sandbox']
+  ? ['--headless=new', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-gl=angle', '--use-angle=gl-egl', '--no-sandbox']
   : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox']
 if (noVsync) chromeArgs.push('--disable-gpu-vsync', '--disable-frame-rate-limit')
 chromeArgs.push('--renderer-process-limit=1', '--num-raster-threads=1')
 
-const browser = await chromium.launch({
+const browserOptions = {
   executablePath: process.env.WORLD_SMOKE_CHROME ?? '/usr/bin/google-chrome',
   headless: true,
   args: chromeArgs,
-})
+  env: useGpu && gpuTier === 'dgpu'
+    ? {
+        ...process.env,
+        __NV_PRIME_RENDER_OFFLOAD: '1',
+        __GLX_VENDOR_LIBRARY_NAME: 'nvidia',
+        __EGL_VENDOR_LIBRARY_FILENAMES: '/usr/share/glvnd/egl_vendor.d/10_nvidia.json',
+      }
+    : process.env,
+}
 
 const results = []
 let failed = false
@@ -118,8 +139,7 @@ function comparePng(actualBuffer, goldenPath, diffPath) {
   return { pixels, ratio: pixels / (actual.width * actual.height), missing: false }
 }
 
-try {
-  for (const scene of scenes) {
+for (const scene of scenes) {
     for (const profile of profiles) {
       for (const period of periods) {
         for (const worldSeed of seeds) {
@@ -129,14 +149,20 @@ try {
         const baseName = weatherState ? `${periodName}-weather-${weatherState}` : periodName
         const seedName = seedsRaw ? `${baseName}-seed${worldSeed}` : baseName
         const name = sweepActors || seedsRaw ? `${seedName}-${actorCount}actors` : seedName
-        const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: 'no-preference' })
+        const deviceScaleFactor = dsfOverride ?? tuning.quality.profiles[profile].dpr
+        // A fresh browser per case is deliberate. Mesa/ANGLE can retain released
+        // WebGL resources in the GPU process after a context closes; a long matrix
+        // then degrades into shader validation failures and finally no-context.
+        const browser = await chromium.launch(browserOptions)
+        const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor, reducedMotion: 'no-preference' })
         const page = await context.newPage()
         const consoleErrors = []
         page.on('pageerror', (err) => consoleErrors.push(String(err)))
         page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()) })
         // Golden and budget cases pin weather so live swarm failures cannot drift evidence.
-        const query = new URLSearchParams({ scene, profile, period, intro: '0', seed: worldSeed, diag: '1', weather: 'clear', pressure: '0' })
+        const query = new URLSearchParams({ scene, profile, period, intro: '0', seed: worldSeed, diag: '1', capture: '1', weather: 'clear', pressure: '0' })
         query.set('actors', String(actorCount))
+        query.set('dpr', String(deviceScaleFactor))
         for (const [k, v] of new URLSearchParams(extraQuery)) query.set(k, v)
         if (weatherState) query.set('weather', weatherState)
         const url = `${baseUrl}/world?${query.toString()}`
@@ -180,10 +206,18 @@ try {
         const check = (id, pass, detail) => checks.push({ id, pass, detail })
         const webgl = diagnostics?.webgl
         check('webgl', webgl?.ok === true, webgl?.ok ? 'available' : `webgl-unavailable: ${webgl?.reason ?? 'probe did not report'}`)
+        const renderer = diagnostics?.gpu ?? ''
+        if (useGpu) check('hardware-renderer', renderer.length > 0 && !/swiftshader/i.test(renderer), renderer || 'renderer was not reported')
         check('ready', ready, ready ? `ready after ${Date.now() - started} ms` : webgl && !webgl.ok ? `webgl-unavailable: ${webgl.reason}` : `not ready within ${readyTimeoutMs} ms`)
         check('no-page-errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | ') || 'none')
         if (diagnostics && budget && gated) {
-          check('budget-provenance', budget.provenance.actors === actorCount, `actors ${actorCount} === calibrated ${budget.provenance.actors}`)
+          check('governor', diagnostics.auto === false && diagnostics.profile === profile, `auto ${diagnostics.auto}; profile ${diagnostics.profile}/${profile}`)
+          const provenanceOk = budget.provenance.actors === actorCount
+            && !/swiftshader/i.test(budget.provenance.gpu)
+            && !/pending/i.test(budget.provenance.method)
+            && budget.provenance.deviceScaleFactor === deviceScaleFactor
+            && budget.provenance.gpuTier === gpuTier
+          check('budget-provenance', provenanceOk, `actors ${actorCount}/${budget.provenance.actors}; tier ${gpuTier}/${budget.provenance.gpuTier}; dsf ${deviceScaleFactor}/${budget.provenance.deviceScaleFactor}; renderer ${budget.provenance.renderer}`)
           const drawCallBudget = emptyStage ? tuning.budgets.emptyStageDrawCalls : budget.drawCalls
           check('draw-calls', diagnostics.drawCalls <= drawCallBudget, `${diagnostics.drawCalls} <= ${drawCallBudget}${emptyStage ? ' (empty stage)' : ''}`)
           check('triangles', diagnostics.triangles <= budget.triangles, `${diagnostics.triangles} <= ${budget.triangles}`)
@@ -209,6 +243,10 @@ try {
         } else {
           check('sim-invariants', false, 'window.__worldSim missing')
         }
+        if (diagnostics && diagnostics.drawCalls > 0) {
+          const share = diagnostics.drawCallsUnattributed / diagnostics.drawCalls
+          check('pass-attribution', passAttributionGating ? share <= 0.10 : true, `${(share * 100).toFixed(1)}% unattributed draws`)
+        }
         if (!gated) check('observability-case', true, 'sweep rows record cost without applying golden or scene-budget gates')
         else if (periods.length > 1 && golden.missing) check('period-contrast-case', true, 'no per-period golden; the day/night pixel delta is the visual gate')
         else if (golden.missing) check('golden', updateGoldens, updateGoldens ? 'golden written' : 'golden missing; run pnpm world:goldens')
@@ -217,19 +255,18 @@ try {
         const pass = checks.every((c) => c.pass)
         if (!pass) failed = true
         const timingMethod = diagnostics?.gpuTimerReason === '' && diagnostics?.gpuMsP95 > 0 ? 'gpu-timer' : useGpu && noVsync ? 'vsync-off-fallback' : useGpu ? 'unavailable' : 'swiftshader-informational'
-        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, noVsync, timingMethod, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, capturedAt: new Date().toISOString() }
+        const waterTriangles = diagnostics?.groupCosts?.find((group) => group.name === 'water')?.triangles ?? 0
+        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, capturedAt: new Date().toISOString() }
         writeFileSync(resolve(evidenceDir, `${name}.json`), JSON.stringify(record, null, 2))
         results.push(record)
         log(`${pass ? 'PASS' : 'FAIL'} ${name}  ${checks.map((c) => `${c.pass ? '✓' : '✗'} ${c.id}: ${c.detail}`).join('  ')}`)
         await context.close()
+        await browser.close()
         }
         }
         }
       }
     }
-  }
-} finally {
-  await browser.close()
 }
 
 if (weatherMatrix) {
@@ -275,32 +312,41 @@ if (periods.includes('day') && periods.includes('night')) {
   }
 }
 
-const rows = results.map(({ name, pass, checks, diagnostics, sim }) => ({
+const rows = results.map(({ name, pass, checks, diagnostics, sim, gpuTier: resultGpuTier, renderer, deviceScaleFactor, waterTriangles }) => ({
   name,
   pass,
   checks,
+  gpuTier: resultGpuTier ?? gpuTier,
+  renderer: renderer ?? diagnostics?.gpu ?? null,
+  deviceScaleFactor: deviceScaleFactor ?? null,
   drawCalls: diagnostics?.drawCalls ?? null,
   triangles: diagnostics?.triangles ?? null,
+  waterTriangles: waterTriangles ?? null,
   p50Ms: diagnostics?.frameMsP50 ?? null,
   p95Ms: diagnostics?.frameMsP95 ?? null,
   gpuMsP50: diagnostics?.gpuMsP50 ?? null,
   gpuMsP95: diagnostics?.gpuMsP95 ?? null,
   gpuSamples: diagnostics?.gpuSamples ?? null,
   gpuTimerReason: diagnostics?.gpuTimerReason ?? null,
+  passMs: diagnostics?.passMs ?? null,
+  drawCallsUnattributed: diagnostics?.drawCallsUnattributed ?? null,
+  trianglesUnattributed: diagnostics?.trianglesUnattributed ?? null,
+  shadowRefreshes: diagnostics?.shadowRefreshes ?? null,
   fill: diagnostics?.footprintFill ?? null,
   violations: sim?.violations.length ?? null,
   gpuName: diagnostics?.gpu ?? null,
 }))
-writeFileSync(resolve(evidenceDir, 'summary.json'), JSON.stringify({ gpu: useGpu, baseUrl, capturedAt: new Date().toISOString(), results: rows }, null, 2))
+writeFileSync(resolve(evidenceDir, 'summary.json'), JSON.stringify({ gpu: useGpu, gpuTier, baseUrl, capturedAt: new Date().toISOString(), results: rows }, null, 2))
 
 // One table a reader can scan without opening a single PNG.
 const cell = (value, width) => String(value ?? '—').padStart(width)
 log('')
-log(`${'case'.padEnd(32)}${cell('draws', 7)}${cell('tris', 9)}${cell('CPU95', 8)}${cell('GPU95', 8)}${cell('GPU n', 7)}${cell('fill', 6)}${cell('viol', 6)}  verdict`)
+log(`${'case'.padEnd(32)}${cell('dsf', 6)}${cell('draws', 7)}${cell('tris', 9)}${cell('CPU95', 8)}${cell('GPU95', 8)}${cell('GPU n', 7)}${cell('fill', 6)}${cell('viol', 6)}  ${'renderer'.padEnd(34)} verdict`)
 for (const row of rows) {
   if (row.drawCalls === null) continue
   const failing = row.checks.filter((c) => !c.pass).map((c) => c.id).join(',')
-  log(`${row.name.padEnd(32)}${cell(row.drawCalls, 7)}${cell(row.triangles, 9)}${cell(row.p95Ms?.toFixed(1), 8)}${cell(row.gpuMsP95?.toFixed(2), 8)}${cell(row.gpuSamples, 7)}${cell(row.fill === null ? null : `${Math.round(row.fill * 100)}%`, 6)}${cell(row.violations, 6)}  ${row.pass ? 'PASS' : `FAIL ${failing}`}`)
+  const renderer = row.renderer ? String(row.renderer).slice(0, 32) : '—'
+  log(`${row.name.padEnd(32)}${cell(row.deviceScaleFactor, 6)}${cell(row.drawCalls, 7)}${cell(row.triangles, 9)}${cell(row.p95Ms?.toFixed(1), 8)}${cell(row.gpuMsP95?.toFixed(2), 8)}${cell(row.gpuSamples, 7)}${cell(row.fill === null ? null : `${Math.round(row.fill * 100)}%`, 6)}${cell(row.violations, 6)}  ${renderer.padEnd(34)} ${row.pass ? 'PASS' : `FAIL ${failing}`}`)
 }
 if (sweepActors) {
   log('')

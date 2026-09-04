@@ -9,7 +9,7 @@
 import type { LayoutTuning, SimTuning } from '../../config'
 import type { Actor, Vec2, WorldState } from '../model'
 import { Rng } from '../rng'
-import { CAMPFIRE_ID, COMMONS_ID } from '../layout/generate'
+import { GATHERING_ID, HEARTH_ID } from '../layout/generate'
 import { routeTo, routeToSeat, releaseSeat, setState, type StepContext } from '../actors/machine'
 import { headingTo } from '../motion/move'
 import { isWalkable } from '../nav/grid'
@@ -34,7 +34,7 @@ function distance(a: Vec2, b: Vec2): number {
 }
 
 function commonsCenter(state: WorldState): Vec2 {
-  const commons = state.places[COMMONS_ID]
+  const commons = state.places[GATHERING_ID]
   return commons ? commons.position : [0, 0]
 }
 
@@ -155,7 +155,7 @@ export function rollIdle(state: WorldState, actor: Actor, rng: Rng, sim: SimTuni
       break
     }
     case 3: {
-      const campfire = state.places[CAMPFIRE_ID]
+      const campfire = state.places[HEARTH_ID]
       const free = campfire?.seats.find((s) => !state.occupancy[s.id])
       if (free && routeToSeat(state, actor, free.id, ctx)) {
         actor.idle = { activity: 'sit', until: state.time + rng.range(sim.idle.sitSeconds.min, sim.idle.sitSeconds.max), seatId: free.id }

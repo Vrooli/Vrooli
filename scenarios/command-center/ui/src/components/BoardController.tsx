@@ -5,6 +5,7 @@ import { GamepadInputManager } from "@vrooli/iframe-bridge/spatial";
 import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 import { fetchBoard } from "../lib/api";
 import { BoardContext, parseSamples, type BoardControllerValue, type BoardIntent, type SamplesMode } from "../lib/boardContext";
+import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, roomNavigationSuffix } from "../lib/cycle";
 
 
 const IDLE_RESUME_MS = 20_000;
@@ -16,6 +17,8 @@ const KEY_INTENTS: Record<string, BoardIntent> = {
   arrowleft: "navigate-left",
   arrowup: "navigate-up",
   arrowdown: "navigate-down",
+  "[": "navigate-beat-prev",
+  "]": "navigate-beat-next",
   " ": "pause-cycle",
   f: "toggle-fullscreen",
   "?": "show-help",
@@ -38,15 +41,25 @@ export function BoardController({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const cycleSeconds = Math.max(5, Number(searchParams.get("cycle") ?? 60) || 60);
+  const beatDurations = useMemo(() => buildBeatDurations(currentRoom?.beats ?? [], cycleSeconds), [currentRoom, cycleSeconds]);
+  const beatPosition = useMemo(() => beatPositionAtProgress(progress, beatDurations), [beatDurations, progress]);
   const roomDwellSeconds = useMemo(() => {
-    const authored = currentRoom?.beats?.reduce((sum, beat) => sum + Math.max(1, beat.dwellSeconds ?? 0), 0) ?? 0;
-    return authored > 0 ? authored * (cycleSeconds / 60) : cycleSeconds;
+    const durations = buildBeatDurations(currentRoom?.beats ?? [], cycleSeconds);
+    return durations.length ? durations.reduce((sum, duration) => sum + duration, 0) : cycleSeconds;
   }, [currentRoom, cycleSeconds]);
   const samples = parseSamples(searchParams.get("samples"));
   const touchStart = useRef<{ x: number; y: number; at: number } | null>(null);
   const lastInputAt = useRef(Date.now());
   const cycleStartedAt = useRef(Date.now());
   const pathRef = useRef(location.pathname);
+  const restoredPathRef = useRef<string | null>(null);
+  const restoringBeatRef = useRef<{ path: string; index: number } | null>(null);
+  const transitionTimersRef = useRef<number[]>([]);
+
+  const cancelTransition = useCallback(() => {
+    transitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    transitionTimersRef.current = [];
+  }, []);
 
   const setSamples = useCallback((mode: SamplesMode) => {
     const next = new URLSearchParams(searchParams);
@@ -57,10 +70,13 @@ export function BoardController({ children }: { children: ReactNode }) {
 
   const goTo = useCallback((path: string) => {
     if (path === pathRef.current) return;
+    cancelTransition();
     setTransitioning(true);
-    window.setTimeout(() => navigate(`${path}${location.search}`), TRANSITION_MS / 2);
-    window.setTimeout(() => setTransitioning(false), TRANSITION_MS);
-  }, [location.search, navigate]);
+    const suffix = rooms.some((room) => path === `/${room.id}`) ? roomNavigationSuffix(location.search) : location.search;
+    const navigationTimer = window.setTimeout(() => navigate(`${path}${suffix}`, { replace: path.startsWith("/") && !path.startsWith("/focus") && !path.startsWith("/open-loop") }), TRANSITION_MS / 2);
+    const completionTimer = window.setTimeout(() => setTransitioning(false), TRANSITION_MS);
+    transitionTimersRef.current = [navigationTimer, completionTimer];
+  }, [cancelTransition, location.search, navigate, rooms]);
 
   const navigateRoom = useCallback((delta: number) => {
     if (!rooms.length) return;
@@ -69,6 +85,20 @@ export function BoardController({ children }: { children: ReactNode }) {
     const next = rooms[index];
     if (next) goTo(`/${next.id}`);
   }, [goTo, rooms]);
+
+  const seekCycle = useCallback((nextProgress: number) => {
+    const bounded = Math.max(0, Math.min(0.999, nextProgress));
+    cycleStartedAt.current = Date.now() - bounded * roomDwellSeconds * 1000;
+    setProgress(bounded);
+  }, [roomDwellSeconds]);
+
+  const selectBeat = useCallback((index: number) => {
+    if (!beatDurations.length || !currentRoom?.beats?.[index]) return;
+    seekCycle(progressAtBeat(index, beatDurations));
+    const next = new URLSearchParams(searchParams);
+    next.set("beat", String(index));
+    setSearchParams(next, { replace: true });
+  }, [beatDurations, currentRoom, searchParams, seekCycle, setSearchParams]);
 
   const dispatch = useCallback((intent: BoardIntent) => {
     const now = Date.now();
@@ -87,6 +117,14 @@ export function BoardController({ children }: { children: ReactNode }) {
       case "navigate-left":
         navigateRoom(-1);
         setAcknowledgement("Previous room");
+        break;
+      case "navigate-beat-prev":
+      case "navigate-beat-next":
+        if (beatDurations.length) {
+          const delta = intent === "navigate-beat-next" ? 1 : -1;
+          selectBeat((beatPosition.index + delta + beatDurations.length) % beatDurations.length);
+        }
+        setAcknowledgement(intent === "navigate-beat-next" ? "Next section" : "Previous section");
         break;
       case "pause-cycle":
       case "select":
@@ -119,11 +157,37 @@ export function BoardController({ children }: { children: ReactNode }) {
       default:
         setAcknowledgement(`${intent} acknowledged`);
     }
-  }, [navigateRoom]);
+  }, [beatDurations.length, beatPosition.index, navigateRoom, selectBeat]);
 
   useEffect(() => {
     pathRef.current = location.pathname;
+    restoredPathRef.current = null;
+    restoringBeatRef.current = null;
+    cycleStartedAt.current = Date.now();
+    setProgress(0);
   }, [location.pathname]);
+
+  useEffect(() => cancelTransition, [cancelTransition]);
+
+  useEffect(() => {
+    if (!currentRoom || !beatDurations.length || restoredPathRef.current === location.pathname) return;
+    const requested = Number.parseInt(searchParams.get("beat") ?? "0", 10);
+    const index = Number.isFinite(requested) ? Math.max(0, Math.min(beatDurations.length - 1, requested)) : 0;
+    restoringBeatRef.current = { path: location.pathname, index };
+    seekCycle(progressAtBeat(index, beatDurations));
+    restoredPathRef.current = location.pathname;
+  }, [beatDurations, currentRoom, location.pathname, searchParams, seekCycle]);
+
+  useEffect(() => {
+    if (!beatDurations.length || restoredPathRef.current !== location.pathname) return;
+    const pending = restoringBeatRef.current;
+    if (pending?.path === location.pathname && pending.index !== beatPosition.index) return;
+    if (pending?.path === location.pathname) restoringBeatRef.current = null;
+    if (searchParams.get("beat") === String(beatPosition.index)) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("beat", String(beatPosition.index));
+    setSearchParams(next, { replace: true });
+  }, [beatDurations.length, beatPosition.index, location.pathname, searchParams, setSearchParams]);
 
   useEffect(() => {
     const requestedRoom = searchParams.get("room");
@@ -211,7 +275,7 @@ export function BoardController({ children }: { children: ReactNode }) {
       const now = Date.now();
       setControlsVisible((visible) => visible && now - lastInputAt.current < CONTROLS_HIDE_MS);
       const paused = pausedUntil > now;
-      setProgress(Math.min(1, (now - cycleStartedAt.current) / (roomDwellSeconds * 1000)));
+      if (!paused) setProgress(Math.min(1, (now - cycleStartedAt.current) / (roomDwellSeconds * 1000)));
       if (!paused && now - cycleStartedAt.current >= roomDwellSeconds * 1000 && rooms.length && !document.hidden) {
         cycleStartedAt.current = now;
         navigateRoom(1);
@@ -221,7 +285,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   }, [navigateRoom, pausedUntil, roomDwellSeconds, rooms.length]);
 
   const paused = pausedUntil > Date.now();
-  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, transitioning, dispatch, setSamples, goTo }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, transitioning, dispatch, setSamples, goTo]);
+  const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, beatIndex: beatPosition.index, beatProgress: beatPosition.progress, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, beatPosition, beatDurations, transitioning, dispatch, setSamples, goTo, seekCycle, selectBeat]);
 
   return (
     <BoardContext.Provider value={value}>

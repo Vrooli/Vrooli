@@ -4,15 +4,18 @@
   "environment": "outdoor",
   "assetSet": "park",
   "biomeSet": "park",
+  "layoutStrategy": "clearings",
   "props": {
     "desk": "desk",
     "chair": "bench",
     "table": "table_round",
     "seat": "log_seat",
-    "campfire": "campfire",
+    "hearth": "campfire",
     "lamp": "lamp_post",
-    "board": "sign_board"
+    "board": "sign_board",
+    "filler": ["stump", "rock_small", "flowers"]
   },
+  "gatheringLabel": "Commons",
   "palette": {
     "horizon": "#7fa862",
     "ground": "#6fae58",

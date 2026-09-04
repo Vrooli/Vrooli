@@ -1,7 +1,7 @@
 import type { TerrainTuning } from '../../config'
 import { heightAt, moistureAt, slopeAt, type TerrainField } from './field'
 
-function wetHeight(field: TerrainField, tuning: TerrainTuning, x: number, z: number): number {
+export function wetHeight(field: TerrainField, tuning: TerrainTuning, x: number, z: number): number {
   return heightAt(field, x, z) - moistureAt(field, x, z) * tuning.moistureBasinDepth
 }
 
@@ -16,8 +16,10 @@ export function shoreDistance(field: TerrainField, tuning: TerrainTuning, x: num
   return vertical / grade
 }
 
-export function waterCells(field: TerrainField, tuning: TerrainTuning): { count: number; components: number } {
+export function waterComponentLabels(field: TerrainField, tuning: TerrainTuning): { wetCount: number; components: number; labels: Int32Array } {
   const wet = new Uint8Array(field.cols * field.rows)
+  const labels = new Int32Array(wet.length)
+  labels.fill(-1)
   let count = 0
   for (let row = 0; row < field.rows; row += 1) {
     for (let col = 0; col < field.cols; col += 1) {
@@ -34,8 +36,10 @@ export function waterCells(field: TerrainField, tuning: TerrainTuning): { count:
   const stack: number[] = []
   for (let index = 0; index < wet.length; index += 1) {
     if (wet[index] !== 1) continue
+    const component = components
     components += 1
     wet[index] = 2
+    labels[index] = component
     stack.push(index)
     while (stack.length > 0) {
       const current = stack.pop()
@@ -47,9 +51,15 @@ export function waterCells(field: TerrainField, tuning: TerrainTuning): { count:
         if (next < 0 || next >= wet.length || wet[next] !== 1) return
         if ((direction === 0 && col === 0) || (direction === 1 && col === field.cols - 1) || (direction === 2 && row === 0) || (direction === 3 && row === field.rows - 1)) return
         wet[next] = 2
+        labels[next] = component
         stack.push(next)
       })
     }
   }
-  return { count, components }
+  return { wetCount: count, components, labels }
+}
+
+export function waterCells(field: TerrainField, tuning: TerrainTuning): { count: number; components: number } {
+  const result = waterComponentLabels(field, tuning)
+  return { count: result.wetCount, components: result.components }
 }

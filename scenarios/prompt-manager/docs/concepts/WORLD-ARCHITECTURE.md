@@ -90,10 +90,21 @@ the terrain, an eased establishing-to-hero dolly on load (skipped for
 `setPose` for the HUD and the editor.
 
 Quality is one `QualityProfile` (DPR, shadows, AO, bloom, labels, frame cap,
-terrain resolution, vegetation density, water, weather particles, and tile budget). drei
+terrain resolution, vegetation density, water, weather particles, and instance budget). drei
 `PerformanceMonitor` moves between profiles only while auto is on, with bounds
 derived from the active profile's own frame cap. A manual pick disables auto and
 mounts no monitor, so nothing can override it.
+
+Layout generation is selected by `scene.layoutStrategy` behind the
+`LayoutStrategy` contract. `clearings` creates the outdoor terraced settlement;
+`floorplan` creates the indoor floorplate, rooms, doors, corridors, lobby and
+stable desk-seat mapping. Rendering and navigation consume the same
+`GeneratedLayout`, so neither knows which strategy produced it.
+
+The canvas uses demand rendering. Store revisions, active actors, camera input,
+asset progress and weather request frames; capture sessions remain continuous.
+Vegetation is one instanced batch per prop/material and CPU-frustum-compacts its
+matrices before rendering.
 
 ## Diagnostics and the smoke tool
 
@@ -120,7 +131,7 @@ per scene, profile and period. `pnpm world:goldens` rewrites the goldens;
 
 Budgets are ceilings chosen from the design, not readings copied from a run.
 Terrain contributes one draw per visible tile. Water contributes one draw.
-Vegetation contributes one instanced draw per visible tile and prop material,
+Vegetation contributes one instanced draw per prop id and material,
 actors use shared instanced groups, and the post chain has fixed passes. A change that needs a
 higher budget has to say which layer grew and why.
 

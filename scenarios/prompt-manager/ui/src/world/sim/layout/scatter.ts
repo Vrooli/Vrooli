@@ -55,6 +55,11 @@ export function scatterDecor(input: ScatterInput): DecorSpot[] {
           position: candidate,
           rotation: rng.range(0, Math.PI * 2),
           scale: rng.range(layout.decorScale.min, layout.decorScale.max),
+          tint: [
+            1 + rng.range(-layout.decorColorJitter, layout.decorColorJitter),
+            1 + rng.range(-layout.decorColorJitter, layout.decorColorJitter),
+            1 + rng.range(-layout.decorColorJitter, layout.decorColorJitter),
+          ],
         })
       }
     }

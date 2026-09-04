@@ -1,16 +1,137 @@
-import { clipOutsideQuiet, drawGlow, focalPoint, rgba, type Scene } from "./engine";
+import { geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from "d3-geo";
+import { feature } from "topojson-client";
+import type { Topology } from "topojson-specification";
+import worldTopology from "world-atlas/countries-110m.json";
+import { clipOutsideQuiet, drawGlow, focalPoint, mulberry32, rgba, seedFrom, type Scene } from "./engine";
 
-/** Geographic traffic: arc brightness and reach follow the panel's shares. */
+type GeoPoint = [longitude: number, latitude: number];
+
+const WORLD_TOPOLOGY = worldTopology as unknown as Topology;
+const WORLD_OBJECT = WORLD_TOPOLOGY.objects.countries;
+if (!WORLD_OBJECT) throw new Error("world-atlas countries topology is missing");
+const WORLD = feature(WORLD_TOPOLOGY, WORLD_OBJECT);
+const GRATICULE = geoGraticule10();
+const VIRGINIA: GeoPoint = [-77.487, 39.043];
+const DESTINATIONS: GeoPoint[] = [
+  [-0.1276, 51.5072], [-46.6333, -23.5505], [103.8198, 1.3521], [151.2093, -33.8688],
+  [139.6917, 35.6895], [18.4241, -33.9249], [37.6173, 55.7558], [-99.1332, 19.4326],
+  [-74.006, 40.7128], [2.3522, 48.8566], [72.8777, 19.076], [114.1694, 22.3193],
+];
+
+const EARTH_STYLES = [
+  { landAlpha: 0.72, gridAlpha: 0.18, coastWidth: 1.25, routeAlpha: 0.92, routeWidth: 2.2 },
+  { landAlpha: 0.5, gridAlpha: 0.32, coastWidth: 0.9, routeAlpha: 1, routeWidth: 1.6 },
+  { landAlpha: 0.9, gridAlpha: 0.1, coastWidth: 1.65, routeAlpha: 0.78, routeWidth: 3.1 },
+] as const;
+
+/** Geographic traffic rendered as a restrained neon Earth, not invented screen polygons. */
 export function meridianArc(): Scene {
-  return { init() {}, draw(frame) {
-    const { ctx, w, h, palette, data, t } = frame; const focus = data.readings[data.focus ?? ""];
-    const shares = focus?.rows?.map((row) => Math.max(0, Math.min(1, row.share))) ?? [1]; const origin = focalPoint(frame);
-    clipOutsideQuiet(frame); ctx.lineCap = "round";
-    shares.slice(0, frame.tier === "full" ? 12 : 6).forEach((share, index) => {
-      const endX = w * (0.12 + ((index * 0.37) % 0.76)); const endY = h * (0.18 + ((index * 0.23) % 0.64));
-      const bend = (endX - origin.x) * 0.35; ctx.strokeStyle = rgba(ctx, palette.primary, 0.18 + share * 0.72); ctx.lineWidth = 1 + share * 5;
-      ctx.beginPath(); ctx.moveTo(origin.x, origin.y); ctx.quadraticCurveTo(origin.x + bend, Math.min(origin.y, endY) - h * (0.12 + share * 0.18) + Math.sin(t + index) * 3, endX, endY); ctx.stroke();
-      drawGlow(frame, endX, endY, 3 + share * 10, palette.accent, 0.3 + share * 0.5);
-    }); ctx.restore();
-  } };
+  let receivers: Array<{ x: number; y: number }> = [];
+  return {
+    init(frame) {
+      const stableRng = mulberry32(seedFrom("broadcast-receivers"));
+      receivers = Array.from({ length: frame.tier === "full" ? 140 : 60 }, () => ({ x: stableRng(), y: stableRng() }));
+    },
+    draw(frame) {
+      const { ctx, w, h, palette, data, t } = frame;
+      const focus = data.readings[data.focus ?? ""];
+      const shares = focus?.rows?.map((row) => Math.max(0, Math.min(1, row.share))) ?? [1];
+      const origin = focalPoint(frame);
+      const globeRadius = Math.min(w, h) * 0.18;
+      const style = EARTH_STYLES[Math.floor(t / 12) % EARTH_STYLES.length] ?? EARTH_STYLES[0];
+      const projection = geoOrthographic()
+        .scale(globeRadius)
+        .translate([origin.x, origin.y])
+        .center(VIRGINIA)
+        .rotate([t * 4, -18, 8])
+        .clipAngle(90);
+      const path = geoPath(projection, ctx);
+
+      ctx.lineCap = "round";
+      ctx.save();
+      ctx.translate(origin.x, origin.y);
+      ctx.rotate(-0.14);
+      ctx.translate(-origin.x, -origin.y);
+      drawGlow(frame, origin.x, origin.y, globeRadius * 1.35, palette.primary, 0.12);
+
+      ctx.strokeStyle = rgba(ctx, palette.accent, style.landAlpha);
+      ctx.lineWidth = style.coastWidth;
+      path(WORLD);
+      ctx.stroke();
+
+      ctx.strokeStyle = rgba(ctx, palette.primary, style.gridAlpha);
+      ctx.lineWidth = 0.75;
+      path(GRATICULE);
+      ctx.stroke();
+
+      const source = projection(VIRGINIA);
+      if (source) {
+        drawGlow(frame, source[0], source[1], 10, palette.warning, 0.95);
+        ctx.fillStyle = palette.warning;
+        ctx.beginPath();
+        ctx.arc(source[0], source[1], 2.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      shares.slice(0, frame.tier === "full" ? DESTINATIONS.length : 6).forEach((share, index) => {
+        const destination = DESTINATIONS[index];
+        if (!destination || !source) return;
+        drawGreatCircleRoute(frame, projection, origin.x, origin.y, globeRadius, VIRGINIA, destination, share, style.routeAlpha, style.routeWidth);
+      });
+      ctx.restore();
+
+      // Keep ambient receiver noise out of the figures, but never carve the
+      // geographic object itself into pieces around those quiet zones.
+      clipOutsideQuiet(frame);
+      receivers.forEach((receiver, index) => {
+        const pulse = 0.45 + 0.55 * Math.max(0, Math.sin(t * 2.8 + index * 0.73));
+        drawGlow(frame, receiver.x * w, receiver.y * h, 2 + pulse * 4, palette.accent, 0.18 + pulse * 0.62);
+      });
+      ctx.restore();
+    },
+  };
+}
+
+function drawGreatCircleRoute(
+  frame: Parameters<Scene["draw"]>[0],
+  projection: ReturnType<typeof geoOrthographic>,
+  centerX: number,
+  centerY: number,
+  globeRadius: number,
+  source: GeoPoint,
+  destination: GeoPoint,
+  share: number,
+  alpha: number,
+  width: number,
+): void {
+  const { ctx, palette } = frame;
+  const interpolate = geoInterpolate(source, destination);
+  const steps = 32;
+  let drawing = false;
+  ctx.strokeStyle = rgba(ctx, palette.primary, alpha * (0.35 + share * 0.65));
+  ctx.lineWidth = width * 0.4 + share * 0.9;
+  ctx.beginPath();
+  for (let step = 0; step <= steps; step += 1) {
+    const progress = step / steps;
+    const groundPoint = projection(interpolate(progress));
+    if (!groundPoint) {
+      drawing = false;
+      continue;
+    }
+    const lift = globeRadius * (0.08 + share * 0.06) * Math.sin(Math.PI * progress);
+    const point: [number, number] = [
+      centerX + (groundPoint[0] - centerX) * (1 + lift / globeRadius),
+      centerY + (groundPoint[1] - centerY) * (1 + lift / globeRadius),
+    ];
+    if (!drawing) {
+      ctx.moveTo(point[0], point[1]);
+      drawing = true;
+    } else {
+      ctx.lineTo(point[0], point[1]);
+    }
+  }
+  ctx.stroke();
+
+  const target = projection(destination);
+  if (target) drawGlow(frame, target[0], target[1], 3 + share * 8, palette.accent, 0.3 + share * 0.6);
 }

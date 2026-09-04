@@ -119,15 +119,23 @@ export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorS
         blockRect(grid, place.position, place.size, place.rotation)
         break
       case 'table':
-      case 'campfire':
+      case 'hearth':
         blockDisc(grid, place.position, place.size[0] * HALF)
         break
       case 'room': {
         const [w, d] = place.size
-        // back wall and two side walls; the front (+z) stays open
+        // Outdoor rooms keep an open front. Indoor rooms carry a door record;
+        // split that fourth wall around the doorway gap.
         blockRect(grid, offset(place.position, 0, -d * HALF, place.rotation), [w, wallThickness], place.rotation)
         blockRect(grid, offset(place.position, -w * HALF, 0, place.rotation), [wallThickness, d], place.rotation)
         blockRect(grid, offset(place.position, w * HALF, 0, place.rotation), [wallThickness, d], place.rotation)
+        const door = places.find((candidate) => candidate.kind === 'door' && candidate.parentId === place.id)
+        if (door) {
+          const segmentWidth = Math.max(0, (w - door.size[0]) * HALF)
+          const centerOffset = door.size[0] * HALF + segmentWidth * HALF
+          blockRect(grid, offset(place.position, -centerOffset, d * HALF, place.rotation), [segmentWidth, wallThickness], place.rotation)
+          blockRect(grid, offset(place.position, centerOffset, d * HALF, place.rotation), [segmentWidth, wallThickness], place.rotation)
+        }
         break
       }
       default:

@@ -111,3 +111,20 @@ the RNG state. The determinism test proves two runs from seed 7 with the same si
 script hash identically after 10,000 ticks; the boundary test proves 50 actors
 remain on walkable terrain over 5,000 ticks; the literal scan proves the sim carries
 no behaviour numbers outside `world.tuning.json`.
+
+## Layout strategies and interiors
+
+The park uses the `clearings` strategy: score buildable sites, terrace them,
+place rooms and gathering furniture, connect paths, then scatter biome decor.
+The office uses `floorplan`: size one plate from the roster, cut primary and
+secondary corridors, recursively BSP-split the remaining corridor-facing blocks,
+assign teams largest-demand-first with stable id tie-breaking, put one door on
+each corridor-facing wall, and locate the lobby at the corridor junction.
+
+`interiorFor(seed, teamId, ...)` derives desk orientation, table choice, lamp
+corners and filler placements from team identity. Adding an unrelated team does
+not consume that team's random stream. Desk seat ids remain keyed by agent id.
+
+Indoor state additionally guarantees a flat height field with no wet cells.
+Floorplan tests require deterministic places, one door per team room, corridor
+records and an invariant-safe navigation graph.
