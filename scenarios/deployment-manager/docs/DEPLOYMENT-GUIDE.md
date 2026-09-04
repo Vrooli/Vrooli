@@ -4,6 +4,67 @@
 not replace a target packager. It analyzes the dependency graph, stores target
 profiles, evaluates readiness, gates promotion, and records what shipped.
 
+## Agent operating model
+
+Deployment Manager is the durable release substrate. Its scenario-owned usage
+skill teaches an agent how to choose and verify a deployment operation. Governed
+programs compose repeated readiness, observation, and recovery workflows;
+they must use declared bindings and must not duplicate release state or safety
+invariants. The improve skill reads outcome and friction signals and routes the
+repair to the cheapest correct layer:
+
+- Repair the usage skill when selection, interpretation, or safety guidance was
+  missing.
+- Repair a governed program when a repeated composition is inefficient or loses
+  evidence.
+- Repair Deployment Manager when a program repeatedly compensates for a missing
+  release primitive, invariant, migration rule, or recovery operation.
+
+The governed programs are `readiness-review`, `release-preflight`,
+`release-observe`, `release-recover`, and `setpoint-read`. Their contracts live
+under `.vrooli/program-runtime`. Recovery is read-only by default and refuses
+write mode when no target-owner mutation is bound; it never invents rollback
+behavior inside the program.
+
+## Evidence-complete readiness workflow
+
+One immutable review identity includes scenario, profile, candidate commit,
+artifact digest, canonical target set, channel, and policy version. Evidence
+owners report small typed observations with `readiness-reviews report-evidence`.
+The report is accepted only for the criterion's policy-declared producer binding.
+`readiness-reviews prepare` reads those exact observations, resolves the latest
+published predecessor for the same profile, targets, and channel, persists the
+decision, and opens only unresolved work in Swarm Manager.
+
+Independent customer-journey results use `readiness-reviews human-check`. After
+the Swarm goal is actually archived, use `readiness-reviews sync`, then
+`readiness-reviews approve` with the complete unchanged identity. Approval
+revalidates evidence freshness and disposition, active waiver state, and passed
+human checks. A release start must carry the exact review key and artifact digest;
+publication marks that review promoted and supersedes the prior promoted review
+for the same profile, targets, and channel.
+
+Missing, stale, failed, unknown, or unavailable required evidence never becomes
+a pass. A waiver must use `readiness-review-waivers create`; it is bound to one
+review and criterion, records actor and reason, and expires within the policy
+limit. The old caller-authored signal JSON remains only as a low-level producer
+and test seam, not the agent workflow.
+
+Readiness evidence is commit- and artifact-scoped. For a scenario with an actual
+deployed predecessor, readiness also compares against that predecessor. Storage
+conformance follows `storage-steer`: greenfield scenarios use declarative
+per-domain schemas; greenfield scenarios with data use explicit out-of-tree
+transformation scripts; production schema evolution earns ordered versioned
+migrations. A release with no schema change requires no migration. When a schema
+change exists, the complete migration delta must succeed against a representative
+copy of the last deployed database without violating data invariants.
+
+Test readiness requires current attributable suite evidence, behavioral evidence
+for changed promises, and no unexplained regression against the previous deployed
+release. Gherkin governs acceptance criteria and behavioral/e2e descriptions; it
+does not require unit-test source to mimic feature files. Raw coverage is a trend
+and floor signal, not sufficient proof by itself.
+
 For project-wide terminology and maturity, read the [Deployment Hub](../../../docs/deployment/README.md).
 For desktop implementation, read the [scenario-to-desktop documentation](../../scenario-to-desktop/docs/OVERVIEW.md).
 

@@ -27,7 +27,6 @@ func CommandGroups(app *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		validations.Register(app),
 		approvals.Register(app),
 		releases.Register(app),
-		readiness.Register(app),
 	}
 }
 
@@ -40,5 +39,13 @@ func SubcommandGroups(app *cliapp.ScenarioApp, manifest []byte) []cliapp.Subcomm
 	if err != nil {
 		panic(err)
 	}
-	return []cliapp.SubcommandGroup{evidenceGroup, profilesGroup}
+	readinessGroup, err := readiness.RegisterConnect(app, manifest)
+	if err != nil {
+		panic(err)
+	}
+	waiverGroup, err := readiness.RegisterWaivers(app, manifest)
+	if err != nil {
+		panic(err)
+	}
+	return []cliapp.SubcommandGroup{evidenceGroup, profilesGroup, readinessGroup, waiverGroup}
 }

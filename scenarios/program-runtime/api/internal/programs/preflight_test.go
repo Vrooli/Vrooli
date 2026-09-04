@@ -274,3 +274,14 @@ func TestLocalHandleNamesAreNotCapabilityNames(t *testing.T) {
 		t.Fatal("capability-shaped name test_geni must remain recordable")
 	}
 }
+
+func TestResolveSourceReportsMisspelledBindingPath(t *testing.T) {
+	known := []string{"browser_automation_studio", "browser_automation_studio.capture.run", "browser_automation_studio.capture.list"}
+	diagnostics := ResolveSource("browser_automation_studio.capture.rnu(url='u')", known, analyzerPath())
+	if len(diagnostics) == 0 {
+		t.Fatal("expected attribute-path diagnostic")
+	}
+	if diagnostics[0].GetNearestMatch() != "browser_automation_studio.capture.run" {
+		t.Fatalf("diagnostics=%+v", diagnostics)
+	}
+}

@@ -7,7 +7,7 @@ import (
 
 func TestAggregateDoesNotTreatMissingSignalsAsPass(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	checklist := Checklist{Version: ChecklistVersion, Items: []Item{{ID: "required-check", Title: "Required", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "must pass"}, {ID: "advisory-check", Title: "Advisory", Category: "mechanical", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "should pass"}}}
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("required-check", Required, CapabilityGap, "must pass"), validTestItem("advisory-check", Advisory, AdvisoryImpact, "should pass")}}
 	verdict, err := Aggregate("demo", "abc", checklist, []Signal{{ItemID: "advisory-check", Status: SignalFailed, Source: "marketing", ObservedAt: checked, Detail: "asset absent"}}, checked)
 	if err != nil {
 		t.Fatal(err)
@@ -24,7 +24,7 @@ func TestAggregateDoesNotTreatMissingSignalsAsPass(t *testing.T) {
 
 func TestAggregateKeepsAdvisoryFindingVisibleWithoutBlocking(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	checklist := Checklist{Version: ChecklistVersion, Items: []Item{{ID: "advisory-check", Title: "Advisory", Category: "mechanical", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "should pass"}}}
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("advisory-check", Advisory, AdvisoryImpact, "should pass")}}
 	verdict, err := Aggregate("demo", "abc", checklist, []Signal{{ItemID: "advisory-check", Status: SignalFailed, Source: "marketing", RunID: "run-1", ObservedAt: checked, Detail: "asset absent"}}, checked)
 	if err != nil || !verdict.Approved || len(verdict.Findings) != 1 || verdict.Findings[0].Signal.RunID != "run-1" {
 		t.Fatalf("verdict = %+v, err=%v", verdict, err)
@@ -33,7 +33,7 @@ func TestAggregateKeepsAdvisoryFindingVisibleWithoutBlocking(t *testing.T) {
 
 func TestAggregateMarksOlderCommitSignalsStale(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	checklist := Checklist{Version: ChecklistVersion, Items: []Item{{ID: "check", Title: "Check", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "must pass"}}}
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}
 	verdict, err := Aggregate("demo", "new", checklist, []Signal{{ItemID: "check", Status: SignalPassed, Source: "test-genie", Commit: "old", ObservedAt: checked}}, checked)
 	if err != nil || verdict.Approved || len(verdict.Findings) != 1 || verdict.Findings[0].Status != SignalStale {
 		t.Fatalf("verdict = %+v, err=%v", verdict, err)
@@ -42,7 +42,7 @@ func TestAggregateMarksOlderCommitSignalsStale(t *testing.T) {
 
 func TestAggregateRejectsUnknownAndDuplicateSignals(t *testing.T) {
 	checked := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	checklist := Checklist{Version: ChecklistVersion, Items: []Item{{ID: "check", Title: "Check", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "must pass"}}}
+	checklist := Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("check", Required, CapabilityGap, "must pass")}}
 	unknown := []Signal{{ItemID: "other", Status: SignalPassed, Source: "source", ObservedAt: checked}}
 	if _, err := Aggregate("demo", "new", checklist, unknown, checked); err == nil {
 		t.Fatal("expected unknown signal refusal")

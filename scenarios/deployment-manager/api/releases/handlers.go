@@ -105,6 +105,35 @@ type Handler struct {
 	verifier   LPBSVerifier
 	orch       Orchestrator
 	log        func(string, map[string]interface{})
+	readiness  func(context.Context, string) (*ReadinessApproval, error)
+	promoted   func(context.Context, string, time.Time) error
+}
+
+type ReadinessApproval struct {
+	Key             string
+	Scenario        string
+	ProfileID       string
+	CandidateCommit string
+	ArtifactDigest  string
+	Targets         []string
+	Channel         string
+	PolicyVersion   int
+	Status          string
+	ApprovedAt      *time.Time
+}
+
+// WithReadinessLookup enables the exact candidate/artifact/target/channel
+// promotion gate. It is optional only for isolated compatibility tests.
+func (h *Handler) WithReadinessLookup(lookup func(context.Context, string) (*ReadinessApproval, error)) *Handler {
+	h.readiness = lookup
+	return h
+}
+
+// WithReadinessPromoter records the terminal lifecycle transition only after
+// the release repository confirms publication.
+func (h *Handler) WithReadinessPromoter(promote func(context.Context, string, time.Time) error) *Handler {
+	h.promoted = promote
+	return h
 }
 
 // NewHandler wires a new releases handler. The verifier and orchestrator may
@@ -265,17 +294,34 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	if len(platforms) == 0 {
 		platforms = []string{"linux-x64", "darwin-arm64", "win-x64"}
 	}
+	if h.readiness != nil {
+		if body.ArtifactDigest == "" || body.ReadinessReviewKey == "" {
+			shared.JSONError(w, "artifact_digest and readiness_review_key are required", http.StatusPreconditionFailed)
+			return
+		}
+		review, reviewErr := h.readiness(r.Context(), body.ReadinessReviewKey)
+		if reviewErr != nil || review == nil {
+			shared.JSONError(w, "approved readiness review was not found", http.StatusPreconditionFailed)
+			return
+		}
+		if review.Key != body.ReadinessReviewKey || review.ProfileID != profileID || review.CandidateCommit != body.GitCommitHash || review.ArtifactDigest != body.ArtifactDigest || review.Channel != channel || !sameStringSet(review.Targets, platforms) || review.Status != "approved" || review.ApprovedAt == nil {
+			shared.JSONError(w, "release identity does not have an exact approved readiness review", http.StatusPreconditionFailed)
+			return
+		}
+	}
 
 	releaseID := newReleaseID()
 	rel := &Release{
-		ID:             releaseID,
-		ProfileID:      profileID,
-		GitCommitHash:  body.GitCommitHash,
-		ReleaseVersion: body.ReleaseVersion,
-		Channel:        channel,
-		Status:         StatusPending,
-		ReleaseNotes:   body.ReleaseNotes,
-		ReleasedBy:     body.ReleasedBy,
+		ID:                 releaseID,
+		ProfileID:          profileID,
+		GitCommitHash:      body.GitCommitHash,
+		ArtifactDigest:     body.ArtifactDigest,
+		ReadinessReviewKey: body.ReadinessReviewKey,
+		ReleaseVersion:     body.ReleaseVersion,
+		Channel:            channel,
+		Status:             StatusPending,
+		ReleaseNotes:       body.ReleaseNotes,
+		ReleasedBy:         body.ReleasedBy,
 	}
 	for _, p := range platforms {
 		rel.Platforms = append(rel.Platforms, ReleasePlatform{Platform: p, Status: PlatformStatusPending})
@@ -311,8 +357,31 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if final.Status == StatusPublished && h.promoted != nil {
+		if err := h.promoted(context.WithoutCancel(r.Context()), body.ReadinessReviewKey, time.Now().UTC()); err != nil {
+			shared.JSONError(w, fmt.Sprintf("record readiness promotion: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
 	shared.JSONOK(w, map[string]interface{}{
 		"release": final,
 		"steps":   result.Steps,
 	})
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	counts := make(map[string]int, len(left))
+	for _, value := range left {
+		counts[value]++
+	}
+	for _, value := range right {
+		if counts[value] == 0 {
+			return false
+		}
+		counts[value]--
+	}
+	return true
 }

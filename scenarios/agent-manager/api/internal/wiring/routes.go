@@ -127,6 +127,26 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
+	secret := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"))
+	if secret == "" {
+		if resolved, err := resolveEventsWebhookSecret(); err != nil {
+			obs.Component("routes").Warn("events webhook credential unavailable", obs.KeyError, err.Error())
+		} else {
+			secret = resolved
+		}
+	}
+	if secret != "" {
+		router.Handle("/api/v1/events/program-runtime", handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
+		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				if err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+"/api/v1/events/program-runtime"); err != nil {
+					obs.Component("routes").Warn("program-runtime event subscription reconciliation failed", obs.KeyError, err.Error())
+				}
+			}()
+		}
+	}
 	if deps.CapabilityRegistry != nil {
 		router.HandleFunc("/api/v1/capabilities/describe", func(w http.ResponseWriter, req *http.Request) {
 			data, err := deps.CapabilityRegistry.Describe(req.Context())

@@ -41,3 +41,11 @@ func TestDefaultRunOptionsControlMasterByPlatform(t *testing.T) {
 		t.Fatal("ControlMaster should be enabled on non-Windows defaults")
 	}
 }
+
+func TestBuildArgsPinsScenarioKnownHosts(t *testing.T) {
+	args := buildSSHArgs(Config{Host: "example.com", Port: 22, User: "root", KnownHostsFile: "/state/known_hosts"}, RunOptions{StrictHostKey: true})
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "UserKnownHostsFile=/state/known_hosts") || !strings.Contains(joined, "GlobalKnownHostsFile=/dev/null") {
+		t.Fatalf("known-host arguments = %s", joined)
+	}
+}

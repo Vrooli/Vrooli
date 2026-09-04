@@ -63,14 +63,7 @@
             {"name": "report-path", "bind_waiver": "Local producer input: the command reads the deployment-manager report before constructing the AddFact request."},
             {"name": "stale-after-days", "default": "30", "bind_waiver": "Local producer input: the command uses this value to classify report freshness before constructing the AddFact request."}
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "GatesService",
-            "method": "AddFact"
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          },
+          "binding": {"kind": "local"},
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -80,6 +73,158 @@
           }
         }
       ]
+    },
+    {
+      "name": "readiness-reviews",
+      "description": "Immutable evidence-bound readiness review operations",
+      "commands": [
+        {
+          "name": "report-evidence",
+          "description": "Report a producer observation for one exact readiness identity",
+          "positionals": [
+            {"name": "scenario", "required": true},
+            {"name": "profile_id", "required": true},
+            {"name": "candidate_commit", "required": true},
+            {"name": "artifact_digest", "required": true},
+            {"name": "criterion_id", "required": true},
+            {"name": "producer_binding", "required": true},
+            {"name": "status", "required": true},
+            {"name": "channel", "required": true},
+            {"name": "targets", "required": true, "repeated": true}
+          ],
+          "flags": [
+            {"name": "producer-version"},
+            {"name": "observed-at", "required": true},
+            {"name": "evidence-reference", "required": true},
+            {"name": "detail"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ReportEvidence"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "prepare",
+          "description": "Prepare or resume one exact readiness review",
+          "positionals": [
+            {"name": "scenario", "required": true},
+            {"name": "profile_id", "required": true},
+            {"name": "candidate_commit", "required": true},
+            {"name": "artifact_digest", "required": true},
+            {"name": "channel", "required": true},
+            {"name": "targets", "required": true, "repeated": true}
+          ],
+          "flags": [
+            {"name": "deliverable"},
+            {"name": "trigger"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "PrepareReview"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get",
+          "description": "Get one readiness review and its bounded evidence projection",
+          "positionals": [{"name": "review_key", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "GetReview"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list",
+          "description": "List bounded readiness review outcomes",
+          "flags": [{"name": "status"}, {"name": "page-size", "default": "100"}],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ListReviews"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "intent": "How many durable readiness reviews match an optional lifecycle status in the requested bounded page.",
+            "questions": ["how many readiness reviews exist", "how many readiness reviews are approved"],
+            "params": {"status": {}, "page_size": {"default": "100"}},
+            "result": {"kind": "scalar", "value_field": "count", "unit": "reviews", "summary_template": "{count} readiness reviews"}
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Synchronize independently verified Swarm goal closure",
+          "positionals": [{"name": "review_key", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "SynchronizeGoalClosure"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "approve",
+          "description": "Approve one exact readiness identity after synchronized goal closure",
+          "positionals": [
+            {"name": "review_key", "required": true},
+            {"name": "scenario", "required": true},
+            {"name": "profile_id", "required": true},
+            {"name": "candidate_commit", "required": true},
+            {"name": "artifact_digest", "required": true},
+            {"name": "channel", "required": true},
+            {"name": "actor", "required": true},
+            {"name": "targets", "required": true, "repeated": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ApproveReview"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "human-check",
+          "description": "Record an attributable independent human criterion verdict",
+          "positionals": [
+            {"name": "review_key", "required": true},
+            {"name": "criterion_id", "required": true},
+            {"name": "verdict", "required": true},
+            {"name": "actor", "required": true},
+            {"name": "evidence_reference", "required": true}
+          ],
+          "flags": [{"name": "reviewed-at", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "RecordHumanCheck"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "policy-check",
+          "description": "Prove the embedded policy projection matches its canonical source",
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "CheckPolicyProjection"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "readiness-review-waivers",
+      "description": "Review-scoped waiver evidence",
+      "commands": [{
+        "name": "list",
+        "description": "List bounded actor-, criterion-, review-, and expiry-scoped waivers",
+        "flags": [{"name": "review-key"}, {"name": "page-size", "default": "100"}],
+        "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ListReviewWaivers"},
+        "architecture": {"primitive": "proto_list"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "measure": {
+          "intent": "How many explicit review-scoped readiness waivers are recorded in the requested bounded page.",
+          "questions": ["how many readiness waivers exist", "show waiver count for a readiness review"],
+          "params": {"review_key": {}, "page_size": {"default": "100"}},
+          "result": {"kind": "scalar", "value_field": "count", "unit": "waivers", "summary_template": "{count} readiness review waivers"}
+        }
+      }, {
+        "name": "create",
+        "description": "Create a bounded review- and criterion-scoped waiver",
+        "positionals": [
+          {"name": "review_key", "required": true},
+          {"name": "criterion_id", "required": true},
+          {"name": "actor", "required": true},
+          {"name": "reason", "required": true}
+        ],
+        "flags": [
+          {"name": "expires-at", "required": true},
+          {"name": "invalidation-trigger"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "CreateWaiver"},
+        "architecture": {"primitive": "proto_mutation"},
+        "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+      }]
     },
     {
       "name": "profiles",
@@ -531,20 +676,6 @@
         {
           "name": "releases",
           "description": "Manage desktop releases",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "readiness",
-          "description": "Aggregate deployment readiness verdicts",
           "binding": {
             "kind": "local"
           },

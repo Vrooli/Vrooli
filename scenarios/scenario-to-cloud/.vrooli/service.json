@@ -188,6 +188,22 @@
       "kind": "go_module"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-cloud",
+        "field": "lpbs-vps-ssh-key",
+        "label": "LPBS VPS SSH key",
+        "description": "Operator-provided SSH private key used to reconcile the deployed Landing Page Business Suite VPS. Keep the value in the credential authority; never place it in a process environment.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://docs.github.com/en/authentication/connecting-to-github-with-ssh",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
+  },
   "components": {
     "api": {
       "role": "api",

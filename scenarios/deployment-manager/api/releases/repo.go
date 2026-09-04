@@ -42,13 +42,13 @@ func (r *SQLRepository) Insert(ctx context.Context, release *Release) error {
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO releases
 			(id, profile_id, deployment_id, profile_version, git_commit_hash,
-			 release_version, channel, status, release_notes, released_by,
+			 artifact_digest, readiness_review_key, release_version, channel, status, release_notes, released_by,
 			 promoted_from_release_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
 	`,
 		release.ID, release.ProfileID, nullString(release.DeploymentID),
 		nullIntPtr(release.ProfileVersion), release.GitCommitHash,
-		release.ReleaseVersion, release.Channel, release.Status,
+		nullString(release.ArtifactDigest), nullString(release.ReadinessReviewKey), release.ReleaseVersion, release.Channel, release.Status,
 		nullString(release.ReleaseNotes), nullString(release.ReleasedBy),
 		nullString(release.PromotedFromReleaseID), now,
 	)
@@ -75,7 +75,7 @@ func (r *SQLRepository) Insert(ctx context.Context, release *Release) error {
 // Get fetches a release plus its platform rows.
 func (r *SQLRepository) Get(ctx context.Context, releaseID string) (*Release, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash,
+		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash, artifact_digest, readiness_review_key,
 		       release_version, channel, status, release_notes, released_by,
 		       promoted_from_release_id, readiness_goal_ref, approved_at_commit,
 		       verification_evidence, created_at,
@@ -103,7 +103,7 @@ func (r *SQLRepository) ListByProfile(ctx context.Context, profileID string, lim
 		limit = 50
 	}
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash,
+		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash, artifact_digest, readiness_review_key,
 		       release_version, channel, status, release_notes, released_by,
 		       promoted_from_release_id, readiness_goal_ref, approved_at_commit,
 		       verification_evidence, created_at,
@@ -382,14 +382,14 @@ func scanReleaseRow(rows *sql.Rows) (*Release, error) {
 
 func scanReleaseFields(row rowScanner) (*Release, error) {
 	rel := &Release{}
-	var deploymentID, releaseNotes, releasedBy, promotedFrom, readinessGoalRef, approvedAtCommit sql.NullString
+	var deploymentID, artifactDigest, readinessReviewKey, releaseNotes, releasedBy, promotedFrom, readinessGoalRef, approvedAtCommit sql.NullString
 	var profileVersion sql.NullInt32
 	var publishedAt sql.NullTime
 	var evidence []byte
 
 	err := row.Scan(
 		&rel.ID, &rel.ProfileID, &deploymentID, &profileVersion,
-		&rel.GitCommitHash, &rel.ReleaseVersion, &rel.Channel, &rel.Status,
+		&rel.GitCommitHash, &artifactDigest, &readinessReviewKey, &rel.ReleaseVersion, &rel.Channel, &rel.Status,
 		&releaseNotes, &releasedBy, &promotedFrom, &readinessGoalRef, &approvedAtCommit, &evidence,
 		&rel.CreatedAt, &publishedAt, &rel.UpdatedAt,
 	)
@@ -397,6 +397,8 @@ func scanReleaseFields(row rowScanner) (*Release, error) {
 		return nil, err
 	}
 	rel.DeploymentID = deploymentID.String
+	rel.ArtifactDigest = artifactDigest.String
+	rel.ReadinessReviewKey = readinessReviewKey.String
 	rel.ReleaseNotes = releaseNotes.String
 	rel.ReleasedBy = releasedBy.String
 	rel.PromotedFromReleaseID = promotedFrom.String

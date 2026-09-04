@@ -45,6 +45,6 @@
     {"id": "complete", "kind": "end", "end": {"status": "succeeded", "bindings": [{"name": "findings_hash", "source": "structured_result", "selector": "node=audit;$.value.findings_hash", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"}, {"name": "challenge_state", "source": "structured_result", "selector": "node=audit;$.value.challenge_state", "limit": 1, "maxBytes": 32, "renderAs": "text", "missingPolicy": "error"}, {"name": "anomaly_count", "source": "structured_result", "selector": "node=audit;$.value.anomaly_count", "limit": 1, "maxBytes": 32, "renderAs": "json", "missingPolicy": "error"}, {"name": "gaming_count", "source": "structured_result", "selector": "node=audit;$.value.gaming_count", "limit": 1, "maxBytes": 32, "renderAs": "json", "missingPolicy": "error"}, {"name": "summary", "source": "structured_result", "selector": "node=audit;$.value.summary", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"}]}}
   ],
   "edges": [{"from": "audit", "to": "complete", "maxTraversals": 1}],
-  "budgets": {"wallTimeSeconds": 600, "maxTurns": 4, "maxTokens": 80000, "maxCostUsd": 4, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60},
+  "budgets": {"wallTimeSeconds": 600, "maxTurns": 4, "maxTokens": 80000, "maxChargeMicroUsd": 4000000, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60},
   "trigger": {"selfTrigger": {}}
 }

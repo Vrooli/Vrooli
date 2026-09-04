@@ -119,6 +119,17 @@ func Handler(registry *bindings.Registry, libraryRepository ...*library.Reposito
 	return bindingsconnect.NewBindingRegistryServiceHandler(&service{registry: registry, library: repository, metrics: &discoveryMetrics})
 }
 
+// ResolveIntentForEvaluation keeps the discovery evaluator on the same
+// governed resolver used by the public binding RPC. It is an explicit seam so
+// the program service does not duplicate retrieval, judging, or null-verdict
+// policy.
+func ResolveIntentForEvaluation(ctx context.Context, registry *bindings.Registry, repository *library.Repository, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
+	owner := &service{registry: registry, library: repository, metrics: &discoveryMetrics}
+	response, err := owner.resolveIntent(ctx, intent, limit, mode)
+	owner.metrics.record(response)
+	return response, err
+}
+
 func ConditionHandler(registry *bindings.Registry) (string, http.Handler) {
 	return bindingsconnect.NewBindingConditionServiceHandler(&conditionService{registry: registry})
 }

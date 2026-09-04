@@ -26,12 +26,13 @@ const nearestMatchFloor = 0.62
 
 // analysis is the contract emitted by kernel/host/analyze.py.
 type analysis struct {
-	OK       bool           `json:"ok"`
-	Degraded string         `json:"degraded"`
-	Bound    []analysisName `json:"bound"`
-	Free     []analysisName `json:"free"`
-	Imports  []analysisName `json:"imports"`
-	Shadowed []analysisName `json:"shadowed"`
+	OK         bool           `json:"ok"`
+	Degraded   string         `json:"degraded"`
+	Bound      []analysisName `json:"bound"`
+	Free       []analysisName `json:"free"`
+	Imports    []analysisName `json:"imports"`
+	Shadowed   []analysisName `json:"shadowed"`
+	Attributes []analysisName `json:"attributes"`
 }
 
 type analysisName struct {
@@ -50,6 +51,10 @@ const unresolvedNamePrefix = "name "
 // unreachable capability rather than a misuse of a name that does resolve.
 func IsUnresolvedNameDiagnostic(diagnostic *programsv1.Diagnostic) bool {
 	return diagnostic.GetSeverity() == "error" && strings.HasPrefix(diagnostic.GetMessage(), unresolvedNamePrefix)
+}
+
+func IsProtectedNameMisuseDiagnostic(diagnostic *programsv1.Diagnostic) bool {
+	return diagnostic.GetSeverity() == "error" && (strings.HasPrefix(diagnostic.GetMessage(), "import ") || strings.HasPrefix(diagnostic.GetMessage(), "protected runtime name "))
 }
 
 var protectedRuntimeNames = map[string]struct{}{
@@ -116,7 +121,7 @@ func ResolveSource(source string, known []string, analyzerPath string) []*progra
 	}
 
 	for _, entry := range result.Free {
-		if _, ok := knownSet[entry.Name]; ok {
+		if _, ok := knownSet[entry.Name]; ok || hasKnownDescendant(entry.Name, known) {
 			continue
 		}
 		nearest := nearestName(entry.Name, known)
@@ -132,11 +137,55 @@ func ResolveSource(source string, known []string, analyzerPath string) []*progra
 			NearestMatch: nearest,
 		})
 	}
+	knownPaths := make(map[string]struct{}, len(known))
+	knownRoots := make(map[string]struct{}, len(known))
+	for _, name := range known {
+		knownPaths[name] = struct{}{}
+		knownRoots[strings.SplitN(name, ".", 2)[0]] = struct{}{}
+	}
+	for _, entry := range result.Attributes {
+		if _, ok := knownPaths[entry.Name]; ok || hasKnownDescendant(entry.Name, known) {
+			continue
+		}
+		root := strings.SplitN(entry.Name, ".", 2)[0]
+		if _, ok := knownRoots[root]; !ok {
+			continue
+		}
+		candidates := make([]string, 0)
+		for name := range knownPaths {
+			if strings.HasPrefix(name, root+".") {
+				candidates = append(candidates, name)
+			}
+		}
+		if len(candidates) == 0 {
+			continue
+		}
+		nearest := nearestName(entry.Name, candidates)
+		message := fmt.Sprintf(unresolvedNamePrefix+"%q does not resolve to a governed binding namespace or command", entry.Name)
+		if nearest != "" {
+			message += fmt.Sprintf("; nearest match: %q", nearest)
+		}
+		diagnostics = append(diagnostics, &programsv1.Diagnostic{Severity: "error", Line: entry.Line, Name: entry.Name, Message: message, NearestMatch: nearest})
+	}
 
 	sort.SliceStable(diagnostics, func(left, right int) bool {
 		return diagnostics[left].GetLine() < diagnostics[right].GetLine()
 	})
 	return diagnostics
+}
+
+// hasKnownDescendant accepts the scenario and group segments of a qualified
+// two-level binding namespace. The kernel resolves those intermediate objects
+// at runtime; preflight must therefore validate the leaf path without treating
+// `scenario.group` itself as an unresolved command.
+func hasKnownDescendant(name string, known []string) bool {
+	prefix := strings.TrimSuffix(name, ".") + "."
+	for _, candidate := range known {
+		if strings.HasPrefix(candidate, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // DeclaredNames returns module-scope names that a previous submission made

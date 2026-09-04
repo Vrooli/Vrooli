@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     occurred_at TEXT NOT NULL,
     time_basis TEXT NOT NULL DEFAULT 'event',
     tool_name TEXT NOT NULL,
+    program_id TEXT NOT NULL DEFAULT '',
+    skill_id TEXT NOT NULL DEFAULT '',
 	wrapper TEXT NOT NULL DEFAULT '',
     capability TEXT NOT NULL DEFAULT 'other',
     intent_class TEXT NOT NULL DEFAULT '',
@@ -113,6 +115,18 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
 	incurred_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (run_id, call_event_id, segment_index)
 );
+
+CREATE TABLE IF NOT EXISTS program_runtime_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    source_scenario TEXT NOT NULL DEFAULT '',
+    program_id TEXT NOT NULL DEFAULT '',
+    session_id TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT '',
+    payload_json TEXT NOT NULL,
+    received_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_program_runtime_events_program_id ON program_runtime_events(program_id, received_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_ownership ON invocation_read_model_facts(ownership, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_outcome ON invocation_read_model_facts(outcome, occurred_at);

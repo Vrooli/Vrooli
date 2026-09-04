@@ -89,6 +89,33 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 				return r.Msg, fmt.Sprintf("p95 route latency: %d ms", r.Msg.GetLatencyMs()), nil
 			})
 		},
+		"MeasuresService.RouteCost": func(ctx cliapp.RunContext) error {
+			return h.scalar(ctx, "cost", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
+				r, err := h.client.RouteCost(c, req(w))
+				if err != nil {
+					return nil, "", err
+				}
+				return r.Msg, fmt.Sprintf("route cost: %.6f USD", r.Msg.GetCostUsd()), nil
+			})
+		},
+		"MeasuresService.RouteTokens": func(ctx cliapp.RunContext) error {
+			return h.scalar(ctx, "tokens", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
+				r, err := h.client.RouteTokens(c, req(w))
+				if err != nil {
+					return nil, "", err
+				}
+				return r.Msg, fmt.Sprintf("route tokens: %d", r.Msg.GetTotalTokens()), nil
+			})
+		},
+		"MeasuresService.RouteLocalShare": func(ctx cliapp.RunContext) error {
+			return h.scalar(ctx, "local-share", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
+				r, err := h.client.RouteLocalShare(c, req(w))
+				if err != nil {
+					return nil, "", err
+				}
+				return r.Msg, "route local share: " + formatRate(r.Msg.GetShare()), nil
+			})
+		},
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

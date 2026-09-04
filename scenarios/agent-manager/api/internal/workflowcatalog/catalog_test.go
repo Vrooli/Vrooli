@@ -13,6 +13,7 @@ func validDefinition() domain.WorkflowDefinition {
 	return domain.WorkflowDefinition{
 		SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/review", Version: "1.2.3",
 		InputSchema: schema, OutputSchema: schema, EntryNode: "start",
+		Metadata: map[string]string{"fixture": "true"},
 		Nodes: []domain.WorkflowNode{
 			{ID: "start", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "Review {{.input}}", Bindings: []domain.WorkflowInputBinding{{Name: "input", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}}},
 			{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
@@ -33,6 +34,7 @@ func singleRunSugar() domain.WorkflowDefinition {
 	return domain.WorkflowDefinition{
 		SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/single", Version: "1.0.0",
 		InputSchema: schema, OutputSchema: out,
+		Metadata: map[string]string{"fixture": "true"},
 		Nodes: []domain.WorkflowNode{
 			{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "Do {{.input}}", Bindings: []domain.WorkflowInputBinding{{Name: "input", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}}},
 		},
@@ -543,7 +545,7 @@ func hasCode(diagnostics []domain.WorkflowDiagnostic, code string) bool {
 
 func TestValidateChargeBudgetRejectsHistoricalMicroUSDUnitError(t *testing.T) {
 	var diagnostics []domain.WorkflowDiagnostic
-	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 7_200_000, MaxChargeMicroUSD: 30}, func(code, path, message string) {
+	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 7_200_000, MaxChargeMicroUSD: 30}, false, func(code, path, message string) {
 		diagnostics = append(diagnostics, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message})
 	})
 	if !hasCode(diagnostics, "charge_budget_unit") {
@@ -553,7 +555,7 @@ func TestValidateChargeBudgetRejectsHistoricalMicroUSDUnitError(t *testing.T) {
 
 func TestValidateChargeBudgetAcceptsMeasurementScale(t *testing.T) {
 	var diagnostics []domain.WorkflowDiagnostic
-	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 18_000_000, MaxChargeMicroUSD: 18_000_000}, func(code, path, message string) {
+	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 18_000_000, MaxChargeMicroUSD: 18_000_000}, false, func(code, path, message string) {
 		diagnostics = append(diagnostics, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message})
 	})
 	if len(diagnostics) != 0 {

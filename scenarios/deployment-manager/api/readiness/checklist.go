@@ -1,23 +1,33 @@
-// Package readiness defines the deployment-time checklist used to assemble a
-// scenario release verdict. It deliberately has no Test Genie phase or
-// scenario-specific implementation dependency.
+// Package readiness owns the policy and decision state used to prepare a
+// release. Evidence producers retain ownership of the measurements themselves.
 package readiness
 
 import (
+	"bytes"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-const ChecklistVersion = 1
+const ChecklistVersion = 2
+
+//go:embed readiness-policy.json
+var builtInPolicyJSON []byte
+
+//go:embed readiness-policy.schema.json
+var builtInPolicySchemaJSON []byte
 
 type CleanRequirement string
 
 const (
 	Required    CleanRequirement = "required"
 	Advisory    CleanRequirement = "advisory"
-	Uncheckable CleanRequirement = "uncheckable"
+	Uncheckable CleanRequirement = "human_review"
 )
 
 type GlobalImpact string
@@ -31,13 +41,53 @@ const (
 	UnknownImpact     GlobalImpact = "unknown"
 )
 
+type FreshnessPolicy struct {
+	Basis         string `json:"basis"`
+	MaxAgeSeconds int64  `json:"max_age_seconds,omitempty"`
+}
+
+type ProducerRoute struct {
+	Binding string `json:"binding"`
+}
+type HumanReviewRoute struct {
+	Kind string `json:"kind"`
+}
+
+type GherkinAcceptance struct {
+	Given string `json:"given"`
+	When  string `json:"when"`
+	Then  string `json:"then"`
+}
+
+func (a GherkinAcceptance) Sentence() string {
+	return fmt.Sprintf("Given %s, when %s, then %s", a.Given, a.When, a.Then)
+}
+
+type Remediation struct {
+	Skill string `json:"skill"`
+	Topic string `json:"topic"`
+}
+
+type WaiverPolicy struct {
+	Eligible      bool  `json:"eligible"`
+	MaxAgeSeconds int64 `json:"max_age_seconds,omitempty"`
+}
+
 type Item struct {
-	ID                 string           `json:"id"`
-	Title              string           `json:"title"`
-	Category           string           `json:"category"`
-	CleanRequirement   CleanRequirement `json:"clean_requirement"`
-	GlobalImpact       GlobalImpact     `json:"global_impact"`
-	AcceptanceCriteria string           `json:"acceptance_criteria"`
+	ID                 string            `json:"id"`
+	Title              string            `json:"title"`
+	Category           string            `json:"category"`
+	Owner              string            `json:"owner"`
+	Applicability      string            `json:"applicability"`
+	CleanRequirement   CleanRequirement  `json:"requirement"`
+	GlobalImpact       GlobalImpact      `json:"global_impact"`
+	Freshness          FreshnessPolicy   `json:"freshness"`
+	Producer           *ProducerRoute    `json:"producer,omitempty"`
+	HumanReview        *HumanReviewRoute `json:"human_review,omitempty"`
+	Acceptance         GherkinAcceptance `json:"acceptance"`
+	Remediation        Remediation       `json:"remediation"`
+	Waiver             WaiverPolicy      `json:"waiver"`
+	AcceptanceCriteria string            `json:"-"`
 }
 
 type Checklist struct {
@@ -45,22 +95,55 @@ type Checklist struct {
 	Items   []Item `json:"items"`
 }
 
+var knownOwners = map[string]struct{}{
+	"business-health": {}, "content-desk": {}, "deployment-manager": {},
+	"git-control-tower": {}, "measures-health": {}, "offer-desk": {},
+	"scenario-dependency-analyzer": {}, "scenario-to-desktop": {},
+	"secrets-manager": {}, "security-health": {}, "storage-manager": {},
+	"swarm-manager": {}, "test-genie": {},
+}
+
 func (i Item) Validate() error {
 	if strings.TrimSpace(i.ID) == "" || strings.TrimSpace(i.Title) == "" {
 		return fmt.Errorf("checklist item requires id and title")
 	}
-	if strings.TrimSpace(i.Category) == "" || strings.TrimSpace(i.AcceptanceCriteria) == "" {
-		return fmt.Errorf("checklist item %q requires category and acceptance criteria", i.ID)
+	if strings.TrimSpace(i.Category) == "" || strings.TrimSpace(i.Owner) == "" || strings.TrimSpace(i.Applicability) == "" {
+		return fmt.Errorf("checklist item %q requires category, owner, and applicability", i.ID)
+	}
+	if _, ok := knownOwners[i.Owner]; !ok {
+		return fmt.Errorf("checklist item %q has unknown owner %q", i.ID, i.Owner)
 	}
 	switch i.CleanRequirement {
 	case Required, Advisory, Uncheckable:
 	default:
-		return fmt.Errorf("checklist item %q has invalid clean_requirement %q", i.ID, i.CleanRequirement)
+		return fmt.Errorf("checklist item %q has invalid requirement %q", i.ID, i.CleanRequirement)
 	}
 	switch i.GlobalImpact {
 	case FoundationBlocker, SafetyBlocker, CapabilityGap, HardeningGap, AdvisoryImpact, UnknownImpact:
 	default:
 		return fmt.Errorf("checklist item %q has invalid global_impact %q", i.ID, i.GlobalImpact)
+	}
+	if i.Freshness.Basis != "candidate_identity" && i.Freshness.Basis != "max_age" {
+		return fmt.Errorf("checklist item %q has invalid freshness basis %q", i.ID, i.Freshness.Basis)
+	}
+	if i.Freshness.Basis == "max_age" && i.Freshness.MaxAgeSeconds <= 0 {
+		return fmt.Errorf("checklist item %q max_age freshness requires max_age_seconds", i.ID)
+	}
+	if (i.Producer == nil) == (i.HumanReview == nil) {
+		return fmt.Errorf("checklist item %q requires exactly one producer or human_review route", i.ID)
+	}
+	if i.Producer != nil && (!strings.Contains(i.Producer.Binding, ".") || strings.ContainsAny(i.Producer.Binding, " \t\n")) {
+		return fmt.Errorf("checklist item %q has invalid producer binding %q", i.ID, i.Producer.Binding)
+	}
+	if i.HumanReview != nil && strings.TrimSpace(i.HumanReview.Kind) == "" {
+		return fmt.Errorf("checklist item %q has empty human_review kind", i.ID)
+	}
+	structuredAcceptance := strings.TrimSpace(i.Acceptance.Given) != "" && strings.TrimSpace(i.Acceptance.When) != "" && strings.TrimSpace(i.Acceptance.Then) != ""
+	if !structuredAcceptance && strings.TrimSpace(i.AcceptanceCriteria) == "" {
+		return fmt.Errorf("checklist item %q requires Given/When/Then acceptance", i.ID)
+	}
+	if strings.TrimSpace(i.Remediation.Skill) == "" || strings.TrimSpace(i.Remediation.Topic) == "" {
+		return fmt.Errorf("checklist item %q requires remediation skill and topic", i.ID)
 	}
 	return nil
 }
@@ -85,14 +168,25 @@ func (c Checklist) Validate() error {
 	return nil
 }
 
-func Load(path string) (Checklist, error) {
-	data, err := os.ReadFile(path)
+func decodePolicy(data []byte) (Checklist, error) {
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("readiness-policy.schema.json", bytes.NewReader(builtInPolicySchemaJSON)); err != nil {
+		return Checklist{}, fmt.Errorf("load readiness policy schema: %w", err)
+	}
+	schema, err := compiler.Compile("readiness-policy.schema.json")
 	if err != nil {
-		return Checklist{}, fmt.Errorf("read readiness checklist: %w", err)
+		return Checklist{}, fmt.Errorf("compile readiness policy schema: %w", err)
+	}
+	var document any
+	if err := json.Unmarshal(data, &document); err != nil {
+		return Checklist{}, fmt.Errorf("decode readiness policy document: %w", err)
+	}
+	if err := schema.Validate(document); err != nil {
+		return Checklist{}, fmt.Errorf("validate readiness policy schema: %w", err)
 	}
 	var checklist Checklist
 	if err := json.Unmarshal(data, &checklist); err != nil {
-		return Checklist{}, fmt.Errorf("decode readiness checklist: %w", err)
+		return Checklist{}, fmt.Errorf("decode readiness policy: %w", err)
 	}
 	if err := checklist.Validate(); err != nil {
 		return Checklist{}, err
@@ -100,28 +194,39 @@ func Load(path string) (Checklist, error) {
 	return checklist, nil
 }
 
-func DefaultChecklist() Checklist {
-	return Checklist{Version: ChecklistVersion, Items: []Item{
-		{ID: "storefront-registered", Title: "Storefront application is registered", Category: "mechanical", CleanRequirement: Required, GlobalImpact: FoundationBlocker, AcceptanceCriteria: "The release has a registered storefront application and reachable listing."},
-		{ID: "declared-meters-covered", Title: "Declared meters have limits and enforcement", Category: "mechanical", CleanRequirement: Required, GlobalImpact: SafetyBlocker, AcceptanceCriteria: "Every declared meter has a tier limit and an exercised enforcement path."},
-		{ID: "bundle-price-present", Title: "A current bundle price exists", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "The bundle has at least one enabled price row for this release."},
-		{ID: "update-policy-set", Title: "Update policy is declared", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "The scenario declares how updates are delivered and supported."},
-		{ID: "platform-assets-set", Title: "Per-platform assets are set", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "Every declared target platform has its required release assets."},
-		{ID: "brand-assignment-exists", Title: "A brand assignment exists", Category: "mechanical", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "The scenario has a current brand-manager assignment or an explicit advisory finding."},
-		{ID: "marketing-assets-available", Title: "Launch assets are answerable", Category: "mechanical", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "The launch-assets report names available channels and open artifact slots for the scenario."},
-		{ID: "go-to-market-authentic", Title: "Go-to-market and monetization documents have substance", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "The declared commercial documents contain scenario-specific content rather than generator scaffold."},
-		{ID: "ramp-evidence-complete", Title: "Ramp evidence exists for every target", Category: "mechanical", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "Each release target has current, attributable ramp evidence."},
-		{ID: "suite-state-known", Title: "Suite state is known", Category: "mechanical", CleanRequirement: Required, GlobalImpact: SafetyBlocker, AcceptanceCriteria: "All required readiness signal producers return known, attributable states."},
-		{ID: "declared-features-reachable", Title: "Declared features are reachable", Category: "correspondence", CleanRequirement: Required, GlobalImpact: SafetyBlocker, AcceptanceCriteria: "Every feature declared for sale is reachable in the built scenario."},
-		{ID: "enforcement-paths-gate", Title: "Enforcement paths actually gate", Category: "correspondence", CleanRequirement: Required, GlobalImpact: SafetyBlocker, AcceptanceCriteria: "Each declared enforcement path refuses the corresponding simulated commercial condition."},
-		{ID: "storefront-copy-current", Title: "Storefront copy describes this version", Category: "correspondence", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "Storefront claims correspond to the current release behavior."},
-		{ID: "audience-matches-build", Title: "Declared audience matches the build", Category: "correspondence", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "The declared audience is supported by the built experience."},
-		{ID: "branding-coherent", Title: "Branding is applied and coherent", Category: "correspondence", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "The released experience applies the declared brand consistently."},
-		{ID: "requirements-cover-sale", Title: "Requirements cover what is sold", Category: "correspondence", CleanRequirement: Required, GlobalImpact: CapabilityGap, AcceptanceCriteria: "Requirements and evidence cover every load-bearing commercial promise."},
-		{ID: "subscription-sign-in", Title: "Subscription sign-in works end to end", Category: "unanchored", CleanRequirement: Uncheckable, GlobalImpact: UnknownImpact, AcceptanceCriteria: "A new customer can sign in and receive the shared paid session."},
-		{ID: "paying-customer-onboarding", Title: "Onboarding is usable by a paying customer", Category: "unanchored", CleanRequirement: Uncheckable, GlobalImpact: UnknownImpact, AcceptanceCriteria: "A new paying customer can complete onboarding and reach the paid surface."},
-		{ID: "non-subscriber-gate-honest", Title: "The gate is honest to a non-subscriber", Category: "unanchored", CleanRequirement: Uncheckable, GlobalImpact: UnknownImpact, AcceptanceCriteria: "A refused user sees a clear reason and a reachable upgrade destination."},
-		{ID: "payment-stop-survivable", Title: "Stopping payment is survivable", Category: "unanchored", CleanRequirement: Uncheckable, GlobalImpact: UnknownImpact, AcceptanceCriteria: "Cancellation or payment failure leaves the customer with an honest degraded experience."},
-		{ID: "paying-customer-contact", Title: "A paying customer has a contact path", Category: "unanchored", CleanRequirement: Uncheckable, GlobalImpact: UnknownImpact, AcceptanceCriteria: "A paying customer can reach the declared support or contact channel."},
-	}}
+func Load(path string) (Checklist, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Checklist{}, fmt.Errorf("read readiness policy: %w", err)
+	}
+	return decodePolicy(data)
 }
+
+func mustBuiltInPolicy() Checklist {
+	policy, err := decodePolicy(builtInPolicyJSON)
+	if err != nil {
+		panic(fmt.Sprintf("invalid built-in readiness policy: %v", err))
+	}
+	return policy
+}
+
+var builtInPolicy = mustBuiltInPolicy()
+
+func DefaultChecklist() Checklist {
+	policy := builtInPolicy
+	policy.Items = append([]Item(nil), builtInPolicy.Items...)
+	return policy
+}
+
+func CheckProjection(data []byte) error {
+	candidate, err := decodePolicy(data)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(candidate, builtInPolicy) {
+		return fmt.Errorf("readiness policy projection differs from built-in policy version %d", ChecklistVersion)
+	}
+	return nil
+}
+
+func BuiltInPolicyJSON() []byte { return append([]byte(nil), builtInPolicyJSON...) }

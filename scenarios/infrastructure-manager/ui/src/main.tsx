@@ -1,4 +1,5 @@
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -62,6 +63,7 @@ async function bootstrap() {
   ReactDOM.createRoot(appRoot).render(
     // vrooli:library-strings-provider start
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
+      <BaseStyles />
 <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the

@@ -57,7 +57,7 @@ func TestNewOrchestratorBuildsCompleteGraphWithoutStartingWorkers(t *testing.T) 
 
 	// Construction must not start workers: cleanup is safe before Server.Start
 	// has established lifecycle ownership.
-	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
+	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter, deps.FrictionPublisher)
 }
 
 func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {
@@ -72,5 +72,5 @@ func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {
 	if deps.Orchestrator == nil {
 		t.Fatal("orchestrator is nil")
 	}
-	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
+	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter, deps.FrictionPublisher)
 }

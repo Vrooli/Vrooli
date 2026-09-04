@@ -191,7 +191,7 @@ Entry kinds: `run-record` for a bare run, `workflow-note` for an execution. Cura
 | Symptom | Likely cause | First check | Fix |
 |---|---|---|---|
 | `--help` on `run create`, `task create`, `workflow start`, `findings list` prints no flags | Help renders only the usage line for those subcommands | `agent-manager run create --task-id x` errors name the flags | Use the flag names in this skill; file `report-bug` against agent-manager |
-| `run report` through program-runtime returns `501 GetRunReport is not implemented` | The binding exists; the RPC is unimplemented | `program-runtime bindings describe agent-manager/run/report` | Read the report with the CLI; file against agent-manager |
+| `run report` through program-runtime fails | The run id is invalid, missing, or the report service is unavailable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <id>` | Supply a real run UUID; retry only when the service reports a transient dependency failure |
 | `run create` refuses: "use exactly one of --result-schema, --result-schema-file, or --classify" | Two result specs given | the command line | Keep one |
 | `execution-wait` returns immediately with a terminal status you did not expect | The idempotency key matched an earlier execution | `workflow execution-get <id>` `created_at` | Use a new key for new work |
 | `run episodes <id>` returns zero rows on a finished run | The run has no deterministic friction, or it is still finalizing | `run get <id>` `finalizationStatus` | Re-read after `RUN_FINALIZATION_STATUS_SUCCEEDED` |

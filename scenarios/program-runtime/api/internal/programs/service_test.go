@@ -104,6 +104,39 @@ func TestSubmissionRecordsProvenance(t *testing.T) { // [REQ:PRT-P1-008]
 	}
 }
 
+func TestListFilteredHonorsProvenanceAndTimeWindow(t *testing.T) {
+	now := time.Now().UTC()
+	service := NewService(Options{})
+	service.repo = newMemoryRepository()
+	for _, item := range []*programsv1.Program{
+		{Id: "agent", SessionId: "s", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CreatedAt: now.Add(-time.Hour).Format(time.RFC3339Nano)},
+		{Id: "operator", SessionId: "s", Provenance: programsv1.Provenance_PROVENANCE_OPERATOR, CreatedAt: now.Format(time.RFC3339Nano)},
+	} {
+		if err := service.repo.Save(context.Background(), item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := service.ListFiltered(context.Background(), "s", true, "PROVENANCE_OPERATOR", now.Add(-time.Minute), time.Time{}, 0)
+	if len(got) != 1 || got[0].GetId() != "operator" {
+		t.Fatalf("filtered=%v", got)
+	}
+}
+
+func TestProtectedNameMisuseGetsTypedFailureCause(t *testing.T) {
+	service := NewService(Options{
+		Preflight: func(string) []*programsv1.Diagnostic {
+			return []*programsv1.Diagnostic{{Severity: "error", Message: "import \"vrooli\" is unavailable"}}
+		},
+	})
+	program, err := service.Submit(context.Background(), "s", "import vrooli", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if program.GetFailureCause() != programsv1.FailureCause_FAILURE_CAUSE_PROTECTED_NAME_MISUSE {
+		t.Fatalf("cause=%s", program.GetFailureCause())
+	}
+}
+
 func TestMiningExcludesOperatorProgramsByDefault(t *testing.T) { // [REQ:PRT-P1-008]
 	s := NewService(Options{Runner: fakeRunner{err: errors.New("same")}})
 	_, _ = s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_OPERATOR, false)

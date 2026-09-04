@@ -4,8 +4,8 @@ Contract: setpoint-read.json (inputs, invariants, bindings, outputs).
 Skill:    ai-gateway-improve §2 (the rows), §3 (the sensors).
 
 Phases: validate -> collect -> classify -> report. Read-only. No inference, no delegation.
-The seven route measures take a TimeWindow message; the window token is an input.
-cost-per-caller has no measure and is reported unavailable as pending_telemetry.
+The ten route measures take a TimeWindow message; the window token is an input.
+Cost is unavailable when no priced route rows exist; per-caller cost remains a follow-up projection.
 """
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
@@ -111,9 +111,12 @@ def step_collect():  # COLLECT · governed reads only, concurrent
         lambda: safe(lambda: ai_gateway.measures.breaker_open(window=window)),
         lambda: safe(lambda: ai_gateway.measures.capacity_rejections(window=window)),
         lambda: safe(lambda: ai_gateway.measures.latency_p95(window=window)),
+        lambda: safe(lambda: ai_gateway.measures.cost(window=window)),
+        lambda: safe(lambda: ai_gateway.measures.tokens(window=window)),
+        lambda: safe(lambda: ai_gateway.measures.local_share(window=window)),
         lambda: safe(lambda: ai_gateway.routing.evidence_list(limit=evidence_sample)),
     )
-    names = ("total", "success", "fallback", "failure", "breaker", "capacity", "p95", "evidence")
+    names = ("total", "success", "fallback", "failure", "breaker", "capacity", "p95", "cost", "tokens", "local_share", "evidence")
     dead = {}
     for name, (handle, err) in zip(names, results):
         handles[name] = handle
@@ -132,22 +135,21 @@ def step_classify():  # CLASSIFY · deterministic; every reading is head(1), cou
     h = handles
     cli_window = window_token.replace("TIME_WINDOW_TOKEN_", "").lower()
 
-    # cost-per-caller: route_events carry cost per (scenario, operation) but no measure exposes it.
-    row("cost-per-caller", None, "cost_usd per (scenario, operation) readable in a window", False, unavailable=True,
-        reason="pending_telemetry: no route_events cost measure is declared; evidence rows expose no cost field",
-        sensor="measures-adoption item: route_events.cost_usd by scenario, operation")
+    cost = one(h["cost"], "costUsd") if h["cost"] is not None else None
+    row("cost-per-caller", {"total_cost_usd": cost, "basis": "priced route_events rows"}, "cost_usd per (scenario, operation) readable in a window", False,
+        unavailable=(h["cost"] is None), reason="route cost unavailable" if h["cost"] is None else "per-caller projection remains a follow-up",
+        sensor=f"ai-gateway measures cost --window {cli_window}")
 
-    # local-share: from the most recent evidence sample, not a window; the reading says so.
-    n = h["evidence"].count()
-    localities = {}
-    for r in h["evidence"].map(lambda e: {"l": e.get("selectedLocality") or "unknown"}).head(50):  # selectedLocality may be omitted on a rejected route
-        localities[r["l"]] = localities.get(r["l"], 0) + 1
-    local = localities.get("local", 0)
-    local_share = (local / n) if n else None
-    row("local-share", {"local": local, "sample": n, "share": local_share, "by_locality": localities, "basis": f"most recent {n} evidence rows"},
-        ">= 0.80 of routes local", local_share is not None and local_share >= 0.80,
-        unavailable=(n == 0), reason=None if n else "no route evidence rows",
-        sensor=f"ai-gateway routing evidence-list --limit {evidence_sample}")
+    # local-share is now a windowed measure over successful local-served routes.
+    share = one(h["local_share"], "share") if h["local_share"] is not None else None
+    row("local-share", {"share": share, "basis": "windowed route_events measure"}, ">= 0.80 of routes local", share is not None and share >= 0.80,
+        unavailable=(share is None), reason="local-share measure unavailable" if share is None else None,
+        sensor=f"ai-gateway measures local-share --window {cli_window}")
+
+    tokens = one(h["tokens"], "totalTokens") if h["tokens"] is not None else None
+    row("token-volume", {"total_tokens": tokens}, None, None, unavailable=(tokens is None),
+        reason="token measure unavailable" if tokens is None else None,
+        sensor=f"ai-gateway measures tokens --window {cli_window}")
 
     total = int(one(h["total"], "count", 0))
     # protojson omits a double that is exactly 0.0; when routes exist in the window an absent rate IS zero

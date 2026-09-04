@@ -51,6 +51,7 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]
@@ -76,6 +77,7 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]
@@ -287,15 +289,19 @@
           "binding": {
             "kind": "connect-rpc",
             "service": "vrooli.program_runtime.v1.programs.ProgramService",
-            "method": "RunAuthoringEval"
+          "method": "RunAuthoringEval"
           },
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "requires_confirmation": true,
             "permissions": [
               "network:internal"
             ]
           },
+          "flags": [
+            {"name": "no-gate", "bool": true, "description": "Report measurements without failing below-floor or unavailable results."}
+          ],
           "architecture": {
             "primitive": "proto_list"
           },
@@ -325,21 +331,43 @@
           "flags": [
             {
               "name": "suite",
-              "required": true,
               "description": "Path to the discovery suite JSON."
             },
             {
               "name": "mode",
               "description": "Discovery mode: fast, judged, or deep.",
               "default": "judged"
+            },
+            {
+              "name": "no-gate",
+              "bool": true,
+              "description": "Report measurements without failing below-floor or unavailable results."
             }
           ],
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+            "method": "RunDiscoveryEval"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "discovery",
+            "intent": "How many discovery evaluation cases select the expected binding.",
+            "questions": [
+              "discovery evaluation met cases",
+              "first-attempt discovery correctness"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "met",
+              "unit": "discovery_cases",
+              "summary_template": "{count} discovery evaluation cases met"
+            }
           }
         }
       ]
@@ -413,6 +441,19 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "run",
+          "description": "Run one declared contract with validated named inputs.",
+          "positionals": [
+            {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
+          ],
+          "flags": [
+            {"name": "input", "description": "Comma-separated key=value inputs."}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true},
+          "architecture": {"primitive": "proto_mutation"}
         },
         {
           "name": "get",
@@ -918,6 +959,22 @@
               "name": "include-operator",
               "bool": true,
               "description": "Include operator submissions."
+            },
+            {
+              "name": "provenance",
+              "description": "Filter by provenance token."
+            },
+            {
+              "name": "since-seconds",
+              "description": "Only programs created within this many seconds."
+            },
+            {
+              "name": "until",
+              "description": "RFC3339 upper creation-time bound."
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows; zero uses the server default."
             }
           ],
           "binding": {
@@ -1095,9 +1152,9 @@
         "reason": "The submitted program corpus is measured by programs.mine."
       },
       {
-        "domain": "library_program",
+        "domain": "discovery",
         "stateful": true,
-        "reason": "Versioned explicitly promoted programs are measured by library.list."
+        "reason": "Discovery outcomes are persisted in the binding registry and projected by discovery measures."
       },
       {
         "domain": "session_delegations",

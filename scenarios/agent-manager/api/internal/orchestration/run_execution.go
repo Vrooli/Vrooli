@@ -839,6 +839,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		systemPrompt,
 	)
 	executor.WithClock(o.now)
+	executor.WithIdentitySecret(o.identitySecret)
 	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
@@ -1246,6 +1247,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No system prompt for resume (session persists instructions)
 	)
 	executor.WithClock(o.now)
+	executor.WithIdentitySecret(o.identitySecret)
 	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })

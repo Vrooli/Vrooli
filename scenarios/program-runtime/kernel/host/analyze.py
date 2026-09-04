@@ -10,7 +10,8 @@ Contract: read source on stdin, write one JSON object on stdout.
     {"ok": true,
      "free": [{"name": "test_geni", "line": 3}],
      "imports": [{"name": "json", "line": 1}],
-     "shadowed": [{"name": "search_hub", "line": 7}]}
+     "shadowed": [{"name": "search_hub", "line": 7}],
+     "attributes": [{"name": "browser_automation_studio.capture.run", "line": 4}]}
 
     {"ok": false, "syntax_error": {"message": "...", "line": 4}}
 
@@ -109,6 +110,34 @@ def _imports(tree: ast.AST) -> list[dict[str, int | str]]:
     return sorted(imports, key=lambda item: (int(item["line"]), str(item["name"])))
 
 
+def _attribute_chain(node: ast.AST) -> str | None:
+    parts: list[str] = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def _attributes(tree: ast.AST, module_bound: set[str]) -> list[dict[str, int | str]]:
+    found: dict[str, int] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute) or isinstance(node.ctx, ast.Store):
+            continue
+        chain = _attribute_chain(node)
+        if not chain:
+            continue
+        root = chain.split(".", 1)[0]
+        if root in module_bound:
+            continue
+        line = int(getattr(node, "lineno", 0))
+        found.setdefault(chain, line)
+    return [{"name": name, "line": line} for name, line in sorted(found.items())]
+
+
 def analyze(source: str) -> dict:
     try:
         tree = ast.parse(source, "<program>", "exec")
@@ -132,6 +161,7 @@ def analyze(source: str) -> dict:
         "free": [{"name": name, "line": free_lines.get(name, 0)} for name in sorted(free)],
         "imports": _imports(tree),
         "shadowed": [{"name": name, "line": line} for name, line in sorted(shadow_lines.items())],
+        "attributes": _attributes(tree, module_bound),
     }
 
 

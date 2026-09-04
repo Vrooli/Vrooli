@@ -71,7 +71,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"EvidenceService.ListTargetVerdicts": cliapp.ProtoList(h.listCall, h.listReport),
-		"GatesService.AddFact":               cliapp.ProtoMutation(h.publishReportFact, h.publishReportFactReport),
+		"publish-report-fact": cliapp.ExternalDelegation(
+			cliapp.ProtoMutation(h.publishReportFact, h.publishReportFactReport).Run,
+		),
 	})
 }
 

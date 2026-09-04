@@ -679,8 +679,9 @@ class Namespace:
             "reachable": self.reachable,
             "lib": self.lib,
             "__name__": "program_runtime_library",
-            "intent": kwargs.pop("intent", ""),
-            "text": kwargs.pop("text", ""),
+            "intent": kwargs.get("intent", ""),
+            "text": kwargs.get("text", ""),
+            "inputs": dict(kwargs),
             "__builtins__": dict(_SAFE_BUILTINS),
         }
         # Promoted source is executed in the same governed namespace as a
@@ -691,7 +692,14 @@ class Namespace:
         for scenario in self._bindings:
             if scenario not in environment:
                 environment[scenario] = getattr(self, scenario)
-        if kwargs:
+        if spec.get("contract", False):
+            accepted = tuple(str(item) for item in spec.get("input_names", ()))
+            _reject_unknown_keywords(
+                str(spec.get("name", "declared contract")),
+                {key: value for key, value in kwargs.items() if key not in accepted},
+                accepted,
+            )
+        elif kwargs:
             raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
         exec(compile(str(spec.get("source", "")), f"<library:{spec.get('name', 'unknown')}>", "exec"), environment, environment)
         value = environment.get("result")
@@ -837,21 +845,46 @@ class _LibraryNamespace:
             for item in libraries
             if item.get("name") and bool(item.get("current", True))
         }
+        self._contracts: dict[str, dict[str, dict[str, Any]]] = {}
+        for item in libraries:
+            if item.get("contract") and item.get("scenario") and item.get("name"):
+                scenario = _segment(str(item.get("scenario")))
+                name = _segment(str(item.get("name")).split(".", 1)[-1])
+                self._contracts.setdefault(scenario, {})[name] = item
 
     def available(self, name: str) -> bool:
         return name in self._libraries
 
     def list(self) -> Handle:
         rows = [
-            {key: item.get(key, "") for key in ("name", "version", "description", "origin", "current")}
+            {key: item.get(key, "") for key in ("name", "version", "description", "origin", "current", "scenario")}
             for item in sorted(self._libraries.values(), key=lambda value: str(value.get("name", "")))
         ]
         return Handle(rows, "lib.list")
 
     def __getattr__(self, name: str) -> Any:
+        if name in self._contracts:
+            return _ContractNamespace(self._owner, self._contracts[name])
         spec = self._libraries.get(name)
         if spec is None:
             raise AttributeError(f"library program {name!r} is not current and promoted")
+
+        def invoke(*args: Any, **kwargs: Any) -> Handle:
+            return self._owner._execute_library_source(spec, args, kwargs)
+
+        invoke.__name__ = name
+        return invoke
+
+
+class _ContractNamespace:
+    def __init__(self, owner: Namespace, contracts: dict[str, dict[str, Any]]) -> None:
+        self._owner = owner
+        self._contracts = contracts
+
+    def __getattr__(self, name: str) -> Any:
+        spec = self._contracts.get(name)
+        if spec is None:
+            raise AttributeError(f"declared contract {name!r} is not available")
 
         def invoke(*args: Any, **kwargs: Any) -> Handle:
             return self._owner._execute_library_source(spec, args, kwargs)

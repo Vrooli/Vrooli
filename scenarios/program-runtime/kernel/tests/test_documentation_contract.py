@@ -6,7 +6,7 @@ from host.engine import Handle
 
 
 ROOT = Path(__file__).parents[4]
-SKILL = ROOT / "scenarios" / "prompt-manager" / "store" / "skills" / "packs" / "core" / "program-runtime" / "SKILL.md"
+SKILL = ROOT / "scenarios" / "program-runtime" / "skills" / "program-runtime" / "SKILL.md"
 EXAMPLES = ROOT / "scenarios" / "program-runtime" / "docs" / "examples"
 
 

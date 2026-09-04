@@ -118,13 +118,19 @@ type HTTPDelegator struct {
 	client  *http.Client
 }
 
+const delegationHTTPTimeout = 6 * time.Minute
+
 func NewHTTPDelegator(baseURL string) *HTTPDelegator {
-	return &HTTPDelegator{baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), client: &http.Client{}}
+	return &HTTPDelegator{baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), client: &http.Client{Timeout: delegationHTTPTimeout}}
 }
 
 func NewDiscoveryDelegator(client *http.Client) *HTTPDelegator {
 	if client == nil {
-		client = &http.Client{}
+		client = &http.Client{Timeout: delegationHTTPTimeout}
+	} else if client.Timeout == 0 {
+		copy := *client
+		copy.Timeout = delegationHTTPTimeout
+		client = &copy
 	}
 	return &HTTPDelegator{client: client}
 }

@@ -2,7 +2,7 @@
 
 > **Version**: 1.0.0
 > **Canonical Reference**: /scenarios/deployment-manager/PRD.md
-> **Last Updated**: 2026-08-05
+> **Last Updated**: 2026-09-04
 > **Status**: Active product contract
 
 ---
@@ -99,6 +99,11 @@ approval.
 #### Evidence-Backed Release Governance
 - [ ] OT-P0-038 | Shared Evidence Contract | When a ramp submits release evidence, deployment-manager shall validate a versioned proto-first contract with reference-only artifacts and explicit dispositions and reasons
 - [ ] OT-P0-039 | Decision-Grade Desktop Evidence | When scenario-to-desktop reports a desktop journey, deployment-manager shall require ordered steps, before-and-after screenshots, recording references, target geometry, and named degradation reasons before release approval
+- [ ] OT-P0-040 | Canonical Readiness Policy | When a readiness decision is prepared, deployment-manager shall evaluate one versioned policy registry whose criteria declare ownership, applicability, impact, freshness, evidence, acceptance, remediation, and waiver semantics
+- [ ] OT-P0-041 | Immutable Readiness Review | When a candidate is reviewed, deployment-manager shall persist one deterministic review identity across scenario, profile, commit, artifact, targets, channel, and policy version while keeping evidence, findings, human review, waiver, goal, approval, and publication state distinct
+- [ ] OT-P0-042 | Attributable Producer and Predecessor Evidence | When readiness evidence is collected, deployment-manager shall preserve typed unavailable and stale states, bind every item to its producer and candidate, and compare against the latest actual deployed predecessor without copying producer analyzers
+- [ ] OT-P0-043 | Exact-Identity Approval and Promotion | When independent goal close-out is synchronized or promotion is requested, deployment-manager shall revalidate current evidence and authorize only the unchanged review identity while refusing open, stale, regressed, unavailable-required, or mismatched state
+- [ ] OT-P0-044 | Adaptive Agent Capability Loop | When an agent assesses, observes, recovers, or improves a release, deployment-manager shall provide discoverable skills, bounded governed programs, attributable learning records, and live measures that route recurring defects to the owning skill, program, producer, or durable scenario layer
 
 ### 🟠 P1 – Should have post-launch
 

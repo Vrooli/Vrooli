@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +21,8 @@ import (
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gorilla/mux"
@@ -61,12 +62,15 @@ func TestRequireEnv(t *testing.T) {
 }
 
 func TestSecretsManagerIsDegradableLifecycleDependency(t *testing.T) {
-	_, testFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	servicePath := filepath.Join(filepath.Dir(testFile), "..", "..", ".vrooli", "service.json")
-	data, err := os.ReadFile(servicePath)
+	scenarioRoot, err := repocontract.ResolveScenarioPath(repoRoot, "deployment-manager")
+	if err != nil {
+		t.Fatalf("resolve deployment-manager path: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
 	if err != nil {
 		t.Fatalf("read service manifest: %v", err)
 	}

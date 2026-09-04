@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,15 +52,29 @@ func (h *handler) ListLibrary(ctx context.Context, req *connect.Request[libraryv
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if h.contracts != nil && strings.TrimSpace(req.Msg.GetQuery()) != "" {
+	if h.contracts != nil {
 		for _, contract := range h.contracts.List() {
-			programs = append(programs, &sharedv1.LibraryProgram{Name: contract.ID, Id: contract.ID, Description: contract.Purpose, Scenario: contract.Scenario, Purpose: contract.Purpose, Kind: "contract", Rung: contract.Rung, OwnerSkill: contract.OwnerSkill, ValidationError: contract.ValidationError, Path: contract.SourcePath, CalledBindingIds: contract.BindingIDs})
+			programs = append(programs, contractProgram(contract))
 		}
 	}
 	return connect.NewResponse(&libraryv1.ListLibraryResponse{Programs: programs}), nil
 }
 
 func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1.GetLibraryRequest]) (*connect.Response[libraryv1.GetLibraryResponse], error) {
+	if h.contracts != nil {
+		parts := strings.SplitN(strings.TrimSpace(req.Msg.GetName()), ".", 2)
+		if len(parts) == 2 {
+			if contract, ok := h.contracts.Get(parts[0], parts[1]); ok {
+				if requested := req.Msg.GetVersion(); requested != 0 {
+					version, parseErr := strconv.ParseInt(contract.Version, 10, 64)
+					if parseErr != nil || version != requested {
+						return nil, connect.NewError(connect.CodeNotFound, library.ErrNotFound)
+					}
+				}
+				return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: contractProgram(contract)}), nil
+			}
+		}
+	}
 	program, err := h.repo.Get(ctx, strings.TrimSpace(req.Msg.GetName()), req.Msg.GetVersion())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -94,6 +109,26 @@ func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+func contractProgram(contract contracts.Contract) *sharedv1.LibraryProgram {
+	version, _ := strconv.ParseInt(contract.Version, 10, 64)
+	return &sharedv1.LibraryProgram{
+		Name:             contract.ID,
+		Id:               contract.ID,
+		Version:          version,
+		Source:           contract.Source,
+		Description:      contract.Purpose,
+		Scenario:         contract.Scenario,
+		Purpose:          contract.Purpose,
+		Kind:             "contract",
+		Rung:             contract.Rung,
+		OwnerSkill:       contract.OwnerSkill,
+		ValidationError:  contract.ValidationError,
+		Path:             contract.SourcePath,
+		CalledBindingIds: contract.BindingIDs,
+		DeclaredInputs:   contract.InputNames,
+	}
 }
 
 func (h *handler) PromoteLibrary(ctx context.Context, req *connect.Request[libraryv1.PromoteLibraryRequest]) (*connect.Response[libraryv1.PromoteLibraryResponse], error) {

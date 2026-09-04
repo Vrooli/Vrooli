@@ -9,12 +9,12 @@ metadata:
   tags: ["ai-gateway", "improve", "self-improvement", "control-loop", "setpoint", "routing", "measures", "cost", "breaker", "meta-optimization"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["ai-gateway", "program-runtime", "prompt-manager", "vrooli-memory", "agent-manager"]
-    commands: ["ai-gateway measures total", "ai-gateway measures success-rate", "ai-gateway measures fallback-rate", "ai-gateway measures failure-rate", "ai-gateway measures breaker-open", "ai-gateway measures capacity-rejections", "ai-gateway measures latency-p95", "ai-gateway routing evidence-list", "ai-gateway routing health", "ai-gateway inventory roles", "ai-gateway inventory smoke", "ai-gateway conformance scan", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["ai-gateway measures total", "ai-gateway measures cost", "ai-gateway measures tokens", "ai-gateway measures local-share", "ai-gateway measures success-rate", "ai-gateway measures fallback-rate", "ai-gateway measures failure-rate", "ai-gateway measures breaker-open", "ai-gateway measures capacity-rejections", "ai-gateway measures latency-p95", "ai-gateway routing evidence-list", "ai-gateway routing health", "ai-gateway inventory roles", "ai-gateway inventory smoke", "ai-gateway conformance scan", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -41,8 +41,8 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 
 | Row | Sensor | Band | Today (2026-09-02) |
 |---|---|---|---|
-| cost-per-caller | `route_events` cost by (scenario, operation) — no measure exists | cost_usd per (scenario, operation) readable for `last_7d` | pending_telemetry: route evidence rows carry no cost field; no `measures` verb reads cost |
-| local-share | `ai-gateway routing evidence-list --limit 50 --json` → `selected_locality == local` share of the sample | ≥ 0.80 | 50/50 = 1.00 (most recent 50 rows; not a window; `setpoint-read` live run) |
+| cost-per-caller | `ai-gateway measures cost --window last_7d` → priced `route_events.cost_estimate`; the backing aggregate also groups by `(scenario, operation)` | cost_usd per (scenario, operation) readable for `last_7d` | newly readable total; per-caller CLI projection remains a follow-up |
+| local-share | `ai-gateway measures local-share --window last_7d` → successful rows with `selected_locality == local` | ≥ 0.80 | re-read from the windowed measure |
 | fallback-rate | `ai-gateway measures fallback-rate --window last_7d` → `rate` | ≤ 0.02 | 0.0083 over 5,267 routes |
 | failure-rate | `ai-gateway measures failure-rate --window last_7d` → `rate` | ≤ 0.02 | 0.0237 over 5,267 routes |
 | breaker-open | `ai-gateway measures breaker-open --window last_7d` → `count` | 0 | 89 of 5,267 routes |
@@ -54,7 +54,7 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 
 ### 3. Sensors
 
-Read all rows through `run ai-gateway.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). The seven measures are governed bindings; in-kernel they take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` and the CLI takes `--window last_7d`. `local-share` is read from the evidence sample (the binding returns at most 50 rows), so its reading names the sample, never a window. `cost-per-caller` is unavailable by construction until the measure exists; a hand sum over evidence rows is not a reading, because the rows expose no cost.
+Read all rows through `run ai-gateway.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). The ten measures are governed bindings; in-kernel they take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` and the CLI takes `--window last_7d`. Cost is unavailable when the window has no priced rows; do not substitute a hand sum or a model price.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for ai-gateway's own bindings, and Agent Manager friction for `ai-gateway` commands through `run agent-manager.friction-digest` with `scenario=ai-gateway`.
 
@@ -70,7 +70,7 @@ AI Gateway ships no `evals/` corpus with a floor. The closest fixed instrument i
 
 | Kind | Row out of band | Route | Sensor that should move |
 |---|---|---|---|
-| Filing | cost-per-caller pending | `measures-adoption` item against ai-gateway: declare `route_events.cost_usd` grouped by (scenario, operation) as a descriptor-backed measure, reading the cost the route already records; this is the row `OT-P2-001` names as its blocker | cost-per-caller |
+| Filing | cost-per-caller has no caller projection | `measures-adoption` item against ai-gateway: expose the existing per-caller cost aggregate as a descriptor-backed table measure grouped by (scenario, operation) | cost-per-caller |
 | Filing | local-share below band, `policy_reasons` name a breaker | Read `routing health`; an `open` local breaker with `last_failure_class=timeout` is W3 against ai-gateway when the timeout is the gateway's default, and `report-bug` against `resource-ollama` when the model itself is slow (`inventory smoke --provider ollama`) | local-share, breaker-open |
 | Filing | local-share below band, `policy_reasons` name capacity | Read `capacity_verdict` on the rejected rows; `advisory_reclaim_unavailable` is a host capacity-broker finding: `report-bug` against the control plane's capacity owner with the verdicts | local-share, capacity-rejections |
 | Filing | local-share below band, callers request `remote-only` or `quality-first` for internal data | `report-bug` against the calling scenario with the evidence event ids; the route is policy-correct | local-share |

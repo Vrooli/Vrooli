@@ -22,6 +22,7 @@ require (
 	github.com/vrooli/ai-go v0.0.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 )
 

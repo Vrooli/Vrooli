@@ -27,6 +27,7 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 - [ ] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
 - [ ] OT-P0-011 | Health Check API | Provide health monitoring endpoint
 - [ ] OT-P0-012 | Durable Run Analytics | The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability
+- [ ] OT-P0-013 | Attributable Conversation Recall | The system shall make imported runner conversations discoverable without a known run ID through privacy-aware API, CLI, UI, and Search Hub surfaces while preserving provenance, deletion, and useful lexical operation during semantic-resource degradation
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Scope Locks | Implement path-scoped exclusive locks

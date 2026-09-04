@@ -2,6 +2,7 @@ package measures
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -14,15 +15,28 @@ import (
 // source-of-truth state. The zero-value fallback keeps isolated handler tests
 // deterministic when no service wiring is needed.
 func Handler(clk schedule.Clock, collectors ...func() int) (http.Handler, error) {
-	reg := measures.NewRegistry(measures.WithClock(clk.Now))
+	if len(collectors) != len(declarations()) {
+		return nil, fmt.Errorf("measures: expected %d collectors, got %d", len(declarations()), len(collectors))
+	}
+	byName := make(map[string]func() int, len(collectors))
 	for i, declaration := range declarations() {
+		byName[declaration.Name] = collectors[i]
+	}
+	return HandlerWithCollectors(clk, byName)
+}
+
+// HandlerWithCollectors registers collectors by declaration name. A missing
+// collector is an error instead of silently becoming a fabricated zero.
+func HandlerWithCollectors(clk schedule.Clock, collectors map[string]func() int) (http.Handler, error) {
+	reg := measures.NewRegistry(measures.WithClock(clk.Now))
+	for _, declaration := range declarations() {
 		decl := declaration
+		collector, ok := collectors[decl.Name]
+		if !ok || collector == nil {
+			return nil, fmt.Errorf("measures: no collector registered for %s", decl.Name)
+		}
 		if err := reg.Register(decl, func(context.Context, measures.MeasureRequest) (measures.MeasureResult, error) {
-			value := 0
-			if i < len(collectors) && collectors[i] != nil {
-				value = collectors[i]()
-			}
-			return measures.MeasureResult{Value: strconv.Itoa(value), Provenance: measures.Provenance{ExecutedQuery: "live in-memory program-runtime owner"}}, nil
+			return measures.MeasureResult{Value: strconv.Itoa(collector()), Provenance: measures.Provenance{ExecutedQuery: "live in-memory program-runtime owner"}}, nil
 		}); err != nil {
 			return nil, err
 		}

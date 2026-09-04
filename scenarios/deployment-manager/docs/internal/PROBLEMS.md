@@ -12,7 +12,7 @@ No suppression, waiver, or lowered threshold is used for these findings.
 
 ## Work ladder
 
-- Rung: W3
-- Evidence: The registered goal now has P0 contract coverage in `OT-P0-038` and `OT-P0-039`; `business-health validate scenario deployment-manager` is L3 with zero findings, the business phase run `20260805-045327-80af2739` is clean, requirements sync reports 42/104 complete with fresh evidence, and Test Genie run `20260805-043919-d4ca82e1` reports 19/19 phases passed.
-- Blocker: The scenario ladder is closed for the current contract. Provider maturity reports retain advisory debt, but the active storage validation provider is runnable and is not a release blocker.
-- Measured: 2026-08-05
+- Rung: W3 complete; final scenario-wide validation remains the release check.
+- Evidence: the embedded policy has 33 validated criteria; immutable reviews persist typed producer observations, findings, human checks, waivers, goal linkage, approval, promotion, and supersession separately; exact-identity release tests fail closed; five governed programs are indexed; the usage and improve skill set validates; owned readiness and waiver measures probe successfully.
+- Blocker: none in the readiness implementation. Endpoint inventory generation now succeeds after declaring the Offer Desk delegation as a local external command; report `knw-1788502018822266137` captured the superseded diagnosis and may be closed by its owning investigator.
+- Measured: 2026-09-04

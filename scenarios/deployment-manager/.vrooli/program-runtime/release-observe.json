@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json", "name": "deployment-manager.release-observe", "version": "1",
+  "purpose": "Observe one release-readiness review as bounded state, evidence attribution, unresolved work, and comparison posture.",
+  "inputs": {"review_key": {"type": "string", "required": true}, "limit": {"type": "integer", "default": 20}},
+  "assumptions": ["the review key identifies one immutable candidate"],
+  "invariants": ["read-only", "at most limit evidence and finding rows are materialized", "unavailable is never reported as healthy", "one envelope is printed on every path"],
+  "bindings": [{"id": "deployment-manager/readiness-reviews/get", "effect": "read"}], "verbs": ["gather"],
+  "outputs": {"status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]}, "phase": {"enum": ["validate", "collect", "classify", "report"]}, "signals": {"review_status": "durable state", "comparison_mode": "lineage posture", "goal_ref": "canonical goal", "evidence_count": "normalized evidence rows", "finding_count": "unresolved rows", "evidence": "bounded producer projections", "findings": "bounded blockers"}, "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"]}, "evidence": "review key"},
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 40},
+  "fixtures": [{"id": "bad-limit", "inputs": {"review_key": "rr-x", "limit": 0}, "expect": {"status": ["failed"]}}, {"id": "unknown", "inputs": {"review_key": "rr-fixture-missing"}, "expect": {"status": ["failed", "unavailable"]}, "requires": ["deployment-manager"]}],
+  "rung": "S3", "owner_skill": "deployment-manager"
+}

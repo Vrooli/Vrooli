@@ -11,6 +11,7 @@ import (
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/lpbs/lpbsv1connect"
 	migrationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/migration/migrationv1connect"
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles/profilesv1connect"
+	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness/readinessv1connect"
 	releasesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases/releasesv1connect"
 	swapsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/swaps/swapsv1connect"
 	telemetryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/telemetry/telemetryv1connect"
@@ -64,6 +65,16 @@ func AllEndpoints() []module.EndpointDescriptor {
 		connectEndpoint("get_release", releasesconnect.ReleasesServiceGetProcedure, "Get a release", "releases"),
 		connectEndpoint("reverify_release", releasesconnect.ReleasesServiceReverifyProcedure, "Reverify a release", "releases"),
 		connectEndpoint("start_release", releasesconnect.ReleasesServiceStartProcedure, "Start a release", "releases"),
+		connectEndpoint("report_readiness_evidence", readinessconnect.ReadinessServiceReportEvidenceProcedure, "Report producer readiness evidence", "readiness"),
+		connectEndpoint("prepare_readiness_review", readinessconnect.ReadinessServicePrepareReviewProcedure, "Prepare an exact readiness review", "readiness"),
+		connectEndpoint("get_readiness_review", readinessconnect.ReadinessServiceGetReviewProcedure, "Get a readiness review", "readiness"),
+		connectEndpoint("list_readiness_reviews", readinessconnect.ReadinessServiceListReviewsProcedure, "List readiness reviews", "readiness"),
+		connectEndpoint("list_readiness_review_waivers", readinessconnect.ReadinessServiceListReviewWaiversProcedure, "List readiness review waivers", "readiness"),
+		connectEndpoint("synchronize_readiness_goal", readinessconnect.ReadinessServiceSynchronizeGoalClosureProcedure, "Synchronize readiness goal closure", "readiness"),
+		connectEndpoint("approve_readiness_review", readinessconnect.ReadinessServiceApproveReviewProcedure, "Approve a readiness review", "readiness"),
+		connectEndpoint("create_readiness_waiver", readinessconnect.ReadinessServiceCreateWaiverProcedure, "Create a readiness waiver", "readiness"),
+		connectEndpoint("record_readiness_human_check", readinessconnect.ReadinessServiceRecordHumanCheckProcedure, "Record an independent readiness human check", "readiness"),
+		connectEndpoint("check_readiness_policy", readinessconnect.ReadinessServiceCheckPolicyProjectionProcedure, "Check the readiness policy projection", "readiness"),
 	}
 }
 

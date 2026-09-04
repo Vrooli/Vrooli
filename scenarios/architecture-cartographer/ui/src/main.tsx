@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
@@ -39,6 +40,7 @@ async function bootstrap() {
 
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
+      <BaseStyles />
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
             ./i18n side-effect init above) so the localised fallback can

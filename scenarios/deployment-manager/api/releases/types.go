@@ -34,6 +34,8 @@ type Release struct {
 	DeploymentID          string             `json:"deployment_id,omitempty"`
 	ProfileVersion        int                `json:"profile_version,omitempty"`
 	GitCommitHash         string             `json:"git_commit_hash"`
+	ArtifactDigest        string             `json:"artifact_digest,omitempty"`
+	ReadinessReviewKey    string             `json:"readiness_review_key,omitempty"`
 	ReleaseVersion        string             `json:"release_version"`
 	Channel               string             `json:"channel"`
 	Status                string             `json:"status"`
@@ -138,10 +140,12 @@ type Repository interface {
 
 // StartRequest is the body for POST /api/v1/profiles/{id}/releases/start.
 type StartRequest struct {
-	Channel        string   `json:"channel,omitempty"`
-	GitCommitHash  string   `json:"git_commit_hash"`
-	ReleaseVersion string   `json:"release_version"`
-	ReleaseNotes   string   `json:"release_notes,omitempty"`
-	ReleasedBy     string   `json:"released_by,omitempty"`
-	Platforms      []string `json:"platforms,omitempty"`
+	Channel            string   `json:"channel,omitempty"`
+	GitCommitHash      string   `json:"git_commit_hash"`
+	ArtifactDigest     string   `json:"artifact_digest"`
+	ReadinessReviewKey string   `json:"readiness_review_key"`
+	ReleaseVersion     string   `json:"release_version"`
+	ReleaseNotes       string   `json:"release_notes,omitempty"`
+	ReleasedBy         string   `json:"released_by,omitempty"`
+	Platforms          []string `json:"platforms,omitempty"`
 }

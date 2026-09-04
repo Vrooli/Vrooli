@@ -5,6 +5,7 @@ package ssh
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	sshcore "github.com/vrooli/ssh-core"
@@ -24,13 +25,17 @@ func NewTOFUHostKeyCallbackForPath(host string, port int, path string) (gossh.Ho
 }
 
 func ensureKnownHostsFile() (string, error) {
-	dir, err := GetSSHDir()
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(dir, "known_hosts")
+	path := scenarioKnownHostsFile()
 	if err := sshcore.EnsureKnownHostsFile(path); err != nil {
 		return "", fmt.Errorf("initialize cloud SSH known_hosts: %w", err)
 	}
 	return path, nil
+}
+
+func scenarioKnownHostsFile() string {
+	stateDir := os.Getenv("VROOLI_STATE_DIR")
+	if stateDir == "" {
+		stateDir = filepath.Join("data", "ssh")
+	}
+	return filepath.Join(stateDir, "known_hosts")
 }

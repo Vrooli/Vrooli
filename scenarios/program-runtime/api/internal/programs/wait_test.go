@@ -174,6 +174,13 @@ func TestDeadlineDetailClassifiesAsDeadlineExceeded(t *testing.T) {
 	}
 }
 
+func TestWorkflowRejectionHasItsOwnFailureShape(t *testing.T) {
+	shape, cause := failureShape("remote status 400: workflow input: schema_mismatch")
+	if shape != "workflow_rejected" || cause != programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED {
+		t.Fatalf("got %q/%v, want workflow_rejected/unclassified", shape, cause)
+	}
+}
+
 // TestNoFailureDetailClassifiesAsKernelRuntimeByDefault keeps the fallback
 // honest: an unrecognised detail must not be silently mapped onto a specific
 // cause it does not warrant.

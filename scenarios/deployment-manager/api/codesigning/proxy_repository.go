@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"deployment-manager/shared"
-
-	"github.com/vrooli/api-core/discovery"
 )
 
 // ScenarioLookup provides the ability to get scenario name from profile ID.
@@ -69,11 +67,7 @@ func NewProxyRepository(scenarioLookup ScenarioLookup, opts ...ProxyRepositoryOp
 // getDefaultSigningAPIURL resolves the scenario-to-desktop signing API through
 // the standard Vrooli discovery contract.
 func getDefaultSigningAPIURL() string {
-	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-desktop")
-	if err != nil {
-		return ""
-	}
-	validated, err := shared.ValidateServiceURL(url)
+	validated, err := shared.NewEnvConfigResolver().ResolveDesktopPackagerURL()
 	if err != nil {
 		return ""
 	}

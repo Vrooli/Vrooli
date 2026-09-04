@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json", "name": "deployment-manager.release-recover", "version": "1",
+  "purpose": "Produce a bounded recovery decision for one exact review; execution is refused until an owner operation, explicit grant, confirmation, and dry-run evidence exist.",
+  "inputs": {"review_key": {"type": "string", "required": true}, "execute": {"type": "boolean", "default": false}, "confirmation": {"type": "string", "default": ""}, "dry_run_reference": {"type": "string", "default": ""}},
+  "assumptions": ["recovery authority remains with the owning release target"],
+  "invariants": ["read-only by default", "execute mode never improvises a missing owner binding", "target identity is the immutable review key", "one envelope is printed on every path"],
+  "bindings": [{"id": "deployment-manager/readiness-reviews/get", "effect": "read"}],
+  "outputs": {"status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]}, "phase": {"enum": ["validate", "collect", "decide", "act", "report"]}, "signals": {"decision": "observe, repair blockers, rollback, or owner_action_unbound", "review_status": "durable state", "target_identity": "review key", "required_controls": "grant, confirmation, and dry-run evidence"}, "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime", "no_governed_binding"]}, "evidence": "review key and dry-run reference"},
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 1},
+  "fixtures": [{"id": "missing-key", "inputs": {}, "expect": {"status": ["failed"]}}, {"id": "execute-refused", "inputs": {"review_key": "rr-fixture-missing", "execute": true, "confirmation": "confirmed", "dry_run_reference": "run:fixture"}, "expect": {"status": ["failed", "unavailable"]}, "requires": ["deployment-manager"]}],
+  "rung": "S3", "owner_skill": "deployment-manager"
+}

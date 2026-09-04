@@ -54,7 +54,7 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 
 ### 3. Sensors
 
-Read all rows through `run program-runtime.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Two rows are unavailable inside a program by construction: `discovery eval` is a local CLI command with no binding, and `authoring eval` is an RPC without a program binding. That is a W1 finding (§5), not a reason to estimate.
+Read all rows through `run program-runtime.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Two rows remain unavailable inside a program by construction: the eval bindings exist and require confirmation, but their corpus runs exceed the kernel's per-invoke budget. That is a W3 runtime-budget limitation (§5), not a missing binding and not a reason to estimate.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for this scenario's own bindings, and `run agent-manager.friction-digest` (inputs `scenario`, `window_days`) for `program-runtime` commands.
 

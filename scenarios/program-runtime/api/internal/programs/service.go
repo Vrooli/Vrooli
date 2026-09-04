@@ -487,6 +487,38 @@ func (s *Service) List(ctx context.Context, sessionID string, includeOperator bo
 	return out
 }
 
+// ListFiltered applies the optional provenance and time-window selectors at
+// the service boundary while preserving the existing repository contract.
+func (s *Service) ListFiltered(ctx context.Context, sessionID string, includeOperator bool, provenance string, since, until time.Time, limit int32) []*programsv1.Program {
+	out, _ := s.ListFilteredWithError(ctx, sessionID, includeOperator, provenance, since, until, limit)
+	return out
+}
+
+// ListFilteredWithError is the error-preserving service boundary used by RPC
+// handlers. ListFiltered remains as a compatibility helper for callers that
+// intentionally treat an unavailable corpus as empty.
+func (s *Service) ListFilteredWithError(ctx context.Context, sessionID string, includeOperator bool, provenance string, since, until time.Time, limit int32) ([]*programsv1.Program, error) {
+	provenance = strings.TrimSpace(strings.ToLower(provenance))
+	var values []programsv1.Provenance
+	if provenance != "" {
+		for _, candidate := range []programsv1.Provenance{programsv1.Provenance_PROVENANCE_AGENT, programsv1.Provenance_PROVENANCE_OPERATOR, programsv1.Provenance_PROVENANCE_TEST} {
+			shortName := strings.TrimPrefix(strings.ToLower(candidate.String()), "provenance_")
+			if strings.EqualFold(candidate.String(), provenance) || shortName == provenance {
+				values = append(values, candidate)
+				break
+			}
+		}
+		if len(values) == 0 {
+			return nil, fmt.Errorf("unknown provenance %q", provenance)
+		}
+	}
+	items, err := s.repo.ListFiltered(ctx, ListFilter{SessionID: sessionID, IncludeOperator: includeOperator, Provenance: values, Since: since, Until: until, Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 func (s *Service) MineFailures(ctx context.Context, includeOperator bool) []*programsv1.FailureShape {
 	return s.MineFailuresSince(ctx, includeOperator, time.Time{})
 }
@@ -539,6 +571,10 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		{"grant", "refused_no_grant", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NO_GRANT},
 		{"inference spend", "inference_spend_exceeded", programsv1.FailureCause_FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED},
 		{"delegated", "delegated_run_spend_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED},
+		{"schema_mismatch", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
+		{"not_found_workflowrevision", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
+		{"workflow input", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
+		{"workflow rejected", "workflow_rejected", programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED},
 		{"syntaxerror", "kernel_syntax", programsv1.FailureCause_FAILURE_CAUSE_KERNEL_SYNTAX},
 		{"bridge unavailable", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
 		{"transport", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
@@ -605,6 +641,9 @@ func preflightCause(diagnostics []*programsv1.Diagnostic) string {
 		if IsUnresolvedNameDiagnostic(diagnostic) {
 			return "unresolved_name"
 		}
+		if IsProtectedNameMisuseDiagnostic(diagnostic) {
+			return "protected_name_misuse"
+		}
 	}
 	return "unclassified"
 }
@@ -612,6 +651,11 @@ func preflightCause(diagnostics []*programsv1.Diagnostic) string {
 func preflightFailureCause(diagnostics []*programsv1.Diagnostic) programsv1.FailureCause {
 	if preflightCause(diagnostics) == "unresolved_name" {
 		return programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME
+	}
+	for _, diagnostic := range diagnostics {
+		if IsProtectedNameMisuseDiagnostic(diagnostic) {
+			return programsv1.FailureCause_FAILURE_CAUSE_PROTECTED_NAME_MISUSE
+		}
 	}
 	return programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED
 }

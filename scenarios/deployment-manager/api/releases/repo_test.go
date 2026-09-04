@@ -63,8 +63,8 @@ func TestReleaseHelpers(t *testing.T) {
 
 func releaseRows(id string) *sqlmock.Rows {
 	now := time.Now()
-	return sqlmock.NewRows([]string{"id", "profile_id", "deployment_id", "profile_version", "git_commit_hash", "release_version", "channel", "status", "release_notes", "released_by", "promoted_from_release_id", "readiness_goal_ref", "approved_at_commit", "verification_evidence", "created_at", "published_at", "updated_at"}).
-		AddRow(id, "p1", nil, 1, "abc", "1.0.0", "stable", StatusPending, nil, nil, nil, nil, nil, []byte(`[]`), now, nil, now)
+	return sqlmock.NewRows([]string{"id", "profile_id", "deployment_id", "profile_version", "git_commit_hash", "artifact_digest", "readiness_review_key", "release_version", "channel", "status", "release_notes", "released_by", "promoted_from_release_id", "readiness_goal_ref", "approved_at_commit", "verification_evidence", "created_at", "published_at", "updated_at"}).
+		AddRow(id, "p1", nil, 1, "abc", "sha256:test", "rr-test", "1.0.0", "stable", StatusPending, nil, nil, nil, nil, nil, []byte(`[]`), now, nil, now)
 }
 
 func releasePlatformRows(id string) *sqlmock.Rows {
@@ -82,7 +82,7 @@ func TestSQLRepositoryInsertGetAndList(t *testing.T) {
 	ctx := context.Background()
 	release := &Release{ID: "r1", ProfileID: "p1", ProfileVersion: 1, GitCommitHash: "abc", ReleaseVersion: "1.0.0", Platforms: []ReleasePlatform{{Platform: "linux-x64"}}}
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO releases")).WithArgs("r1", "p1", sqlmock.AnyArg(), sqlmock.AnyArg(), "abc", "1.0.0", "stable", StatusPending, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO releases")).WithArgs("r1", "p1", sqlmock.AnyArg(), sqlmock.AnyArg(), "abc", sqlmock.AnyArg(), sqlmock.AnyArg(), "1.0.0", "stable", StatusPending, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO release_platforms")).WithArgs("r1", "linux-x64", PlatformStatusPending, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	if err := repo.Insert(ctx, release); err != nil || release.Channel != "stable" || release.Status != StatusPending {

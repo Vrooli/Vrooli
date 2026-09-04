@@ -14,7 +14,7 @@ func TestMarketingObservationIsAdvisoryAndNamesMissingAssets(t *testing.T) {
 	if signal.ItemID != "marketing-assets-available" || signal.Status != SignalFailed || !strings.Contains(signal.Detail, "no launch assets") {
 		t.Fatalf("unexpected marketing signal: %+v", signal)
 	}
-	verdict, err := Aggregate("web-console", "abc", Checklist{Version: ChecklistVersion, Items: []Item{{ID: "marketing-assets-available", Title: "Launch assets", Category: "mechanical", CleanRequirement: Advisory, GlobalImpact: AdvisoryImpact, AcceptanceCriteria: "report"}}}, []Signal{signal}, time.Now().UTC())
+	verdict, err := Aggregate("web-console", "abc", Checklist{Version: ChecklistVersion, Items: []Item{validTestItem("marketing-assets-available", Advisory, AdvisoryImpact, "report")}}, []Signal{signal}, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}

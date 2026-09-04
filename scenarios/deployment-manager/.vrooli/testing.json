@@ -66,7 +66,7 @@
             "kind": "ui",
             "path": "ui",
             "language": "typescript",
-            "framework": "vite"
+            "framework": "vitest"
           }
         }
       ],
@@ -231,16 +231,16 @@
     "tidiness": {
       "budgets": {
         "ratchet": true,
-        "duplication_line_debt": 11840,
-        "baseline_duplication_line_debt": 11841,
-        "long_files": 2,
-        "baseline_long_files": 3,
-        "complexity_over_threshold": 103,
-        "baseline_complexity_over_threshold": 104,
+        "duplication_line_debt": 11943,
+        "baseline_duplication_line_debt": 11944,
+        "long_files": 3,
+        "baseline_long_files": 4,
+        "complexity_over_threshold": 125,
+        "baseline_complexity_over_threshold": 126,
         "coupling_over_threshold": 1,
         "baseline_coupling_over_threshold": 2,
         "reserve": 1,
-        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+        "reserve_reason": "The reviewed adaptive-readiness surface adds required policy, persistence, Connect, producer, and release-gate branches; each metric remains ratcheted one unit below its measured post-change observation."
       }
     }
   }

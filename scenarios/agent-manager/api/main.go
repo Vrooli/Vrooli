@@ -57,6 +57,7 @@ type Server struct {
 	awaitRegistry         *orchestration.AwaitRegistry
 	workflowNudger        *orchestration.WorkflowNudger
 	transcriptImporter    *orchestration.TranscriptImportScheduler
+	frictionPublisher     *orchestration.FrictionPublishScheduler
 	modelHealthProbe      *healthstore.Probe
 	modelPolicyDrift      *modelpolicydrift.Scheduler
 	rolePolicyState       *rolepolicy.State
@@ -137,7 +138,7 @@ func NewServer() (*Server, error) {
 	srv := &Server{
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, invocationReadModel: deps.InvocationReadModel,
@@ -168,6 +169,9 @@ func (s *Server) startRecovery() {
 	}
 	if s.transcriptImporter != nil {
 		s.transcriptImporter.Start(ctx)
+	}
+	if s.frictionPublisher != nil {
+		s.frictionPublisher.Start(ctx)
 	}
 	repoRoot := os.Getenv("PROJECT_ROOT")
 	if repoRoot == "" {
@@ -220,7 +224,7 @@ func (s *Server) Router() http.Handler {
 }
 
 func (s *Server) Cleanup() error {
-	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.modelPolicyDrift)
+	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.frictionPublisher, s.modelPolicyDrift)
 	return nil
 }
 

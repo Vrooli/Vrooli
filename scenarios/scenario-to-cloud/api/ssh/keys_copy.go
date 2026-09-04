@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	sshcore "github.com/vrooli/ssh-core"
 	"scenario-to-cloud/internal/shellutil"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -96,9 +97,12 @@ func (ExecKeyCopier) CopyKey(ctx context.Context, req CopyKeyRequest) CopyKeyRes
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
+	if algos := sshcore.PinnedHostKeyAlgorithms(cfg.Host, cfg.Port, cfg.KnownHostsFile); len(algos) > 0 {
+		config.HostKeyAlgorithms = algos
+	}
 
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	client, err := gossh.Dial("tcp", addr, config)
+	client, err := dialContext(ctx, addr, config)
 	if err != nil {
 		classified := ClassifyError(err.Error(), cfg.Host, err.Error())
 		return CopyKeyResponse{
@@ -195,4 +199,18 @@ func (ExecKeyCopier) CopyKey(ctx context.Context, req CopyKeyRequest) CopyKeyRes
 		KeyCopied:     true,
 		AlreadyExists: false,
 	}
+}
+
+func dialContext(ctx context.Context, addr string, config *gossh.ClientConfig) (*gossh.Client, error) {
+	d := net.Dialer{Timeout: config.Timeout}
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	clientConn, chans, reqs, err := gossh.NewClientConn(conn, addr, config)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return gossh.NewClient(clientConn, chans, reqs), nil
 }

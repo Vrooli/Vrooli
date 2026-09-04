@@ -63,10 +63,22 @@
       "id": "ai-gateway/measures/capacity-rejections",
       "effect": "read"
     },
-    {
-      "id": "ai-gateway/measures/latency-p95",
-      "effect": "read"
-    },
+  {
+    "id": "ai-gateway/measures/latency-p95",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/cost",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/tokens",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/local-share",
+    "effect": "read"
+  },
     {
       "id": "ai-gateway/routing/evidence-list",
       "effect": "read"

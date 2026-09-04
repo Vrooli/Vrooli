@@ -39,8 +39,5 @@ func (s *Server) setupRoutes() {
 		registerBundleExportCompatibilityRoute(s.Router, s.BundlesHandler.ExportBundle)
 	}
 	s.Router.Path("/api/v1/readiness/verdict").Handler(readiness.Handler(readiness.DefaultChecklist())).Methods(http.MethodPost)
-	s.Router.Path("/api/v1/readiness/goal").Handler(readiness.GoalHandler(readiness.NewGoalClient(), readiness.DefaultChecklist())).Methods(http.MethodPost)
-	s.Router.Path("/api/v1/readiness/waiver").Handler(readiness.WaiverHandler(s.ReleasesRepo)).Methods(http.MethodPost)
-	s.Router.Path("/api/v1/readiness/state").Handler(readiness.StateHandler(s.ReleasesRepo)).Methods(http.MethodGet)
 	s.Router.HandleFunc("/health", s.HealthHandler.Health).Methods("GET")
 }

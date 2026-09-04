@@ -443,6 +443,30 @@
               "summary_template": "{latency_ms} ms p95 route latency ({window})"
             }
           }
+        },
+        {
+          "name": "cost",
+          "description": "Sum priced AI route cost in a window",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Canonical time window token", "bind_waiver": "CLI encodes the canonical TimeWindow RPC message." }],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "RouteCost" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "route_events", "intent": "Total priced route cost; unavailable when the window has no priced rows.", "questions": ["total gateway cost this week", "how much did AI routing cost last month", "route cost in dollars"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "cost_usd", "unit": "usd", "summary_template": "{cost_usd} USD route cost ({window})" } }
+        },
+        {
+          "name": "tokens",
+          "description": "Sum input and output tokens used by routes in a window",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Canonical time window token", "bind_waiver": "CLI encodes the canonical TimeWindow RPC message." }],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "RouteTokens" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "route_events", "intent": "Total input plus output tokens used by AI routes in a window.", "questions": ["how many AI tokens were used this week", "gateway token usage last month", "route input and output token totals"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "total_tokens", "unit": "tokens", "summary_template": "{total_tokens} total route tokens ({window})" } }
+        },
+        {
+          "name": "local-share",
+          "description": "Measure the fraction of successful routes served locally",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Canonical time window token", "bind_waiver": "CLI encodes the canonical TimeWindow RPC message." }],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "RouteLocalShare" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "route_events", "intent": "Fraction of routes served locally in a window.", "questions": ["what share of routes were local this week", "gateway local serving share last month", "how often did local routing serve the request"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "share", "unit": "ratio", "summary_template": "{share} local-served route share ({window})" } }
         }
       ]
     },
@@ -1124,8 +1148,8 @@
   "measures": {
     "omitted": [
       {
-        "domain": "inference",
-        "reason": "Typed inference returns response-scoped value and usage accounting; it intentionally creates no durable inference table or measure substrate."
+        "domain": "media_executions",
+        "reason": "Media execution state is owned by the media capability and has no route-analytics measure in this phase."
       }
     ],
     "domains": [

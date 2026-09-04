@@ -19,7 +19,8 @@
     "12-enterprise-compliance/module.json",
     "13-cli-automation/module.json",
     "14-advanced-features/module.json",
-    "15-evidence-governance/module.json"
+    "15-evidence-governance/module.json",
+    "16-adaptive-readiness/module.json"
   ],
   "requirements": []
 }

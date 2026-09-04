@@ -36,6 +36,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	_ "modernc.org/sqlite"
 
@@ -45,6 +46,7 @@ import (
 	libraryH "program-runtime/handlers/library"
 	measuresH "program-runtime/handlers/measures"
 	programsH "program-runtime/handlers/programs"
+	programsValidationH "program-runtime/handlers/programs-validation"
 	sessionsH "program-runtime/handlers/sessions"
 	shapesH "program-runtime/handlers/shapes"
 	telemetryH "program-runtime/handlers/telemetry"
@@ -205,6 +207,12 @@ func main() {
 			}
 			out = append(out, programs.LibrarySpec{Name: program.GetName(), Version: program.GetVersion(), Source: program.GetSource(), Description: program.GetDescription(), Current: program.GetCurrent()})
 		}
+		for _, contract := range contractIndex.List() {
+			if contract.ValidationError != "" || contract.Source == "" {
+				continue
+			}
+			out = append(out, programs.LibrarySpec{Name: contract.Name, Scenario: contract.Scenario, Contract: true, InputNames: contract.InputNames, Version: 1, Source: contract.Source, Description: contract.Purpose, Current: true})
+		}
 		return out
 	})
 	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
@@ -220,6 +228,9 @@ func main() {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {
 				known = append(known, name)
+				group := strings.ReplaceAll(binding.GetGroup(), "-", "_")
+				command := strings.ReplaceAll(strings.ReplaceAll(binding.GetCommand(), "-", "_"), "/", ".")
+				known = append(known, name+"."+group+"."+command)
 			}
 		}
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
@@ -230,6 +241,9 @@ func main() {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {
 				known = append(known, name)
+				group := strings.ReplaceAll(binding.GetGroup(), "-", "_")
+				command := strings.ReplaceAll(strings.ReplaceAll(binding.GetCommand(), "-", "_"), "/", ".")
+				known = append(known, name+"."+group+"."+command)
 			}
 		}
 		for _, previous := range programService.List(ctx, sessionID, true) {
@@ -330,7 +344,10 @@ func main() {
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
-		programsH.Module(programService, authoringDeps),
+		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultSuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
+			return bindingsH.ResolveIntentForEvaluation(ctx, bindingRegistry, libraryRepository, intent, limit, mode)
+		}}),
+		programsValidationH.Module(repoRoot, bindingRegistry),
 		libraryH.Module(libraryRepository, bindingRegistry, contractIndex),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),

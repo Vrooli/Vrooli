@@ -3568,6 +3568,46 @@
       "service": "AgentManagerService",
       "method": "ValidateRolePolicyCatalog",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "ConversationSearchService",
+      "method": "SearchConversations",
+      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
+    },
+    {
+      "service": "ConversationSearchService",
+      "method": "GetConversationContext",
+      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
+    },
+    {
+      "service": "ConversationSearchService",
+      "method": "GetConversationIndexStatus",
+      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
+    },
+    {
+      "service": "ConversationSearchControlService",
+      "method": "PlanConversationReindex",
+      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+    },
+    {
+      "service": "ConversationSearchControlService",
+      "method": "ReindexConversations",
+      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+    },
+    {
+      "service": "ConversationSearchControlService",
+      "method": "CancelConversationReindex",
+      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+    },
+    {
+      "service": "ConversationSearchControlService",
+      "method": "WriteConversationSearchConfig",
+      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+    },
+    {
+      "service": "ConversationSearchControlService",
+      "method": "WriteConversationSearchCorpus",
+      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
     }
   ],
   "measures": {

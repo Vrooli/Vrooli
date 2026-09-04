@@ -83,6 +83,22 @@ func TestDeriveInvocationFactsPreservesLiteralArgvArguments(t *testing.T) {
 	}
 }
 
+func TestDeriveInvocationFactsExtractsKnownProgramAndSkillIdentifiers(t *testing.T) {
+	runID := uuid.New()
+	call := domain.NewToolCallEvent(runID, "shell", "ids", map[string]any{"command": "prompt-manager skill read goal-loop && program-runtime programs get prog-123"})
+	facts := DeriveInvocationFacts([]*domain.RunEvent{call})
+	if len(facts) != 2 || facts[0].SkillID != "goal-loop" || facts[0].ProgramID != "" || facts[1].ProgramID != "prog-123" {
+		t.Fatalf("facts=%+v", facts)
+	}
+}
+
+func TestCommandWithoutKnownIdentifierKeepsIdentifiersEmpty(t *testing.T) {
+	programID, skillID := commandIdentifiers("bash -lc echo secret")
+	if programID != "" || skillID != "" {
+		t.Fatalf("programID=%q skillID=%q", programID, skillID)
+	}
+}
+
 func TestDeriveInvocationFactsUnwrapsLiteralShellArgvAndKeepsWrapper(t *testing.T) {
 	runID := uuid.New()
 	call := domain.NewToolCallEvent(runID, "exec_command", "wrapped", map[string]any{"argv": []any{"bash", "-lc", "cat README.md && vrooli scenario status agent-manager --json"}})

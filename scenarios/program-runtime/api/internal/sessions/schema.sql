@@ -41,7 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_reclamation_reasons_session ON reclamation_reason
 CREATE INDEX IF NOT EXISTS idx_reclamation_reasons_time ON reclamation_reasons(reclaimed_at);
 
 CREATE TABLE IF NOT EXISTS session_delegations (
-  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  -- Delegations are durable evidence and must outlive the ephemeral session
+  -- lease that created them. The session id remains an attribution key, not a
+  -- cascading ownership relation.
+  session_id TEXT NOT NULL,
   execution_id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
   workflow_key TEXT NOT NULL,

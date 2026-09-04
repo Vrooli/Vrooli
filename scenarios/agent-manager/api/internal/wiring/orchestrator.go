@@ -60,6 +60,7 @@ type OrchestratorDependencies struct {
 	AwaitRegistry         *orchestration.AwaitRegistry
 	WorkflowNudger        *orchestration.WorkflowNudger
 	TranscriptImporter    *orchestration.TranscriptImportScheduler
+	FrictionPublisher     *orchestration.FrictionPublishScheduler
 	ModelHealthProbe      *healthstore.Probe
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
@@ -273,7 +274,22 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+}
+
+func frictionPublishInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_FRICTION_PUBLISH_INTERVAL"))
+	if raw == "" {
+		return 6 * time.Hour
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil || parsed < time.Minute {
+		return time.Minute
+	}
+	if parsed > 24*time.Hour {
+		return 24 * time.Hour
+	}
+	return parsed
 }
 
 func transcriptImportInterval() time.Duration {

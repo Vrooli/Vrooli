@@ -63,12 +63,18 @@ func (r *EnvConfigResolver) ResolveAnalyzerURL() (string, error) {
 // ResolveSecretsManagerURL returns the URL for the secrets-manager service.
 // It checks SECRETS_MANAGER_URL first for testing, then uses discovery.
 func (r *EnvConfigResolver) ResolveSecretsManagerURL() (string, error) {
+	if url := strings.TrimSpace(os.Getenv("SECRETS_MANAGER_URL")); url != "" {
+		return ValidateServiceURL(url)
+	}
 	return discovery.ResolveScenarioURLDefault(context.Background(), "secrets-manager")
 }
 
 // ResolveDesktopPackagerURL returns the URL for the scenario-to-desktop service.
 // It checks SCENARIO_TO_DESKTOP_URL first for testing, then uses discovery.
 func (r *EnvConfigResolver) ResolveDesktopPackagerURL() (string, error) {
+	if url := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_URL")); url != "" {
+		return ValidateServiceURL(url)
+	}
 	return discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-desktop")
 }
 

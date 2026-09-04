@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "deployment-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "36e5c2535a36b481f64d72ee18153d6df29931cd1aa20bba4d93950a2e9f324d",
+  "manifest_hash": "45d5ecd9bbb1f72f399e6b42008d7976aeccbda6a6134dd2ba626512fe22ade1",
   "commands": [
     {
       "path": "evidence list",
@@ -18,9 +18,8 @@
       "path": "evidence publish-report-fact",
       "group": "evidence",
       "command": "publish-report-fact",
-      "binding": "GatesService.AddFact",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "binding": ".",
+      "observed_primitive": "external_delegation"
     },
     {
       "path": "profiles create",
@@ -69,6 +68,86 @@
       "binding": "ProfilesService.ListProfileVersions",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness-review-waivers create",
+      "group": "readiness-review-waivers",
+      "command": "create",
+      "binding": "ReadinessService.CreateWaiver",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness-review-waivers list",
+      "group": "readiness-review-waivers",
+      "command": "list",
+      "binding": "ReadinessService.ListReviewWaivers",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness-reviews approve",
+      "group": "readiness-reviews",
+      "command": "approve",
+      "binding": "ReadinessService.ApproveReview",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness-reviews get",
+      "group": "readiness-reviews",
+      "command": "get",
+      "binding": "ReadinessService.GetReview",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness-reviews human-check",
+      "group": "readiness-reviews",
+      "command": "human-check",
+      "binding": "ReadinessService.RecordHumanCheck",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness-reviews list",
+      "group": "readiness-reviews",
+      "command": "list",
+      "binding": "ReadinessService.ListReviews",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness-reviews policy-check",
+      "group": "readiness-reviews",
+      "command": "policy-check",
+      "binding": "ReadinessService.CheckPolicyProjection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness-reviews prepare",
+      "group": "readiness-reviews",
+      "command": "prepare",
+      "binding": "ReadinessService.PrepareReview",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness-reviews report-evidence",
+      "group": "readiness-reviews",
+      "command": "report-evidence",
+      "binding": "ReadinessService.ReportEvidence",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness-reviews sync",
+      "group": "readiness-reviews",
+      "command": "sync",
+      "binding": "ReadinessService.SynchronizeGoalClosure",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     }
   ]
 }

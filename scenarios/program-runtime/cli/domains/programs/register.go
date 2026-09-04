@@ -176,7 +176,29 @@ func (*handlers) waitReport(_ cliapp.OperationContext, r *programsv1.WaitForProg
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*programsv1.ListProgramsResponse, error) {
-	r, e := h.client.ListPrograms(context.Background(), connect.NewRequest(&programsv1.ListProgramsRequest{SessionId: ctx.Flag("session-id"), IncludeOperator: ctx.BoolFlag("include-operator")}))
+	var since int64
+	if raw := strings.TrimSpace(ctx.Flag("since-seconds")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("since-seconds must be positive")
+		}
+		since = parsed
+	}
+	var limit int32
+	if raw := strings.TrimSpace(ctx.Flag("limit")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("limit must be a positive integer")
+		}
+		limit = int32(parsed)
+	}
+	until := strings.TrimSpace(ctx.Flag("until"))
+	if until != "" {
+		if _, err := time.Parse(time.RFC3339Nano, until); err != nil {
+			return nil, fmt.Errorf("until must be RFC3339")
+		}
+	}
+	r, e := h.client.ListPrograms(context.Background(), connect.NewRequest(&programsv1.ListProgramsRequest{SessionId: ctx.Flag("session-id"), IncludeOperator: ctx.BoolFlag("include-operator"), Provenance: ctx.Flag("provenance"), SinceSeconds: since, Until: until, Limit: limit}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("list programs", e, nil)
 	}

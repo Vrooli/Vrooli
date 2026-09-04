@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,10 +25,20 @@ type Repository interface {
 	Save(context.Context, *programsv1.Program) error
 	Get(context.Context, string) (*programsv1.Program, error)
 	List(context.Context, string, bool) ([]*programsv1.Program, error)
+	ListFiltered(context.Context, ListFilter) ([]*programsv1.Program, error)
 	MineFailures(context.Context, bool, time.Time) ([]*programsv1.FailureShape, error)
 	MineRefusals(context.Context, bool) ([]*programsv1.RefusalShape, error)
 	MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error)
 	GovernanceShare(context.Context, time.Time, bool) (int64, int64, []*programsv1.ObservedCommand, error)
+}
+
+type ListFilter struct {
+	SessionID       string
+	IncludeOperator bool
+	Provenance      []programsv1.Provenance
+	Since           time.Time
+	Until           time.Time
+	Limit           int32
 }
 
 type sqliteRepository struct{ db SQLExecutor }
@@ -58,17 +69,43 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Prog
 }
 
 func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOperator bool) ([]*programsv1.Program, error) {
+	return r.ListFiltered(ctx, ListFilter{SessionID: sessionID, IncludeOperator: includeOperator})
+}
+
+func (r *sqliteRepository) ListFiltered(ctx context.Context, filter ListFilter) ([]*programsv1.Program, error) {
 	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause FROM programs WHERE 1=1`
-	args := make([]any, 0, 2)
-	if sessionID != "" {
+	args := make([]any, 0, 8)
+	if filter.SessionID != "" {
 		query += ` AND session_id = ?`
-		args = append(args, sessionID)
+		args = append(args, filter.SessionID)
 	}
-	if !includeOperator {
+	if len(filter.Provenance) > 0 {
+		values := make([]string, 0, len(filter.Provenance))
+		for _, value := range filter.Provenance {
+			values = append(values, strconv.Itoa(int(value)))
+		}
+		query += ` AND provenance IN (` + strings.TrimRight(strings.Repeat("?,", len(values)), ",") + `)`
+		for _, value := range values {
+			args = append(args, value)
+		}
+	} else if !filter.IncludeOperator {
 		query += ` AND provenance != ?`
 		args = append(args, strconv.Itoa(int(programsv1.Provenance_PROVENANCE_OPERATOR)))
 	}
+	if !filter.Since.IsZero() {
+		query += ` AND created_at >= ?`
+		args = append(args, filter.Since.UTC().Format(time.RFC3339Nano))
+	}
+	if !filter.Until.IsZero() {
+		query += ` AND created_at <= ?`
+		args = append(args, filter.Until.UTC().Format(time.RFC3339Nano))
+	}
 	query += ` ORDER BY created_at, id`
+	if filter.Limit <= 0 {
+		filter.Limit = 200
+	}
+	query += ` LIMIT ?`
+	args = append(args, filter.Limit)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list programs: %w", err)
@@ -286,6 +323,8 @@ func parseFailureCause(value string) programsv1.FailureCause {
 		return programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT
 	case "failure_cause_unclassified", "unclassified":
 		return programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED
+	case "failure_cause_protected_name_misuse", "protected_name_misuse":
+		return programsv1.FailureCause_FAILURE_CAUSE_PROTECTED_NAME_MISUSE
 	default:
 		return programsv1.FailureCause_FAILURE_CAUSE_UNSPECIFIED
 	}
@@ -318,19 +357,39 @@ func (r *memoryRepository) Get(_ context.Context, id string) (*programsv1.Progra
 }
 
 func (r *memoryRepository) List(_ context.Context, sessionID string, includeOperator bool) ([]*programsv1.Program, error) {
+	return r.ListFiltered(context.Background(), ListFilter{SessionID: sessionID, IncludeOperator: includeOperator})
+}
+
+func (r *memoryRepository) ListFiltered(_ context.Context, filter ListFilter) ([]*programsv1.Program, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []*programsv1.Program
 	for _, p := range r.programs {
-		if sessionID != "" && p.GetSessionId() != sessionID {
+		if filter.SessionID != "" && p.GetSessionId() != filter.SessionID {
 			continue
 		}
-		if !includeOperator && p.GetProvenance() == programsv1.Provenance_PROVENANCE_OPERATOR {
+		if len(filter.Provenance) > 0 && !slices.Contains(filter.Provenance, p.GetProvenance()) {
+			continue
+		}
+		if len(filter.Provenance) == 0 && !filter.IncludeOperator && p.GetProvenance() == programsv1.Provenance_PROVENANCE_OPERATOR {
+			continue
+		}
+		created, err := time.Parse(time.RFC3339Nano, p.GetCreatedAt())
+		if !filter.Since.IsZero() && (err != nil || created.Before(filter.Since)) {
+			continue
+		}
+		if !filter.Until.IsZero() && (err != nil || created.After(filter.Until)) {
 			continue
 		}
 		out = append(out, clone(p))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].GetCreatedAt() < out[j].GetCreatedAt() })
+	if filter.Limit <= 0 {
+		filter.Limit = 200
+	}
+	if int32(len(out)) > filter.Limit {
+		out = out[:filter.Limit]
+	}
 	return out, nil
 }
 

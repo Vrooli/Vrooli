@@ -69,6 +69,7 @@ type AuthoringResult struct {
 	Missed      int32
 	WrongResult int32
 	Unavailable int32
+	FloorMet    bool
 	// NotAttempted counts cases skipped because the response deadline
 	// approached. A partial run states this rather than reporting a low score
 	// as if the whole corpus had been measured.
@@ -245,6 +246,7 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		result.Cases = append(result.Cases, caseResult)
 	}
 	result.Status = "measured"
+	result.FloorMet = result.Met >= result.Floor
 	finalizeAuthoringResult(&result)
 	return result
 }

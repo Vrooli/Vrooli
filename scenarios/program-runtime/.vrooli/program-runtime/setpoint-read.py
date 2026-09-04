@@ -105,7 +105,7 @@ CALLS = {
     "deleg": lambda: program_runtime.sessions.delegations(),
     "lib": lambda: program_runtime.library.list(),
     "shapes": lambda: program_runtime.shapes.list(uncovered_only=True, min_occurrences=3),
-    "progs": lambda: program_runtime.programs.list(),
+    "progs": lambda: program_runtime.programs.list(provenance="agent", since_seconds=30 * 24 * 60 * 60),
 }
 
 
@@ -146,15 +146,15 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     row("authoring-floor", None, "met >= floor", None, unavailable=True, reason="kernel_invoke_budget",
         sensor="program-runtime authoring eval --json")
 
-    # agent-failure-rate: filter the corpus in the kernel; all-time because the binding has no window.
+    # agent-failure-rate: ask the binding for exactly the corpus named by the row.
     target = f"< {agent_failure_band}"
-    sensor = "program-runtime programs list (in-kernel filter provenance=PROVENANCE_AGENT)"
+    sensor = "program-runtime programs list --provenance agent --since-seconds 2592000"
     if "progs" in h:
-        agent_programs = h["progs"].filter(lambda r: r.get("provenance") == "PROVENANCE_AGENT")
+        agent_programs = h["progs"]
         total = agent_programs.count()
         failed = agent_programs.filter(lambda r: r.get("status") == "PROGRAM_STATUS_FAILED").count()
         rate = (failed / total) if total else None
-        row("agent-failure-rate", {"failed": failed, "total": total, "rate": rate, "window": "all-time"}, target,
+        row("agent-failure-rate", {"failed": failed, "total": total, "rate": rate, "window": "last-30-days"}, target,
             rate is not None and rate < agent_failure_band,
             unavailable=(total == 0), reason=None if total else "unreliable:no agent-provenance programs in corpus",
             sensor=sensor)

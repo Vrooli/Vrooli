@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,6 +13,8 @@ import (
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
+
+var ErrInsufficientCredits = errors.New("insufficient credits")
 
 type accessTokenContextKey struct{}
 
@@ -146,17 +149,25 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 		return MeteredResponse{}, fmt.Errorf("metered inference request failed: %w", err)
 	}
 	defer response.Body.Close()
-	var result MeteredResponse
-	if decodeErr := json.NewDecoder(response.Body).Decode(&result); decodeErr != nil {
+	bodyBytes, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("decode metered inference response: %w", decodeErr)
+		return MeteredResponse{}, fmt.Errorf("read metered inference response: %w", readErr)
 	}
 	if c.egress != nil {
 		_ = c.egress.Record(ctx, ProviderMetered, request.Role, request.Profile, response.StatusCode)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		if response.StatusCode == http.StatusPaymentRequired {
+			return MeteredResponse{}, fmt.Errorf("%w: %s", ErrInsufficientCredits, strings.TrimSpace(string(bodyBytes)))
+		}
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("metered inference returned HTTP %d", response.StatusCode)
+		return MeteredResponse{}, fmt.Errorf("metered inference returned HTTP %d: %s", response.StatusCode, strings.TrimSpace(string(bodyBytes)))
+	}
+	var result MeteredResponse
+	if decodeErr := json.Unmarshal(bodyBytes, &result); decodeErr != nil {
+		c.failed()
+		return MeteredResponse{}, fmt.Errorf("decode metered inference response: %w", decodeErr)
 	}
 	c.succeeded()
 	return result, nil

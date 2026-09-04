@@ -15,6 +15,10 @@ import (
 // evalTimeout bounds one full corpus run.
 const evalTimeout = 30 * time.Minute
 
+func authoringEvalPasses(status string, floorMet bool) bool {
+	return status == "measured" && floorMet
+}
+
 // Register exposes the versioned authoring corpus through the same typed
 // service as program submission. The API deliberately returns unavailable
 // when no code-authoring model route is configured; that state is meaningful
@@ -30,13 +34,20 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := programsconnect.NewProgramServiceClient(client, base)
 	return cliapp.LoadFromManifestPrimitives(manifest, "authoring", map[string]cliapp.PrimitiveHandler{
 		"vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval": cliapp.ProtoList(func(ctx cliapp.OperationContext) (*programsv1.RunAuthoringEvalResponse, error) {
-			r, err := h.RunAuthoringEval(context.Background(), connect.NewRequest(&programsv1.RunAuthoringEvalRequest{}))
+			r, err := h.RunAuthoringEval(context.Background(), connect.NewRequest(&programsv1.RunAuthoringEvalRequest{NoGate: ctx.BoolFlag("no-gate")}))
 			if err != nil {
 				return nil, cliapp.WrapAPIError("run authoring eval", err, nil)
 			}
+			if !ctx.BoolFlag("no-gate") && !authoringEvalPasses(r.Msg.GetStatus(), r.Msg.GetFloorMet()) {
+				return r.Msg, fmt.Errorf("authoring eval %s: met=%d floor=%d", r.Msg.GetStatus(), r.Msg.GetMet(), r.Msg.GetFloor())
+			}
 			return r.Msg, nil
 		}, func(_ cliapp.OperationContext, result *programsv1.RunAuthoringEvalResponse) cliapp.ListReport {
-			summary := []string{fmt.Sprintf("Authoring eval: status=%s met=%d floor=%d.", result.GetStatus(), result.GetMet(), result.GetFloor())}
+			status := result.GetStatus()
+			if status == "measured" && !result.GetFloorMet() {
+				status = "below_floor"
+			}
+			summary := []string{fmt.Sprintf("Authoring eval: status=%s met=%d floor=%d.", status, result.GetMet(), result.GetFloor())}
 			for _, miss := range result.GetRuleMisses() {
 				summary = append(summary, fmt.Sprintf("Rule miss: %s=%d.", miss.GetRuleId(), miss.GetCount()))
 			}

@@ -26,6 +26,7 @@ type Contract struct {
 	Rung            string
 	OwnerSkill      string
 	SourcePath      string
+	Source          string
 	ValidationError string
 }
 
@@ -84,6 +85,10 @@ func (i *Index) Load(repoRoot string) error {
 			if statErr == nil {
 				mtimes[path] = info.ModTime().UnixNano()
 			}
+			sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
+			if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
+				mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
+			}
 			loaded = append(loaded, readContract(target.ID, path, compiled))
 		}
 	}
@@ -105,7 +110,7 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 	root := strings.TrimSpace(repoRoot)
 	current := map[string]int64{}
 	_ = filepath.WalkDir(filepath.Join(root, "scenarios"), func(path string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || !strings.Contains(filepath.ToSlash(path), "/.vrooli/program-runtime/") {
+		if err != nil || entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) || !strings.Contains(filepath.ToSlash(path), "/.vrooli/program-runtime/") {
 			return nil
 		}
 		if info, statErr := entry.Info(); statErr == nil {
@@ -204,6 +209,13 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	if err != nil {
 		c.ValidationError = err.Error()
 		return c
+	}
+	sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
+	source, sourceErr := os.ReadFile(sourcePath)
+	if sourceErr != nil {
+		c.ValidationError = fmt.Sprintf("source file %s: %v", sourcePath, sourceErr)
+	} else {
+		c.Source = string(source)
 	}
 	var raw rawContract
 	if err := json.Unmarshal(data, &raw); err != nil {

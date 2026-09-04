@@ -22,12 +22,13 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
+// v18 adds bounded identifiers for known program and skill command paths.
 // v17 apportions per-call token quantities across the segments of a compound
 // command. Facts at v16 and earlier copied the whole call's payload onto every
 // segment, so any SUM over them overcounts a run in proportion to how compound
 // its commands were. The version bump is what makes a refresh reproject those
 // runs instead of leaving the two conventions mixed in one cohort.
-const InvocationFactVersion = "invocation-fact.v17"
+const InvocationFactVersion = "invocation-fact.v18"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -46,6 +47,8 @@ type InvocationFact struct {
 	Executable                  string                `json:"executable,omitempty"`
 	Wrapper                     string                `json:"wrapper,omitempty"`
 	CommandPath                 string                `json:"commandPath,omitempty"`
+	ProgramID                   string                `json:"programId,omitempty"`
+	SkillID                     string                `json:"skillId,omitempty"`
 	Ownership                   string                `json:"ownership"`
 	OwnershipReason             string                `json:"ownershipReason,omitempty"`
 	SegmentIndex                int                   `json:"segmentIndex"`
@@ -175,6 +178,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 					resolution = ResolveCatalogArgs(extraction.Args)
 				}
 				fact.Executable, fact.CommandPath, fact.CatalogSnapshot = resolution.Owner, resolution.Command, resolution.Snapshot
+				fact.ProgramID, fact.SkillID = commandIdentifiers(segment)
 				if resolution.Command != "" {
 					fact.Capability = CapabilityForCommand(resolution.Command, fact.Capability)
 				}
@@ -231,6 +235,29 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 		}
 	}
 	return facts
+}
+
+// commandIdentifiers extracts only identifiers from explicitly supported
+// command paths. It does not alter normalizedArgumentShape, so arbitrary
+// argument values remain absent from the privacy-preserving read model.
+func commandIdentifiers(command string) (programID, skillID string) {
+	tokens, ok := safeTokens(command)
+	if !ok || len(tokens) < 3 {
+		return "", ""
+	}
+	for i := 0; i+2 < len(tokens); i++ {
+		switch {
+		case tokens[i] == "prompt-manager" && tokens[i+1] == "skill" && tokens[i+2] == "read":
+			if i+3 < len(tokens) && !strings.HasPrefix(tokens[i+3], "-") {
+				skillID = tokens[i+3]
+			}
+		case tokens[i] == "program-runtime" && tokens[i+1] == "programs" && (tokens[i+2] == "get" || tokens[i+2] == "wait"):
+			if i+3 < len(tokens) && !strings.HasPrefix(tokens[i+3], "-") {
+				programID = tokens[i+3]
+			}
+		}
+	}
+	return programID, skillID
 }
 
 // CapabilityForTool is the closed harness capability vocabulary. Runner

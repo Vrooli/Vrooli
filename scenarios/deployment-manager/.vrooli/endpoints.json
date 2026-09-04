@@ -315,6 +315,86 @@
       "summary": "Start a release",
       "description": "Start a release through the generated Connect contract.",
       "category": "releases"
+    },
+    {
+      "id": "report_readiness_evidence",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ReportEvidence",
+      "method": "POST",
+      "summary": "Report producer readiness evidence",
+      "description": "Report producer readiness evidence through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "prepare_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/PrepareReview",
+      "method": "POST",
+      "summary": "Prepare an exact readiness review",
+      "description": "Prepare an exact readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "get_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/GetReview",
+      "method": "POST",
+      "summary": "Get a readiness review",
+      "description": "Get a readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "list_readiness_reviews",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ListReviews",
+      "method": "POST",
+      "summary": "List readiness reviews",
+      "description": "List readiness reviews through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "list_readiness_review_waivers",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ListReviewWaivers",
+      "method": "POST",
+      "summary": "List readiness review waivers",
+      "description": "List readiness review waivers through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "synchronize_readiness_goal",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/SynchronizeGoalClosure",
+      "method": "POST",
+      "summary": "Synchronize readiness goal closure",
+      "description": "Synchronize readiness goal closure through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "approve_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ApproveReview",
+      "method": "POST",
+      "summary": "Approve a readiness review",
+      "description": "Approve a readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "create_readiness_waiver",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/CreateWaiver",
+      "method": "POST",
+      "summary": "Create a readiness waiver",
+      "description": "Create a readiness waiver through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "record_readiness_human_check",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/RecordHumanCheck",
+      "method": "POST",
+      "summary": "Record an independent readiness human check",
+      "description": "Record an independent readiness human check through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "check_readiness_policy",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/CheckPolicyProjection",
+      "method": "POST",
+      "summary": "Check the readiness policy projection",
+      "description": "Check the readiness policy projection through the generated Connect contract.",
+      "category": "readiness"
     }
   ]
 }

@@ -18,7 +18,7 @@
   "assumptions": [
     "program-runtime is running and its own bindings are reachable from the kernel",
     "the caller treats a declined row as unknown, never as zero, and acts on its reason (program-contracts.md, the reason table)",
-    "agent-failure-rate is computed over every PROVENANCE_AGENT program on record (all-time): programs/list exposes no window or provenance filter",
+    "agent-failure-rate is computed over PROVENANCE_AGENT programs created in the last 30 days: programs/list applies provenance=agent and since_seconds=2592000 before the bounded handle reaches the kernel",
     "discovery eval has no program binding (no_governed_binding); authoring eval has one but its run exceeds the 100 s kernel invoke budget (kernel_invoke_budget): both rows are read from the shell, never in-program",
     "external-friction and fleet-improve-coverage are read by agent-manager.friction-digest and prompt-manager.skill-set-read; attribution waits on agent-manager telemetry (pending_telemetry)"
   ],

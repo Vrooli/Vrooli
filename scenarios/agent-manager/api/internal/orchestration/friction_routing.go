@@ -105,7 +105,8 @@ func (o *Orchestrator) PublishRecurringFriction(ctx context.Context, filter invo
 			result.Skipped++
 			continue
 		}
-		if err := o.findings.SetEffectiveness(ctx, finding.ID, nil, nil, "not_yet_measurable", topic); err != nil {
+		before := float64(len(group.runs))
+		if err := o.findings.SetEffectiveness(ctx, finding.ID, &before, nil, "not_yet_measurable", topic); err != nil {
 			return result, err
 		}
 		result.Filed++

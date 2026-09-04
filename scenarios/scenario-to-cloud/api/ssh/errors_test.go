@@ -171,6 +171,13 @@ func TestClassifyError(t *testing.T) {
 	}
 }
 
+func TestClassifyError_LibraryHostKeyMismatchIsSecurityError(t *testing.T) {
+	err := ClassifyError("ssh: handshake failed: knownhosts: key mismatch", "example.com", "")
+	if !errors.Is(err, ErrHostKey) || err.Retryable {
+		t.Fatalf("library mismatch = %#v, want non-retryable host-key error", err)
+	}
+}
+
 func TestClassifyError_HostKeyHintContainsHost(t *testing.T) {
 	t.Parallel()
 

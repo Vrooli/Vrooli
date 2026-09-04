@@ -3,8 +3,9 @@ package deployments
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestNewOrchestratorFullCanonicalizesContractDescendant(t *testing.T) {
@@ -69,9 +70,9 @@ func newDeploymentsContractFixtureRepo(t *testing.T) string {
 
 func deploymentsRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
+	return root
 }

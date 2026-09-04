@@ -5,6 +5,7 @@ import (
 	internaldeployments "deployment-manager/internal/deployments"
 	internalevidence "deployment-manager/internal/evidence"
 	internalprofiles "deployment-manager/internal/profiles"
+	internalreadiness "deployment-manager/internal/readiness"
 	internalreleases "deployment-manager/internal/releases"
 
 	coredb "github.com/vrooli/api-core/database"
@@ -19,5 +20,6 @@ func AllSchemas() []coredb.SchemaProvider {
 		coredb.SchemaProviderFunc(internaldeployments.Schema),
 		coredb.SchemaProviderFunc(internalreleases.Schema),
 		coredb.SchemaProviderFunc(internalevidence.Schema),
+		coredb.SchemaProviderFunc(internalreadiness.Schema),
 	}
 }

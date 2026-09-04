@@ -3,6 +3,7 @@ package programs
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -21,13 +22,27 @@ type handler struct {
 	programsconnect.UnimplementedProgramServiceHandler
 	service   *internalprograms.Service
 	authoring internalprograms.AuthoringDeps
+	discovery internalprograms.DiscoveryEvalDeps
 }
 
-func Module(service *internalprograms.Service, authoring internalprograms.AuthoringDeps) module.Module {
+func Module(service *internalprograms.Service, authoring internalprograms.AuthoringDeps, discovery ...internalprograms.DiscoveryEvalDeps) module.Module {
+	var discoveryDeps internalprograms.DiscoveryEvalDeps
+	if len(discovery) > 0 {
+		discoveryDeps = discovery[0]
+	}
 	return module.Module{Name: "programs", Mount: func(r *mux.Router) {
-		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service, authoring: authoring})
+		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service, authoring: authoring, discovery: discoveryDeps})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
+}
+
+func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[programsv1.RunDiscoveryEvalRequest]) (*connect.Response[programsv1.RunDiscoveryEvalResponse], error) {
+	result := internalprograms.RunDiscoveryEval(ctx, h.discovery, req.Msg.GetMode(), req.Msg.GetMaxCases())
+	response := &programsv1.RunDiscoveryEvalResponse{Suite: result.Suite, Status: result.Status, Reason: result.Reason, Cases: int32(len(result.Cases)), Met: int32(result.Met), Missed: int32(result.Missed), WrongSelection: int32(result.Wrong), NullVerdict: int32(result.Null), Floor: int32(result.Floor), FloorReason: result.FloorReason, FloorMet: result.FloorMet}
+	for _, item := range result.Cases {
+		response.Results = append(response.Results, &programsv1.DiscoveryCaseResult{CaseId: item.ID, Intent: item.Intent, ExpectedBindingId: item.Expected, SelectedBindingId: item.Selected, Met: item.Met, NullVerdict: item.NullVerdict, WrongSelection: item.WrongSelection, Reason: item.Reason})
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[programsv1.SubmitProgramRequest]) (*connect.Response[programsv1.SubmitProgramResponse], error) {
@@ -71,7 +86,26 @@ func (h *handler) GetProgram(ctx context.Context, req *connect.Request[programsv
 }
 
 func (h *handler) ListPrograms(ctx context.Context, req *connect.Request[programsv1.ListProgramsRequest]) (*connect.Response[programsv1.ListProgramsResponse], error) {
-	return connect.NewResponse(&programsv1.ListProgramsResponse{Programs: h.service.List(ctx, req.Msg.SessionId, req.Msg.IncludeOperator)}), nil
+	var since time.Time
+	if seconds := req.Msg.GetSinceSeconds(); seconds > 0 {
+		since = time.Now().UTC().Add(-time.Duration(seconds) * time.Second)
+	}
+	var until time.Time
+	if raw := req.Msg.GetUntil(); raw != "" {
+		parsed, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		until = parsed
+	}
+	items, err := h.service.ListFilteredWithError(ctx, req.Msg.SessionId, req.Msg.IncludeOperator, req.Msg.GetProvenance(), since, until, req.Msg.GetLimit())
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown provenance") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&programsv1.ListProgramsResponse{Programs: items}), nil
 }
 
 func (h *handler) MineFailures(ctx context.Context, req *connect.Request[programsv1.MineFailuresRequest]) (*connect.Response[programsv1.MineFailuresResponse], error) {
@@ -156,6 +190,7 @@ func (h *handler) RunAuthoringEval(ctx context.Context, req *connect.Request[pro
 		Missed:       result.Missed,
 		WrongResult:  result.WrongResult,
 		Unavailable:  result.Unavailable,
+		FloorMet:     result.FloorMet,
 		Cases:        int32(len(result.Cases)),
 		Results:      cases,
 		NotAttempted: result.NotAttempted,

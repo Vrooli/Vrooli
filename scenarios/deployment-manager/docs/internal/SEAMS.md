@@ -12,6 +12,20 @@ Architectural seams and variation points for the deployment-manager scenario.
 | `deployments.LPBSReleaseClient` | `api/deployments/lpbs_release_client.go` | HTTP client | `fakeLPBSClient` in orchestration tests | Makes release verification deterministic |
 | `codesigning.Repository` | `api/codesigning/interfaces.go` | scenario-to-desktop proxy | `mockRepository` in `handler_test.go` | Keeps signing credentials and execution owned by the ramp |
 | `evidence.Repository` | `api/internal/evidence/repository.go` | `SQLRepository` | `fakeEvidenceRepository` and `FakeProducer` | Keeps verdict persistence deterministic and reference-only |
+| `readiness.ReviewRepository` | `api/readiness/review.go` | `internal/readiness.SQLRepository` | `memoryReviewRepository` plus SQLite repository tests | Separates immutable review, evidence, human check, waiver, goal, approval, and promotion state |
+| `readiness.EvidenceProducer` | `api/readiness/preparation.go` | Policy-keyed `ObservationProducer` instances | Fixed and memory producers in preparation tests | Reads only typed observations for the exact identity and declared producer binding |
+| `readiness.PredecessorResolver` | `api/readiness/preparation.go` | `server.readinessPredecessorResolver` | `fixedPredecessor` and server adapter fakes | Selects the latest actually published release for the same profile, target set, and channel |
+| `readiness.goalOpener` / goal reader | `api/readiness/goal.go` and `api/handlers/readiness/connect_handler.go` | Swarm Manager `GoalClient` | `memoryGoals` and goal-client HTTP fixtures | Keeps independent work projection and verified close-out outside Deployment Manager |
+| Release readiness lookup/promoter | `api/releases/handlers.go` | Readiness repository adapters in `api/server/server.go` | handler callbacks | Enforces exact approval before release and records promoted lifecycle only after publication |
+
+## Readiness ownership
+
+Deployment Manager owns policy, normalized references, aggregation, identity,
+review lifecycle, and release disposition. Evidence-producing scenarios retain
+their raw artifacts and report only attributable status, version, observation
+time, and external reference. Swarm Manager owns the independent goal. The
+release target owns recovery execution; the governed recovery program refuses
+to improvise when that owner operation is unavailable.
 
 ## Deployment Approvals Seams
 

@@ -19,9 +19,9 @@ func testApp(t *testing.T) *cliapp.ScenarioApp {
 	return app
 }
 
-func TestCommandGroupsRegisterEveryLegacyDomain(t *testing.T) {
+func TestCommandGroupsRegisterRemainingLegacyDomains(t *testing.T) {
 	groups := CommandGroups(testApp(t))
-	if len(groups) != 10 {
+	if len(groups) != 9 {
 		t.Fatalf("command group count = %d", len(groups))
 	}
 	for _, group := range groups {
@@ -37,7 +37,7 @@ func TestSubcommandGroupsLoadProtoManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	groups := SubcommandGroups(testApp(t), manifest)
-	if len(groups) != 2 {
+	if len(groups) != 4 {
 		t.Fatalf("subcommand group count = %d", len(groups))
 	}
 	for _, group := range groups {

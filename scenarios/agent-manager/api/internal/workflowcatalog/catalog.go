@@ -68,9 +68,6 @@ func Parse(data []byte, lookup Lookup) (*Result, error) {
 	if len(data) == 0 || len(data) > MaxDefinitionBytes {
 		return nil, fmt.Errorf("workflow definition must be between 1 and %d bytes", MaxDefinitionBytes)
 	}
-	// Keep already-authored scenario declarations readable across the budget
-	// unit migration. Canonical output always uses integer micro-USD.
-	data = bytes.ReplaceAll(data, []byte(`"maxCostUsd"`), []byte(`"maxChargeMicroUsd"`))
 	var definition domain.WorkflowDefinition
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -192,7 +189,7 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 	} else if !withinSafetyLimits(d.Budgets) {
 		add("budget_ceiling", "budgets", "workflow budgets exceed an Agent Manager operator safety ceiling")
 	}
-	validateChargeBudget(d.Budgets, add)
+	validateChargeBudget(d.Budgets, d.Metadata["fixture"] == "true", add)
 	validateTriggerPolicy(d.Trigger, add)
 
 	nodes := make(map[string]*domain.WorkflowNode, len(d.Nodes))
@@ -744,13 +741,14 @@ func withinSafetyLimits(b domain.WorkflowBudgets) bool {
 	return b.WallTimeSeconds <= MaxWallTimeSeconds && b.MaxTurns <= MaxTurns && b.MaxTokens <= MaxTokens && b.MaxChargeMicroUSD <= MaxChargeMicroUSD && b.MaxNodeAttempts <= MaxNodeAttempts && b.MaxChildren <= MaxChildren && b.MaxConcurrency <= MaxConcurrency && b.MaxRecursion <= MaxRecursion && b.MaxRetries <= MaxRetries && b.MaxWaitSeconds <= MaxWaitSeconds
 }
 
-func validateChargeBudget(b domain.WorkflowBudgets, add func(string, string, string)) {
+func validateChargeBudget(b domain.WorkflowBudgets, fixture bool, add func(string, string, string)) {
 	if b.MaxChargeMicroUSD <= 0 || b.MaxTokens <= 0 {
 		return
 	}
-	// Tiny in-memory fixtures intentionally use tiny budgets; the guard is for
-	// production-sized declarations where a unit mistake is consequential.
-	if b.MaxTokens < 100_000 {
+	// Tiny in-memory fixtures may use deliberately small values. Production
+	// declarations never receive this exemption: their charge must be stated
+	// in integer micro-USD at the same scale as the token budget.
+	if fixture {
 		return
 	}
 	if b.MaxChargeMicroUSD < MinimumChargeMicroUSD {

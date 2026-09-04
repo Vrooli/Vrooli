@@ -662,6 +662,8 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
 }
 
 var invocationReadModelFactColumnMigrations = []columnMigration{
+	{column: "program_id", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN program_id TEXT NOT NULL DEFAULT ''"},
+	{column: "skill_id", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN skill_id TEXT NOT NULL DEFAULT ''"},
 	{column: "ownership_reason", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN ownership_reason TEXT NOT NULL DEFAULT ''"},
 	{column: "segment_index", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN segment_index INTEGER NOT NULL DEFAULT 0"},
 	{column: "segment_count", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN segment_count INTEGER NOT NULL DEFAULT 1"},
@@ -710,7 +712,7 @@ func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
 				`CREATE TABLE invocation_read_model_facts (
                     run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, result_event_id TEXT,
                     tool_call_id TEXT, occurred_at TEXT NOT NULL, time_basis TEXT NOT NULL DEFAULT 'event',
-                    tool_name TEXT NOT NULL, capability TEXT NOT NULL DEFAULT 'other', intent_class TEXT NOT NULL DEFAULT '', executable TEXT, command_path TEXT, ownership TEXT NOT NULL,
+                    tool_name TEXT NOT NULL, program_id TEXT NOT NULL DEFAULT '', skill_id TEXT NOT NULL DEFAULT '', capability TEXT NOT NULL DEFAULT 'other', intent_class TEXT NOT NULL DEFAULT '', executable TEXT, command_path TEXT, ownership TEXT NOT NULL,
                     ownership_reason TEXT NOT NULL DEFAULT '', segment_index INTEGER NOT NULL DEFAULT 0,
                     segment_count INTEGER NOT NULL DEFAULT 1, catalog_snapshot TEXT, outcome TEXT NOT NULL,
                     pairing_basis TEXT NOT NULL DEFAULT 'unpaired', failure_signature TEXT NOT NULL DEFAULT '',

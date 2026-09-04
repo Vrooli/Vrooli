@@ -196,6 +196,17 @@
   "environment": {
     "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db"
   },
+  "credentials": {
+    "descriptors": [{
+      "logical_id": "vrooli/vrooli-events",
+      "field": "agent-manager-webhook-secret",
+      "label": "Agent Manager program-event webhook secret",
+      "description": "Generated shared HMAC credential for receiving signed program-runtime events.",
+      "required": false,
+      "provisioning": "generated",
+      "tiers": ["tier-1-local"]
+    }]
+  },
   "cli": {
     "enabled": true,
     "command": "agent-manager",

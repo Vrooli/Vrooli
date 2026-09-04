@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"deployment-manager/shared"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var (
@@ -143,12 +143,17 @@ func validateAgainstDesktopSchema(data []byte) error {
 
 func loadDesktopBundleSchema() (*jsonschema.Schema, error) {
 	desktopSchemaOnce.Do(func() {
-		_, currentFile, _, ok := runtime.Caller(0)
-		if !ok {
-			desktopSchemaErr = fmt.Errorf("unable to resolve schema path from caller")
+		repoRoot, err := repocontract.ResolveRepoRoot()
+		if err != nil {
+			desktopSchemaErr = fmt.Errorf("resolve repository root: %w", err)
 			return
 		}
-		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "docs", "schemas", "bundle-schema.desktop.v0.1.json"))
+		scenarioRoot, err := repocontract.ResolveScenarioPath(repoRoot, "deployment-manager")
+		if err != nil {
+			desktopSchemaErr = fmt.Errorf("resolve deployment-manager path: %w", err)
+			return
+		}
+		schemaPath := filepath.Join(scenarioRoot, "docs", "schemas", "bundle-schema.desktop.v0.1.json")
 		schemaBytes, readErr := os.ReadFile(schemaPath)
 		if readErr != nil {
 			desktopSchemaErr = fmt.Errorf("failed to read bundle schema: %w", readErr)

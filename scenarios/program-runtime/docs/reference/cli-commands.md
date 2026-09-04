@@ -115,7 +115,7 @@ program-runtime configure api_base
 The runtime surface is organized around governed bindings, persistent
 sessions, programs, and telemetry. These commands are the CLI counterpart to
 the Python namespace taught by the
-[`program-runtime` skill](../../../prompt-manager/store/skills/packs/core/program-runtime/SKILL.md).
+[`program-runtime` skill](../../skills/program-runtime/SKILL.md).
 
 ### `program-runtime bindings`
 
@@ -220,8 +220,10 @@ program-runtime library promote --program-id <program-id> --name probe --descrip
 program-runtime library set-current probe --version 1
 ```
 
-Declared contracts are findable through `library search` and run through their
-submit recipe. Only a current promoted version is callable as `lib.<name>()`.
+Declared contracts are findable through `library search` and run with
+`program-runtime library run <scenario>.<name> --input k=v`. Only a current
+promoted version is callable as `lib.<name>()`; declared contracts are callable
+inside a program as `lib.<scenario>.<name>(k=v)`.
 `library get` includes one freshness/drift row for each called binding.
 
 The governed-versus-observed call share is queryable over an explicit window:

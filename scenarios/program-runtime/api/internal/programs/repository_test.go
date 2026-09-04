@@ -69,6 +69,28 @@ func TestSQLiteRepositoryMineFailuresHonorsTimeWindow(t *testing.T) {
 	require.Equal(t, int64(1), shapes[0].Count)
 }
 
+func TestSQLiteRepositoryListFilteredHonorsProvenanceBoundsAndLimit(t *testing.T) {
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	repo := NewRepository(d)
+	old := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 8, 11, 0, 0, 0, 0, time.UTC)
+	for id, item := range map[string]struct {
+		at time.Time
+		p  programsv1.Provenance
+	}{
+		"old-agent":    {old, programsv1.Provenance_PROVENANCE_AGENT},
+		"new-agent":    {now, programsv1.Provenance_PROVENANCE_AGENT},
+		"new-operator": {now, programsv1.Provenance_PROVENANCE_OPERATOR},
+	} {
+		require.NoError(t, repo.Save(ctx, &programsv1.Program{Id: id, SessionId: "s", Source: "x", Provenance: item.p, Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, CreatedAt: item.at.Format(time.RFC3339Nano)}))
+	}
+	rows, err := repo.ListFiltered(ctx, ListFilter{SessionID: "s", IncludeOperator: true, Provenance: []programsv1.Provenance{programsv1.Provenance_PROVENANCE_AGENT}, Since: now.Add(-time.Hour), Until: now.Add(time.Hour), Limit: 1})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "new-agent", rows[0].GetId())
+}
+
 func TestSQLiteRepositoryMineRefusalsFiltersOperatorByDefault(t *testing.T) {
 	ctx := context.Background()
 	d := newProgramsTestDB(t)

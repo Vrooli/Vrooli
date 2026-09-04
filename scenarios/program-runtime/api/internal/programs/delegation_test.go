@@ -88,3 +88,14 @@ func TestDelegationChargeHonorsExplicitUnmeasuredReceipt(t *testing.T) {
 		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
 	}
 }
+
+func TestDelegatorsHaveBoundedHTTPClients(t *testing.T) {
+	if got := NewHTTPDelegator("http://agent-manager").client.Timeout; got <= 0 {
+		t.Fatalf("HTTP delegator timeout=%s", got)
+	}
+	provided := &http.Client{}
+	delegator := NewDiscoveryDelegator(provided)
+	if delegator.client == provided || delegator.client.Timeout <= 0 {
+		t.Fatalf("discovery delegator did not clone an unbounded client: %#v", delegator.client)
+	}
+}

@@ -186,10 +186,11 @@ mobile; desktop retains the persistent sidebar.
 
 ## Work ladder
 
-- Rung: W3
-- Evidence: the existing role-policy contract requires runner-neutral intent while resource-owned policy resolves concrete models; this repair changes implementation and evidence only. Focused resource-policy, pricing, and codec tests are green, with live model-resolution checks passing for all four resources.
-- Blocker: none for the model-resolution repair; the broad scenario gate remains the final validation step.
-- Measured: 2026-08-03
+- Rung: W2
+- W0 evidence: the goal `git-control-tower-ai-provenance` directs "Turn Git Control Tower into the primary operator surface for understanding which agent-manager runs produced the current repository state." `OT-P0-012` promises only that "The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability," so it does not own conversation import, unknown-run message discovery, privacy-aware deletion, or federated retrieval. `OT-P0-013` now separately promises attributable conversation recall through API, CLI, UI, and Search Hub while retaining a degraded lexical path. The other goals that name Agent Manager (`ecosystem-intelligence-loop`, `phone-agent`, and `swarm-manager-feature-parity`) neither remove nor contradict that capability.
+- W1 evidence: requirement module `MOD-P0-013` links the user-observable import, retrieval-mode, provenance, pagination, privacy, deletion, freshness, reindex, CLI, UI, federation, and skill/program obligations to `OT-P0-013`; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager` are the structural gates.
+- Remaining W2 work: the new requirements intentionally remain `planned`; each validation note names its exact future test, while `ref` remains empty until that file exists so the registry does not fabricate evidence. Bind each reference only when the named test is implemented. Do not claim W3 until direct, federated, deletion, degradation, accessibility, and operational evidence is live-traced.
+- Measured: 2026-09-04
 
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
 **Severity**: Medium (verification)

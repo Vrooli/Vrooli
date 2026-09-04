@@ -76,7 +76,7 @@ while the obligation stays unmet and the value stays unrealised. Mirrors
 
 | Obligation | Owner | Unblocks | If it stalls |
 |---|---|---|---|
-| Subscribe to program events | `agent-manager` | Friction analysis reading program evidence | `PRT-P0-006` is green, events reach the bus, nothing reads them |
+| Carry the live program-event subscription and delivered-event health | `agent-manager` | Friction analysis reading program evidence | Revisit if the subscription is removed or delivery health becomes unavailable |
 | Raise `cli/manifest.json` coverage past 58/128 | fleet-wide; surfaced by `cli-health`, ranked by `meta-optimization-manager` `focus next` | The ceiling on the whole Act surface | Act coverage caps near 45% of the fleet however complete this scenario is |
 
 None of the three blocks launch. The first two bound the realised value of

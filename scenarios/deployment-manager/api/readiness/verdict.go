@@ -9,21 +9,31 @@ import (
 type SignalStatus string
 
 const (
-	SignalPassed      SignalStatus = "passed"
-	SignalFailed      SignalStatus = "failed"
-	SignalUnavailable SignalStatus = "unavailable"
-	SignalUnknown     SignalStatus = "unknown"
-	SignalStale       SignalStatus = "stale"
+	SignalPassed        SignalStatus = "passed"
+	SignalFailed        SignalStatus = "failed"
+	SignalUnavailable   SignalStatus = "unavailable"
+	SignalUnknown       SignalStatus = "unknown"
+	SignalStale         SignalStatus = "stale"
+	SignalWaived        SignalStatus = "waived"
+	SignalNotApplicable SignalStatus = "not_applicable"
 )
 
 type Signal struct {
-	ItemID     string       `json:"item_id"`
-	Status     SignalStatus `json:"status"`
-	Source     string       `json:"source"`
-	Commit     string       `json:"commit,omitempty"`
-	RunID      string       `json:"run_id,omitempty"`
-	ObservedAt time.Time    `json:"observed_at"`
-	Detail     string       `json:"detail,omitempty"`
+	ItemID              string       `json:"item_id"`
+	Status              SignalStatus `json:"status"`
+	Source              string       `json:"source"`
+	Commit              string       `json:"commit,omitempty"`
+	RunID               string       `json:"run_id,omitempty"`
+	ObservedAt          time.Time    `json:"observed_at"`
+	Detail              string       `json:"detail,omitempty"`
+	ProducerVersion     string       `json:"producer_version,omitempty"`
+	ArtifactDigest      string       `json:"artifact_digest,omitempty"`
+	Target              string       `json:"target,omitempty"`
+	Environment         string       `json:"environment,omitempty"`
+	PolicyVersion       int          `json:"policy_version,omitempty"`
+	Reference           string       `json:"reference,omitempty"`
+	Applicability       string       `json:"applicability,omitempty"`
+	ApplicabilityReason string       `json:"applicability_reason,omitempty"`
 }
 
 type Finding struct {
@@ -69,7 +79,7 @@ func Aggregate(scenario, commit string, checklist Checklist, signals []Signal, n
 			return Verdict{}, fmt.Errorf("signal %q does not belong to checklist", signal.ItemID)
 		}
 		switch signal.Status {
-		case SignalPassed, SignalFailed, SignalUnavailable, SignalUnknown, SignalStale:
+		case SignalPassed, SignalFailed, SignalUnavailable, SignalUnknown, SignalStale, SignalWaived, SignalNotApplicable:
 		default:
 			return Verdict{}, fmt.Errorf("signal %q has invalid status %q", signal.ItemID, signal.Status)
 		}
@@ -82,6 +92,9 @@ func Aggregate(scenario, commit string, checklist Checklist, signals []Signal, n
 				signal.Detail = fmt.Sprintf("signal belongs to commit %s, evaluated commit is %s", signal.Commit, commit)
 			}
 		}
+		if signal.Status == SignalNotApplicable && strings.TrimSpace(signal.ApplicabilityReason) == "" {
+			return Verdict{}, fmt.Errorf("signal %q is not_applicable without a reason", signal.ItemID)
+		}
 		byItem[signal.ItemID] = signal
 	}
 	verdict := Verdict{Scenario: scenario, Commit: commit, CheckedAt: now.UTC()}
@@ -90,14 +103,18 @@ func Aggregate(scenario, commit string, checklist Checklist, signals []Signal, n
 		if !ok {
 			signal = Signal{ItemID: item.ID, Status: SignalUnknown, Source: "readiness-aggregator", ObservedAt: now.UTC(), Detail: "no producer signal was returned"}
 		}
-		if signal.Status == SignalPassed {
+		if item.Freshness.Basis == "max_age" && now.Sub(signal.ObservedAt) > time.Duration(item.Freshness.MaxAgeSeconds)*time.Second {
+			signal.Status = SignalStale
+			signal.Detail = fmt.Sprintf("evidence age exceeds %d seconds", item.Freshness.MaxAgeSeconds)
+		}
+		if signal.Status == SignalPassed || signal.Status == SignalWaived || signal.Status == SignalNotApplicable {
 			continue
 		}
 		severity := "advisory"
 		if item.CleanRequirement == Required {
 			severity = "error"
 		} else if item.CleanRequirement == Uncheckable {
-			severity = "unknown"
+			severity = "error"
 		}
 		verdict.Findings = append(verdict.Findings, Finding{ItemID: item.ID, Severity: severity, Status: signal.Status, Message: findingMessage(item, signal), Signal: signal})
 	}

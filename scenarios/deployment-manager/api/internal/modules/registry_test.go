@@ -4,8 +4,8 @@ import "testing"
 
 func TestAllSchemasRegistersEveryOwnedDomain(t *testing.T) {
 	schemas := AllSchemas()
-	if len(schemas) != 5 {
-		t.Fatalf("schema providers = %d, want 5", len(schemas))
+	if len(schemas) != 6 {
+		t.Fatalf("schema providers = %d, want 6", len(schemas))
 	}
 	for i, schema := range schemas {
 		if schema == nil {

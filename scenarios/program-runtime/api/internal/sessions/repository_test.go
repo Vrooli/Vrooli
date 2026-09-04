@@ -19,6 +19,20 @@ func newSessionTestDB(t *testing.T) *sql.DB {
 	return d
 }
 
+func TestDelegationsSurviveSessionReclaim(t *testing.T) {
+	ctx := context.Background()
+	d := newSessionTestDB(t)
+	repo := NewRepository(d)
+	now := time.Now().UTC()
+	require.NoError(t, repo.Create(ctx, &Session{ID: "sess_delegation", State: "running", CreatedAt: now, LastActivityAt: now, Grants: map[string]struct{}{}}))
+	require.NoError(t, repo.SaveDelegation(ctx, &Delegation{SessionID: "sess_delegation", ExecutionID: "exec-1", Owner: "owner", WorkflowKey: "owner/workflow", CreatedAt: now, LastStatus: "succeeded"}))
+	require.NoError(t, repo.Reclaim(ctx, "sess_delegation", "complete", now))
+	got, err := repo.ListDelegations(ctx)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "exec-1", got[0].ExecutionID)
+}
+
 func TestSQLiteRepositoryPersistsSessionAndGrants(t *testing.T) { // [REQ:PRT-P2-003]
 	ctx := context.Background()
 	d := newSessionTestDB(t)

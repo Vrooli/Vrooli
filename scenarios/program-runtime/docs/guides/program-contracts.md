@@ -22,9 +22,10 @@ Fixtures live inside the contract (`fixtures[]`), never in a sibling directory.
 
 The scenario directory is the source of truth. program-runtime indexes each
 contract as `<scenario>.<name>` in `program-runtime library search`, using its
-purpose, inputs, and declared bindings for retrieval. Run a contract with the
-submit recipe shown by the search result. A library row is never edited
-directly; edit the file.
+purpose, inputs, and declared bindings for retrieval. Run a contract with
+`program-runtime library run <scenario>.<name> --input k=v`; the command validates
+inputs, creates the session, submits, waits once, prints the envelope, and
+reclaims the session. A library row is never edited directly; edit the file.
 
 Programs that start life in a session and are promoted with
 `program-runtime library promote` stay library-owned until a scenario adopts
@@ -53,8 +54,8 @@ scenario. Every field is load-bearing for a caller.
 | `memory` | Present only when the program reads or writes a memory scope: the scope, the phase that reads, the phase that writes, the entry kinds | Reviewers; the skill-set validator |
 
 Inputs arrive as one dict named `inputs`, bound by the caller before the
-source runs (the future `library run` verb and `lib.<scenario>.<name>(...)` do
-this; today a caller prepends `inputs = {...}` to the source). The kernel
+source runs (`library run` and `lib.<scenario>.<name>(...)` do this; a manual
+caller may prepend `inputs = {...}` to the source). The kernel
 withholds `globals`, so a program guards the name and falls back to the
 contract defaults:
 
@@ -298,15 +299,15 @@ A memory dependency being down is degraded, not fatal: the program records a
 
 ## Calling a program
 
-| From | How today | Planned |
+| From | How to call |
 |---|---|---|
-| A skill, a human, or a heartbeat | Write `inputs = {...}` as the first line of a scratch copy of the source; `program-runtime sessions create --name <task> --json`; `program-runtime programs submit --session-id <id> --source-file <scratch.py> --provenance <agent or operator> --json` (add `--async --wait-timeout <budget>` when the contract's budget says `async`); read the envelope from `.program.stdout`; `program-runtime sessions delete <id> --reason "<task> done"` | `program-runtime library run <scenario>.<name> --input key=value --json`, which does all of that in one verb |
-| Another program | Not possible with inputs: `lib.<name>()` accepts no arguments, so an orchestrator inlines the step and says so in its docstring | `lib.<scenario>.<name>(input=value, ...)` returning a Handle whose first row is the envelope |
+| A skill, a human, or a heartbeat | `program-runtime library run <scenario>.<name> --input key=value --json`. The command validates inputs, creates and reclaims its own session, submits with the contract's async budget, waits once, and prints one envelope. Manual session submission remains available for debugging. |
+| Another program | `lib.<scenario>.<name>(input=value, ...)`, returning a Handle whose first row is the envelope. The contract index resolves the scenario namespace and enforces the declared inputs. |
 
-The library walk that projects `.vrooli/program-runtime/` into `lib` is not
-built yet, so today `lib.<name>()` runs the promoted library row, not the
-scenario file. Until the walk lands, treat the scenario file as the source of
-truth and the library row as stale.
+The library walk projects `.vrooli/program-runtime/` into `lib.<scenario>` at
+session start. The scenario contract and source remain the source of truth;
+promoted library rows are separate reusable entries and are not used to
+override a declared contract.
 
 ## Validation
 

@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { BrowserRouter } from "react-router-dom";
 import { getProxyInfo, installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
@@ -55,6 +56,7 @@ initSpatialNav();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
+    <BaseStyles />
     <BrowserRouter basename={routerBasename}>
       <React.Profiler id="App" onRender={onProfilerRender}>
         <App />

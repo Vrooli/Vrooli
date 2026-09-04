@@ -14,11 +14,45 @@
           "rationale": "The SQLite database and producer-reference ledger are bounded to a 2 GiB working set and one year of historical release evidence; retention/reclaim is performed by the scenario data maintenance command."
         },
         "rationale": "Deployment-manager owns its SQLite database and reference-ledger data under the scenario data directory."
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Retention enforcement receipts are bounded audit records; 1 MiB detects unexpected growth without authorizing deletion."
+        },
+        "rationale": "Retention enforcement receipts preserve attributable cleanup decisions under the canonical scenario state root."
       }
     },
     "rationale": "Scenario-owned SQLite and evidence reference storage is declared explicitly so lifecycle startup creates the data root before opening the database."
   },
   "maturity": "greenfield",
+  "skills": {
+    "usage": {
+      "source": "skills/deployment-manager/SKILL.md",
+    "programs": [
+      "deployment-manager.readiness-review",
+      "deployment-manager.release-preflight",
+      "deployment-manager.release-observe",
+      "deployment-manager.release-recover"
+    ]
+    },
+    "improve": {
+      "source": "skills/deployment-manager-improve/SKILL.md",
+    "programs": [
+      "deployment-manager.setpoint-read"
+    ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "deployment-manager-usage"
+    },
+    "waivers": {}
+  },
   "generation": {
     "template": {
       "id": "react-vite",

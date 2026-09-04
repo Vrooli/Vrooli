@@ -63,6 +63,9 @@ const (
 	MeasureRouteBreakerOpen      = "route_events.breaker-open"
 	MeasureRouteCapacityRejected = "route_events.capacity-rejections"
 	MeasureRouteLatencyP95       = "route_events.latency-p95"
+	MeasureRouteCost             = "route_events.cost"
+	MeasureRouteTokens           = "route_events.tokens"
+	MeasureRouteLocalShare       = "route_events.local-share"
 )
 
 func specs() []spec {
@@ -158,6 +161,33 @@ func specs() []spec {
 				return strconv.FormatInt(p95, 10), latencyQuery(from, to), err
 			},
 		},
+		{
+			decl: scalarDecl(MeasureRouteCost, "RouteCost", "Total priced AI route cost in USD over a time window.", []string{"total gateway cost this week", "how much did AI routing cost last month", "route cost in dollars"}, "cost_usd", "usd", "{cost_usd} USD route cost ({window})"),
+			compute: func(ctx context.Context, m Metrics, from, to time.Time) (string, string, error) {
+				agg, err := m.Aggregate(ctx, from, to)
+				if err != nil {
+					return "", costQuery(from, to), err
+				}
+				if agg.PricedRows == 0 {
+					return "", costQuery(from, to), fmt.Errorf("route cost unavailable: window contains no priced route rows")
+				}
+				return strconv.FormatFloat(agg.CostUSD, 'f', 6, 64), costQuery(from, to), nil
+			},
+		},
+		{
+			decl: scalarDecl(MeasureRouteTokens, "RouteTokens", "Total input and output tokens used by AI routes in a time window.", []string{"how many AI tokens were used this week", "gateway token usage last month", "route input and output token totals"}, "input_tokens", "tokens", "{input_tokens} input tokens and {output_tokens} output tokens ({window})"),
+			compute: func(ctx context.Context, m Metrics, from, to time.Time) (string, string, error) {
+				agg, err := m.Aggregate(ctx, from, to)
+				return strconv.FormatInt(agg.InputTokens+agg.OutputTokens, 10), tokenQuery(from, to), err
+			},
+		},
+		{
+			decl: scalarDecl(MeasureRouteLocalShare, "RouteLocalShare", "Fraction of AI routes served locally in a time window.", []string{"what share of routes were local this week", "gateway local serving share last month", "how often did local AI routing serve the request"}, "share", "ratio", "{share} local-served route share ({window})"),
+			compute: func(ctx context.Context, m Metrics, from, to time.Time) (string, string, error) {
+				agg, err := m.Aggregate(ctx, from, to)
+				return formatRate(agg.LocalServed, agg.Total), localShareQuery(from, to), err
+			},
+		},
 	}
 }
 
@@ -212,6 +242,10 @@ func rateDecl(name, method, intent string, questions []string, summary string) m
 	})
 }
 
+func scalarDecl(name, method, intent string, questions []string, valueField, unit, summary string) measures.MeasureDeclaration {
+	return baseDecl(name, method, intent, questions, measures.Result{Kind: measures.ResultScalar, ValueField: valueField, Unit: unit, SummaryTemplate: summary})
+}
+
 func latencyDecl(name, method, intent string, questions []string, summary string) measures.MeasureDeclaration {
 	return baseDecl(name, method, intent, questions, measures.Result{
 		Kind:            measures.ResultScalar,
@@ -238,6 +272,18 @@ func latencyQuery(from, to time.Time) string {
 	return fmt.Sprintf(
 		"SELECT latency_ms FROM route_events WHERE %s ORDER BY latency_ms LIMIT 1 OFFSET nearest_rank(0.95)",
 		windowClause(from, to))
+}
+
+func costQuery(from, to time.Time) string {
+	return fmt.Sprintf("SELECT SUM(cost_estimate) FROM route_events WHERE cost_estimate > 0 AND %s", windowClause(from, to))
+}
+
+func tokenQuery(from, to time.Time) string {
+	return fmt.Sprintf("SELECT SUM(input_tokens + output_tokens) FROM route_events WHERE %s", windowClause(from, to))
+}
+
+func localShareQuery(from, to time.Time) string {
+	return fmt.Sprintf("SELECT SUM(CASE WHEN selected_locality = 'local' AND status = 'succeeded' THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*), 0) FROM route_events WHERE %s", windowClause(from, to))
 }
 
 func windowClause(from, to time.Time) string {
@@ -411,6 +457,33 @@ func (h *Handler) RouteLatencyP95(ctx context.Context, req *connect.Request[aigw
 		return nil, err
 	}
 	return connect.NewResponse(&aigwmeasuresv1.RouteLatencyResponse{LatencyMs: n}), nil
+}
+
+func (h *Handler) RouteCost(ctx context.Context, req *connect.Request[aigwmeasuresv1.RouteMeasureRequest]) (*connect.Response[aigwmeasuresv1.RouteCostResponse], error) {
+	val, err := h.value(ctx, MeasureRouteCost, req.Msg.GetWindow())
+	if err != nil {
+		return nil, err
+	}
+	cost, _ := strconv.ParseFloat(val, 64)
+	return connect.NewResponse(&aigwmeasuresv1.RouteCostResponse{CostUsd: cost}), nil
+}
+
+func (h *Handler) RouteTokens(ctx context.Context, req *connect.Request[aigwmeasuresv1.RouteMeasureRequest]) (*connect.Response[aigwmeasuresv1.RouteTokenResponse], error) {
+	val, err := h.value(ctx, MeasureRouteTokens, req.Msg.GetWindow())
+	if err != nil {
+		return nil, err
+	}
+	tokens, _ := strconv.ParseInt(val, 10, 64)
+	return connect.NewResponse(&aigwmeasuresv1.RouteTokenResponse{TotalTokens: tokens}), nil
+}
+
+func (h *Handler) RouteLocalShare(ctx context.Context, req *connect.Request[aigwmeasuresv1.RouteMeasureRequest]) (*connect.Response[aigwmeasuresv1.RouteShareResponse], error) {
+	val, err := h.value(ctx, MeasureRouteLocalShare, req.Msg.GetWindow())
+	if err != nil {
+		return nil, err
+	}
+	share, _ := strconv.ParseFloat(val, 64)
+	return connect.NewResponse(&aigwmeasuresv1.RouteShareResponse{Share: share}), nil
 }
 
 // RegisterRoutes mounts the Connect MeasuresService on the given mux router.

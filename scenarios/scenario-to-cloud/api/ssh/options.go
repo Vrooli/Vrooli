@@ -145,6 +145,12 @@ func buildArgs(cfg Config, opts RunOptions, portFlag string) []string {
 	if opts.StrictHostKey {
 		out = append(out, "-o", "StrictHostKeyChecking=accept-new")
 	}
+	if cfg.KnownHostsFile != "" {
+		out = append(out,
+			"-o", "UserKnownHostsFile="+cfg.KnownHostsFile,
+			"-o", "GlobalKnownHostsFile=/dev/null",
+		)
+	}
 	if opts.IdentitiesOnly {
 		out = append(out, "-o", "IdentitiesOnly=yes")
 	}

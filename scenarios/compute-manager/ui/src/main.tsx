@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
@@ -41,7 +42,9 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
+      <BaseStyles />
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
@@ -62,7 +65,8 @@ async function bootstrap() {
       </QueryClientProvider>
     </React.StrictMode>
     </LibraryStringsProvider>
-  );
+    // vrooli:library-strings-provider end
+);
 }
 
 void bootstrap();

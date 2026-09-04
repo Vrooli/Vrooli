@@ -19,12 +19,15 @@ import (
 	"deployment-manager/fitness"
 	evidencehandler "deployment-manager/handlers/evidence"
 	profileshandler "deployment-manager/handlers/profiles"
+	readinesshandler "deployment-manager/handlers/readiness"
 	"deployment-manager/health"
 	internalEvidence "deployment-manager/internal/evidence"
 	"deployment-manager/internal/modules"
+	internalReadiness "deployment-manager/internal/readiness"
 	transport "deployment-manager/internal/transport"
 	"deployment-manager/migrationtasks"
 	"deployment-manager/profiles"
+	"deployment-manager/readiness"
 	"deployment-manager/releases"
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
@@ -39,6 +42,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles/profilesv1connect"
+	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness/readinessv1connect"
 	_ "modernc.org/sqlite"
 )
 
@@ -76,10 +80,12 @@ type Server struct {
 	Handler                  http.Handler
 
 	// Repositories
-	ProfilesRepo   profiles.Repository
-	SigningRepo    codesigning.Repository // Interface to allow SQL or Proxy implementation
-	LPBSConfigRepo profiles.LPBSReleaseConfigRepository
-	ReleasesRepo   releases.Repository
+	ProfilesRepo      profiles.Repository
+	SigningRepo       codesigning.Repository // Interface to allow SQL or Proxy implementation
+	LPBSConfigRepo    profiles.LPBSReleaseConfigRepository
+	ReleasesRepo      releases.Repository
+	ReadinessRepo     readiness.ReviewRepository
+	ReadinessPreparer *readiness.Preparer
 }
 
 // New initializes configuration, database, and routes.
@@ -132,11 +138,11 @@ func New() (*Server, error) {
 
 	// Releases repository (canonical release records + per-platform rows).
 	releasesRepo := releases.NewSQLRepository(routedDB)
-	approvalsRepo.WithReadinessRepository(releasesRepo)
 
 	// Evidence is a reference ledger owned by deployment-manager. Producers
 	// retain their bytes; this service stores only target verdicts and references.
 	evidenceRepo := internalEvidence.NewSQLRepository(routedDB, "sqlite")
+	readinessRepo := internalReadiness.NewSQLRepository(routedDB, "sqlite")
 	approvalsRepo.WithEvidenceRepository(evidenceRepo)
 	evidencePath, evidenceHandler := evidenceconnect.NewEvidenceServiceHandler(evidencehandler.NewConnectHandler(evidenceRepo))
 	profilesConnectPath, profilesConnectHandler := profilesconnect.NewProfilesServiceHandler(profileshandler.NewConnectHandler(profilesRepo))
@@ -185,14 +191,28 @@ func New() (*Server, error) {
 		ProfilesConnectHandler:   profilesConnectHandler,
 		LPBSConfigRepo:           lpbsConfigRepo,
 		ReleasesRepo:             releasesRepo,
+		ReadinessRepo:            readinessRepo,
 		Orchestrator: deployments.NewOrchestratorFull(
 			profilesRepo, approvalsRepo, publishedVersionsRepo,
 			releasesRepo, lpbsConfigRepo, cloudClient, lpbsClient, logFn,
 		),
 	}
+	goalClient := readiness.NewGoalClient()
+	readinessPolicy := readiness.DefaultChecklist()
+	srv.ReadinessPreparer = &readiness.Preparer{
+		Policy: readinessPolicy, Repository: readinessRepo,
+		Goals: goalClient, Predecessor: readinessPredecessorResolver{releases: releasesRepo, reviews: readinessRepo},
+		Producers: readiness.ObservationProducers(readinessPolicy, readinessRepo),
+	}
 	srv.ReleasesHandler = releases.NewHandler(
 		releasesRepo, lpbsConfigRepo, releasesVerifierAdapter{inner: lpbsClient}, srv.Orchestrator, logFn,
-	)
+	).WithReadinessLookup(func(ctx context.Context, key string) (*releases.ReadinessApproval, error) {
+		review, err := readinessRepo.Get(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		return &releases.ReadinessApproval{Key: review.Key, Scenario: review.Identity.Scenario, ProfileID: review.Identity.ProfileID, CandidateCommit: review.Identity.CandidateCommit, ArtifactDigest: review.Identity.ArtifactDigest, Targets: review.Identity.Targets, Channel: review.Identity.Channel, PolicyVersion: review.Identity.PolicyVersion, Status: string(review.Status), ApprovedAt: review.ApprovedAt}, nil
+	}).WithReadinessPromoter(readinessRepo.MarkPromoted)
 	connectTransport := transport.NewHandler(
 		srv.DependenciesHandler, srv.FitnessHandler, srv.DeploymentsHandler, srv.Orchestrator,
 		srv.SwapsHandler, srv.TelemetryHandler.List, srv.TelemetryHandler.Upload, srv.MigrationTasksHandler.Report, srv.MigrationTasksHandler.Status,
@@ -200,6 +220,8 @@ func New() (*Server, error) {
 		srv.ReleasesHandler.ListByProfile, srv.ReleasesHandler.Get, srv.ReleasesHandler.Verify, srv.ReleasesHandler.Start,
 	)
 	srv.ConnectRoutes = transport.Routes(connectTransport)
+	readinessPath, readinessHandler := readinessconnect.NewReadinessServiceHandler(readinesshandler.NewConnectHandler(srv.ReadinessPreparer, readinessRepo, goalClient))
+	srv.ConnectRoutes = append(srv.ConnectRoutes, transport.Route{Path: readinessPath, Handler: readinessHandler})
 
 	srv.setupRoutes()
 	rootMux := http.NewServeMux()

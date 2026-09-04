@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from "@vrooli/api-base/testing";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import * as api from '../../lib/api';
 
@@ -10,20 +8,7 @@ import * as api from '../../lib/api';
 vi.mock('../../lib/api');
 
 const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    </MemoryRouter>
-  );
+  return ({ children }: { children: React.ReactNode }) => <>{children}</>;
 };
 
 describe('Dashboard', () => {

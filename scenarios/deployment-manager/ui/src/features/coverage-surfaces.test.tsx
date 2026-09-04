@@ -143,7 +143,7 @@ describe("uncovered operator surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(await screen.findByText("Review & Create")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create Profile" }));
-    await waitFor(() => expect(api.createProfile).toHaveBeenCalledWith({ name: "Desktop", scenario: "picker-wheel", tiers: [2] }, expect.anything()));
+    await waitFor(() => expect(api.createProfile).toHaveBeenCalledWith({ name: "Desktop", scenario: "picker-wheel", tiers: [2] }));
   });
 
   it("renders profile configuration details and surfaces create failures", async () => {
@@ -172,7 +172,7 @@ describe("uncovered operator surfaces", () => {
     fireEvent.change(screen.getByPlaceholderText("Enter git commit hash..."), { target: { value: "abc123" } });
     expect(await screen.findByText(/Failed to check gate/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Deploy \(stub\)/ }));
-    await waitFor(() => expect(api.deployProfile).toHaveBeenCalledWith(profile.id, expect.anything()));
+    await waitFor(() => expect(api.deployProfile).toHaveBeenCalledWith(profile.id));
 
     cleanup();
     vi.mocked(api.createProfile).mockRejectedValue(new Error("profile rejected"));
@@ -243,14 +243,14 @@ describe("uncovered operator surfaces", () => {
     cleanup();
     vi.mocked(api.listProfiles).mockResolvedValue([]);
     renderWithProviders(<Profiles />);
-    fireEvent.click(screen.getByRole("button", { name: "How to use" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "How to use" })[0]!);
     expect(screen.getByText("Profiles 101")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hide help" }));
 
     cleanup();
     const layout = renderWithProviders(<Layout><div>content</div></Layout>);
     fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
-    fireEvent.click(screen.getByText("Profiles"));
+    fireEvent.click(screen.getAllByText("Profiles")[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
     const mobileOverlay = layout.container.querySelector(".fixed.inset-0.z-40");
     if (mobileOverlay) fireEvent.click(mobileOverlay);

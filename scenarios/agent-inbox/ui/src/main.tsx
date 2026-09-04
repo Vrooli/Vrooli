@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
@@ -59,6 +60,7 @@ ReactDOM.createRoot(rootElement).render(
     }}
   >
     <QueryClientProvider client={queryClient}>
+      <BaseStyles />
       <React.Profiler id="App" onRender={onProfilerRender}>
         <App />
       </React.Profiler>

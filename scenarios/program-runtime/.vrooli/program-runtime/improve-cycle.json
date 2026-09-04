@@ -33,7 +33,7 @@
     {
       "id": "program-runtime/telemetry/events",
       "effect": "read",
-      "via": "program_runtime.telemetry.events",
+      "via": "binding",
       "optional": true,
       "note": "read nomination and coverage-miss events for the loop's filing instruction"
     },

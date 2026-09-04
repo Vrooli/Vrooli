@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"deployment-manager/profiles"
 
@@ -194,6 +195,35 @@ func newServer(repo Repository, cfg profiles.LPBSReleaseConfigRepository, ver LP
 	r.HandleFunc("/api/v1/releases/{release_id}/verify", h.Verify).Methods("POST")
 	return r
 }
+
+func TestStartRequiresExactApprovedReadinessIdentity(t *testing.T) {
+	tests := []struct {
+		name       string
+		approval   *ReadinessApproval
+		wantStatus int
+		wantCalls  int
+	}{
+		{name: "artifact mismatch", approval: &ReadinessApproval{Key: "rr-1", ProfileID: "p1", CandidateCommit: "abc", ArtifactDigest: "sha256:other", Targets: []string{"linux-x64"}, Channel: "stable", Status: "approved", ApprovedAt: timePointer(time.Now())}, wantStatus: http.StatusPreconditionFailed},
+		{name: "exact approved identity", approval: &ReadinessApproval{Key: "rr-1", ProfileID: "p1", CandidateCommit: "abc", ArtifactDigest: "sha256:candidate", Targets: []string{"linux-x64"}, Channel: "stable", Status: "approved", ApprovedAt: timePointer(time.Now())}, wantStatus: http.StatusOK, wantCalls: 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, cfg, orch := newMockRepo(), newMockLPBSConfig(), &mockOrch{}
+			handler := NewHandler(repo, cfg, nil, orch, nil).WithReadinessLookup(func(context.Context, string) (*ReadinessApproval, error) { return tc.approval, nil })
+			router := mux.NewRouter()
+			router.HandleFunc("/api/v1/profiles/{id}/releases/start", handler.Start).Methods(http.MethodPost)
+			body := bytes.NewBufferString(`{"git_commit_hash":"abc","artifact_digest":"sha256:candidate","readiness_review_key":"rr-1","release_version":"1.0.0","channel":"stable","platforms":["linux-x64"]}`)
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles/p1/releases/start", body)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != tc.wantStatus || orch.called != tc.wantCalls {
+				t.Fatalf("status=%d calls=%d body=%s", response.Code, orch.called, response.Body.String())
+			}
+		})
+	}
+}
+
+func timePointer(value time.Time) *time.Time { return &value }
 
 // --- tests ---
 

@@ -58,7 +58,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, authoringGroup)
-	groups = append(groups, discovery.Register(core))
+	discoveryGroup, err := discovery.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, discoveryGroup)
 	libraryGroup, err := library.Register(core, manifest)
 	if err != nil {
 		return nil, err

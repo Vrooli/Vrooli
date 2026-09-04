@@ -497,9 +497,16 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if err := r.ValidateArguments(id, args); err != nil {
 		return nil, err
 	}
-	statuses, _ := r.reachability(ctx, binding.GetScenario())
-	if status := statuses[binding.GetScenario()]; !status.reachable {
-		return nil, fmt.Errorf("binding %s is unreachable: %s", id, status.reason)
+	// The runtime owns this endpoint and the request is already inside its
+	// governance bridge. Lifecycle discovery cannot reliably resolve the
+	// current process from within itself, so self-targeted bindings proceed to
+	// authorization and descriptor validation without an external reachability
+	// probe. Other scenarios retain the normal cached reachability gate.
+	if binding.GetScenario() != "program-runtime" {
+		statuses, _ := r.reachability(ctx, binding.GetScenario())
+		if status := statuses[binding.GetScenario()]; !status.reachable {
+			return nil, fmt.Errorf("binding %s is unreachable: %s", id, status.reason)
+		}
 	}
 	info, ok := r.methods[id]
 	if !ok {
@@ -885,6 +892,12 @@ func (r *Registry) ReachabilitySnapshot(ctx context.Context) map[string]Reachabi
 	defer r.reachabilityMu.Unlock()
 	out := make(map[string]ReachabilitySnapshot, len(statuses))
 	for name, status := range statuses {
+		if name == "program-runtime" {
+			// This snapshot is served by the runtime itself; a healthy response
+			// proves the local bridge is reachable even when lifecycle discovery
+			// cannot enumerate the current process from inside it.
+			status = reachabilityStatus{reachable: true, reason: "program-runtime local bridge"}
+		}
 		out[name] = ReachabilitySnapshot{Reachable: status.reachable, Reason: status.reason, CheckedAt: r.reachabilityAt[name].UTC().Format(time.RFC3339Nano)}
 	}
 	return out

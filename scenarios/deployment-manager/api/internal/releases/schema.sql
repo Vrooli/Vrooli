@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS releases (
     deployment_id TEXT,
     profile_version INTEGER,
     git_commit_hash TEXT NOT NULL,
+    artifact_digest TEXT,
+    readiness_review_key TEXT,
     release_version TEXT NOT NULL,
     channel TEXT NOT NULL DEFAULT 'stable',
     status TEXT NOT NULL DEFAULT 'pending',
@@ -33,12 +35,3 @@ CREATE INDEX IF NOT EXISTS idx_releases_profile_channel ON releases(profile_id, 
 CREATE INDEX IF NOT EXISTS idx_releases_status ON releases(status);
 CREATE INDEX IF NOT EXISTS idx_releases_commit ON releases(profile_id, git_commit_hash);
 CREATE INDEX IF NOT EXISTS idx_releases_deployment ON releases(deployment_id);
-
-CREATE TABLE IF NOT EXISTS readiness_waivers (
-    profile_id TEXT NOT NULL,
-    git_commit_hash TEXT NOT NULL,
-    reason TEXT NOT NULL,
-    actor TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (profile_id, git_commit_hash)
-);

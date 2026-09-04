@@ -403,6 +403,15 @@ def test_current_library_facades_are_versioned_and_bounded():
     assert result["ok"]
     assert "old-tool" not in result["stdout"]
 
+
+def test_library_list_carries_contract_scenario():
+    kernel = SessionKernel(
+        libraries=[{"name": "demo.echo", "scenario": "demo", "contract": True, "version": 1, "current": True}]
+    )
+    result = kernel.execute("print(lib.list().materialize())")
+    assert result["ok"]
+    assert "'scenario': 'demo'" in result["stdout"]
+
     retired = kernel.execute("lib.old_tool()")
     assert not retired["ok"]
     assert "not current and promoted" in retired["error"]
@@ -424,3 +433,27 @@ def test_promoted_library_source_runs_inside_the_same_governed_surface():
     result = kernel.execute("print(lib.probe().head(1))")
     assert result["ok"]
     assert "'ok': True" in result["stdout"]
+
+
+def test_declared_contracts_are_namespaced_and_receive_inputs():
+    kernel = SessionKernel(
+        libraries=[
+            {
+                "name": "demo.echo",
+                "scenario": "demo",
+                "contract": True,
+                "input_names": ["value"],
+                "version": 1,
+                "current": True,
+                "source": "result = Handle([{'value': inputs['value']}])",
+            }
+        ]
+    )
+    result = kernel.execute("print(lib.demo.echo(value='ok').materialize())")
+    assert result["ok"]
+    assert "'value': 'ok'" in result["stdout"]
+
+    rejected = kernel.execute("lib.demo.echo(unexpected='nope')")
+    assert not rejected["ok"]
+    assert "unexpected keyword" in rejected["error"]
+    assert "accepted keywords: value" in rejected["error"]

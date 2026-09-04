@@ -3,8 +3,9 @@ package bundles
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestResolveScenarioRootCanonicalizesContractDescendant(t *testing.T) {
@@ -52,9 +53,9 @@ func newBundleContractFixtureRepo(t *testing.T) string {
 
 func bundleRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
+	return root
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,6 +17,32 @@ import (
 type GoalClient struct {
 	ResolveURL func(context.Context) (string, error)
 	HTTPClient *http.Client
+}
+
+// GoalClosed reports only Swarm Manager's independently reviewed close-out
+// state. It never treats goal existence or milestone creation as closure.
+func (c *GoalClient) GoalClosed(ctx context.Context, name string) (bool, error) {
+	if c == nil || c.ResolveURL == nil || strings.TrimSpace(name) == "" {
+		return false, fmt.Errorf("swarm-manager goal client and goal name are required")
+	}
+	baseURL, err := c.ResolveURL(ctx)
+	if err != nil {
+		return false, fmt.Errorf("resolve swarm-manager: %w", err)
+	}
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	response, err := apiconnect.NewGoalServiceClient(httpClient, baseURL, connect.WithProtoJSON()).GetGoal(
+		ctx, connect.NewRequest(&apipb.GetGoalRequest{Name: canonicalSwarmGoalName(name)}),
+	)
+	if err != nil {
+		return false, fmt.Errorf("read readiness goal: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetGoal() == nil {
+		return false, fmt.Errorf("read readiness goal returned an empty response")
+	}
+	return response.Msg.GetGoal().GetStatus() == "archived", nil
 }
 
 func NewGoalClient() *GoalClient {
@@ -42,29 +69,91 @@ func (c *GoalClient) Open(ctx context.Context, spec GoalSpec) (string, bool, err
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
-	client := apiconnect.NewGoalServiceClient(httpClient, baseURL)
-	_, err = client.GetGoal(ctx, connect.NewRequest(&apipb.GetGoalRequest{Name: spec.Name}))
+	client := apiconnect.NewGoalServiceClient(httpClient, baseURL, connect.WithProtoJSON())
+	// Swarm Manager applies its own name sanitizer before persisting goals.
+	// Use the same canonical form for lookups and milestone writes while
+	// retaining the slash-delimited logical name in deployment-manager's
+	// readiness contract.
+	canonicalName := canonicalSwarmGoalName(spec.Name)
+	existing, err := client.GetGoal(ctx, connect.NewRequest(&apipb.GetGoalRequest{Name: canonicalName}))
 	if err == nil {
-		return spec.Name, true, nil
+		if existing == nil || existing.Msg == nil || existing.Msg.GetGoal() == nil {
+			return "", false, fmt.Errorf("look up readiness goal returned an empty response")
+		}
+		canonicalName = existing.Msg.GetGoal().GetName()
+		if err := reconcileGoalMilestones(ctx, client, canonicalName, existing.Msg.GetGoal().GetMilestones(), spec.Milestones); err != nil {
+			return "", false, err
+		}
+		return canonicalName, true, nil
 	}
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		return "", false, fmt.Errorf("look up readiness goal: %w", err)
 	}
-	_, err = client.CreateGoal(ctx, connect.NewRequest(&apipb.CreateGoalRequest{
+	created, err := client.CreateGoal(ctx, connect.NewRequest(&apipb.CreateGoalRequest{
 		Name: spec.Name, Title: spec.Title, Description: spec.Description,
 		Priority: int32(spec.Priority), ServesDeliverable: spec.ServesDeliverable,
 	}))
 	if err != nil {
 		return "", false, fmt.Errorf("create readiness goal: %w", err)
 	}
-	for _, milestone := range spec.Milestones {
-		_, err := client.CreateMilestone(ctx, connect.NewRequest(&apipb.CreateMilestoneRequest{
-			GoalName:  spec.Name,
-			Milestone: &sharedpb.Milestone{Name: milestone.Name, Title: milestone.Title, AcceptanceCriteria: milestone.AcceptanceCriteria},
-		}))
-		if err != nil {
-			return "", false, fmt.Errorf("create readiness milestone %q: %w", milestone.Name, err)
+	if created == nil || created.Msg == nil {
+		return "", false, fmt.Errorf("create readiness goal returned an empty response")
+	}
+	canonicalName = created.Msg.GetGoal().GetName()
+	if canonicalName == "" {
+		return "", false, fmt.Errorf("create readiness goal returned no canonical name")
+	}
+	if err := reconcileGoalMilestones(ctx, client, canonicalName, nil, spec.Milestones); err != nil {
+		return "", false, err
+	}
+	return canonicalName, false, nil
+}
+
+type milestoneClient interface {
+	CreateMilestone(context.Context, *connect.Request[apipb.CreateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error)
+	UpdateMilestone(context.Context, *connect.Request[apipb.UpdateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error)
+	ArchiveMilestone(context.Context, *connect.Request[apipb.ArchiveMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error)
+}
+
+func reconcileGoalMilestones(ctx context.Context, client milestoneClient, goalName string, existing []*sharedpb.Milestone, desired []GoalMilestone) error {
+	existingByName := make(map[string]*sharedpb.Milestone, len(existing))
+	for _, milestone := range existing {
+		if milestone != nil && milestone.GetArchivedAt() == "" {
+			existingByName[milestone.GetName()] = milestone
 		}
 	}
-	return spec.Name, false, nil
+	desiredNames := make(map[string]struct{}, len(desired))
+	for _, milestone := range desired {
+		desiredNames[milestone.Name] = struct{}{}
+		message := &sharedpb.Milestone{Name: milestone.Name, Title: milestone.Title, Description: milestone.Description, AcceptanceCriteria: milestone.AcceptanceCriteria}
+		if _, ok := existingByName[milestone.Name]; ok {
+			if _, err := client.UpdateMilestone(ctx, connect.NewRequest(&apipb.UpdateMilestoneRequest{GoalName: goalName, Milestone: message})); err != nil {
+				return fmt.Errorf("update readiness milestone %q: %w", milestone.Name, err)
+			}
+			continue
+		}
+		if _, err := client.CreateMilestone(ctx, connect.NewRequest(&apipb.CreateMilestoneRequest{GoalName: goalName, Milestone: message})); err != nil {
+			return fmt.Errorf("create readiness milestone %q: %w", milestone.Name, err)
+		}
+	}
+	for name := range existingByName {
+		if _, ok := desiredNames[name]; ok {
+			continue
+		}
+		if _, err := client.ArchiveMilestone(ctx, connect.NewRequest(&apipb.ArchiveMilestoneRequest{GoalName: goalName, MilestoneName: name})); err != nil {
+			return fmt.Errorf("archive resolved readiness milestone %q: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func canonicalSwarmGoalName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.ReplaceAll(name, " ", "-")
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			return r
+		}
+		return -1
+	}, name)
 }

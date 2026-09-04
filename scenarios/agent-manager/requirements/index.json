@@ -28,7 +28,8 @@
     "20-cli-interface/module.json",
     "21-multi-phase-runs/module.json",
     "22-cost-tracking/module.json",
-    "23-durable-run-analytics/module.json"
+    "23-durable-run-analytics/module.json",
+    "24-attributable-conversation-recall/module.json"
   ],
   "modules": [
     {
@@ -168,6 +169,12 @@
       "path": "23-durable-run-analytics",
       "priority": "P0",
       "title": "Durable Run Analytics"
+    },
+    {
+      "id": "MOD-P0-013",
+      "path": "24-attributable-conversation-recall",
+      "priority": "P0",
+      "title": "Attributable Conversation Recall"
     }
   ]
 }
