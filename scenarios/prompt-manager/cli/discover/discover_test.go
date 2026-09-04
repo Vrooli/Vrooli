@@ -22,7 +22,7 @@ func TestFormatNumberAddsThousandsSeparators(t *testing.T) {
 
 func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 	group := Commands(nil)
-	if group.Title != "Discovery" || len(group.Commands) != 4 {
+	if group.Title != "Discovery" || len(group.Commands) != 5 {
 		t.Fatalf("unexpected command group: %+v", group)
 	}
 	byName := map[string]bool{}
@@ -34,6 +34,9 @@ func TestCommandsRegistersDiscoverCommand(t *testing.T) {
 	}
 	if !byName["discover"] || !byName["discovery-gaps"] || !byName["discovery-metrics"] || !byName["skill-usage"] {
 		t.Fatalf("expected discover, discovery-gaps, discovery-metrics, and skill-usage commands, got %+v", group.Commands)
+	}
+	if !byName["skill-set"] {
+		t.Fatalf("expected skill-set validation command, got %+v", group.Commands)
 	}
 }
 
@@ -48,6 +51,7 @@ func TestCommandsDocumentTheirFlags(t *testing.T) {
 		"discovery-gaps":    {"--since", "--type", "--limit", "--json"},
 		"discovery-metrics": {"--since", "--type", "--json"},
 		"skill-usage":       {"--since", "--limit", "--json"},
+		"skill-set":         {"--json"},
 	}
 	for _, command := range Commands(nil).Commands {
 		wantFlags, ok := flagsByCommand[command.Name]

@@ -4,7 +4,8 @@ import { BoxGeometry, Color, InstancedMesh, MeshBasicMaterial, MeshStandardMater
 import type { EmoteKind } from '../../sim'
 import { equipmentTier } from '../../sim'
 import { useWorldStore } from '../WorldStoreContext'
-import { bodyOffset, bodyPose } from './pose'
+import { bodyOffset, type BodyPose } from './pose'
+import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from './PoseBuffer'
 
 /** Equipment tiers: none, paper, folder, briefcase, backpack, as relative sizes. */
 const TIER_SIZE = [0, 0.45, 0.65, 0.85, 1.1]
@@ -44,6 +45,8 @@ export function ActorExtras() {
   const gearMaterial = useMemo(() => new MeshStandardMaterial({ roughness: 0.8 }), [])
   const glowMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false }), [])
   const emoteMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.9, depthWrite: false }), [])
+  const poses = usePoseBuffer()
+  const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
   useFrame((frame) => {
     const gearMesh = gear.current
@@ -58,7 +61,16 @@ export function ActorExtras() {
     ids.forEach((id, i) => {
       const actor = state.actors[id]
       if (!actor) return
-      const pose = bodyPose(actor, t)
+      readPose(poses, i, pose)
+      if ((poses.data[i * POSE_STRIDE + POSE.visible] ?? 0) === 0) {
+        dummy.scale.set(0, 0, 0)
+        dummy.updateMatrix()
+        gearMesh.setMatrixAt(i, dummy.matrix)
+        ringMesh.setMatrixAt(i, dummy.matrix)
+        markMesh.setMatrixAt(i, dummy.matrix)
+        emoteMesh.setMatrixAt(i, dummy.matrix)
+        return
+      }
       const r = pose.scaleXZ
       // equipment
       const tier = equipmentTier(actor.skillCount, t.equipmentTiers)
@@ -114,7 +126,7 @@ export function ActorExtras() {
 
   return (
     <>
-      <instancedMesh ref={gear} args={[gearGeometry, gearMaterial, capacity]} frustumCulled={false} castShadow />
+      <instancedMesh ref={gear} args={[gearGeometry, gearMaterial, capacity]} frustumCulled={false} />
       <instancedMesh ref={rings} args={[ringGeometry, glowMaterial, capacity]} frustumCulled={false} />
       <instancedMesh ref={marks} args={[markGeometry, glowMaterial, capacity]} frustumCulled={false} />
       <instancedMesh ref={emotes} args={[emoteGeometry, emoteMaterial, capacity]} frustumCulled={false} />

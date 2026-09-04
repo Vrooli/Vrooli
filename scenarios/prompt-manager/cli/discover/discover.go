@@ -4,6 +4,7 @@
 package discover
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,8 +14,11 @@ import (
 
 	"prompt-manager/cli/internal/appctx"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery"
+	discoveryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery/discovery_v1connect"
 )
 
 // DiscoverRequest is the request body for the discover endpoint.
@@ -108,6 +112,7 @@ Options:
 				HelpText: `Options:
   --since <window>       Window to report, e.g. 7d, 24h, 30m (default: 7d)
   --limit <n>            Maximum number of rows to show (default: 20)
+  --outcomes              Join attributed reads to agent-manager run outcomes
   --json                 Emit JSON output instead of human format`,
 				Run: func(args []string) error {
 					return cmdSkillUsage(ctx, args)
@@ -127,8 +132,56 @@ Options:
 					return cmdDiscoveryMetrics(ctx, args)
 				},
 			},
+			{
+				Name: "skill-set", Aliases: []string{"skillset"}, NeedsAPI: true,
+				Description: "Validate a scenario's declared usage, improve, and feature skill roles.",
+				Usage:       "prompt-manager skill-set validate <scenario> [--json]",
+				HelpText:    "--json    Emit the shared validation response as JSON",
+				Run:         func(args []string) error { return cmdSkillSetValidate(ctx, args) },
+			},
 		},
 	}
+}
+
+func cmdSkillSetValidate(ctx appctx.Context, args []string) error {
+	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
+		return fmt.Errorf("scenario is required")
+	}
+	if args[0] == "validate" {
+		args = args[1:]
+	}
+	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
+		return fmt.Errorf("scenario is required")
+	}
+	scenario := args[0]
+	jsonOut := false
+	for _, arg := range args[1:] {
+		if arg == "--json" {
+			jsonOut = true
+		}
+	}
+	runtime, ok := ctx.(appctx.Runtime)
+	if !ok || runtime.Core == nil {
+		return fmt.Errorf("skill-set validation requires the standard CLI runtime")
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(runtime.Core)
+	response, err := discoveryconnect.NewDiscoveryServiceClient(httpClient, baseURL).ValidateSkillSet(context.Background(), connect.NewRequest(&discoveryv1.ValidateSkillSetRequest{Scenario: scenario}))
+	if err != nil {
+		return fmt.Errorf("skill-set validation failed: %w", err)
+	}
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(response.Msg)
+	}
+	fmt.Printf("Skill set %s: %s\n", scenario, response.Msg.GetStatus())
+	for _, role := range response.Msg.GetRoles() {
+		fmt.Printf("  %-8s %-9s %s\n", role.GetRole(), role.GetStatus(), role.GetSource())
+	}
+	if len(response.Msg.GetFindings()) > 0 {
+		return fmt.Errorf("skill-set validation found %d issue(s)", len(response.Msg.GetFindings()))
+	}
+	return nil
 }
 
 // DiscoveryGapCluster is one clustered group of missed queries.
@@ -466,6 +519,11 @@ type SkillUsageRow struct {
 	ReadsByCallerKind map[string]int `json:"readsByCallerKind,omitempty"`
 	ConversionRate    *float64       `json:"conversionRate,omitempty"`
 	LastReadAt        string         `json:"lastReadAt,omitempty"`
+	Projected         bool           `json:"projected"`
+	ReadsWithRun      int            `json:"readsWithRun,omitempty"`
+	SucceededRuns     int            `json:"succeededRuns,omitempty"`
+	FailedRuns        int            `json:"failedRuns,omitempty"`
+	OutcomeCoverage   *float64       `json:"outcomeCoverage,omitempty"`
 }
 
 // SkillUsageResponse wraps the per-skill demand aggregation.
@@ -479,6 +537,7 @@ func cmdSkillUsage(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("skill-usage", flag.ContinueOnError)
 	since := fs.String("since", "7d", "Window to report (e.g. 7d, 24h, 30m)")
 	limit := fs.Int("limit", 20, "Maximum number of rows to show")
+	outcomes := fs.Bool("outcomes", false, "Join attributed reads to agent-manager run outcomes")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -486,6 +545,9 @@ func cmdSkillUsage(ctx appctx.Context, args []string) error {
 
 	query := url.Values{}
 	query.Set("since", *since)
+	if *outcomes {
+		query.Set("outcomes", "true")
+	}
 
 	var resp SkillUsageResponse
 	if err := ctx.GetWithQuery("/skill-usage", query, &resp); err != nil {

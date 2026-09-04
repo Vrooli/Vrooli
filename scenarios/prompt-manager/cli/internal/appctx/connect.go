@@ -1005,7 +1005,10 @@ func callDiscovery(ctx context.Context, client discoveryconnect.DiscoveryService
 		resp, err := client.GetDiscoveryMetrics(ctx, connect.NewRequest(&discoveryv1.GetDiscoveryMetricsRequest{Since: query.Get("since"), Type: query.Get("type")}))
 		return rpcBody(resp, "", true, err)
 	case method == "GET" && len(s) == 1 && s[0] == "skill-usage":
-		resp, err := client.GetSkillUsage(ctx, connect.NewRequest(&discoveryv1.GetSkillUsageRequest{Since: query.Get("since")}))
+		resp, err := client.GetSkillUsage(ctx, connect.NewRequest(&discoveryv1.GetSkillUsageRequest{
+			Since:    query.Get("since"),
+			Outcomes: query.Get("outcomes") == "true",
+		}))
 		return rpcBody(resp, "", true, err)
 	default:
 		return nil, false, nil

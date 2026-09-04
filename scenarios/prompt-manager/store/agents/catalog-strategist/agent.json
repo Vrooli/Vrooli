@@ -6,9 +6,9 @@
   "description": "Maintains Vrooli's monetization catalog (SKUs, tiers, scenario-to-SKU mapping). Detects promotion triggers, proposes role changes, and surfaces the single most load-bearing catalog bottleneck each heartbeat.",
   "status": "active",
   "appearance": {
-    "body": "#1D4ED8",
-    "head": "#3B82F6",
-    "accent": "#BFDBFE"
+    "body": "#2563EB",
+    "head": "#60A5FA",
+    "accent": "#DBEAFE"
   },
   "tags": [
     "monetization",

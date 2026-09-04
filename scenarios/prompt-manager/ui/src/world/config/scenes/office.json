@@ -3,6 +3,7 @@
   "title": "Office",
   "environment": "indoor",
   "assetSet": "office",
+  "biomeSet": "office",
   "props": {
     "desk": "desk",
     "chair": "chair_desk",
@@ -10,27 +11,15 @@
     "seat": "chair_lounge",
     "campfire": "coffee_table",
     "lamp": "lamp_floor",
-    "board": "display_board",
-    "trees": [],
-    "decor": [
-      "plant_small",
-      "bookcase",
-      "side_table",
-      "rug_round"
-    ]
+    "board": "display_board"
   },
   "palette": {
     "horizon": "#c6c0b4",
     "ground": "#d9d3c8",
-    "groundEdge": "#8b8378",
     "roomFloor": "#e8e2d6",
     "roomWall": "#f3efe8",
     "commons": "#cfc6b8",
     "path": "#e0dace"
-  },
-  "slab": {
-    "thickness": 0.9,
-    "cornerRadius": 0.4
   },
   "camera": {
     "hero": {

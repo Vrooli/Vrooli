@@ -129,14 +129,19 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 	// An active workflow run may read additional skills after receiving its
 	// assigned prompt. Provenance comes exclusively from verified claims; an
 	// unavailable or invalid token is retained as an unattributed observation.
-	h.recordExposureReceipts(r, responses)
+	identity := h.verifiedWorkflowIdentity(r)
+	h.recordExposureReceipts(r, responses, identity)
 	// Counted at the read, not at `skill use`, so every consumer — CLI, UI,
 	// MCP, other scenarios — is counted exactly once per resolved skill.
 	readIDs := make([]string, 0, len(responses))
 	for _, response := range responses {
 		readIDs = append(readIDs, response.ID)
 	}
-	h.readRecorder.Record(r, readIDs)
+	if identity != nil {
+		h.readRecorder.RecordWithRunID(r, readIDs, identity.RunID)
+	} else {
+		h.readRecorder.Record(r, readIDs)
+	}
 
 	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
 		status := http.StatusNotFound
@@ -203,17 +208,21 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func (h *Handlers) recordExposureReceipts(r *http.Request, responses []Response) {
+func (h *Handlers) verifiedWorkflowIdentity(r *http.Request) *VerifiedWorkflowIdentity {
+	if h.identityVerifier == nil {
+		return nil
+	}
+	identity, _ := h.identityVerifier.VerifyWorkflowIdentity(r.Context(), r.Header.Get(agentIdentityHeader))
+	return identity
+}
+
+func (h *Handlers) recordExposureReceipts(r *http.Request, responses []Response, identity *VerifiedWorkflowIdentity) {
 	if h.experimentStore == nil || len(responses) == 0 {
 		return
 	}
 	exposures, ok := h.experimentStore.(store.ExperimentExposureStore)
 	if !ok {
 		return
-	}
-	var identity *VerifiedWorkflowIdentity
-	if h.identityVerifier != nil {
-		identity, _ = h.identityVerifier.VerifyWorkflowIdentity(r.Context(), r.Header.Get(agentIdentityHeader))
 	}
 	provenance, runID, experimentID, variantID, executionID, nodeID, attemptID := "unattributed", "", "", "", "", "", ""
 	if identity != nil {

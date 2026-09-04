@@ -20,6 +20,12 @@ export interface StepContext {
   replansLeft: number
   emoteSeconds: number
   nearestRings: number
+  /** Clone an actor on its first write in this tick. */
+  touch?: (id: string) => Actor | undefined
+}
+
+function writableActor(state: WorldState, id: string, ctx: StepContext): Actor | undefined {
+  return ctx.touch?.(id) ?? state.actors[id]
 }
 
 export function pushEvent(state: WorldState, event: Omit<WorldState['events'][number], 'seq'>, ring: number): void {
@@ -157,7 +163,7 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
   const ring = ctx.sim.eventsRing
   switch (signal.kind) {
     case 'run.started': {
-      const actor = state.actors[signal.agentId]
+      const actor = writableActor(state, signal.agentId, ctx)
       if (!actor) return
       pushEvent(state, { at: signal.at, kind: signal.kind, agentId: actor.id, teamId: actor.teamId, runId: signal.runId }, ring)
       if (actor.state === 'working' && actor.runId === signal.runId) return
@@ -165,14 +171,14 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
       return
     }
     case 'run.finished': {
-      const actor = state.actors[signal.agentId]
+      const actor = writableActor(state, signal.agentId, ctx)
       if (!actor) return
       pushEvent(state, { at: signal.at, kind: signal.kind, agentId: actor.id, teamId: actor.teamId, runId: signal.runId }, ring)
       if (actor.state === 'working' || actor.state === 'walkingToDesk') finishRun(state, actor, signal.runId, ctx)
       return
     }
     case 'run.failed': {
-      const actor = state.actors[signal.agentId]
+      const actor = writableActor(state, signal.agentId, ctx)
       if (!actor) return
       pushEvent(state, { at: signal.at, kind: signal.kind, agentId: actor.id, teamId: actor.teamId, runId: signal.runId, message: signal.error }, ring)
       if (actor.state === 'working' || actor.state === 'walkingToDesk') failRun(state, actor, signal.runId, signal.error, ctx)
@@ -191,7 +197,7 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
       pushEvent(state, { at: signal.at, kind: signal.kind, teamId: signal.teamId }, ring)
       state.gatherings = without(state.gatherings, signal.teamId)
       for (const id of state.actorOrder) {
-        const actor = state.actors[id]
+        const actor = writableActor(state, id, ctx)
         if (!actor || actor.teamId !== signal.teamId) continue
         if (actor.state === 'gathered' || actor.state === 'walkingToTable') {
           releaseSeat(state, actor)
@@ -202,7 +208,7 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
       return
     }
     case 'agent.message': {
-      const actor = state.actors[signal.agentId]
+      const actor = writableActor(state, signal.agentId, ctx)
       if (!actor) return
       actor.message = { text: signal.message, at: signal.at }
       emote(actor, 'message', ctx.emoteSeconds)
@@ -210,7 +216,7 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
       return
     }
     case 'failed.acknowledged': {
-      const actor = state.actors[signal.agentId]
+      const actor = writableActor(state, signal.agentId, ctx)
       if (!actor) return
       pushEvent(state, { at: signal.at, kind: signal.kind, agentId: actor.id, teamId: actor.teamId }, ring)
       if (actor.state === 'failed') {
@@ -248,7 +254,7 @@ export function advanceTimers(state: WorldState, actor: Actor, ctx: StepContext)
     return
   }
   if (actor.state === 'socializing' && state.time >= actor.idle.until) {
-    const partner = actor.idle.partnerId ? state.actors[actor.idle.partnerId] : undefined
+    const partner = actor.idle.partnerId ? writableActor(state, actor.idle.partnerId, ctx) : undefined
     goIdle(state, actor, ctx)
     if (partner && partner.state === 'socializing') goIdle(state, partner, ctx)
   }

@@ -5,7 +5,7 @@
   "displayName": "Director Contrarian",
   "description": "Reports director-swarm deviations against the target operating model without restructuring the team.",
   "status": "active",
-  "appearance": {"body": "#172554", "head": "#2563EB", "accent": "#BFDBFE"},
+  "appearance": {"body": "#2563EB", "head": "#60A5FA", "accent": "#DBEAFE"},
   "tags": ["director", "contrarian", "shape-sensor"],
   "fileOrder": ["AGENT.md"],
   "revision": 1,

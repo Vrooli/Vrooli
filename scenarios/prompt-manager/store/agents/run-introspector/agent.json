@@ -6,9 +6,9 @@
   "description": "Inspects recent agent-manager runs — errored → retried → slow → random-success triage — and captures durable lessons grounded in execution reality. One run, one lesson per heartbeat.",
   "status": "active",
   "appearance": {
-    "body": "#7C2D12",
-    "head": "#DC2626",
-    "accent": "#FECACA"
+    "body": "#DC2626",
+    "head": "#F87171",
+    "accent": "#FEE2E2"
   },
   "tags": [
     "meta",

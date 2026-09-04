@@ -4,6 +4,7 @@ package heartbeat
 import domain "prompt-manager/internal/heartbeat"
 
 type (
+	AgentManagerClient         = domain.AgentManagerClient
 	Executor                   = domain.Executor
 	HandlersDeps               = domain.HandlersDeps
 	MemberflowContractFindings = domain.MemberflowContractFindings

@@ -7,24 +7,32 @@
  * Rules:
  *   seat-occupancy      occupancy is a bijection and matches actor.seatId
  *   seat-exists         every seat an actor references exists
- *   inside-bounds       every actor stands on the slab
+ *   inside-world        every actor stands inside the generated world
  *   desk-in-room        every desk and table sits inside its parent room
- *   rooms-disjoint      room footprints do not overlap each other or the commons
+ *   sites-disjoint      site pads do not overlap each other or the commons
  *   separation          two standing actors are never closer than a body width
  *   resting-in-place    an idle actor that is not walking stands somewhere meaningful
  */
-import type { ActorTuning, LayoutTuning } from '../config'
+import type { ActorTuning, LayoutTuning, TerrainTuning } from '../config'
 import type { Actor, Place, Vec2, WorldState } from './model'
 import { COMMONS_ID } from './layout/generate'
+import { heightAt } from './terrain'
+import { findPath } from './nav/astar'
+import { isWalkable, nearestWalkable } from './nav/grid'
 
 export type InvariantRule =
   | 'seat-occupancy'
   | 'seat-exists'
-  | 'inside-bounds'
+  | 'inside-world'
   | 'desk-in-room'
-  | 'rooms-disjoint'
+  | 'sites-disjoint'
   | 'separation'
   | 'resting-in-place'
+  | 'above-water'
+  | 'site-level'
+  | 'every-team-sited'
+  | 'commons-reachable'
+  | 'weather-defined'
 
 export interface Violation {
   rule: InvariantRule
@@ -36,6 +44,7 @@ export interface Violation {
 export interface InvariantTuning {
   layout: LayoutTuning
   actor: Pick<ActorTuning, 'bodyRadius'>
+  terrain?: TerrainTuning
 }
 
 const HALF = 0.5
@@ -45,21 +54,39 @@ function distance(a: Vec2, b: Vec2): number {
 }
 
 function insideRect(point: Vec2, place: Place): boolean {
-  return Math.abs(point[0] - place.position[0]) <= place.size[0] * HALF && Math.abs(point[1] - place.position[1]) <= place.size[1] * HALF
+  const dx = point[0] - place.position[0]
+  const dz = point[1] - place.position[1]
+  const cos = Math.cos(place.rotation)
+  const sin = Math.sin(place.rotation)
+  const localX = dx * cos - dz * sin
+  const localZ = dx * sin + dz * cos
+  return Math.abs(localX) <= place.size[0] * HALF && Math.abs(localZ) <= place.size[1] * HALF
 }
 
 /** Whether a disc touches a place footprint: nearest point of the rectangle to the centre lies inside the radius. */
 function rectDiscOverlap(rect: Place, center: Vec2, radius: number): boolean {
-  const dx = Math.max(Math.abs(center[0] - rect.position[0]) - rect.size[0] * HALF, 0)
-  const dz = Math.max(Math.abs(center[1] - rect.position[1]) - rect.size[1] * HALF, 0)
+  const worldX = center[0] - rect.position[0]
+  const worldZ = center[1] - rect.position[1]
+  const cos = Math.cos(rect.rotation)
+  const sin = Math.sin(rect.rotation)
+  const dx = Math.max(Math.abs(worldX * cos - worldZ * sin) - rect.size[0] * HALF, 0)
+  const dz = Math.max(Math.abs(worldX * sin + worldZ * cos) - rect.size[1] * HALF, 0)
   return dx * dx + dz * dz < radius * radius
 }
 
 function rectsOverlap(a: Place, b: Place): boolean {
-  return (
-    Math.abs(a.position[0] - b.position[0]) < (a.size[0] + b.size[0]) * HALF &&
-    Math.abs(a.position[1] - b.position[1]) < (a.size[1] + b.size[1]) * HALF
-  )
+  const axes: Vec2[] = [
+    [Math.cos(a.rotation), -Math.sin(a.rotation)],
+    [Math.sin(a.rotation), Math.cos(a.rotation)],
+    [Math.cos(b.rotation), -Math.sin(b.rotation)],
+    [Math.sin(b.rotation), Math.cos(b.rotation)],
+  ]
+  const delta: Vec2 = [b.position[0] - a.position[0], b.position[1] - a.position[1]]
+  return axes.every((axis) => {
+    const distance = Math.abs(delta[0] * axis[0] + delta[1] * axis[1])
+    const radius = (Math.abs(axis[0] * Math.cos(a.rotation) - axis[1] * Math.sin(a.rotation)) * a.size[0] + Math.abs(axis[0] * Math.sin(a.rotation) + axis[1] * Math.cos(a.rotation)) * a.size[1] + Math.abs(axis[0] * Math.cos(b.rotation) - axis[1] * Math.sin(b.rotation)) * b.size[0] + Math.abs(axis[0] * Math.sin(b.rotation) + axis[1] * Math.cos(b.rotation)) * b.size[1]) * HALF
+    return distance < radius
+  })
 }
 
 function actors(state: WorldState): Actor[] {
@@ -93,10 +120,9 @@ export function checkSeats(state: WorldState): Violation[] {
 
 export function checkBounds(state: WorldState): Violation[] {
   const out: Violation[] = []
-  const { width, depth, center } = state.bounds
   for (const actor of actors(state)) {
-    if (Math.abs(actor.position[0] - center[0]) > width * HALF || Math.abs(actor.position[1] - center[1]) > depth * HALF) {
-      out.push({ rule: 'inside-bounds', ids: [actor.id], detail: `${actor.id} at (${actor.position[0].toFixed(1)}, ${actor.position[1].toFixed(1)}) is off the slab` })
+    if (Math.hypot(actor.position[0], actor.position[1]) >= state.terrain.radius || !isWalkable(state.nav, actor.position)) {
+      out.push({ rule: 'inside-world', ids: [actor.id], detail: `${actor.id} at (${actor.position[0].toFixed(1)}, ${actor.position[1].toFixed(1)}) is outside the generated world` })
     }
   }
   return out
@@ -127,10 +153,10 @@ export function checkPlaces(state: WorldState, layout: LayoutTuning): Violation[
     if (!a) continue
     for (let j = i + 1; j < rooms.length; j += 1) {
       const b = rooms[j]
-      if (b && rectsOverlap(a, b)) out.push({ rule: 'rooms-disjoint', ids: [a.id, b.id], detail: `${a.id} overlaps ${b.id}` })
+      if (b && rectsOverlap(a, b)) out.push({ rule: 'sites-disjoint', ids: [a.id, b.id], detail: `${a.id} overlaps ${b.id}` })
     }
     if (commons && rectDiscOverlap(a, commons.position, layout.commonsRadius)) {
-      out.push({ rule: 'rooms-disjoint', ids: [a.id, COMMONS_ID], detail: `${a.id} overlaps the commons` })
+      out.push({ rule: 'sites-disjoint', ids: [a.id, COMMONS_ID], detail: `${a.id} overlaps the commons` })
     }
   }
   return out
@@ -168,6 +194,70 @@ export function checkRestingInPlace(state: WorldState, layout: LayoutTuning): Vi
   return out
 }
 
+export function checkAboveWater(state: WorldState, terrain: TerrainTuning): Violation[] {
+  const out: Violation[] = []
+  const places = state.placeOrder.map((id) => state.places[id]).filter((value): value is Place => Boolean(value))
+  for (const place of places) {
+    const points: Array<{ id: string; point: Vec2 }> = [{ id: place.id, point: place.position }]
+    for (const seat of place.seats) points.push({ id: seat.id, point: seat.position })
+    for (const { id, point } of points) {
+      if (heightAt(state.terrain, point[0], point[1]) < terrain.waterLevel) out.push({ rule: 'above-water', ids: [id], detail: `${id} lies below the water surface` })
+    }
+  }
+  for (const actor of actors(state)) {
+    actor.path.forEach((point, index) => {
+      if (heightAt(state.terrain, point[0], point[1]) < terrain.waterLevel) out.push({ rule: 'above-water', ids: [actor.id, String(index)], detail: `${actor.id} path waypoint ${index} lies below the water surface` })
+    })
+  }
+  return out
+}
+
+export function checkSites(state: WorldState, terrain: TerrainTuning): Violation[] {
+  const out: Violation[] = []
+  const rooms = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'room')
+  const roomTeams = new Map<string, number>()
+  for (const room of rooms) if (room.teamId) roomTeams.set(room.teamId, (roomTeams.get(room.teamId) ?? 0) + 1)
+  const actorTeams = new Set(actors(state).filter((actor) => Boolean(actor.deskSeatId)).map((actor) => actor.teamId).filter((id): id is string => Boolean(id)))
+  for (const teamId of actorTeams) {
+    if (roomTeams.get(teamId) !== 1) out.push({ rule: 'every-team-sited', ids: [teamId], detail: `${teamId} has ${roomTeams.get(teamId) ?? 0} sites` })
+  }
+  for (const room of rooms) {
+    let minimum = Infinity
+    let maximum = -Infinity
+    const spacing = state.terrain.cellSize
+    const stepsX = Math.ceil(room.size[0] / spacing)
+    const stepsZ = Math.ceil(room.size[1] / spacing)
+    for (let iz = 0; iz <= stepsZ; iz += 1) for (let ix = 0; ix <= stepsX; ix += 1) {
+      const localX = -room.size[0] / 2 + (ix / Math.max(1, stepsX)) * room.size[0]
+      const localZ = -room.size[1] / 2 + (iz / Math.max(1, stepsZ)) * room.size[1]
+      const cos = Math.cos(room.rotation)
+      const sin = Math.sin(room.rotation)
+      const x = room.position[0] + localX * cos + localZ * sin
+      const z = room.position[1] - localX * sin + localZ * cos
+      const height = heightAt(state.terrain, x, z)
+      minimum = Math.min(minimum, height)
+      maximum = Math.max(maximum, height)
+    }
+    if (maximum - minimum > terrain.siteLevelTolerance) out.push({ rule: 'site-level', ids: [room.id], detail: `${room.id} varies ${(maximum - minimum).toFixed(3)} m across its pad` })
+  }
+  const commons = state.places[COMMONS_ID]
+  if (commons) {
+    for (const seat of Object.values(state.seats).filter((seat) => seat.id.startsWith('seat:desk:'))) {
+      const start = nearestWalkable(state.nav, seat.position, 6)
+      const goal = nearestWalkable(state.nav, commons.position, 6)
+      if (!start || !goal || !findPath(state.nav, start, goal)) out.push({ rule: 'commons-reachable', ids: [seat.id, COMMONS_ID], detail: `${seat.id} cannot reach the commons` })
+    }
+  }
+  return out
+}
+
+export function checkWeather(state: WorldState): Violation[] {
+  const knownStates = new Set<unknown>(['clear', 'cloudy', 'rain', 'snow'])
+  return knownStates.has(state.weather.state)
+    ? []
+    : [{ rule: 'weather-defined', ids: [state.weather.state], detail: `unknown weather state ${state.weather.state}` }]
+}
+
 /** Every rule at once. Empty means the state is well formed. */
 export function checkWorldInvariants(state: WorldState, tuning: InvariantTuning): Violation[] {
   return [
@@ -176,5 +266,8 @@ export function checkWorldInvariants(state: WorldState, tuning: InvariantTuning)
     ...checkPlaces(state, tuning.layout),
     ...checkSeparation(state, tuning),
     ...checkRestingInPlace(state, tuning.layout),
+    ...(tuning.terrain ? checkAboveWater(state, tuning.terrain) : []),
+    ...(tuning.terrain ? checkSites(state, tuning.terrain) : []),
+    ...checkWeather(state),
   ]
 }

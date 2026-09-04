@@ -4,9 +4,11 @@
     "description": "Edit mode in the 3D view (view=3d outranks any stored 2D preference): the toolbar appears with undo, redo and reset present, reset stays disabled until a room has moved, and the world reloads cleanly after leaving edit mode",
     "labels": {
       "reset": "none",
-      "safety": "read-only"
+      "safety": "isolated-layout-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1600,

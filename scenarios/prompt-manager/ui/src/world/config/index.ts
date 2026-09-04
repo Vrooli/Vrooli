@@ -13,8 +13,10 @@ export {
   type WorldTuning,
   type SimTuning,
   type LayoutTuning,
+  type TerrainTuning,
   type CameraTuning,
   type LightingTuning,
+  type WeatherTuning,
   type LightingPeriod,
   type LabelsTuning,
   type ActorTuning,
@@ -30,5 +32,8 @@ export {
 } from './tuning.schema'
 export { scenes, isSceneId, resolvePeriod } from './scenes'
 export { SceneSchema, type Scene, type CameraPose } from './scenes.schema'
+export { BiomeSchema, BiomeSetSchema, BiomeSetsSchema, type Biome, type BiomeSet } from './biomes.schema'
+export { biomeSets } from './biomes'
 export { periodForHour, isPeriodId } from './periods'
+export { WeatherIdSchema, WeatherPresetSchema, WeatherTuningSchema, type WeatherId, type WeatherPreset } from './weather.schema'
 export { isQualityProfileId, type QualityState } from './quality'

@@ -14,7 +14,9 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Home, PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
+import { Copy, Folder, FolderPlus, HardDrive, Home, PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, Trash2, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle, Bolt } from 'lucide-react'
+import { ContextMenu, type ContextMenuItem } from '@vrooli/react-component-library/ContextMenu/1.3.0'
+import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
@@ -31,6 +33,7 @@ import { FilterSortToolbar } from '../sidebar/FilterSortToolbar'
 import { ActiveFilterChips } from '../sidebar/ActiveFilterChips'
 import { SkillListView } from '../sidebar/SkillListView'
 import { SkillCardView } from '../sidebar/SkillCardView'
+import { skillActions } from '../sidebar/skill-actions'
 import { isFilterEmpty } from '@/services/filterSortService'
 import { AgentListPanel } from '../agent/AgentListPanel'
 import { TeamListPanel } from '../team/TeamListPanel'
@@ -43,8 +46,6 @@ import { ViewModeToggle } from '../sidebar/ViewModeToggle'
 import { useTopics } from '@/hooks/useTopicData'
 import { useTeamData } from '@/hooks/useTeamData'
 import { useActionsData } from '@/hooks/useActionsData'
-import { FolderContextMenu } from './FolderContextMenu'
-import { SkillContextMenu } from './SkillContextMenu'
 import { SearchResultsList } from '../search/SearchResultsList'
 import { DiscoverControls } from '../search/DiscoverControls'
 import { api } from '@/lib/api'
@@ -85,6 +86,69 @@ const TAB_TO_ENTITY_TYPE: Record<string, CombineEntityType> = {
   teams: 'teams',
   topics: 'topics',
   actions: 'actions',
+}
+
+type TreeActionRow = { id: string }
+
+function folderActions(onAddSkill: () => void, onDeleteFolder: () => void, skillCount: number): RowAction<TreeActionRow>[] {
+  return [
+    { id: 'add', label: 'Add skill', icon: <Plus />, onSelect: onAddSkill },
+    { id: 'delete', label: `Delete folder (${skillCount} skill${skillCount !== 1 ? 's' : ''})`, icon: <Trash2 />, tone: 'destructive', separatorBefore: true, onSelect: onDeleteFolder },
+  ]
+}
+
+function FolderContextMenu({ x, y, folderLabel, skillCount, onClose, onAddSkill, onDeleteFolder }: {
+  x: number; y: number; folderLabel: string; skillCount: number; onClose: () => void
+  onAddSkill: () => void; onDeleteFolder: () => void
+}) {
+  const row = { id: folderLabel }
+  const items = folderActions(onAddSkill, onDeleteFolder, skillCount).map((action) => ({
+    id: action.id,
+    label: action.id === 'add' ? `Add skill to "${folderLabel}"` : action.label,
+    icon: action.icon,
+    destructive: action.tone === 'destructive',
+    separatorBefore: action.separatorBefore,
+    onSelect: () => void action.onSelect([row]),
+  }))
+  return <ContextMenu open onOpenChange={(open) => { if (!open) onClose() }} position={{ x, y }} title={`Actions for ${folderLabel}`} closeLabel="Close folder actions" triggers={[]} items={items} />
+}
+
+const STORAGE_LABELS: Partial<Record<FolderType, string>> = { core: 'Core', local: 'Local', drafts: 'Drafts', scenario: 'Scenario' }
+
+function skillTreeActions(availableModePaths: string[][], onCopySkill: () => void, onMoveToFolder: (path: string[]) => void, onChangeStorage: (folder: FolderType) => void, onCreateNewFolder: () => void): RowAction<TreeActionRow>[] {
+  const uniqueModePaths = Array.from(new Set(availableModePaths.map((path) => path.join('/')))).map((path) => path.split('/').filter(Boolean))
+  return [
+    { id: 'copy', label: 'Copy skill', icon: <Copy />, onSelect: onCopySkill },
+    { id: 'move-root', label: 'Move to (Root)', icon: <Folder />, separatorBefore: true, onSelect: () => onMoveToFolder([]) },
+    ...uniqueModePaths.map((path) => ({ id: `move-${path.join('-')}`, label: `Move to ${path.join(' / ')}`, icon: <Folder />, onSelect: () => onMoveToFolder(path) })),
+    { id: 'new-folder', label: 'Create new folder', icon: <FolderPlus />, onSelect: onCreateNewFolder },
+    { id: 'storage-local', label: `Storage: ${STORAGE_LABELS.local}`, icon: <HardDrive />, separatorBefore: true, onSelect: () => onChangeStorage('local') },
+    { id: 'storage-core', label: `Storage: ${STORAGE_LABELS.core}`, icon: <Folder />, onSelect: () => onChangeStorage('core') },
+  ]
+}
+
+function SkillContextMenu({ x, y, skillName, currentModes, currentFolder, availableModePaths, onClose, onCopySkill, onMoveToFolder, onChangeStorage, onCreateNewFolder }: {
+  x: number; y: number; skillId: string; skillName: string; currentModes: string[]; currentFolder: FolderType
+  availableModePaths: string[][]; onClose: () => void; onCopySkill: () => void
+  onMoveToFolder: (path: string[]) => void; onChangeStorage: (folder: FolderType) => void; onCreateNewFolder: () => void
+}) {
+  const actions = skillTreeActions(availableModePaths, onCopySkill, onMoveToFolder, onChangeStorage, onCreateNewFolder)
+  const currentPath = currentModes.filter(Boolean).join('/')
+  const items: ContextMenuItem[] = actions.map((action) => ({
+    id: action.id,
+    label: action.id === 'copy' ? `Copy "${skillName}"` : action.label,
+    icon: action.icon,
+    pressed: action.id === 'move-root'
+      ? currentPath === ''
+      : action.id.startsWith('move-') && action.id !== 'move-root'
+        ? action.label.slice('Move to '.length).split(' / ').join('/') === currentPath
+        : action.id === 'storage-local'
+          ? currentFolder === 'local'
+          : action.id === 'storage-core' && currentFolder === 'core',
+    separatorBefore: action.separatorBefore,
+    onSelect: () => void action.onSelect([{ id: skillName }]),
+  }))
+  return <ContextMenu open onOpenChange={(open) => { if (!open) onClose() }} position={{ x, y }} title={`Actions for ${skillName}`} closeLabel="Close skill actions" triggers={[]} items={items} />
 }
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
@@ -348,7 +412,7 @@ interface SkillTreeSidebarProps {
   onChangeStorage: (skillId: string, folder: FolderType) => void
   onCreateNewFolder: (skillId: string) => void
   // Combine / select mode props
-  combineMode?: boolean
+  selectionMode?: boolean
   combineSelectedIds?: Set<string>
   combineFormat?: CombineFormat
   combineEntityType?: CombineEntityType
@@ -472,7 +536,7 @@ export function SkillTreeSidebar({
   onMoveToFolder,
   onChangeStorage,
   onCreateNewFolder,
-  combineMode = false,
+  selectionMode = false,
   combineSelectedIds = EMPTY_SET,
   combineFormat = 'xml',
   combineEntityType = 'skills',
@@ -635,13 +699,13 @@ export function SkillTreeSidebar({
     setShowSavedSets(false)
     setEditingSet(null)
     // Keep combineEntityType in sync when switching tabs while in select mode
-    if (combineMode) {
+    if (selectionMode) {
       const entityType = TAB_TO_ENTITY_TYPE[tab]
       if (entityType) {
         useCombineStore.getState().setEntityType(entityType)
       }
     }
-  }, [onActiveTabChange, combineMode])
+  }, [onActiveTabChange, selectionMode])
 
   // Folder context menu state
   const [folderContextMenu, setFolderContextMenu] = useState<{
@@ -679,18 +743,18 @@ export function SkillTreeSidebar({
   // Reactive selected content chars for budget gauge in selection mode
   const combineContentCharsMap = useCombineStore((s) => s.contentCharsMap)
   const selectedContentChars = useMemo(() => {
-    if (!combineMode) return undefined
+    if (!selectionMode) return undefined
     let total = 0
     for (const id of combineSelectedIds) {
       total += combineContentCharsMap.get(id) ?? 0
     }
     return total
-  }, [combineMode, combineSelectedIds, combineContentCharsMap])
+  }, [selectionMode, combineSelectedIds, combineContentCharsMap])
   const [aiDebouncedQuery, setAIDebouncedQuery] = useState('')
 
   // Toggle select/combine mode for the current tab
   const handleSelectModeToggle = useCallback(() => {
-    if (combineMode) {
+    if (selectionMode) {
       setShowSavedSets(false)
       setEditingSet(null)
       onExitCombineMode?.()
@@ -731,7 +795,7 @@ export function SkillTreeSidebar({
         }
       }
     }
-  }, [combineMode, activeTab, searchMode, onExitCombineMode, onEnterCombineMode, onEnterSelectMode, useDiscover, discoverResults, complexity])
+  }, [selectionMode, activeTab, searchMode, onExitCombineMode, onEnterCombineMode, onEnterSelectMode, useDiscover, discoverResults, complexity])
 
   // Content search state
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
@@ -791,8 +855,8 @@ export function SkillTreeSidebar({
   )
 
   const selectionStateByNodeId = useMemo(
-    () => (combineMode ? buildSelectionStateIndex(treeNodes, combineSelectedIds) : undefined),
-    [combineMode, treeNodes, combineSelectedIds]
+    () => (selectionMode ? buildSelectionStateIndex(treeNodes, combineSelectedIds) : undefined),
+    [selectionMode, treeNodes, combineSelectedIds]
   )
 
   const visibleTreeRows = useMemo(
@@ -1033,10 +1097,10 @@ export function SkillTreeSidebar({
 
   // Helper: toggle selection from AI results
   const handleAIResultToggle = useCallback((id: string, _contentChars?: number) => {
-    if (combineMode) {
+    if (selectionMode) {
       onCombineToggle?.({ id: `item-${id}`, label: '', isCategory: false, children: [], itemId: id, depth: 0 })
     }
-  }, [combineMode, onCombineToggle])
+  }, [selectionMode, onCombineToggle])
 
   const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
     setSkillContextMenu(null) // Close any open skill menu
@@ -1116,6 +1180,15 @@ export function SkillTreeSidebar({
       .map((s) => s.modes),
     [skills]
   )
+
+  const sharedSkillActions = useMemo(() => skillActions({
+    onOpen: (skill) => onSelectItem(skill.id),
+    onCopy: (skill) => onCopySkill(skill.id),
+    onMoveToFolder: (skill, path) => onMoveToFolder(skill.id, path),
+    onChangeStorage: (skill, folder) => onChangeStorage(skill.id, folder),
+    onCreateNewFolder: (skill) => onCreateNewFolder(skill.id),
+    availableModePaths,
+  }), [availableModePaths, onChangeStorage, onCopySkill, onCreateNewFolder, onMoveToFolder, onSelectItem])
 
   // Distinct modes and tags for filter config UI
   const availableModes = useMemo(() => {
@@ -1197,7 +1270,7 @@ export function SkillTreeSidebar({
         {!hideTopControlsRow && (
           <div className="flex items-center justify-between gap-2 px-3 py-2">
             <div className="flex items-center gap-1">
-              {combineMode ? (
+              {selectionMode ? (
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-primary" />
                   <span className="text-xs font-medium text-foreground">
@@ -1257,7 +1330,7 @@ export function SkillTreeSidebar({
               )}
             </div>
             <div className="flex items-center gap-1">
-              {onOpenSettings && !combineMode && (
+              {onOpenSettings && !selectionMode && (
                 <button
                   type="button"
                   onClick={onOpenSettings}
@@ -1267,7 +1340,7 @@ export function SkillTreeSidebar({
                   <Settings className="h-4 w-4" />
                 </button>
               )}
-              {!combineMode && (
+              {!selectionMode && (
                 <button
                   type="button"
                   onClick={onToggleCollapse}
@@ -1363,7 +1436,7 @@ export function SkillTreeSidebar({
               {/* Select (combine) toggle + Saved Sets — available on all entity tabs */}
               {activeTab in TAB_TO_ENTITY_TYPE && (onEnterCombineMode || onEnterSelectMode) && (
                 <div className="flex min-w-0 flex-wrap items-center gap-1">
-                  {combineMode && (
+                  {selectionMode && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1392,11 +1465,11 @@ export function SkillTreeSidebar({
                     onClick={handleSelectModeToggle}
                     className={cn(
                       'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
-                      combineMode
+                      selectionMode
                         ? 'bg-primary/10 text-primary border-primary/40'
                         : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
                     )}
-                    title={combineMode ? 'Exit select mode' : 'Select items to copy'}
+                    title={selectionMode ? 'Exit select mode' : 'Select items to copy'}
                     data-testid="combine-mode-toggle"
                   >
                     <Layers className="h-3 w-3" />
@@ -1614,7 +1687,7 @@ export function SkillTreeSidebar({
                           agentResults={agentAIResults?.results}
                           teamResults={teamAIResults?.results}
                           topicResults={topicAIResults ?? undefined}
-                          isSelectMode={combineMode}
+                          isSelectMode={selectionMode}
                           selectedIds={combineSelectedIds}
                           onToggleSelection={handleAIResultToggle}
                           onNavigate={handleAIResultNavigate}
@@ -1749,8 +1822,8 @@ export function SkillTreeSidebar({
                     detailMode={detailMode}
                     healthScoreMap={healthScoreMap}
                     renderItemIcon={renderItemIcon}
-                    onSkillContextMenu={handleSkillContextMenu}
-                    combineMode={combineMode}
+                    actions={sharedSkillActions}
+                    selectionMode={selectionMode}
                     combineSelectedIds={combineSelectedIds}
                     onCombineToggleSkill={onCombineToggle ? (skillId) => {
                       onCombineToggle({ id: `item-${skillId}`, label: '', isCategory: false, children: [], itemId: skillId, depth: 0 })
@@ -1765,8 +1838,8 @@ export function SkillTreeSidebar({
                     detailMode={detailMode}
                     healthScoreMap={healthScoreMap}
                     renderItemIcon={renderItemIcon}
-                    onSkillContextMenu={handleSkillContextMenu}
-                    combineMode={combineMode}
+                    actions={sharedSkillActions}
+                    selectionMode={selectionMode}
                     combineSelectedIds={combineSelectedIds}
                     onCombineToggleSkill={onCombineToggle ? (skillId) => {
                       onCombineToggle({ id: `item-${skillId}`, label: '', isCategory: false, children: [], itemId: skillId, depth: 0 })
@@ -1810,8 +1883,8 @@ export function SkillTreeSidebar({
                           expandedNodes={expandedNodes}
                           onToggleNode={onToggleNode}
                           renderItemIcon={renderItemIcon}
-                          showCheckbox={combineMode}
-                          onCheckboxChange={combineMode ? onCombineToggle : undefined}
+                          showCheckbox={selectionMode}
+                          onCheckboxChange={selectionMode ? onCombineToggle : undefined}
                           selectionStateByNodeId={selectionStateByNodeId}
                           detailMode={detailMode}
                           healthScoreMap={healthScoreMap}
@@ -1860,7 +1933,7 @@ export function SkillTreeSidebar({
 
           {/* Footer - Context dependent */}
           <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-            {combineMode && combineEntityType === 'skills' && onCombineCopy && onExitCombineMode && onCombineFormatChange ? (
+            {selectionMode && combineEntityType === 'skills' && onCombineCopy && onExitCombineMode && onCombineFormatChange ? (
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}
                 format={combineFormat}
@@ -1932,7 +2005,7 @@ export function SkillTreeSidebar({
                   <SearchResultsList
                     entityType="agents"
                     agentResults={agentAIResults.results}
-                    isSelectMode={combineMode}
+                    isSelectMode={selectionMode}
                     selectedIds={combineSelectedIds}
                     onToggleSelection={handleAIResultToggle}
                     onNavigate={handleAIResultNavigate}
@@ -1955,13 +2028,13 @@ export function SkillTreeSidebar({
               onCustomizeAgent={onCustomizeAgent}
               onPreviewPrompt={onPreviewPrompt}
               className="flex-1"
-              isSelectMode={combineMode && combineEntityType === 'agents'}
+              isSelectMode={selectionMode && combineEntityType === 'agents'}
               selectedIds={combineSelectedIds}
               onToggleSelection={(id) => handleAIResultToggle(id)}
             />
           )}
           {/* Footer for agents */}
-          {combineMode && combineEntityType === 'agents' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+          {selectionMode && combineEntityType === 'agents' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
             <div className="flex-shrink-0 px-3 py-3 border-t border-border">
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}
@@ -2020,7 +2093,7 @@ export function SkillTreeSidebar({
                   <SearchResultsList
                     entityType="teams"
                     teamResults={teamAIResults.results}
-                    isSelectMode={combineMode}
+                    isSelectMode={selectionMode}
                     selectedIds={combineSelectedIds}
                     onToggleSelection={handleAIResultToggle}
                     onNavigate={handleAIResultNavigate}
@@ -2042,13 +2115,13 @@ export function SkillTreeSidebar({
               heartbeatControlStatus={heartbeatControlData?.status}
               onToggleTeamEnabled={onToggleTeamEnabled}
               className="flex-1"
-              isSelectMode={combineMode && combineEntityType === 'teams'}
+              isSelectMode={selectionMode && combineEntityType === 'teams'}
               selectedIds={combineSelectedIds}
               onToggleSelection={(id) => handleAIResultToggle(id)}
             />
           )}
           {/* Footer for teams */}
-          {combineMode && combineEntityType === 'teams' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+          {selectionMode && combineEntityType === 'teams' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
             <div className="flex-shrink-0 px-3 py-3 border-t border-border">
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}
@@ -2117,7 +2190,7 @@ export function SkillTreeSidebar({
                   <SearchResultsList
                     entityType="topics"
                     topicResults={topicAIResults}
-                    isSelectMode={combineMode}
+                    isSelectMode={selectionMode}
                     selectedIds={combineSelectedIds}
                     onToggleSelection={handleAIResultToggle}
                     onNavigate={handleAIResultNavigate}
@@ -2157,7 +2230,7 @@ export function SkillTreeSidebar({
                   onSelectTopic={onSelectTopicFromMenu ?? (() => {})}
                   className="flex-1"
                   detailMode={topicDetailMode}
-                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  isSelectMode={selectionMode && combineEntityType === 'topics'}
                   selectedIds={combineSelectedIds}
                   onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
@@ -2168,7 +2241,7 @@ export function SkillTreeSidebar({
                   searchQuery={topicSearchQuery}
                   className="flex-1"
                   detailMode={topicDetailMode}
-                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  isSelectMode={selectionMode && combineEntityType === 'topics'}
                   selectedIds={combineSelectedIds}
                   onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
@@ -2179,7 +2252,7 @@ export function SkillTreeSidebar({
                   onSelectTopic={onSelectTopicFromMenu ?? (() => {})}
                   detailMode={topicDetailMode}
                   className="flex-1"
-                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  isSelectMode={selectionMode && combineEntityType === 'topics'}
                   selectedIds={combineSelectedIds}
                   onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
@@ -2187,7 +2260,7 @@ export function SkillTreeSidebar({
             </>
           )}
           {/* Footer for topics */}
-          {combineMode && combineEntityType === 'topics' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+          {selectionMode && combineEntityType === 'topics' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
             <div className="flex-shrink-0 px-3 py-3 border-t border-border">
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}
@@ -2245,7 +2318,7 @@ export function SkillTreeSidebar({
                   <SearchResultsList
                     entityType="actions"
                     actionResults={actionAIResults.results}
-                    isSelectMode={combineMode}
+                    isSelectMode={selectionMode}
                     selectedIds={combineSelectedIds}
                     onToggleSelection={handleAIResultToggle}
                     onNavigate={handleAIResultNavigate}
@@ -2265,12 +2338,12 @@ export function SkillTreeSidebar({
               onSelectAction={onSelectActionFromMenu ?? (() => {})}
               searchQuery={actionSearchQuery}
               className="flex-1"
-              isSelectMode={combineMode && combineEntityType === 'actions'}
+              isSelectMode={selectionMode && combineEntityType === 'actions'}
               selectedIds={combineSelectedIds}
               onToggleSelection={(id) => handleAIResultToggle(id)}
             />
           )}
-          {combineMode && combineEntityType === 'actions' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+          {selectionMode && combineEntityType === 'actions' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
             <div className="flex-shrink-0 px-3 py-3 border-t border-border">
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}

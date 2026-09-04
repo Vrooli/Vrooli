@@ -4,9 +4,11 @@
     "description": "Focus an agent from the 2D list, read its card, close it with the close button",
     "labels": {
       "reset": "none",
-      "safety": "read-only"
+      "safety": "isolated-ui-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1600,

@@ -24,6 +24,7 @@ export const SceneSchema = z.object({
   title: z.string().min(1),
   environment: z.enum(['outdoor', 'indoor']),
   assetSet: z.string().regex(/^[a-z0-9-]+$/).describe('Directory under public/assets/world holding this scene props'),
+  biomeSet: z.enum(['park', 'office']).describe('Biome set that supplies terrain colours and ground-bound props'),
   props: z.object({
     desk: PropIdSchema,
     chair: PropIdSchema,
@@ -32,23 +33,15 @@ export const SceneSchema = z.object({
     campfire: PropIdSchema,
     lamp: PropIdSchema,
     board: PropIdSchema,
-    trees: z.array(PropIdSchema).max(8),
-    decor: z.array(PropIdSchema).max(16),
   }),
   palette: z.object({
     /** Terrain beyond the lot, out to the fogged horizon. */
     horizon: hex,
     ground: hex,
-    groundEdge: hex,
     roomFloor: hex,
     roomWall: hex,
     commons: hex,
     path: hex,
-  }),
-  slab: z.object({
-    thickness: z.number().min(0.1).max(5),
-    /** Bevel radius; never more than half the thickness or the top face rises above the ground plane. */
-    cornerRadius: z.number().min(0).max(5),
   }),
   /** Uniform scale applied to every baked prop so kit units read as metres in this world. */
   propScale: z.number().min(0.1).max(10),

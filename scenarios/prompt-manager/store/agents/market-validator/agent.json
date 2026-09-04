@@ -6,9 +6,9 @@
   "description": "Grounds Vrooli's pricing, retention, and competitive assumptions in external benchmarks for the active tier × bundle. Maintains BENCHMARKS.md; validates FINANCIAL_MODEL.md assumptions against public data.",
   "status": "active",
   "appearance": {
-    "body": "#134E4A",
-    "head": "#0D9488",
-    "accent": "#5EEAD4"
+    "body": "#0D9488",
+    "head": "#2DD4BF",
+    "accent": "#CCFBF1"
   },
   "tags": [
     "monetization",

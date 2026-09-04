@@ -1,0 +1,18 @@
+{
+  "park": {
+    "id": "park",
+    "biomes": [
+      { "id": "wetland", "bounds": { "height": [-2, 0.15], "moisture": [0.55, 1], "slope": [0, 1.57] }, "ramp": ["#426f62", "#6f9b72"], "rock": "#596d67", "path": "#9b8b68", "aoStrength": 0.4, "vegetation": { "tree_default": 0.012 }, "decor": { "bush_round": 0.018 } },
+      { "id": "rocky", "bounds": { "height": [-2, 2], "moisture": [0, 1], "slope": [0.055, 1.57] }, "ramp": ["#71806a", "#8d927b"], "rock": "#706a60", "path": "#94866d", "aoStrength": 0.5, "vegetation": { "tree_pine": 0.018 }, "decor": { "rock_small": 0.025 } },
+      { "id": "forest", "bounds": { "height": [-2, 2], "moisture": [0.47, 1], "slope": [0, 1.57] }, "ramp": ["#3f6b3a", "#628c4e"], "rock": "#6b6255", "path": "#8f7f5e", "aoStrength": 0.35, "vegetation": { "tree_oak": 0.035, "tree_pine": 0.025 }, "decor": { "stump": 0.008, "bush_round": 0.02 } },
+      { "id": "sand", "bounds": { "height": [-2, -0.12], "moisture": [0, 1], "slope": [0, 1.57] }, "ramp": ["#b9a873", "#d2c28d"], "rock": "#86785f", "path": "#a28e67", "aoStrength": 0.2, "vegetation": {}, "decor": { "flowers": 0.008 } },
+      { "id": "meadow", "bounds": { "height": [-20, 20], "moisture": [0, 1], "slope": [0, 1.57] }, "ramp": ["#65a653", "#8fbe63"], "rock": "#746e5f", "path": "#a18b61", "aoStrength": 0.25, "vegetation": { "tree_default": 0.012 }, "decor": { "flowers": 0.014 } }
+    ]
+  },
+  "office": {
+    "id": "office",
+    "biomes": [
+      { "id": "floor", "bounds": { "height": [-20, 20], "moisture": [0, 1], "slope": [0, 1.57] }, "ramp": ["#d8d2c5", "#d8d2c5"], "rock": "#9a9489", "path": "#c1b8a8", "aoStrength": 0, "vegetation": {}, "decor": {} }
+    ]
+  }
+}

@@ -31,7 +31,14 @@ for (const record of records) {
   if (drawCalls !== budget.drawCalls || triangles !== budget.triangles) changed += 1
   budget.drawCalls = drawCalls
   budget.triangles = triangles
-  if (record.gpu) budget.p95Ms = Number((record.diagnostics.frameMsP95 * headroom).toFixed(1))
+  if (record.gpu && record.timingMethod === 'gpu-timer') budget.p95Ms = Number((record.diagnostics.gpuMsP95 * headroom).toFixed(1))
+  if (record.gpu && record.timingMethod === 'vsync-off-fallback') budget.p95Ms = Number((record.diagnostics.frameMsP95 * headroom).toFixed(1))
+  budget.provenance = {
+    actors: record.actors,
+    gpu: record.diagnostics.gpu || 'unreported renderer',
+    calibratedAt: new Date(record.capturedAt).toISOString().slice(0, 10),
+    method: record.timingMethod,
+  }
 }
 writeFileSync(tuningPath, `${JSON.stringify(tuning, null, 2)}\n`)
 console.log(`calibrated ${records.length} evidence record(s), ${changed} budget(s) changed (headroom ${headroom}); run pnpm world:tuning-docs`)

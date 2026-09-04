@@ -20,9 +20,10 @@ describe('nav grid', () => {
     if (!room || !desk || !fire) return
     expect(isWalkable(s.nav, desk.position)).toBe(false)
     expect(isWalkable(s.nav, fire.position)).toBe(false)
-    expect(isWalkable(s.nav, [room.position[0], room.position[1] - room.size[1] / 2])).toBe(false)
-    expect(isWalkable(s.nav, [room.position[0], room.position[1] + room.size[1] / 2])).toBe(true)
-    const tree = s.decor[0]
+    const localPoint = (z: number): [number, number] => [room.position[0] + z * Math.sin(room.rotation), room.position[1] + z * Math.cos(room.rotation)]
+    expect(isWalkable(s.nav, localPoint(-room.size[1] / 2))).toBe(false)
+    expect(isWalkable(s.nav, localPoint(room.size[1] / 2))).toBe(true)
+    const tree = s.decor.find((spot) => spot.kind === 'tree')
     if (tree) expect(isWalkable(s.nav, tree.position)).toBe(false)
     expect(isWalkable(s.nav, desk.seats[0]?.position ?? [0, 0])).toBe(true)
   })

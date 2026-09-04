@@ -6,7 +6,8 @@ import type { LabelsTuning, QualityProfile } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../../engine/assets'
 import type { Actor, Place } from '../../sim'
 import { useWorldStore } from '../WorldStoreContext'
-import { bodyPose } from '../actors/pose'
+import type { BodyPose } from '../actors/pose'
+import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from '../actors/PoseBuffer'
 import { clusterLabels, labelWorldSize } from './clusters'
 import { resolveCollisions, type LabelRect } from './collision'
 
@@ -60,6 +61,8 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
   const fontUrl = useMemo(() => worldAssetUrl(WORLD_ASSETS.labelFont), [])
   const budget = Math.max(1, Math.min(labels.budget, profile.labelBudget))
   const assigned = useRef<string[]>([])
+  const poses = usePoseBuffer()
+  const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
   useFrame(() => {
     frames.current += 1
@@ -68,6 +71,7 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
     if (frames.current % REFRESH_EVERY_FRAMES !== 0) return
     const state = store.getState()
     const t = store.tuning()
+    const actorIndices = new Map(state.actorOrder.map((id, index) => [id, index]))
     anchor.set(state.bounds.center[0], 0, state.bounds.center[1])
     const cameraDistance = camera.position.distanceTo(anchor)
     const rooms = new Map<string, Place>()
@@ -105,7 +109,9 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
     for (const id of clustered.individual) {
       const actor = state.actors[id]
       if (!actor) continue
-      const pose = bodyPose(actor, t.actor)
+      const poseIndex = actorIndices.get(id)
+      if (poseIndex === undefined || (poses.data[poseIndex * POSE_STRIDE + POSE.visible] ?? 0) === 0) continue
+      readPose(poses, poseIndex, pose)
       consider(id, actor.name, pose.x, pose.y + t.labels.offsetY, pose.z, PRIORITY[actor.state] + (pinned.has(id) ? PINNED_BONUS : 0))
     }
     for (const cluster of clustered.clusters) {

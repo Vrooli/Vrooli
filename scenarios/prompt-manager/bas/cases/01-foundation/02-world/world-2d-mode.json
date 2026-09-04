@@ -4,9 +4,11 @@
     "description": "2D mode lists agents, offers the same actions, and returns to 3D",
     "labels": {
       "reset": "none",
-      "safety": "read-only"
+      "safety": "isolated-ui-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1600,

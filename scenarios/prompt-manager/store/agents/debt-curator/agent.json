@@ -6,9 +6,9 @@
   "description": "Applies meta-optimization's evolutionary-pressure principles to the meta-optimization team itself. Scans typed team knowledge and shared artifacts for prose workarounds ripe for promotion into permanent structure (canon under docs/agent-system/, skills, scenario features, team-config). Proposes promotions and retirements; never implements.",
   "status": "active",
   "appearance": {
-    "body": "#78350F",
-    "head": "#B45309",
-    "accent": "#FDE68A"
+    "body": "#D97706",
+    "head": "#F59E0B",
+    "accent": "#FEF3C7"
   },
   "tags": [
     "meta",

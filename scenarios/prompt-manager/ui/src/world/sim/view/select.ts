@@ -51,6 +51,7 @@ export interface WorldView {
   places: Place[]
   events: WorldEvent[]
   bounds: WorldState['bounds']
+  weather: WorldState['weather']
 }
 
 const PRIORITY: Record<ActorState, number> = {
@@ -145,17 +146,22 @@ export function buildView(state: WorldState, actor: ActorTuning): WorldView {
     places: state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p !== undefined),
     events: [...state.events].reverse(),
     bounds: state.bounds,
+    weather: state.weather,
   }
 }
 
 /** Memoising selector: same revision and gathering clock → same object. */
 export function createViewSelector(actor: ActorTuning): (state: WorldState) => WorldView {
   let lastRevision = -1
+  let lastWeatherUntil = -1
+  let lastPressure = -1
   let lastView: WorldView | null = null
   return (state) => {
-    if (lastView && lastRevision === state.revision) return lastView
+    if (lastView && lastRevision === state.revision && lastWeatherUntil === state.weather.until && lastPressure === state.weather.pressure) return lastView
     lastView = buildView(state, actor)
     lastRevision = state.revision
+    lastWeatherUntil = state.weather.until
+    lastPressure = state.weather.pressure
     return lastView
   }
 }

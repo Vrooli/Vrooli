@@ -109,7 +109,7 @@ prompt-manager skill show <id>
 prompt-manager skill add <name> [--folder=local] [--tags=...]
 prompt-manager skill update <id> [--name=...] [--tags=...]
 prompt-manager skill delete <id> [--force]
-prompt-manager skill use <id>                    # Copy and record usage
+prompt-manager skill read <id>                  # Read and record usage
 prompt-manager skill versions <id>               # View version history
 prompt-manager skill revert <id> <version>       # Revert to version
 

@@ -3,7 +3,7 @@
 Push high-usage prose-heavy skills toward the right durable layer, audit skill and Action drift, improve irreducible judgment skills, and propose retirement of unused skills or obsolete Actions.
 
 ## Selection Judgment
-Choose one target by this ladder: high usage and longest absence, drift flag, token-heavy prose, low maturity, then never visited. UsageCount is currently unpowered because callers use skill read rather than skill use; until that is fixed, use discovery-metrics and name the signal in the continuity record.
+Choose one target by this ladder: high usage and longest absence, drift flag, token-heavy prose, low maturity, then never visited. Skill reads now record usage; use `prompt-manager skill-usage` to separate returned, read, and demand-read signals, and name the signal in the continuity record.
 
 Discovery budget pressure has two distinct fixes:
 | Evidence | Disposition |

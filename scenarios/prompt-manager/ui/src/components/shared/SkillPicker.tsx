@@ -114,7 +114,7 @@ export function SkillPicker({
             onSelectItem={noop}
             dirtyItemIds={EMPTY_SET}
             detailMode={detailMode}
-            combineMode
+            selectionMode
             combineSelectedIds={selectedIds}
             onCombineToggleSkill={onToggle}
           />
@@ -125,7 +125,7 @@ export function SkillPicker({
             onSelectItem={noop}
             dirtyItemIds={EMPTY_SET}
             detailMode={detailMode}
-            combineMode
+            selectionMode
             combineSelectedIds={selectedIds}
             onCombineToggleSkill={onToggle}
           />

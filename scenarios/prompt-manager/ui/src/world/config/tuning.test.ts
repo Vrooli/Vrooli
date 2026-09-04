@@ -67,8 +67,8 @@ describe('scenes', () => {
   it('parses both scene files', () => {
     expect(scenes.park.id).toBe('park')
     expect(scenes.office.id).toBe('office')
-    expect(scenes.park.props.trees.length).toBeGreaterThan(0)
-    expect(scenes.office.props.trees).toEqual([])
+    expect(scenes.park.biomeSet).toBe('park')
+    expect(scenes.office.biomeSet).toBe('office')
   })
 
   it('applies indoor period overrides over the global preset', () => {
@@ -97,13 +97,5 @@ describe('periodForHour', () => {
     expect(periodForHour(2, tuning.lighting)).toBe('night')
     expect(periodForHour(26, tuning.lighting)).toBe('night')
     expect(periodForHour(-1, tuning.lighting)).toBe('night')
-  })
-})
-
-describe('scene slabs', () => {
-  it('keep the bevel within half the thickness so the top face stays at ground level', () => {
-    for (const id of SCENE_IDS) {
-      expect(scenes[id].slab.cornerRadius).toBeLessThanOrEqual(scenes[id].slab.thickness / 2)
-    }
   })
 })

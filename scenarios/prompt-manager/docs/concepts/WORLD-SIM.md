@@ -10,29 +10,29 @@ tuning)` → new `WorldState` (pure); `buildView(state, actorTuning)` →
 `WorldView` for the HUD; `createWorldStore(input, tuning)` wraps the three for
 a live world (dispatch, advance, subscribe on discrete change, live tuning).
 
-## Place is state
+## Terrain and place are state
 
 The layout is generated from the team graph and keyed by ids, never names:
 
 | Place | Rule |
 |---|---|
-| room | one per team, on a grid behind the commons, `maxRoomsPerRow` per row; width grows with the desk row |
+| room | one per team on a seeded, dry, level site; width grows with the desk row and rotation snaps to the configured step |
 | desk | one per member along the room's back wall at `deskPitch`; its seat is `deskSeatOffset` in front, facing the desk |
 | table | one per team inside the room with `tableSeats` sitting seats on a ring |
-| commons | a disc of `commonsRadius` at the origin; idle outings and unassigned agents live here |
+| commons | a disc on the best central buildable site; idle outings and unassigned agents live here |
 | campfire | centre of the commons with `commonsSeats` sitting seats |
 | board | the runs board, `boardOffset` beside the commons |
 
-Trees (outdoor scenes) are scattered deterministically from the seed over the
-free ground, never inside `clearingRadius` of a place or of a clear point (the
-hero camera ground point), never closer than `treeMargin` to each other or the
-slab edge. Operator overrides move or remove places by id after generation;
-a moved room carries its desks, tables and seats. Agent positions are sim
+Terrain generation builds height and moisture, derives water and shores,
+classifies biomes, selects sites, terraces them, and connects them with paths.
+Biome vegetation and decor are scattered deterministically outside place
+clearances and inside the terrain disc. Operator overrides move, rotate, or
+remove places by id after generation; a transformed room carries its desks,
+tables, seats, and rotations. Agent positions are sim
 output and are never persisted.
 
-The slab grows with the layout and is never smaller than `minSlabWidth` ×
-`minSlabDepth`. A walkable grid (`cellSize`) blocks desks, tables, the
-campfire, the board, tree trunks and the three walls of every room; the front
+A walkable grid (`cellSize`) blocks water, steep slopes, desks, tables, the
+campfire, the board, tree trunks, and the three walls of every room. The front
 of a room is open. Actors path with A* on that grid (8-neighbour, no corner
 cutting, string-pulled), cached per start/goal cell (`pathCacheSize`) with at
 most `maxReplansPerTick` replans per tick.
@@ -82,27 +82,32 @@ meet on the commons `socializeGap` apart, face each other for
 home nor on the commons (fresh from a table, a removed room) walks home first.
 A run that starts while the member is at its desk goes straight to Working.
 
-## Animation phase
+## Animation and weather
 
 `anim` is sim data so it is testable: breathing (`breathHz`), hop phase while
 walking (`hopHz`) with a landing squash (`squashOnLand`, relaxing at
 `squashRecoverPerSec`), blink timers, seated flag and a short emote after each
 signal (`emoteSeconds`). The scene reads it; it never computes it.
 
+Weather is also simulation data. Seeded transitions advance from clear through
+cloud, rain, or seasonally allowed snow. Pressure combines failed runs, failed
+actors, and expired gatherings, then smooths over time. Rendering reads the
+preset; the HUD explains the state and pressure.
+
 ## Determinism and invariants
 
 `sim/invariants.ts` states what every settled world must satisfy and returns
 named violations instead of booleans: occupancy is a bijection that matches
-`actor.seatId`, every actor stands on the slab, desks and tables sit inside
-their room, rooms never overlap each other or the commons, standing actors
+`actor.seatId`, every actor stands on walkable terrain, sites stay dry, level,
+separate, and reachable, desks and tables sit inside their room, standing actors
 keep a body width apart, and a resting idle actor is at its desk, on the
 commons or on a seat it holds. `invariants.test.ts` runs them on fresh worlds
 of every size, after minutes of idle life, through a run, a failure and a
 gathering, and after a room is removed. The live page exposes the same check
 as `window.__worldSim.violations()` and the smoke tool fails on any.
 
-`hashState` digests actor states, positions, seats, idle activity and the RNG
-cell. The determinism test proves two runs from seed 7 with the same signal
+`hashState` digests terrain, actor states, positions, seats, idle activity and
+the RNG state. The determinism test proves two runs from seed 7 with the same signal
 script hash identically after 10,000 ticks; the boundary test proves 50 actors
-never leave the slab over 5,000 ticks; the literal scan proves the sim carries
+remain on walkable terrain over 5,000 ticks; the literal scan proves the sim carries
 no behaviour numbers outside `world.tuning.json`.

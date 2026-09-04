@@ -6,9 +6,9 @@
   "description": "Audits teams and agents together — they co-evolve. Agent work is the default lane; team work is situational. Proposes structural and prompt-level changes, plus deprecation of long-dormant agents and empty teams.",
   "status": "active",
   "appearance": {
-    "body": "#9A3412",
-    "head": "#F97316",
-    "accent": "#FED7AA"
+    "body": "#EA580C",
+    "head": "#FB923C",
+    "accent": "#FFEDD5"
   },
   "tags": [
     "meta",

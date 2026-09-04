@@ -3,7 +3,7 @@
  * the components so they are testable in Node.
  */
 import type { ActorTuning } from '../../config'
-import type { Actor } from '../../sim'
+import type { Actor, GroundSampler } from '../../sim'
 
 export interface BodyPose {
   x: number
@@ -17,7 +17,7 @@ export interface BodyPose {
 const TAU = Math.PI * 2
 
 /** Body centre and scale for one actor from its animation phase. */
-export function bodyPose(actor: Actor, t: ActorTuning): BodyPose {
+export function bodyPose(actor: Actor, t: ActorTuning, ground: GroundSampler = { heightAt: () => 0 }): BodyPose {
   const hop = actor.anim.hopPhase > 0 ? Math.sin(actor.anim.hopPhase * Math.PI) * t.hopHeight : 0
   const breath = Math.sin(actor.anim.breathPhase * TAU) * t.breathAmplitude
   const seated = actor.anim.seated ? t.seatedScale : 1
@@ -26,7 +26,7 @@ export function bodyPose(actor: Actor, t: ActorTuning): BodyPose {
   const scaleY = radius * t.look.bodySquashY * (1 - breath)
   return {
     x: actor.position[0],
-    y: hop + scaleY,
+    y: ground.heightAt(actor.position[0], actor.position[1]) + hop + scaleY,
     z: actor.position[1],
     facing: actor.facing,
     scaleXZ,

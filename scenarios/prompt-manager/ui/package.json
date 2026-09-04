@@ -1,36 +1,4 @@
 {
-  "name": "prompt-manager-ui",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "Modern React/TypeScript UI for Prompt Manager with stunning visuals",
-  "private": true,
-  "scripts": {
-    "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "vite build",
-    "build:profile": "vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage",
-    "prebuild": "pnpm generate:selectors",
-    "pretest": "pnpm generate:selectors",
-    "pretype-check": "pnpm generate:selectors",
-    "serve": "node server-vite.js",
-    "serve:dev": "vite",
-    "serve:express": "node server-express.js",
-    "world:tuning-docs": "node ./scripts/world-tuning-docs/run.mjs",
-    "world:smoke": "node ./scripts/world-smoke/run.mjs",
-    "world:goldens": "node ./scripts/world-smoke/run.mjs --update-goldens",
-    "world:assets": "node ./scripts/world-assets/build.mjs",
-    "world:compare": "node ./scripts/world-smoke/compare.mjs",
-    "world:calibrate": "node ./scripts/world-smoke/calibrate.mjs && node ./scripts/world-tuning-docs/run.mjs",
-    "world:sheet": "node ./scripts/world-smoke/sheet.mjs"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -69,6 +37,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@xyflow/react": "^12.10.0",
     "axe-core": "4.12.1",
     "camera-controls": "^3.0.0",
@@ -96,6 +65,7 @@
     "zod": "^4.3.6",
     "zustand": "^5.0.10"
   },
+  "description": "Modern React/TypeScript UI for Prompt Manager with stunning visuals",
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@gltf-transform/cli": "^4.0.0",
@@ -129,6 +99,9 @@
     "vite": "^5.0.8",
     "vitest": "^1.2.0"
   },
+  "engines": {
+    "node": "\u003e=18.0.0"
+  },
   "keywords": [
     "prompt-management",
     "react",
@@ -140,8 +113,36 @@
     "modern-ui",
     "vrooli"
   ],
-  "engines": {
-    "node": ">=18.0.0"
+  "name": "prompt-manager-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "build:profile": "vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prebuild": "pnpm generate:selectors",
+    "pretest": "pnpm generate:selectors",
+    "pretype-check": "pnpm generate:selectors",
+    "preview": "vite preview",
+    "serve": "node server-vite.js",
+    "serve:dev": "vite",
+    "serve:express": "node server-express.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "world:assets": "node ./scripts/world-assets/build.mjs",
+    "world:calibrate": "node ./scripts/world-smoke/calibrate.mjs \u0026\u0026 node ./scripts/world-tuning-docs/run.mjs",
+    "world:compare": "node ./scripts/world-smoke/compare.mjs",
+    "world:goldens": "node ./scripts/world-smoke/run.mjs --update-goldens --actors 25",
+    "world:sheet": "node ./scripts/world-smoke/sheet.mjs",
+    "world:smoke": "node ./scripts/world-smoke/run.mjs --actors 25",
+    "world:tuning-docs": "node ./scripts/world-tuning-docs/run.mjs"
   },
-  "packageManager": "pnpm@9.12.1"
+  "type": "module",
+  "version": "1.0.0"
 }

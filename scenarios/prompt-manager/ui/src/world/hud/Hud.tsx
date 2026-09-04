@@ -32,6 +32,7 @@ export interface HudProps {
   onTwoDChange: (twoD: boolean) => void
   tickerLimit: number
   onCustomize?: (agentId: string) => void
+  weather?: { state: import('../config').WeatherId; pressure: number }
 }
 
 /**
@@ -59,11 +60,12 @@ export function WorldHud(props: HudProps) {
           activeFilter={props.summaryFilter}
           onToggleFilter={(f) => props.onSummaryFilterChange(props.summaryFilter === f ? null : f)}
           teamNames={teamNames}
+          weather={props.weather ?? view.weather}
         />
       </div>
       {props.twoD && (
         <div className="pointer-events-auto flex-1 overflow-hidden">
-          <TwoDMode actors={filtered} teams={view.teams} now={view.time} focusedId={props.focusedId} onFocus={props.onFocus} />
+          <TwoDMode actors={filtered} teams={view.teams} now={view.time} focusedId={props.focusedId} onFocus={props.onFocus} weather={props.weather ?? view.weather} />
         </div>
       )}
       <div className="mt-auto flex items-end justify-between gap-3 p-3">

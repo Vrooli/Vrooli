@@ -722,7 +722,7 @@ describe('SkillTreeSidebar', () => {
       render(
         <SkillTreeSidebar
           {...defaultProps}
-          combineMode={true}
+          selectionMode={true}
           onEnterCombineMode={vi.fn()}
           onExitCombineMode={onExitCombineMode}
         />
@@ -737,7 +737,7 @@ describe('SkillTreeSidebar', () => {
         <SkillTreeSidebar
           {...defaultProps}
           initialActiveTab="agents"
-          combineMode={true}
+          selectionMode={true}
           combineEntityType="agents"
           combineSelectedIds={new Set(['agent-1'])}
           onCombineFormatChange={vi.fn()}

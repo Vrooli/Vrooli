@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { scenes, tuning } from '../../config'
+import { biomeSets, scenes, tuning } from '../../config'
 import { allProps, propRecord } from './registry'
 
 /** Each material is one instanced draw per prop; keep props cheap. */
@@ -9,7 +9,17 @@ describe('prop registry', () => {
   it('has a baked entry for every prop each scene names, within the triangle budget', () => {
     for (const scene of Object.values(scenes)) {
       const p = scene.props
-      const ids = [p.desk, p.chair, p.table, p.seat, p.campfire, p.lamp, p.board, ...p.trees, ...p.decor]
+      const biomeSet = biomeSets[scene.biomeSet]
+      const ids = [
+        p.desk,
+        p.chair,
+        p.table,
+        p.seat,
+        p.campfire,
+        p.lamp,
+        p.board,
+        ...biomeSet.biomes.flatMap((biome) => [...Object.keys(biome.vegetation), ...Object.keys(biome.decor)]),
+      ]
       for (const id of ids) {
         const record = propRecord(scene.assetSet, id)
         expect(record, `${scene.id}/${id} missing from registry; run pnpm world:assets`).toBeDefined()

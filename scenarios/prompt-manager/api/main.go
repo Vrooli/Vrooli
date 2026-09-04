@@ -33,6 +33,7 @@ import (
 	"prompt-manager/handlers/ogmeta"
 	"prompt-manager/handlers/search"
 	"prompt-manager/handlers/skills"
+	skillsetvalidation "prompt-manager/handlers/skillsetvalidation"
 	"prompt-manager/handlers/tags"
 	"prompt-manager/handlers/teams"
 	"prompt-manager/handlers/templates"
@@ -72,6 +73,19 @@ import (
 // minimal, router-agnostic mount surface without coupling that package to
 // gorilla/mux's fluent Handle return value.
 type gorillaMuxAdapter struct{ router *mux.Router }
+
+type skillUsageOutcomeResolver struct{ client *heartbeat.AgentManagerClient }
+
+func (r skillUsageOutcomeResolver) RunStatus(ctx context.Context, runID string) (string, error) {
+	run, err := r.client.GetRun(ctx, runID)
+	if err != nil {
+		return "", err
+	}
+	if run == nil {
+		return "", fmt.Errorf("run %s not found", runID)
+	}
+	return run.Status, nil
+}
 
 func (m gorillaMuxAdapter) Handle(pattern string, handler http.Handler) {
 	if strings.HasSuffix(pattern, "/") {
@@ -717,7 +731,8 @@ func main() {
 	// Setup routes
 	searchConnectPath, searchConnectHandler := search.NewConnectMount(searchHandlers)
 	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers)
-	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers)
+	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers, roots.RepoRoot)
+	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot)
 	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
 	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateHandlers)
 	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
@@ -777,6 +792,7 @@ func main() {
 		connectx.ServiceMount{Path: searchConnectPath, Handler: searchConnectHandler},
 		connectx.ServiceMount{Path: aiSearchConnectPath, Handler: aiSearchConnectHandler},
 		connectx.ServiceMount{Path: discoveryConnectPath, Handler: discoveryConnectHandler},
+		connectx.ServiceMount{Path: skillSetValidationPath, Handler: skillSetValidationHandler},
 		connectx.ServiceMount{Path: agentsConnectPath, Handler: agentsConnectHandler},
 		connectx.ServiceMount{Path: templatesConnectPath, Handler: templatesConnectHandler},
 		connectx.ServiceMount{Path: testingConnectPath, Handler: testingConnectHandler},
@@ -937,6 +953,7 @@ func main() {
 
 	// Initialize heartbeat components
 	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
+	usageReporter.SetOutcomeResolver(skillUsageOutcomeResolver{client: agentManagerClient})
 	runRegistry := heartbeat.NewRunRegistry(roots.RuntimeData)
 	heartbeatExecutor := heartbeat.NewExecutor(
 		fileStore.Teams().(*store.FileTeamStore),

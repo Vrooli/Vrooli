@@ -445,8 +445,6 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `layout.cellSize` | number | min 0.1, max 2 | `0.5` | Navigation grid cell size (metres) |
 | `layout.roomWidth` | number | min 3, max 30 | `8` | Width (x) of a team room (metres) |
 | `layout.roomDepth` | number | min 3, max 30 | `6` | Depth (z) of a team room (metres) |
-| `layout.roomGap` | number | min 0, max 20 | `3` | Gap between neighbouring rooms (metres) |
-| `layout.maxRoomsPerRow` | integer | min 1, max 12 | `4` | Rooms per row before the grid wraps (count) |
 | `layout.deskPitch` | number | min 0.8, max 5 | `1.7` | Distance between neighbouring desks along the back wall (metres) |
 | `layout.deskInset` | number | min 0.2, max 5 | `1.1` | Distance from the back wall to the desk row (metres) |
 | `layout.deskSeatOffset` | number | min 0.2, max 3 | `0.8` | Distance in front of a desk where its owner stands (metres) |
@@ -456,17 +454,50 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `layout.commonsRadius` | number | min 2, max 20 | `5.5` | Radius of the commons clearing (metres) |
 | `layout.commonsSeatRadius` | number | min 0.5, max 10 | `2.2` | Radius of the seat ring around the campfire (metres) |
 | `layout.commonsSeats` | integer | min 2, max 24 | `8` | Seats around the campfire (count) |
-| `layout.commonsGap` | number | min 0, max 20 | `4` | Gap between the commons edge and the first room row (metres) |
 | `layout.clearingRadius` | number | min 0, max 20 | `3.5` | No tree spawns within this distance of a room or the hero camera (metres) |
-| `layout.slabMargin` | number | min 0, max 20 | `4` | Empty slab border around the generated layout (metres) |
-| `layout.minSlabWidth` | number | min 5, max 200 | `26` | Smallest slab width even for an empty team graph (metres) |
-| `layout.minSlabDepth` | number | min 5, max 200 | `20` | Smallest slab depth even for an empty team graph (metres) |
 | `layout.wallHeight` | number | min 0, max 3 | `0.7` | Height of the low wall around a room (metres) |
 | `layout.boardOffset` | number | min 0, max 20 | `4` | Distance from the commons centre to the runs board (metres) |
 | `layout.outlineRimSamples` | integer | min 4, max 64 | `12` | Points sampled around the commons rim for the outline the camera frames (count) |
-| `layout.treeDensity` | number | min 0, max 2 | `0.035` | Trees per square metre of free park ground (density) |
-| `layout.treeMargin` | number | min 0, max 10 | `2.5` | Trees keep this distance from the slab edge and each other (metres) |
-| `layout.treeAttemptsPerTree` | integer | min 1, max 64 | `8` | Rejection-sampling attempts per wanted tree before the scatter gives up (count) |
+| `layout.siteCandidates` | integer | min 16, max 4096 | `2048` | Seeded candidates scored for each settlement site (count) |
+| `layout.siteRadiusMax` | number | min 10, max 300 | `55` | Maximum distance of a team site from the commons (metres) |
+| `layout.siteSpacing` | number | min 2, max 100 | `10` | Minimum separation between settlement site centres (metres) |
+| `layout.siteWeightFlat` | number | min 0, max 10 | `3` | Buildability weight favouring flat ground (relative weight) |
+| `layout.siteWeightDry` | number | min 0, max 10 | `4` | Buildability weight favouring ground outside water and shore (relative weight) |
+| `layout.siteWeightNear` | number | min 0, max 10 | `1` | Buildability weight favouring sites near the commons (relative weight) |
+| `layout.siteWeightApart` | number | min 0, max 10 | `2` | Buildability weight favouring separation from selected sites (relative weight) |
+| `layout.siteRotationSnapRad` | number | min 0.01, max 1.5707963267948966 | `0.2617993878` | Angular increment used to snap generated site rotations (radians) |
+| `layout.scatterJitter` | number | min 0, max 1 | `0.45` | Share of one terrain cell available for decor position jitter (0..1) |
+| `layout.decorSpacingFactor` | number | min 0, max 1 | `0.55` | Decor spacing as a fraction of tree spacing (0..1) |
+| `layout.decorScale.min` | number | min 0.1, max 4 | `0.75` | Seeded decor scale lower bound (multiplier) |
+| `layout.decorScale.max` | number | min 0.1, max 4 | `1.35` | Seeded decor scale upper bound (multiplier) |
+
+### `terrain`
+
+| Lever | Type | Bounds | Default | Effect |
+|---|---|---|---|---|
+| `terrain.radius` | number | min 10, max 500 | `90` | Radius of the generated terrain field (metres) |
+| `terrain.cellSize` | number | min 0.25, max 8 | `1` | Spacing between terrain field samples (metres) |
+| `terrain.amplitude` | number | min 0, max 20 | `1.5` | Maximum absolute terrain elevation (metres) |
+| `terrain.frequency` | number | min 0.001, max 1 | `0.018` | Base terrain noise frequency (cycles per metre) |
+| `terrain.octaves` | integer | min 1, max 8 | `4` | Fractal noise octaves used for height and moisture (count) |
+| `terrain.lacunarity` | number | min 1, max 4 | `2` | Frequency multiplier between terrain noise octaves (multiplier) |
+| `terrain.gain` | number | min 0, max 1 | `0.5` | Amplitude multiplier between terrain noise octaves (0..1) |
+| `terrain.moistureFrequency` | number | min 0.001, max 1 | `0.008` | Base moisture noise frequency (cycles per metre) |
+| `terrain.falloffStart` | number | min 0, max 1 | `0.55` | Fraction of terrain radius where elevation begins fading to zero (0..1) |
+| `terrain.waterLevel` | number | min -20, max 20 | `-0.45` | Water surface elevation (metres) |
+| `terrain.shoreMargin` | number | min 0, max 20 | `1.2` | Dry navigation margin around water (metres) |
+| `terrain.maxSiteSlope` | number | min 0, max 1.5707963267948966 | `0.14` | Steepest ground eligible for a team site (radians) |
+| `terrain.maxWalkSlope` | number | min 0, max 1.5707963267948966 | `0.45` | Steepest ground eligible for navigation (radians) |
+| `terrain.kerbWidth` | number | min 0.25, max 10 | `2` | Width over which a level site pad blends into terrain (metres) |
+| `terrain.pathWidth` | number | min 0.25, max 10 | `1.4` | Width of paths painted into terrain colour (metres) |
+| `terrain.innerCellSize` | number | min 0.25, max 4 | `1` | Terrain mesh spacing near the settlement (metres) |
+| `terrain.innerRadius` | number | min 5, max 300 | `60` | Radius of the dense inner terrain mesh (metres) |
+| `terrain.ringFalloff` | number | min 1, max 8 | `2` | Terrain mesh spacing multiplier beyond the inner ring (multiplier) |
+| `terrain.tileSize` | number | min 4, max 100 | `30` | Side length of one vegetation culling tile (metres) |
+| `terrain.moistureBasinDepth` | number | min 0, max 5 | `0.35` | Maximum moisture bias subtracted when classifying water (metres) |
+| `terrain.shoreMinGrade` | number | min 0.001, max 1 | `0.03` | Minimum grade used to estimate horizontal shore distance (rise over run) |
+| `terrain.padClearance` | number | min 0, max 5 | `0.75` | Minimum terrace elevation above the configured water surface (metres) |
+| `terrain.siteLevelTolerance` | number | min 0.001, max 1 | `0.05` | Maximum elevation variation allowed across a site pad (metres) |
 
 ### `camera`
 
@@ -558,6 +589,86 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `lighting.periods.night.lampEmissive` | number | min 0, max 10 | `4` | Emissive intensity of lamps and the campfire; above 1 blooms (multiplier) |
 | `lighting.periods.night.backgroundColor` | string | — | `"#0b1226"` | Canvas clear colour behind the sky (hex colour) |
 
+### `weather`
+
+| Lever | Type | Bounds | Default | Effect |
+|---|---|---|---|---|
+| `weather.states.clear.fogNearScale` | number | min 0, max 3 | `1` | Fog near-distance scale (multiplier) |
+| `weather.states.clear.fogFarScale` | number | min 0, max 3 | `1` | Fog far-distance scale (multiplier) |
+| `weather.states.clear.exposureScale` | number | min 0, max 3 | `1` | Exposure scale (multiplier) |
+| `weather.states.clear.keyIntensityScale` | number | min 0, max 3 | `1` | Directional light intensity scale (multiplier) |
+| `weather.states.clear.ambientScale` | number | min 0, max 3 | `1` | Ambient light intensity scale (multiplier) |
+| `weather.states.clear.skyBlurAdd` | number | min 0, max 1 | `0` | Additional sky blur (0..1) |
+| `weather.states.clear.cloudCoverage` | number | min 0, max 1 | `0.05` | Cloud layer coverage (0..1) |
+| `weather.states.clear.particleRate` | number | min 0, max 1 | `0` | Weather particle rate (0..1) |
+| `weather.states.clear.wetness` | number | min 0, max 1 | `0` | Terrain wetness (0..1) |
+| `weather.states.clear.terrainTint` | string | — | `"#ffffff"` | Terrain weather tint (hex colour) |
+| `weather.states.clear.terrainTintMix` | number | min 0, max 1 | `0` | Share of the terrain colour replaced by the weather tint (0..1) |
+| `weather.states.clear.terrainShadowTint` | string | — | `"#ffffff"` | Secondary terrain tint used for weather variation (hex colour) |
+| `weather.states.clear.terrainTintVariation` | number | min 0, max 1 | `0` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
+| `weather.states.clear.skyTint` | string | — | `"#ffffff"` | Sky and fog weather tint (hex colour) |
+| `weather.states.clear.skyTintMix` | number | min 0, max 1 | `0` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
+| `weather.states.clear.minSeconds` | number | min 1, max 3600 | `90` | Minimum state duration (seconds) |
+| `weather.states.clear.maxSeconds` | number | min 1, max 3600 | `240` | Maximum state duration (seconds) |
+| `weather.states.cloudy.fogNearScale` | number | min 0, max 3 | `0.85` | Fog near-distance scale (multiplier) |
+| `weather.states.cloudy.fogFarScale` | number | min 0, max 3 | `0.8` | Fog far-distance scale (multiplier) |
+| `weather.states.cloudy.exposureScale` | number | min 0, max 3 | `0.92` | Exposure scale (multiplier) |
+| `weather.states.cloudy.keyIntensityScale` | number | min 0, max 3 | `0.65` | Directional light intensity scale (multiplier) |
+| `weather.states.cloudy.ambientScale` | number | min 0, max 3 | `1.08` | Ambient light intensity scale (multiplier) |
+| `weather.states.cloudy.skyBlurAdd` | number | min 0, max 1 | `0.2` | Additional sky blur (0..1) |
+| `weather.states.cloudy.cloudCoverage` | number | min 0, max 1 | `0.65` | Cloud layer coverage (0..1) |
+| `weather.states.cloudy.particleRate` | number | min 0, max 1 | `0` | Weather particle rate (0..1) |
+| `weather.states.cloudy.wetness` | number | min 0, max 1 | `0.15` | Terrain wetness (0..1) |
+| `weather.states.cloudy.terrainTint` | string | — | `"#aab6c2"` | Terrain weather tint (hex colour) |
+| `weather.states.cloudy.terrainTintMix` | number | min 0, max 1 | `0.35` | Share of the terrain colour replaced by the weather tint (0..1) |
+| `weather.states.cloudy.terrainShadowTint` | string | — | `"#aab6c2"` | Secondary terrain tint used for weather variation (hex colour) |
+| `weather.states.cloudy.terrainTintVariation` | number | min 0, max 1 | `0` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
+| `weather.states.cloudy.skyTint` | string | — | `"#8894a0"` | Sky and fog weather tint (hex colour) |
+| `weather.states.cloudy.skyTintMix` | number | min 0, max 1 | `0.35` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
+| `weather.states.cloudy.minSeconds` | number | min 1, max 3600 | `60` | Minimum state duration (seconds) |
+| `weather.states.cloudy.maxSeconds` | number | min 1, max 3600 | `180` | Maximum state duration (seconds) |
+| `weather.states.rain.fogNearScale` | number | min 0, max 3 | `0.7` | Fog near-distance scale (multiplier) |
+| `weather.states.rain.fogFarScale` | number | min 0, max 3 | `0.6` | Fog far-distance scale (multiplier) |
+| `weather.states.rain.exposureScale` | number | min 0, max 3 | `0.85` | Exposure scale (multiplier) |
+| `weather.states.rain.keyIntensityScale` | number | min 0, max 3 | `0.45` | Directional light intensity scale (multiplier) |
+| `weather.states.rain.ambientScale` | number | min 0, max 3 | `1.15` | Ambient light intensity scale (multiplier) |
+| `weather.states.rain.skyBlurAdd` | number | min 0, max 1 | `0.25` | Additional sky blur (0..1) |
+| `weather.states.rain.cloudCoverage` | number | min 0, max 1 | `0.85` | Cloud layer coverage (0..1) |
+| `weather.states.rain.particleRate` | number | min 0, max 1 | `1` | Weather particle rate (0..1) |
+| `weather.states.rain.wetness` | number | min 0, max 1 | `0.8` | Terrain wetness (0..1) |
+| `weather.states.rain.terrainTint` | string | — | `"#335b78"` | Terrain weather tint (hex colour) |
+| `weather.states.rain.terrainTintMix` | number | min 0, max 1 | `0.65` | Share of the terrain colour replaced by the weather tint (0..1) |
+| `weather.states.rain.terrainShadowTint` | string | — | `"#335b78"` | Secondary terrain tint used for weather variation (hex colour) |
+| `weather.states.rain.terrainTintVariation` | number | min 0, max 1 | `0` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
+| `weather.states.rain.skyTint` | string | — | `"#243b55"` | Sky and fog weather tint (hex colour) |
+| `weather.states.rain.skyTintMix` | number | min 0, max 1 | `0.65` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
+| `weather.states.rain.minSeconds` | number | min 1, max 3600 | `60` | Minimum state duration (seconds) |
+| `weather.states.rain.maxSeconds` | number | min 1, max 3600 | `240` | Maximum state duration (seconds) |
+| `weather.states.snow.fogNearScale` | number | min 0, max 3 | `0.55` | Fog near-distance scale (multiplier) |
+| `weather.states.snow.fogFarScale` | number | min 0, max 3 | `0.45` | Fog far-distance scale (multiplier) |
+| `weather.states.snow.exposureScale` | number | min 0, max 3 | `0.85` | Exposure scale (multiplier) |
+| `weather.states.snow.keyIntensityScale` | number | min 0, max 3 | `0.5` | Directional light intensity scale (multiplier) |
+| `weather.states.snow.ambientScale` | number | min 0, max 3 | `1` | Ambient light intensity scale (multiplier) |
+| `weather.states.snow.skyBlurAdd` | number | min 0, max 1 | `0.3` | Additional sky blur (0..1) |
+| `weather.states.snow.cloudCoverage` | number | min 0, max 1 | `0.8` | Cloud layer coverage (0..1) |
+| `weather.states.snow.particleRate` | number | min 0, max 1 | `0.75` | Weather particle rate (0..1) |
+| `weather.states.snow.wetness` | number | min 0, max 1 | `0.45` | Terrain wetness (0..1) |
+| `weather.states.snow.terrainTint` | string | — | `"#eef7ff"` | Terrain weather tint (hex colour) |
+| `weather.states.snow.terrainTintMix` | number | min 0, max 1 | `0.95` | Share of the terrain colour replaced by the weather tint (0..1) |
+| `weather.states.snow.terrainShadowTint` | string | — | `"#7a234f"` | Secondary terrain tint used for weather variation (hex colour) |
+| `weather.states.snow.terrainTintVariation` | number | min 0, max 1 | `1` | Maximum deterministic blend from terrainTint toward terrainShadowTint (0..1) |
+| `weather.states.snow.skyTint` | string | — | `"#b39ddb"` | Sky and fog weather tint (hex colour) |
+| `weather.states.snow.skyTintMix` | number | min 0, max 1 | `0.9` | Share of the period sky and fog colours replaced by the weather tint (0..1) |
+| `weather.states.snow.minSeconds` | number | min 1, max 3600 | `60` | Minimum state duration (seconds) |
+| `weather.states.snow.maxSeconds` | number | min 1, max 3600 | `180` | Maximum state duration (seconds) |
+| `weather.pressure.recentFailureWeight` | number | min 0, max 1 | `0.5` | Weight of recent run failures (0..1) |
+| `weather.pressure.failedActorWeight` | number | min 0, max 1 | `0.4` | Weight of actors currently failed (0..1) |
+| `weather.pressure.expiredGatheringWeight` | number | min 0, max 1 | `0.1` | Weight of expired gatherings (0..1) |
+| `weather.pressure.eventWindowSeconds` | number | min 1, max 3600 | `1200` | Age window for run outcome events (seconds) |
+| `weather.pressureSmoothingSeconds` | number | min 1, max 3600 | `45` | Time constant used to smooth weather pressure (seconds) |
+| `weather.particleBaseCount` | integer | min 0, max 20000 | `700` | Particle count at rate and profile scale 1 (count) |
+| `weather.cloudAltitude` | number | min 10, max 1000 | `170` | Cloud layer height above the world (metres) |
+
 ### `labels`
 
 | Lever | Type | Bounds | Default | Effect |
@@ -588,6 +699,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `actor.emoteSeconds` | number | min 0.2, max 10 | `1.8` | How long an emote burst stays visible (seconds) |
 | `actor.seatedScale` | number | min 0.5, max 1 | `0.9` | Body scale while seated (scale units) |
 | `actor.equipmentTiers` | array<integer> | length 5 | `[0,3,8,15,25]` | Skill counts at which equipment upgrades: none, paper, folder, briefcase, backpack (counts) |
+| `actor.look.minDetailPx` | number | min 0, max 128 | `8` | Projected body height below which face and equipment detail is culled (pixels) |
 | `actor.look.bodySquashY` | number | min 0, max 1 | `0.82` | Resting vertical scale of the slime body sphere; below 1 makes a blob (0..1) |
 | `actor.look.eyeRadius` | number | min 0, max 1 | `0.075` | Eye radius as a fraction of the body radius (0..1) |
 | `actor.look.eyeSpacing` | number | min 0, max 1 | `0.16` | Half distance between the eyes as a fraction of the body radius (0..1) |
@@ -629,6 +741,12 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.low.frameCapFps` | integer | min 15, max 240 | `60` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.low.wobble` | boolean | — | `false` | Slime vertex wobble on or off (flag) |
 | `quality.profiles.low.clouds` | boolean | — | `false` | Volumetric clouds on or off (flag) |
+| `quality.profiles.low.terrainInnerRadius` | number | min 5, max 500 | `35` | Radius rendered at the terrain profile base resolution (metres) |
+| `quality.profiles.low.terrainCellScale` | number | min 0.5, max 8 | `2` | Terrain sample spacing multiplier (multiplier) |
+| `quality.profiles.low.vegetationDensityScale` | number | min 0, max 1 | `0.45` | Share of deterministic vegetation instances rendered (0..1) |
+| `quality.profiles.low.weatherParticleScale` | number | min 0, max 1 | `0` | Share of weather particles rendered (0..1) |
+| `quality.profiles.low.waterEnabled` | boolean | — | `false` | Whether the water surface is rendered (flag) |
+| `quality.profiles.low.vegetationTileBudget` | integer | min 0, max 500 | `20` | Maximum vegetation tiles rendered at once (count) |
 | `quality.profiles.medium.dpr` | number | min 0.5, max 3 | `1` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.medium.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.medium.shadowMapSize` | integer | min 256, max 8192 | `1024` | Shadow map resolution (pixels, square) (count) |
@@ -639,6 +757,12 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.medium.frameCapFps` | integer | min 15, max 240 | `60` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.medium.wobble` | boolean | — | `true` | Slime vertex wobble on or off (flag) |
 | `quality.profiles.medium.clouds` | boolean | — | `false` | Volumetric clouds on or off (flag) |
+| `quality.profiles.medium.terrainInnerRadius` | number | min 5, max 500 | `50` | Radius rendered at the terrain profile base resolution (metres) |
+| `quality.profiles.medium.terrainCellScale` | number | min 0.5, max 8 | `1.5` | Terrain sample spacing multiplier (multiplier) |
+| `quality.profiles.medium.vegetationDensityScale` | number | min 0, max 1 | `0.7` | Share of deterministic vegetation instances rendered (0..1) |
+| `quality.profiles.medium.weatherParticleScale` | number | min 0, max 1 | `0.5` | Share of weather particles rendered (0..1) |
+| `quality.profiles.medium.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
+| `quality.profiles.medium.vegetationTileBudget` | integer | min 0, max 500 | `35` | Maximum vegetation tiles rendered at once (count) |
 | `quality.profiles.high.dpr` | number | min 0.5, max 3 | `1` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.high.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.high.shadowMapSize` | integer | min 256, max 8192 | `2048` | Shadow map resolution (pixels, square) (count) |
@@ -649,6 +773,12 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.high.frameCapFps` | integer | min 15, max 240 | `60` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.high.wobble` | boolean | — | `true` | Slime vertex wobble on or off (flag) |
 | `quality.profiles.high.clouds` | boolean | — | `true` | Volumetric clouds on or off (flag) |
+| `quality.profiles.high.terrainInnerRadius` | number | min 5, max 500 | `65` | Radius rendered at the terrain profile base resolution (metres) |
+| `quality.profiles.high.terrainCellScale` | number | min 0.5, max 8 | `1` | Terrain sample spacing multiplier (multiplier) |
+| `quality.profiles.high.vegetationDensityScale` | number | min 0, max 1 | `0.85` | Share of deterministic vegetation instances rendered (0..1) |
+| `quality.profiles.high.weatherParticleScale` | number | min 0, max 1 | `0.8` | Share of weather particles rendered (0..1) |
+| `quality.profiles.high.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
+| `quality.profiles.high.vegetationTileBudget` | integer | min 0, max 500 | `50` | Maximum vegetation tiles rendered at once (count) |
 | `quality.profiles.ultra.dpr` | number | min 0.5, max 3 | `1.5` | Device pixel ratio cap (multiplier) |
 | `quality.profiles.ultra.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.ultra.shadowMapSize` | integer | min 256, max 8192 | `4096` | Shadow map resolution (pixels, square) (count) |
@@ -659,6 +789,12 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.ultra.frameCapFps` | integer | min 15, max 240 | `120` | Frame rate this profile is designed for; the governor derives its degraded threshold from it (count) |
 | `quality.profiles.ultra.wobble` | boolean | — | `true` | Slime vertex wobble on or off (flag) |
 | `quality.profiles.ultra.clouds` | boolean | — | `true` | Volumetric clouds on or off (flag) |
+| `quality.profiles.ultra.terrainInnerRadius` | number | min 5, max 500 | `90` | Radius rendered at the terrain profile base resolution (metres) |
+| `quality.profiles.ultra.terrainCellScale` | number | min 0.5, max 8 | `1` | Terrain sample spacing multiplier (multiplier) |
+| `quality.profiles.ultra.vegetationDensityScale` | number | min 0, max 1 | `1` | Share of deterministic vegetation instances rendered (0..1) |
+| `quality.profiles.ultra.weatherParticleScale` | number | min 0, max 1 | `1` | Share of weather particles rendered (0..1) |
+| `quality.profiles.ultra.waterEnabled` | boolean | — | `true` | Whether the water surface is rendered (flag) |
+| `quality.profiles.ultra.vegetationTileBudget` | integer | min 0, max 500 | `70` | Maximum vegetation tiles rendered at once (count) |
 
 ### `data`
 
@@ -690,29 +826,61 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `budgets.periodPixelDelta` | number | min 0, max 1 | `0.25` | Minimum fraction of pixels that must differ between day and night goldens (0..1) |
 | `budgets.framing.minFill` | number | min 0, max 1 | `0.7` | Smallest share of the viewport the layout outline may occupy on the hero pose (0..1) |
 | `budgets.framing.maxFill` | number | min 0, max 1 | `0.97` | Largest share of the viewport the layout outline may occupy on the hero pose (0..1) |
-| `budgets.scenes.park.low.drawCalls` | integer | min 1, max 5000 | `40` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.low.triangles` | integer | min 1, max 50000000 | `90000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.low.drawCalls` | integer | min 1, max 5000 | `70` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.low.triangles` | integer | min 1, max 50000000 | `67000` | Maximum triangles per frame (count) |
 | `budgets.scenes.park.low.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.park.medium.drawCalls` | integer | min 1, max 5000 | `80` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.medium.triangles` | integer | min 1, max 50000000 | `160000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.low.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.park.low.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.low.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.park.low.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.medium.drawCalls` | integer | min 1, max 5000 | `210` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.medium.triangles` | integer | min 1, max 50000000 | `140000` | Maximum triangles per frame (count) |
 | `budgets.scenes.park.medium.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.park.high.drawCalls` | integer | min 1, max 5000 | `110` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.high.triangles` | integer | min 1, max 50000000 | `200000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.medium.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.park.medium.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.medium.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.park.medium.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.high.drawCalls` | integer | min 1, max 5000 | `280` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.high.triangles` | integer | min 1, max 50000000 | `225000` | Maximum triangles per frame (count) |
 | `budgets.scenes.park.high.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.park.ultra.drawCalls` | integer | min 1, max 5000 | `110` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.park.ultra.triangles` | integer | min 1, max 50000000 | `200000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.high.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.park.high.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.high.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.park.high.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.park.ultra.drawCalls` | integer | min 1, max 5000 | `360` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.park.ultra.triangles` | integer | min 1, max 50000000 | `255000` | Maximum triangles per frame (count) |
 | `budgets.scenes.park.ultra.p95Ms` | number | min 1, max 200 | `24` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.office.low.drawCalls` | integer | min 1, max 5000 | `40` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.office.low.triangles` | integer | min 1, max 50000000 | `90000` | Maximum triangles per frame (count) |
+| `budgets.scenes.park.ultra.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.park.ultra.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.park.ultra.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.park.ultra.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.low.drawCalls` | integer | min 1, max 5000 | `35` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.office.low.triangles` | integer | min 1, max 50000000 | `67000` | Maximum triangles per frame (count) |
 | `budgets.scenes.office.low.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.office.medium.drawCalls` | integer | min 1, max 5000 | `80` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.office.medium.triangles` | integer | min 1, max 50000000 | `160000` | Maximum triangles per frame (count) |
+| `budgets.scenes.office.low.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.office.low.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.low.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.office.low.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.medium.drawCalls` | integer | min 1, max 5000 | `70` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.office.medium.triangles` | integer | min 1, max 50000000 | `115000` | Maximum triangles per frame (count) |
 | `budgets.scenes.office.medium.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.office.high.drawCalls` | integer | min 1, max 5000 | `110` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.office.high.triangles` | integer | min 1, max 50000000 | `200000` | Maximum triangles per frame (count) |
+| `budgets.scenes.office.medium.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.office.medium.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.medium.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.office.medium.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.high.drawCalls` | integer | min 1, max 5000 | `90` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.office.high.triangles` | integer | min 1, max 50000000 | `167000` | Maximum triangles per frame (count) |
 | `budgets.scenes.office.high.p95Ms` | number | min 1, max 200 | `18` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
-| `budgets.scenes.office.ultra.drawCalls` | integer | min 1, max 5000 | `110` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
-| `budgets.scenes.office.ultra.triangles` | integer | min 1, max 50000000 | `200000` | Maximum triangles per frame (count) |
+| `budgets.scenes.office.high.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.office.high.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.high.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.office.high.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
+| `budgets.scenes.office.ultra.drawCalls` | integer | min 1, max 5000 | `90` | Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run (count) |
+| `budgets.scenes.office.ultra.triangles` | integer | min 1, max 50000000 | `167000` | Maximum triangles per frame (count) |
 | `budgets.scenes.office.ultra.p95Ms` | number | min 1, max 200 | `24` | Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds) |
+| `budgets.scenes.office.ultra.provenance.actors` | integer | min 1, max 100000 | `25` | Pinned synthetic actor count used for calibration (count) |
+| `budgets.scenes.office.ultra.provenance.gpu` | string | — | `"Google SwiftShader (Vulkan)"` | GPU renderer string used for calibration (renderer name) |
+| `budgets.scenes.office.ultra.provenance.calibratedAt` | string | — | `"2026-09-04"` | Calibration date (ISO 8601 date) |
+| `budgets.scenes.office.ultra.provenance.method` | string | — | `"geometry-observation-plus-15pct-headroom; host-p95-gate-pending"` | Frame-time measurement method (method name) |
 
 <!-- world-tuning:end -->

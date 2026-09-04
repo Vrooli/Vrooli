@@ -6,9 +6,9 @@
   "description": "Interprets Command Center metrics and dashboard gaps to recommend outcome-driven portfolio adjustments.",
   "status": "active",
   "appearance": {
-    "body": "#334155",
-    "head": "#64748B",
-    "accent": "#E2E8F0"
+    "body": "#64748B",
+    "head": "#94A3B8",
+    "accent": "#F1F5F9"
   },
   "tags": [
     "strategy",

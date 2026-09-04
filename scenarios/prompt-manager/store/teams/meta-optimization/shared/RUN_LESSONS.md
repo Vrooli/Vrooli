@@ -10,6 +10,26 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-03 · `3a11f6b4-259c-436a-86e2-80d5e8b6333b` · `heartbeat-director-swarm-director-contrarian-2026-09-03T21-20-02Z` · errored
+
+**Lesson.** A sandboxed run can spend substantial model/tool accounting before failing on runner authentication, while exposing an ambiguous final-output selection and no usable work result. This is environmental runner-integrity evidence, not a prompt or skill lesson, and the ambiguity itself makes the result unsafe to treat as a completed agent run.
+
+**What happened.** `agent-manager run report` showed `failed`, 2 turns, 809,261 reported tokens, ambiguous final selection (`multiple_equally_supported_candidates`, 2 candidates), 14 successful non-Bash tool results, 15 unresolved Bash calls, no diff, and unobserved receipts. The event trail ends with assistant content `Not logged in · Please...`, an execution error, and failed status; the process log is empty. The run's bounded investigation command was refused because investigation is operator-only for run identities, so this finding uses the read-only report and event trail.
+
+**Implicated.** Primary: `agent-manager` runner authentication/session acquisition and result-finalization/reporting. Secondary: run-introspector triage should classify `Not logged in` plus unresolved tool calls and ambiguous final selection as an environmental no-meta-signal, rather than infer agent behavior. This is not an Action opportunity: no deterministic manual CLI sequence would repair runner credentials or session state.
+
+**Action decision.** `capability-work-item`; existing backlog item `agent-manager-launch-prerequisite-integrity` is the closest owner handoff. The distinct measurement need is to make authentication/session prerequisites and terminal result provenance explicit before dispatch or retry.
+
+**Handoff.** Agent-manager owner / scenario-qa: expose a typed authentication-prerequisite failure, avoid leaving unresolved tool calls as the only evidence, and suppress ambiguous final-output success candidates when the runner reports `Not logged in`. Team-agent-optimizer: treat this as zero usable agent result despite the large token counter; do not use it as prompt-efficiency evidence.
+
+**Measurement plan.** Baseline: 1 selected failed run, 2 turns, 15 unresolved Bash calls, 0 diff bytes, 0 observed receipts, 2 final candidates, and no process-log diagnosis. Over the next 7 heartbeats, count failed runs whose terminal evidence includes authentication/session refusal; expected outcome after the owner change is a typed prerequisite code, deterministic result state, and zero ambiguous final-output selections for this class.
+
+**Program-runtime ratchet.** Governed share was `2332/2351 = 0.991918` over the 604800-second window `2026-08-27T22:45:17.929424282Z`–`2026-09-03T22:45:17.929424282Z`; observed calls were 19. Unresolved name `inputs` occurred 18 times, last seen `2026-09-03T09:00:44.32851624Z`; `bindings` occurred once. Library search for `inputs` returned only `typed-inference`, not an `inputs` program. Filed bounded backlog item `idea/program-runtime-inputs-observed-capability`.
+
+**Discovery gaps.** The top repeated unmet query was `writing standards for plans` (count 2); singleton clusters were observed but not filed because they do not meet the recurrence threshold. This is a discoverability/capability signal for skill-optimizer review, not a run-specific Action usage claim.
+
+**Status.** pending (owner handoff; no implementation in this lane).
+
 ### 2026-09-02 · `8cee79a8-9752-436c-bebf-45214d7616d0` · `heartbeat-director-swarm-director-contrarian-2026-09-02T22-00-00Z` · errored
 
 **Lesson.** A sandboxed heartbeat can fail before agent work begins when the launch path cannot persist the editor lease and the uncontained fallback cannot start its systemd transient unit. This is an environmental launch-integrity failure, not an agent or prompt lesson.

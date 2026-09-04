@@ -19,6 +19,12 @@ describe('world invariants', () => {
     }
   })
 
+  it('hold for the 25-actor smoke roster at seed 1', () => {
+    const state = createWorld(makeInput(5, 5, { seed: 1 }), tuning, 0)
+    expect(violations(state)).toEqual([])
+    expect(violations(run(state, MINUTES))).toEqual([])
+  })
+
   it('hold after five simulated minutes of idle life', () => {
     const s = run(world(4, 5), MINUTES * 5)
     expect(violations(s)).toEqual([])

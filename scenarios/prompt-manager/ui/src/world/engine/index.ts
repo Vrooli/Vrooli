@@ -4,6 +4,7 @@
  */
 export { WorldCanvas } from './WorldCanvas'
 export { LightingRig } from './lighting/Rig'
+export { applyWeather } from './lighting/weather'
 export { PostChain } from './post/Chain'
 export { CameraRig, type CameraRigHandle } from './camera/Rig'
 export { poseToPosition, orbitClamps, clampPose, fitDistance, frameDistance, footprintFill, extentPoints } from './camera/pose'
@@ -13,5 +14,6 @@ export { applyVerdict, pickProfile, setAuto, governorBounds, isQualityProfileId 
 export { DiagnosticsProbe } from './diagnostics/Probe'
 export { DiagnosticsOverlay } from './diagnostics/Overlay'
 export { readDiagnostics, subscribeDiagnostics, resetDiagnostics, updateDiagnostics, type WorldDiagnostics } from './diagnostics/store'
+export { probeWebGL, resolveTwoD, retryWebGL, type WebGLProbeResult } from './webgl'
 export { worldAssetUrl, WORLD_ASSETS } from './assets/urls'
 export type { WorldBounds } from './types'

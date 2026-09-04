@@ -1,5 +1,27 @@
 # Problems Found During Development
 
+## OPEN: Workflow runner loses leading navigation context (2026-09-04)
+
+**Status**: External runner defect filed as `knw-1788511204267015162`
+
+### Problem
+
+The focused Test Genie workflow run `20260904-083355-98671493` rejected all
+nine world workflows after their valid leading `ACTION_TYPE_NAVIGATE` node.
+The following observer step reported that no navigation context was available.
+
+### Impact
+
+The world BAS contracts validate and the same pages pass the dedicated browser
+smoke harness, but Test Genie cannot currently execute those contracts. The
+requirements module therefore marks their workflow validations as failing
+until the shared Workflow Health runner preserves the navigate result.
+
+### Ownership
+
+The fault is in the shared workflow runner, outside prompt-manager's scenario
+boundary. Prompt-manager keeps the valid navigate-first workflows unchanged.
+
 ## ✅ REFINED: Unit Test Coverage Threshold (2025-10-28)
 **Status**: Test infrastructure refined to match architecture reality
 **Agent**: Ecosystem Manager Improver

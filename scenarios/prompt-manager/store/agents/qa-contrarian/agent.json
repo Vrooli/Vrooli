@@ -6,9 +6,9 @@
   "description": "Cross-cutting skeptic for scenario-qa. Reads peer-team work items and member outputs (bug-investigation entries, audit findings, readiness backlog items, scenario-qa cross-team handoffs) and writes Swarm Manager review evidence/* entries that surface gaps in QA reasoning, false-positive findings, churn-for-churn's-sake refactors, and over-reach. Does not generate positive-action proposals; if a class of QA failure isn't covered by the existing technique registries, proposes a registry update.",
   "status": "active",
   "appearance": {
-    "body": "#7C2D12",
-    "head": "#C2410C",
-    "accent": "#FED7AA"
+    "body": "#EA580C",
+    "head": "#FB923C",
+    "accent": "#FFEDD5"
   },
   "tags": [
     "quality",

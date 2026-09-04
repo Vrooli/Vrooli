@@ -17,6 +17,7 @@ package skills
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,10 +65,20 @@ func NewReadRecorder(reads *store.SkillReadStore, calls *store.DiscoveryCallStor
 // Record attributes and persists one read per skill id. Errors are swallowed by
 // design — see NewReadRecorder.
 func (rr *ReadRecorder) Record(r *http.Request, skillIDs []string) {
+	rr.RecordWithRunID(r, skillIDs, "")
+}
+
+// RecordWithRunID records a read with a run ID obtained from server-side
+// identity verification. The transport token is intentionally not decoded in
+// this recorder; the handler owns verification and passes only trusted claims.
+func (rr *ReadRecorder) RecordWithRunID(r *http.Request, skillIDs []string, runID string) {
 	if rr == nil || len(skillIDs) == 0 {
 		return
 	}
 	attribution := store.CallerFromRequest(r)
+	if attribution.Kind == "" && strings.TrimSpace(runID) != "" {
+		attribution.Kind = "agent-member"
+	}
 	at := rr.now().UTC().Format(time.RFC3339)
 
 	for _, skillID := range skillIDs {
@@ -80,12 +91,16 @@ func (rr *ReadRecorder) Record(r *http.Request, skillIDs []string) {
 		if rr.reads == nil {
 			continue
 		}
+		agentRunID := attribution.RunID
+		if strings.TrimSpace(runID) != "" {
+			agentRunID = strings.TrimSpace(runID)
+		}
 		entry := store.SkillRead{
 			At:         at,
 			SkillID:    skillID,
 			Caller:     attribution.Caller,
 			CallerKind: attribution.Kind,
-			AgentRunID: attribution.RunID,
+			AgentRunID: agentRunID,
 		}
 		if callID, ok := rr.discoverySource(attribution.Caller, skillID); ok {
 			entry.ViaDiscovery = true

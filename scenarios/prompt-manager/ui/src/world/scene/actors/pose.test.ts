@@ -11,6 +11,12 @@ function actor() {
 }
 
 describe('bodyPose', () => {
+  it('adds the sampled ground elevation once', () => {
+    const a = actor()
+    const flat = bodyPose(a, tuning.actor)
+    const raised = bodyPose(a, tuning.actor, { heightAt: (x, z) => x * 0.25 + z * 0.5 })
+    expect(raised.y - flat.y).toBeCloseTo(a.position[0] * 0.25 + a.position[1] * 0.5, 9)
+  })
   it('rests on the ground with the squashed body and no hop', () => {
     const a = actor()
     a.anim.hopPhase = 0

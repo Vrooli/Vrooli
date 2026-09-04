@@ -4,9 +4,11 @@ import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Object3D, Sphe
 import type { QualityProfile } from '../../config'
 import { createSlimeMaterial, setSlimeWobble } from '../../engine/materials/slime'
 import { useWorldStore } from '../WorldStoreContext'
-import { actorSeed, bodyPose } from './pose'
+import { actorSeed, type BodyPose } from './pose'
+import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from './PoseBuffer'
 
-const BODY_SEGMENTS = 28
+const BODY_WIDTH_SEGMENTS = 16
+const BODY_HEIGHT_SEGMENTS = 10
 const COLOR_STRIDE = 3
 
 /**
@@ -22,9 +24,11 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
   const dummy = useMemo(() => new Object3D(), [])
   const matrix = useMemo(() => new Matrix4(), [])
   const color = useMemo(() => new Color(), [])
+  const poses = usePoseBuffer()
+  const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
   const geometry = useMemo(() => {
-    const geo = new SphereGeometry(1, BODY_SEGMENTS, BODY_SEGMENTS)
+    const geo = new SphereGeometry(1, BODY_WIDTH_SEGMENTS, BODY_HEIGHT_SEGMENTS)
     const state = store.getState()
     const colors = new Float32Array(capacity * COLOR_STRIDE)
     const seeds = new Float32Array(capacity)
@@ -39,7 +43,7 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
       colors[i * COLOR_STRIDE + 2] = color.b
       const seed = actorSeed(id)
       seeds[i] = seed
-      shifts[i] = seed * BODY_SEGMENTS
+      shifts[i] = seed * BODY_WIDTH_SEGMENTS
     })
     geo.setAttribute('aColor', new InstancedBufferAttribute(colors, COLOR_STRIDE))
     geo.setAttribute('aSeed', new InstancedBufferAttribute(seeds, 1))
@@ -59,20 +63,19 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
     const mesh = meshRef.current
     if (!mesh) return
     const state = store.getState()
-    const t = store.tuning().actor
     const squash = geometry.getAttribute('aSquash') as InstancedBufferAttribute
     material.slime.uTime.value = frame.clock.elapsedTime
     ids.forEach((id, i) => {
       const actor = state.actors[id]
       if (!actor) return
-      const pose = bodyPose(actor, t)
+      readPose(poses, i, pose)
       dummy.position.set(pose.x, pose.y, pose.z)
       dummy.rotation.set(0, pose.facing, 0)
       dummy.scale.set(pose.scaleXZ, pose.scaleY, pose.scaleXZ)
       dummy.updateMatrix()
       matrix.copy(dummy.matrix)
       mesh.setMatrixAt(i, matrix)
-      squash.setX(i, actor.anim.squash)
+      squash.setX(i, poses.data[i * POSE_STRIDE + POSE.squash] ?? 1)
     })
     mesh.instanceMatrix.needsUpdate = true
     squash.needsUpdate = true
@@ -83,7 +86,6 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
       ref={meshRef}
       args={[geometry, material, capacity]}
       frustumCulled={false}
-      castShadow
       receiveShadow
       onClick={(event) => {
         event.stopPropagation()

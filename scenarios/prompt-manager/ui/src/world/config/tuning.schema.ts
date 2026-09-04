@@ -11,6 +11,7 @@
  * - Adding a lever without a description fails `tuning.test.ts`.
  */
 import { z } from 'zod'
+import { WeatherTuningSchema } from './weather.schema'
 
 const seconds = (min: number, max: number, what: string) =>
   z.number().min(min).max(max).describe(`${what} (seconds)`)
@@ -67,8 +68,6 @@ export const LayoutTuningSchema = z.object({
   cellSize: metres(0.1, 2, 'Navigation grid cell size'),
   roomWidth: metres(3, 30, 'Width (x) of a team room'),
   roomDepth: metres(3, 30, 'Depth (z) of a team room'),
-  roomGap: metres(0, 20, 'Gap between neighbouring rooms'),
-  maxRoomsPerRow: count(1, 12, 'Rooms per row before the grid wraps'),
   deskPitch: metres(0.8, 5, 'Distance between neighbouring desks along the back wall'),
   deskInset: metres(0.2, 5, 'Distance from the back wall to the desk row'),
   deskSeatOffset: metres(0.2, 3, 'Distance in front of a desk where its owner stands'),
@@ -78,17 +77,47 @@ export const LayoutTuningSchema = z.object({
   commonsRadius: metres(2, 20, 'Radius of the commons clearing'),
   commonsSeatRadius: metres(0.5, 10, 'Radius of the seat ring around the campfire'),
   commonsSeats: count(2, 24, 'Seats around the campfire'),
-  commonsGap: metres(0, 20, 'Gap between the commons edge and the first room row'),
   clearingRadius: metres(0, 20, 'No tree spawns within this distance of a room or the hero camera'),
-  slabMargin: metres(0, 20, 'Empty slab border around the generated layout'),
-  minSlabWidth: metres(5, 200, 'Smallest slab width even for an empty team graph'),
-  minSlabDepth: metres(5, 200, 'Smallest slab depth even for an empty team graph'),
   wallHeight: metres(0, 3, 'Height of the low wall around a room'),
   boardOffset: metres(0, 20, 'Distance from the commons centre to the runs board'),
   outlineRimSamples: count(4, 64, 'Points sampled around the commons rim for the outline the camera frames'),
-  treeDensity: z.number().min(0).max(2).describe('Trees per square metre of free park ground (density)'),
-  treeMargin: metres(0, 10, 'Trees keep this distance from the slab edge and each other'),
-  treeAttemptsPerTree: count(1, 64, 'Rejection-sampling attempts per wanted tree before the scatter gives up'),
+  siteCandidates: count(16, 4096, 'Seeded candidates scored for each settlement site'),
+  siteRadiusMax: metres(10, 300, 'Maximum distance of a team site from the commons'),
+  siteSpacing: metres(2, 100, 'Minimum separation between settlement site centres'),
+  siteWeightFlat: z.number().min(0).max(10).describe('Buildability weight favouring flat ground (relative weight)'),
+  siteWeightDry: z.number().min(0).max(10).describe('Buildability weight favouring ground outside water and shore (relative weight)'),
+  siteWeightNear: z.number().min(0).max(10).describe('Buildability weight favouring sites near the commons (relative weight)'),
+  siteWeightApart: z.number().min(0).max(10).describe('Buildability weight favouring separation from selected sites (relative weight)'),
+  siteRotationSnapRad: z.number().min(0.01).max(Math.PI / 2).describe('Angular increment used to snap generated site rotations (radians)'),
+  scatterJitter: ratio('Share of one terrain cell available for decor position jitter'),
+  decorSpacingFactor: ratio('Decor spacing as a fraction of tree spacing'),
+  decorScale: range(0.1, 4, 'Seeded decor scale', 'multiplier'),
+})
+
+export const TerrainTuningSchema = z.object({
+  radius: metres(10, 500, 'Radius of the generated terrain field'),
+  cellSize: metres(0.25, 8, 'Spacing between terrain field samples'),
+  amplitude: metres(0, 20, 'Maximum absolute terrain elevation'),
+  frequency: z.number().min(0.001).max(1).describe('Base terrain noise frequency (cycles per metre)'),
+  octaves: count(1, 8, 'Fractal noise octaves used for height and moisture'),
+  lacunarity: z.number().min(1).max(4).describe('Frequency multiplier between terrain noise octaves (multiplier)'),
+  gain: ratio('Amplitude multiplier between terrain noise octaves'),
+  moistureFrequency: z.number().min(0.001).max(1).describe('Base moisture noise frequency (cycles per metre)'),
+  falloffStart: ratio('Fraction of terrain radius where elevation begins fading to zero'),
+  waterLevel: metres(-20, 20, 'Water surface elevation'),
+  shoreMargin: metres(0, 20, 'Dry navigation margin around water'),
+  maxSiteSlope: z.number().min(0).max(Math.PI / 2).describe('Steepest ground eligible for a team site (radians)'),
+  maxWalkSlope: z.number().min(0).max(Math.PI / 2).describe('Steepest ground eligible for navigation (radians)'),
+  kerbWidth: metres(0.25, 10, 'Width over which a level site pad blends into terrain'),
+  pathWidth: metres(0.25, 10, 'Width of paths painted into terrain colour'),
+  innerCellSize: metres(0.25, 4, 'Terrain mesh spacing near the settlement'),
+  innerRadius: metres(5, 300, 'Radius of the dense inner terrain mesh'),
+  ringFalloff: z.number().min(1).max(8).describe('Terrain mesh spacing multiplier beyond the inner ring (multiplier)'),
+  tileSize: metres(4, 100, 'Side length of one vegetation culling tile'),
+  moistureBasinDepth: metres(0, 5, 'Maximum moisture bias subtracted when classifying water'),
+  shoreMinGrade: z.number().min(0.001).max(1).describe('Minimum grade used to estimate horizontal shore distance (rise over run)'),
+  padClearance: metres(0, 5, 'Minimum terrace elevation above the configured water surface'),
+  siteLevelTolerance: metres(0.001, 1, 'Maximum elevation variation allowed across a site pad'),
 })
 
 export const CameraTuningSchema = z.object({
@@ -180,6 +209,7 @@ export const ActorTuningSchema = z.object({
     .length(5)
     .describe('Skill counts at which equipment upgrades: none, paper, folder, briefcase, backpack (counts)'),
   look: z.object({
+    minDetailPx: z.number().min(0).max(128).describe('Projected body height below which face and equipment detail is culled (pixels)'),
     bodySquashY: ratio('Resting vertical scale of the slime body sphere; below 1 makes a blob'),
     eyeRadius: ratio('Eye radius as a fraction of the body radius'),
     eyeSpacing: ratio('Half distance between the eyes as a fraction of the body radius'),
@@ -216,6 +246,12 @@ export const QualityProfileSchema = z.object({
   frameCapFps: count(15, 240, 'Frame rate this profile is designed for; the governor derives its degraded threshold from it'),
   wobble: z.boolean().describe('Slime vertex wobble on or off (flag)'),
   clouds: z.boolean().describe('Volumetric clouds on or off (flag)'),
+  terrainInnerRadius: metres(5, 500, 'Radius rendered at the terrain profile base resolution'),
+  terrainCellScale: z.number().min(0.5).max(8).describe('Terrain sample spacing multiplier (multiplier)'),
+  vegetationDensityScale: ratio('Share of deterministic vegetation instances rendered'),
+  weatherParticleScale: ratio('Share of weather particles rendered'),
+  waterEnabled: z.boolean().describe('Whether the water surface is rendered (flag)'),
+  vegetationTileBudget: count(0, 500, 'Maximum vegetation tiles rendered at once'),
 })
 
 export const QualityTuningSchema = z.object({
@@ -250,6 +286,12 @@ export const SceneBudgetSchema = z.object({
   drawCalls: count(1, 5000, 'Maximum renderer draw calls per frame; a ceiling from the layer design (one instanced draw per slab kind, four for actors, one per prop material part, one per pooled label, post passes), never a reading copied from a run'),
   triangles: count(1, 50000000, 'Maximum triangles per frame'),
   p95Ms: z.number().min(1).max(200).describe('Maximum p95 frame time on the reference machine; one frame of jitter above the 60 Hz vsync is allowed (milliseconds)'),
+  provenance: z.object({
+    actors: count(1, 100000, 'Pinned synthetic actor count used for calibration'),
+    gpu: z.string().min(1).describe('GPU renderer string used for calibration (renderer name)'),
+    calibratedAt: z.string().min(1).describe('Calibration date (ISO 8601 date)'),
+    method: z.string().min(1).describe('Frame-time measurement method (method name)'),
+  }),
 })
 
 const profileBudgets = z.object({
@@ -279,8 +321,10 @@ export const WorldTuningSchema = z.object({
   version: z.literal(1).describe('Tuning file format version (integer)'),
   sim: SimTuningSchema,
   layout: LayoutTuningSchema,
+  terrain: TerrainTuningSchema,
   camera: CameraTuningSchema,
   lighting: LightingTuningSchema,
+  weather: WeatherTuningSchema,
   labels: LabelsTuningSchema,
   actor: ActorTuningSchema,
   quality: QualityTuningSchema,
@@ -292,8 +336,10 @@ export const WorldTuningSchema = z.object({
 export type WorldTuning = z.infer<typeof WorldTuningSchema>
 export type SimTuning = z.infer<typeof SimTuningSchema>
 export type LayoutTuning = z.infer<typeof LayoutTuningSchema>
+export type TerrainTuning = z.infer<typeof TerrainTuningSchema>
 export type CameraTuning = z.infer<typeof CameraTuningSchema>
 export type LightingTuning = z.infer<typeof LightingTuningSchema>
+export type WeatherTuning = z.infer<typeof WeatherTuningSchema>
 export type LightingPeriod = z.infer<typeof PeriodSchema>
 export type LabelsTuning = z.infer<typeof LabelsTuningSchema>
 export type ActorTuning = z.infer<typeof ActorTuningSchema>

@@ -1,5 +1,6 @@
 import { selectors } from '@/constants/selectors'
 import type { SummaryView } from '../sim'
+import type { WeatherState } from '../sim'
 import { formatCountdown } from './format'
 
 export type SummaryFilter = 'running' | 'gathered' | 'idle' | 'failed'
@@ -10,6 +11,7 @@ interface SummaryStripProps {
   activeFilter: SummaryFilter | null
   onToggleFilter: (filter: SummaryFilter) => void
   teamNames: Record<string, string>
+  weather?: Pick<WeatherState, 'state' | 'pressure'>
 }
 
 const COUNTS: Array<{ id: SummaryFilter; label: string; tone: string }> = [
@@ -20,7 +22,7 @@ const COUNTS: Array<{ id: SummaryFilter; label: string; tone: string }> = [
 ]
 
 /** "What is my swarm doing right now": four counts that double as filters, and the next heartbeat. */
-export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamNames }: SummaryStripProps) {
+export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamNames, weather }: SummaryStripProps) {
   const next = summary.nextHeartbeat
   return (
     <div
@@ -58,6 +60,11 @@ export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamN
           'No heartbeat scheduled'
         )}
       </span>
+      {weather && (
+        <span className="border-l border-border px-2 text-xs text-muted-foreground" data-testid={selectors.world.hud.weather} title="Weather reflects recent run failures and failed agents">
+          <span className="font-medium capitalize text-foreground">{weather.state}</span> — health pressure {Math.round(weather.pressure * 100)}%
+        </span>
+      )}
     </div>
   )
 }

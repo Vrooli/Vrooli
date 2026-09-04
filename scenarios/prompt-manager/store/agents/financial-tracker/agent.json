@@ -6,9 +6,9 @@
   "description": "Maintains Vrooli's monetization ledger: cost categories, per-tier/per-bundle revenue, time allocation, runway, default-alive gap. Flags material deltas and services-trap warning signals.",
   "status": "active",
   "appearance": {
-    "body": "#047857",
-    "head": "#10B981",
-    "accent": "#A7F3D0"
+    "body": "#059669",
+    "head": "#34D399",
+    "accent": "#D1FAE5"
   },
   "tags": [
     "monetization",

@@ -119,6 +119,9 @@ importers:
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
         version: file:../../../packages/proto/gen/typescript
+      '@vrooli/react-component-library':
+        specifier: file:../../../packages/react-component-library
+        version: file:../../../packages/react-component-library(mermaid@11.12.2)(react-dom@19.2.8(react@19.2.8))(react-markdown@9.1.0(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)(remark-gfm@4.0.1)(shiki@1.29.2)
       '@xyflow/react':
         specifier: ^12.10.0
         version: 12.10.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2361,6 +2364,25 @@ packages:
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
     engines: {node: '>=18.0.0'}
 
+  '@vrooli/react-component-library@file:../../../packages/react-component-library':
+    resolution: {directory: ../../../packages/react-component-library, type: directory}
+    peerDependencies:
+      mermaid: '>=11.0.0'
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+      react-markdown: '>=10.0.0'
+      remark-gfm: '>=4.0.0'
+      shiki: '>=4.0.0'
+    peerDependenciesMeta:
+      mermaid:
+        optional: true
+      react-markdown:
+        optional: true
+      remark-gfm:
+        optional: true
+      shiki:
+        optional: true
+
   '@xyflow/react@12.10.0':
     resolution: {integrity: sha512-eOtz3whDMWrB4KWVatIBrKuxECHqip6PfA8fTpaS2RUGVpiEAe+nqDKsLqkViVWxDGreq0lWX71Xth/SPAzXiw==}
     peerDependencies:
@@ -3965,6 +3987,11 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0
 
+  lucide-react@0.424.0:
+    resolution: {integrity: sha512-x2Nj2aytk1iOyHqt4hKenfVlySq0rYxNeEf8hE0o+Yh0iE36Rqz0rkngVdv2uQtjZ70LAE73eeplhhptYt9x4Q==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -5147,6 +5174,9 @@ packages:
   table@5.4.6:
     resolution: {integrity: sha512-wmEc8m4fjnob4gt5riFRtTu/6+4rSe12TpAELNSqHMfF3IqnA+CH37USM6/YR3qRZv7e56kAEAtd6nKZaxe0Ug==}
     engines: {node: '>=6.0.0'}
+
+  tailwind-merge@2.3.0:
+    resolution: {integrity: sha512-vkYrLpIP+lgR0tQCG6AP7zZXCTLc1Lnv/CCRT3BqJ9CZ3ui2++GPaGb1x/ILsINIMSYqqvrpqjUFsMNLlW99EA==}
 
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
@@ -7838,6 +7868,19 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 2.12.0
 
+  '@vrooli/react-component-library@file:../../../packages/react-component-library(mermaid@11.12.2)(react-dom@19.2.8(react@19.2.8))(react-markdown@9.1.0(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)(remark-gfm@4.0.1)(shiki@1.29.2)':
+    dependencies:
+      clsx: 2.1.1
+      lucide-react: 0.424.0(react@19.2.8)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      tailwind-merge: 2.3.0
+    optionalDependencies:
+      mermaid: 11.12.2
+      react-markdown: 9.1.0(@types/react@19.2.18)(react@19.2.8)
+      remark-gfm: 4.0.1
+      shiki: 1.29.2
+
   '@xyflow/react@12.10.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@xyflow/system': 0.0.74
@@ -9656,6 +9699,10 @@ snapshots:
     dependencies:
       react: 19.2.8
 
+  lucide-react@0.424.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
   lz-string@1.5.0: {}
 
   maath@0.10.8(@types/three@0.185.4)(three@0.185.1):
@@ -11216,6 +11263,10 @@ snapshots:
       lodash: 4.18.1
       slice-ansi: 2.1.0
       string-width: 3.1.0
+
+  tailwind-merge@2.3.0:
+    dependencies:
+      '@babel/runtime': 7.28.6
 
   tailwind-merge@2.6.0: {}
 

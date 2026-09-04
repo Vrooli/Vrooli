@@ -192,6 +192,14 @@
       "testId": "world-diagnostics",
       "selector": "[data-testid=\"world-diagnostics\"]"
     },
+    "world.webglBanner": {
+      "testId": "world-webgl-banner",
+      "selector": "[data-testid=\"world-webgl-banner\"]"
+    },
+    "world.webglRetry": {
+      "testId": "world-webgl-retry",
+      "selector": "[data-testid=\"world-webgl-retry\"]"
+    },
     "world.hud.root": {
       "testId": "world-hud",
       "selector": "[data-testid=\"world-hud\"]"
@@ -203,6 +211,10 @@
     "world.hud.nextHeartbeat": {
       "testId": "world-hud-next-heartbeat",
       "selector": "[data-testid=\"world-hud-next-heartbeat\"]"
+    },
+    "world.hud.weather": {
+      "testId": "world-hud-weather",
+      "selector": "[data-testid=\"world-hud-weather\"]"
     },
     "world.hud.agentCard": {
       "testId": "world-hud-agent-card",

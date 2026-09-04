@@ -1,11 +1,14 @@
 /**
  * createWorld: build the initial state from the team graph.
  */
-import type { LayoutTuning, SimTuning } from '../config'
+import { biomeSets, type LayoutTuning, type SimTuning, type TerrainTuning } from '../config'
 import { generateLayout } from './layout/generate'
-import { buildNavGrid } from './nav/grid'
+import { pathMask as buildPathMask } from './layout/terrace'
+import { buildNavGrid, nearestWalkable } from './nav/grid'
 import type { Actor, ActorColors, ActorVariant, CreateWorldInput, Seat, WorldState } from './model'
 import { Rng, hashString, seedRng } from './rng'
+import { biomeGrid, buildTerrain } from './terrain'
+import { initialWeather } from './weather'
 
 const DEFAULT_COLORS: ActorColors = { body: '#6366f1', head: '#818cf8', accent: '#fbbf24' }
 const HALF = 0.5
@@ -13,7 +16,9 @@ const HALF = 0.5
 export interface WorldTuningSlice {
   sim: SimTuning
   layout: LayoutTuning
+  terrain: TerrainTuning
   actor: { blinkIntervalSeconds: { min: number; max: number }; bodyRadius: number }
+  weather: import('../config').WeatherTuning
 }
 
 export function variantFor(id: string): ActorVariant {
@@ -22,19 +27,26 @@ export function variantFor(id: string): ActorVariant {
   const mouth = rng.int(3)
   return {
     ears: ears === 0 ? 0 : ears === 1 ? 1 : 2,
-    blush: rng.next() < HALF,
     mouth: mouth === 0 ? 0 : mouth === 1 ? 1 : 2,
     aspect: rng.range(-1, 1),
   }
 }
 
 export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, treeVariants = 0): WorldState {
+  const terrain = buildTerrain({ seed: input.seed, tuning: tuning.terrain })
+  const biomeSet = input.trees ? biomeSets.park : biomeSets.office
+  const biomes = biomeGrid(terrain, tuning.terrain, biomeSet)
   const layout = generateLayout(input.teams, input.agents, tuning.layout, {
     seed: input.seed,
     trees: input.trees,
     treeVariants,
     clearPoints: input.clearPoints,
     overrides: input.overrides,
+    terrain,
+    terrainTuning: tuning.terrain,
+    biomes,
+    biomeSet,
+    treePropIds: [...new Set(biomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation)))],
   })
   const places: WorldState['places'] = {}
   const seats: Record<string, Seat> = {}
@@ -42,7 +54,26 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
     places[place.id] = place
     for (const seat of place.seats) seats[seat.id] = seat
   }
+  const commonsPlace = layout.places.find((place) => place.kind === 'commons')
+  const roomSites = layout.places.filter((place) => place.kind === 'room').map((place) => {
+    const exitDistance = place.size[1] / 2 + tuning.layout.cellSize
+    return {
+      position: [place.position[0] + Math.sin(place.rotation) * exitDistance, place.position[1] + Math.cos(place.rotation) * exitDistance] as const,
+      rotation: place.rotation,
+      size: place.size,
+      height: 0,
+    }
+  })
+  // Route paths over dry ground before the terrace kerbs apply the normal
+  // walking-slope gate. The final nav admits those explicit paths, then stamps
+  // walls and props over them so a path never cuts through a place.
+  const routingNav = buildNavGrid(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, { ...tuning.terrain, maxWalkSlope: Math.PI / 2 })
+  const commonsCenter = commonsPlace?.position ?? [0, 0]
+  const commonsPathTarget = [commonsCenter[0], commonsCenter[1] + tuning.layout.commonsSeatRadius] as const
+  const paintedPaths = buildPathMask(terrain, tuning.terrain, routingNav, roomSites, commonsPathTarget)
+  const nav = buildNavGrid(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, tuning.terrain, paintedPaths)
   const rng = new Rng(seedRng(input.seed))
+  const weather = initialWeather(input.now, rng, tuning.weather)
   const teamOf = new Map<string, string>()
   for (const team of [...input.teams].sort((a, b) => a.id.localeCompare(b.id))) {
     for (const memberId of team.memberIds) if (!teamOf.has(memberId)) teamOf.set(memberId, team.id)
@@ -62,6 +93,7 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
     const center = commons ? commons.position : ([0, 0] as const)
     const facing = rng.range(-Math.PI, Math.PI)
     if (home) occupancy[home.id] = agent.id
+    const sampledPosition: readonly [number, number] = [center[0] + Math.sin(angle) * radius, center[1] + Math.cos(angle) * radius]
     const actor: Actor = {
       id: agent.id,
       name: agent.name,
@@ -69,7 +101,7 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
       deskSeatId,
       state: 'idle',
       stateSince: input.now,
-      position: home ? home.position : [center[0] + Math.sin(angle) * radius, center[1] + Math.cos(angle) * radius],
+      position: home ? home.position : nearestWalkable(nav, sampledPosition, 8) ?? sampledPosition,
       facing: home ? home.facing : facing,
       path: [],
       seatId: home?.id,
@@ -91,13 +123,17 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
     actors[actor.id] = actor
     actorOrder.push(actor.id)
   }
-  const nav = buildNavGrid(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius)
   return {
     seed: input.seed,
     rngState: rng.state,
     tick: 0,
     time: input.now,
     bounds: layout.bounds,
+    terrain,
+    biomes,
+    biomeSetId: biomeSet.id,
+    pathMask: paintedPaths,
+    weather,
     places,
     placeOrder: layout.places.map((p) => p.id),
     seats,
@@ -145,6 +181,11 @@ export function rebuildLayout(state: WorldState, input: CreateWorldInput, tuning
   }
   return {
     ...fresh,
+    terrain: input.seed === state.seed ? state.terrain : fresh.terrain,
+    biomes: input.seed === state.seed ? state.biomes : fresh.biomes,
+    biomeSetId: input.seed === state.seed ? state.biomeSetId : fresh.biomeSetId,
+    pathMask: fresh.pathMask,
+    weather: state.weather,
     rngState: state.rngState,
     tick: state.tick,
     time: state.time,

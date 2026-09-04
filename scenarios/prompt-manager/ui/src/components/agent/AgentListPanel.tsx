@@ -2,15 +2,30 @@
  * AgentListPanel - Panel for listing and managing agents.
  */
 
-import { useState, useMemo, useCallback } from 'react'
-import { Plus, User, Trash2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { Copy, Eye, Palette, Plus, Trash2, User } from 'lucide-react'
+import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
+import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
 import { useAgentData } from '@/hooks/useAgentData'
-import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import { DEFAULT_AGENT_COLORS, type Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
-import { AgentContextMenu } from '@/components/agent/AgentContextMenu'
 import { selectors } from '@/constants/selectors'
 import { toast } from '@/hooks/use-toast'
+
+function agentActions(
+  onDuplicate: (id: string) => void,
+  onCustomize: (id: string) => void,
+  onPreviewPrompt: (id: string) => void,
+  onDelete: (id: string) => void,
+): RowAction<Agent>[] {
+  return [
+    { id: 'duplicate', label: 'Duplicate agent', icon: <Copy />, onSelect: (rows) => rows[0] && onDuplicate(rows[0].id) },
+    { id: 'customize', label: 'Customize Appearance', icon: <Palette />, onSelect: (rows) => rows[0] && onCustomize(rows[0].id) },
+    { id: 'preview', label: 'Preview Prompt', icon: <Eye />, onSelect: (rows) => rows[0] && onPreviewPrompt(rows[0].id) },
+    { id: 'delete', label: 'Delete Agent', icon: <Trash2 />, tone: 'destructive', separatorBefore: true, onSelect: (rows) => rows[0] && onDelete(rows[0].id) },
+  ]
+}
 
 interface AgentListPanelProps {
   selectedAgentId: string | null
@@ -49,14 +64,6 @@ export function AgentListPanel({
 }: AgentListPanelProps) {
   const { agents, isLoading, isError, createAgent, deleteAgent } = useAgentData()
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState<{
-    x: number
-    y: number
-    agentId: string
-    agentName: string
-  } | null>(null)
-
   const filteredAgents = useMemo(() => {
     if (!searchQuery) return agents
     const lower = searchQuery.toLowerCase()
@@ -90,23 +97,22 @@ export function AgentListPanel({
     await deleteAgent(id)
   }
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, agentId: string, agentName: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setContextMenu({ x: e.clientX, y: e.clientY, agentId, agentName })
-  }, [])
+  const actions = useMemo(
+    () => agentActions(
+      onDuplicateAgent ?? (() => {}),
+      onCustomizeAgent ?? (() => {}),
+      onPreviewPrompt ?? (() => {}),
+      (id) => void handleDeleteAgent(id),
+    ),
+    [onCustomizeAgent, onDuplicateAgent, onPreviewPrompt, deleteAgent],
+  )
 
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu(null)
-  }, [])
-
-  const handleItemClick = useCallback((id: string) => {
-    if (isSelectMode && onToggleSelection) {
-      onToggleSelection(id)
-    } else {
-      onSelectAgent(id)
-    }
-  }, [isSelectMode, onToggleSelection, onSelectAgent])
+  const syncSelection = (keys: string[]) => {
+    if (!onToggleSelection) return
+    const next = new Set(keys)
+    selectedIds?.forEach((id) => { if (!next.has(id)) onToggleSelection(id) })
+    next.forEach((id) => { if (!selectedIds?.has(id)) onToggleSelection(id) })
+  }
 
   if (isLoading) {
     return (
@@ -129,90 +135,41 @@ export function AgentListPanel({
       className={cn('flex flex-col min-h-0', className)}
       data-testid={selectors.agents.list}
     >
-      {/* Agent list */}
-      <div className="flex-1 overflow-y-auto py-1">
-        {agents.length === 0 ? (
-          <div className="px-3 py-8 text-center">
-            <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground mb-4">No agents yet</p>
-            <button
-              type="button"
-              onClick={() => void handleCreateAgent()}
-              className="text-xs text-primary hover:underline"
-            >
-              Create your first agent
-            </button>
-          </div>
-        ) : filteredAgents.length === 0 ? (
-          <div className="px-3 py-8 text-center">
-            <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-60" />
-            <p className="text-xs text-muted-foreground">No matching agents</p>
-          </div>
-        ) : (
-          filteredAgents.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              onClick={() => handleItemClick(agent.id)}
-              onContextMenu={(e) => handleContextMenu(e, agent.id, agent.displayName)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-left group',
-                'hover:bg-muted/50 transition-colors',
-                !isSelectMode && selectedAgentId === agent.id && 'bg-primary/10',
-                isSelectMode && selectedIds?.has(agent.id) && 'bg-primary/10'
-              )}
-              data-testid={selectors.agents.row}
-              data-agent-id={agent.id}
-            >
-              {/* Selection checkbox */}
-              {isSelectMode && (
-                <div className="flex-shrink-0">
-                  <div
-                    className={cn(
-                      'h-4 w-4 rounded border transition-colors',
-                      selectedIds?.has(agent.id)
-                        ? 'bg-primary border-primary'
-                        : 'border-border bg-background'
-                    )}
-                  >
-                    {selectedIds?.has(agent.id) && (
-                      <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
-                        <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Agent color badge */}
+      <div className="min-h-0 flex-1 overflow-y-auto py-1">
+        <CollectionList
+          items={filteredAgents}
+          getKey={(agent) => agent.id}
+          label="Agents"
+          virtualize
+          height="100%"
+          selection={{
+            mode: isSelectMode ? 'multi' : 'none',
+            selected: selectedIds ? [...selectedIds] : undefined,
+            onChange: syncSelection,
+          }}
+          onOpen={(agent) => onSelectAgent(agent.id)}
+          actions={actions}
+          empty={agents.length === 0 ? (
+            <div className="px-3 py-8 text-center">
+              <User className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+              <p className="mb-4 text-xs text-muted-foreground">No agents yet</p>
+              <button type="button" onClick={() => void handleCreateAgent()} className="text-xs text-primary hover:underline">Create your first agent</button>
+            </div>
+          ) : (
+            <div className="px-3 py-8 text-center">
+              <User className="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-60" />
+              <p className="text-xs text-muted-foreground">No matching agents</p>
+            </div>
+          )}
+          renderItem={(agent, state) => {
+            const selected = isSelectMode ? state.selection.selected : selectedAgentId === agent.id
+            return <div className={cn('flex w-full items-center gap-3 px-3 py-2 text-left transition-colors', selected && 'bg-primary/10')} data-testid={selectors.agents.row} data-agent-id={agent.id} aria-selected={selected || undefined}>
               <AgentColorBadge appearance={agent.appearance} size="sm" />
-
-              {/* Agent info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {agent.displayName}
-                </p>
-              </div>
-
-              {/* Actions (hidden in select mode) */}
-              {!isSelectMode && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void handleDeleteAgent(agent.id)
-                    }}
-                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Delete agent"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </button>
-          ))
-        )}
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{agent.displayName}</p></div>
+            </div>
+          }}
+          className="h-full w-full"
+        />
       </div>
 
       {/* Footer - New agent button (hidden in select mode) */}
@@ -231,21 +188,6 @@ export function AgentListPanel({
             New Agent
           </button>
         </div>
-      )}
-
-      {/* Context menu */}
-      {contextMenu && (
-        <AgentContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          agentId={contextMenu.agentId}
-          agentName={contextMenu.agentName}
-          onClose={handleCloseContextMenu}
-          onDuplicate={onDuplicateAgent ?? (() => {})}
-          onCustomize={onCustomizeAgent ?? (() => {})}
-          onPreviewPrompt={onPreviewPrompt ?? (() => {})}
-          onDelete={(id) => void handleDeleteAgent(id)}
-        />
       )}
     </div>
   )

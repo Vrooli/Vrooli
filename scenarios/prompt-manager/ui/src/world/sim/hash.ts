@@ -5,7 +5,7 @@ import type { WorldState } from './model'
  * Two runs from the same seed and signal script must produce the same digest.
  */
 export function hashState(state: WorldState): string {
-  const parts: string[] = [String(state.tick), state.time.toFixed(3), String(state.rngState), String(state.revision)]
+  const parts: string[] = [String(state.tick), state.time.toFixed(3), String(state.rngState), String(state.revision), terrainDigest(state)]
   for (const id of state.actorOrder) {
     const a = state.actors[id]
     if (!a) continue
@@ -14,6 +14,15 @@ export function hashState(state: WorldState): string {
     )
   }
   parts.push(String(state.events.length), String(state.nextSeq))
+  return fnv(parts.join('|'))
+}
+
+export function terrainDigest(state: WorldState): string {
+  const field = state.terrain
+  const parts = [`${field.radius}:${field.cellSize}:${field.cols}:${field.rows}`]
+  for (let index = 0; index < field.height.length; index += 1) {
+    parts.push(`${field.height[index]?.toFixed(5)}:${field.moisture[index]?.toFixed(5)}`)
+  }
   return fnv(parts.join('|'))
 }
 

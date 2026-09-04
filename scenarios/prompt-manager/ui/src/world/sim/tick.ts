@@ -3,18 +3,20 @@
  * Pure with respect to its inputs: it returns a new state and never mutates
  * the one it was given. Actors that change are copied; the rest are shared.
  */
-import type { ActorTuning, LayoutTuning, SimTuning } from '../config'
+import type { ActorTuning, LayoutTuning, SimTuning, WeatherTuning } from '../config'
 import { advanceTimers, applySignal, arrive, type StepContext } from './actors/machine'
 import { faceSocialPartner, rollIdle } from './idle/behaviors'
 import type { Actor, Signal, WorldState } from './model'
 import { moveAlongPath, updateAnimation } from './motion/move'
 import { PathCache } from './nav/astar'
 import { Rng } from './rng'
+import { smoothPressure, stepWeather, weatherPressure } from './weather'
 
 export interface StepTuning {
   sim: SimTuning
   layout: LayoutTuning
   actor: ActorTuning
+  weather: WeatherTuning
 }
 
 const NEAREST_RINGS = 6
@@ -49,9 +51,15 @@ export function step(state: WorldState, dt: number, signals: readonly Signal[], 
     gatherings: { ...state.gatherings },
     events: [...state.events],
   }
-  for (const id of next.actorOrder) {
+  const touched = new Set<string>()
+  const touch = (id: string): Actor | undefined => {
     const actor = next.actors[id]
-    if (actor) next.actors[id] = cloneActor(actor)
+    if (!actor) return undefined
+    if (touched.has(id)) return actor
+    const copy = cloneActor(actor)
+    next.actors[id] = copy
+    touched.add(id)
+    return copy
   }
   const rng = new Rng(state.rngState)
   const ctx: StepContext = {
@@ -60,12 +68,15 @@ export function step(state: WorldState, dt: number, signals: readonly Signal[], 
     replansLeft: tuning.sim.maxReplansPerTick,
     emoteSeconds: tuning.actor.emoteSeconds,
     nearestRings: NEAREST_RINGS,
+    touch,
   }
 
   for (const signal of signals) applySignal(next, signal, ctx)
+  // Sample health before timer cleanup removes expired gatherings.
+  const pressureTarget = weatherPressure(next, tuning.weather)
 
   for (const id of next.actorOrder) {
-    const actor = next.actors[id]
+    const actor = touch(id)
     if (!actor) continue
     advanceTimers(next, actor, ctx)
     if (actor.state === 'idle' && actor.path.length === 0 && next.time >= actor.idle.until) {
@@ -77,6 +88,9 @@ export function step(state: WorldState, dt: number, signals: readonly Signal[], 
     faceSocialPartner(next, actor)
     updateAnimation(actor, dt, moving, tuning.actor, () => rng.next())
   }
+  next.rngState = rng.state
+  const pressure = smoothPressure(state.weather.pressure, pressureTarget, dt, tuning.weather)
+  next.weather = stepWeather(state.weather, next.time, pressure, rng, tuning.weather, 'day')
   next.rngState = rng.state
   return next
 }

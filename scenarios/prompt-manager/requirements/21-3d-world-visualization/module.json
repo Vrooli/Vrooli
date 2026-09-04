@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-02T14:49:16-04:00"
+    "last_validated_at": "2026-09-04T04:36:00-04:00"
   },
   "requirements": [
     {
@@ -9,21 +9,28 @@
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
-      "description": "/world mounts one React Three Fiber canvas on a composed first frame: the diorama slab for the selected scene, an eased dolly from the establishing pose to the hero pose, no geometry between the camera and the actors, and a diagnostics probe that reports ready and render counters.",
+      "description": "When an operator opens /world in 3D mode, the system shall mount one React Three Fiber canvas that shows seeded terrain, water, biome props, team sites, actors, and diagnostics after the establishing-to-hero camera move.",
       "validation": [
         {
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/world-first-frame.json",
           "phase": "workflow",
-          "status": "passing",
-          "notes": "Canvas mounts, diagnostics data-ready=true and data-budget-ok=true, summary strip visible, screenshot"
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/02-world/world-webgl-fallback.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Case contract is valid; execution is pending repair of the workflow runner navigation-context defect"
         },
         {
           "type": "test",
           "ref": "ui/src/world/engine/camera/pose.test.ts",
           "phase": "unit",
           "status": "passing",
-          "notes": "Hero and establishing poses fit the slab and stay inside the orbit clamps"
+          "notes": "Hero and establishing poses fit the terrain footprint and stay inside the orbit clamps"
         },
         {
           "type": "test",
@@ -60,8 +67,8 @@
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/world-focus-agent.json",
           "phase": "workflow",
-          "status": "passing",
-          "notes": "Focusing an agent opens its card with the live state chip"
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
         }
       ]
     },
@@ -71,14 +78,14 @@
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
-      "description": "Place is state: layout is generated from the team graph, actor positions are simulation outputs derived from live signals, operator layout edits persist server-side per scene through WorldService and re-apply by place id.",
+      "description": "When a team graph and seed are loaded, the system shall choose stable buildable terrain sites for team rooms and the commons, derive actor positions from signals, and reapply persisted operator overrides by place id.",
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/world/sim/__tests__/determinism.test.ts",
           "phase": "unit",
           "status": "passing",
-          "notes": "Same seed and signal script hash identically after 10,000 ticks; 50 actors never leave the slab"
+          "notes": "The same seed and signal script hash identically after 10,000 ticks; 50 actors remain on walkable terrain"
         },
         {
           "type": "test",
@@ -122,15 +129,15 @@
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/world-2d-mode.json",
           "phase": "workflow",
-          "status": "passing",
-          "notes": "2D mode lists agents and returns to 3D"
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
         },
         {
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/world-run-now.json",
           "phase": "workflow",
-          "status": "passing",
-          "notes": "Run now from the card reports the request result"
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
         }
       ]
     },
@@ -140,7 +147,7 @@
       "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "performance",
-      "description": "Draw-call, triangle and p95 frame-time budgets per scene and quality profile live in world.tuning.json; the diagnostics probe compares live counters against them and the smoke tool records evidence per run. The quality governor derives its threshold from the active profile's frame cap and never overrides a manual profile.",
+      "description": "While the 3D world runs, the system shall measure CPU and GPU frame time, attribute direct render cost by scene group, enforce per-scene and per-profile budgets with recorded provenance, and preserve an operator-selected quality profile.",
       "validation": [
         {
           "type": "test",
@@ -160,8 +167,8 @@
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/world-first-frame.json",
           "phase": "workflow",
-          "status": "passing",
-          "notes": "data-budget-ok asserted on the diagnostics overlay in the real browser"
+          "status": "failing",
+          "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node"
         }
       ]
     },
@@ -194,6 +201,56 @@
           "status": "passing",
           "notes": "Polling starts within fallbackAfterMs when the stream fails and stops when it recovers"
         }
+      ]
+    },
+    {
+      "id": "REQ-P2-033",
+      "title": "World terrain is generated from one seed",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "When a world seed is supplied, the system shall deterministically generate one height field, moisture field, water mask, biome grid, and terrain digest from that seed.",
+      "validation": [
+        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/field.test.ts", "phase": "unit", "status": "passing", "notes": "Seeded height and moisture fields are deterministic and bounded" },
+        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/water.test.ts", "phase": "unit", "status": "passing", "notes": "Water, shore clearance, and navigation are derived from the terrain field" },
+        { "type": "test", "ref": "ui/src/world/sim/terrain/__tests__/biomes.test.ts", "phase": "unit", "status": "passing", "notes": "Every terrain cell receives one deterministic biome" },
+        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-terrain-first-frame.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+      ]
+    },
+    {
+      "id": "REQ-P2-034",
+      "title": "Team sites are chosen by terrain and stay stable",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "When the same team ids and seed are reloaded, the system shall choose the same non-overlapping, dry, level team sites and preserve existing team positions when the graph grows.",
+      "validation": [
+        { "type": "test", "ref": "ui/src/world/sim/layout/__tests__/sites.test.ts", "phase": "unit", "status": "passing", "notes": "Site scoring, spacing, rotations, and seed stability are deterministic" },
+        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-seed-stability.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+      ]
+    },
+    {
+      "id": "REQ-P2-035",
+      "title": "Weather is simulated, seeded and bound to swarm health",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "While the world advances, the system shall evolve seeded weather from its state machine, increase storm pressure from unhealthy swarm signals, and explain the active state in the HUD.",
+      "validation": [
+        { "type": "test", "ref": "ui/src/world/sim/weather/__tests__/machine.test.ts", "phase": "unit", "status": "passing", "notes": "Seeded weather transitions and duration gates are deterministic" },
+        { "type": "test", "ref": "ui/src/world/sim/weather/__tests__/pressure.test.ts", "phase": "unit", "status": "passing", "notes": "Run failures, failed actors, and expired gatherings produce smoothed pressure" },
+        { "type": "test", "ref": "bas/cases/01-foundation/02-world/world-weather-legend.json", "phase": "workflow", "status": "failing", "notes": "Case contract is valid; execution is blocked by workflow-runner defect knw-1788511204267015162, which discards a leading navigate node" }
+      ]
+    },
+    {
+      "id": "REQ-P2-036",
+      "title": "Render cost is measured, attributed and reproducible",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "performance",
+      "description": "When diagnostics or smoke validation requests measurement, the system shall report CPU and GPU percentiles, attribute direct calls and triangles by group, require an actor count, and record renderer provenance for reproducible sweeps.",
+      "validation": [
+        { "type": "test", "ref": "ui/scripts/world-smoke/run.mjs", "phase": "performance", "status": "passing", "notes": "Two consecutive calibrated eight-case SwiftShader matrices were stable, the 1,000-actor medium sweep stayed within geometry budgets with zero invariants, and renderer provenance was recorded; physical-GPU p95 remains pending because this host exposes no WebGL hardware context" }
       ]
     }
   ]

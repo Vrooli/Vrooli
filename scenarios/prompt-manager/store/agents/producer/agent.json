@@ -6,9 +6,9 @@
   "description": "Sole draft producer for the marketing crew. Draws open work from content-desk campaigns, gathers the evidence that work needs, and drafts against it with claims declared. Lane is a field on the draft, not a separate agent.",
   "status": "active",
   "appearance": {
-    "body": "#064E3B",
-    "head": "#059669",
-    "accent": "#A7F3D0"
+    "body": "#059669",
+    "head": "#34D399",
+    "accent": "#D1FAE5"
   },
   "tags": [
     "marketing",

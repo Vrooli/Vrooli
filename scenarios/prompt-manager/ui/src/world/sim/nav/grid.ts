@@ -1,4 +1,6 @@
+import type { TerrainTuning } from '../../config'
 import type { DecorSpot, NavGrid, Place, Vec2, WorldBounds } from '../model'
+import { shoreDistance, slopeAt, type TerrainField } from '../terrain'
 
 const HALF = 0.5
 
@@ -60,12 +62,36 @@ function blockRect(grid: NavGrid, center: Vec2, size: Vec2, rotation: number): v
   }
 }
 
+function carveLine(grid: NavGrid, from: Vec2, to: Vec2): void {
+  const distance = Math.hypot(to[0] - from[0], to[1] - from[1])
+  const steps = Math.max(1, Math.ceil(distance / (grid.cellSize * HALF)))
+  for (let step = 0; step <= steps; step += 1) {
+    const t = step / steps
+    const [col, row] = worldToCell(grid, [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t])
+    if (inGrid(grid, col, row)) grid.walkable[cellIndex(grid, col, row)] = 1
+  }
+}
+
+function offset(center: Vec2, localX: number, localZ: number, rotation: number): Vec2 {
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+  return [center[0] + localX * cos + localZ * sin, center[1] - localX * sin + localZ * cos]
+}
+
+function pathStrengthAt(terrain: TerrainField | undefined, mask: Float32Array | undefined, point: Vec2): number {
+  if (!terrain || !mask) return 0
+  const col = Math.round((point[0] - terrain.originX) / terrain.cellSize)
+  const row = Math.round((point[1] - terrain.originZ) / terrain.cellSize)
+  if (col < 0 || row < 0 || col >= terrain.cols || row >= terrain.rows) return 0
+  return mask[row * terrain.cols + col] ?? 0
+}
+
 /**
  * Walkable grid over the slab. Blocked: desks, tables, the campfire, the
  * board, tree trunks and the three walls of every room (the front is open).
  * Actors themselves never block; they path around static props only.
  */
-export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, wallThickness: number, trunkRadius: number): NavGrid {
+export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, wallThickness: number, trunkRadius: number, terrain?: TerrainField, terrainTuning?: TerrainTuning, pathMask?: Float32Array): NavGrid {
   const cols = Math.max(1, Math.ceil(bounds.width / cellSize))
   const rows = Math.max(1, Math.ceil(bounds.depth / cellSize))
   const grid: NavGrid = {
@@ -75,6 +101,16 @@ export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorS
     originX: bounds.center[0] - bounds.width * HALF,
     originZ: bounds.center[1] - bounds.depth * HALF,
     walkable: new Uint8Array(cols * rows).fill(1),
+  }
+  if (terrain && terrainTuning) {
+    for (let row = 0; row < grid.rows; row += 1) {
+      for (let col = 0; col < grid.cols; col += 1) {
+        const [x, z] = cellToWorld(grid, col, row)
+        const index = cellIndex(grid, col, row)
+        const onPath = pathStrengthAt(terrain, pathMask, [x, z]) > 0
+        if (shoreDistance(terrain, terrainTuning, x, z) < terrainTuning.shoreMargin || (!onPath && slopeAt(terrain, x, z) > terrainTuning.maxWalkSlope)) grid.walkable[index] = 0
+      }
+    }
   }
   for (const place of places) {
     switch (place.kind) {
@@ -88,18 +124,40 @@ export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorS
         break
       case 'room': {
         const [w, d] = place.size
-        const [x, z] = place.position
         // back wall and two side walls; the front (+z) stays open
-        blockRect(grid, [x, z - d * HALF], [w, wallThickness], place.rotation)
-        blockRect(grid, [x - w * HALF, z], [wallThickness, d], place.rotation)
-        blockRect(grid, [x + w * HALF, z], [wallThickness, d], place.rotation)
+        blockRect(grid, offset(place.position, 0, -d * HALF, place.rotation), [w, wallThickness], place.rotation)
+        blockRect(grid, offset(place.position, -w * HALF, 0, place.rotation), [wallThickness, d], place.rotation)
+        blockRect(grid, offset(place.position, w * HALF, 0, place.rotation), [wallThickness, d], place.rotation)
         break
       }
       default:
         break
     }
   }
-  for (const spot of decor) if (spot.kind === 'tree') blockDisc(grid, spot.position, trunkRadius * spot.scale)
+  // Seats are intentional navigable destinations. Restore narrow room aisles
+  // after conservative furniture rasterisation: across each desk row, then
+  // down the room centre to its open front.
+  const rooms = new Map(places.filter((place) => place.kind === 'room').map((place) => [place.id, place]))
+  for (const place of places) {
+    for (const seat of place.seats) {
+      const [col, row] = worldToCell(grid, seat.position)
+      if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) grid.walkable[cellIndex(grid, col, row)] = 1
+      const room = place.parentId ? rooms.get(place.parentId) : undefined
+      if (!room || place.kind !== 'desk') continue
+      const dx = seat.position[0] - room.position[0]
+      const dz = seat.position[1] - room.position[1]
+      const localZ = dx * Math.sin(room.rotation) + dz * Math.cos(room.rotation)
+      const aisle = offset(room.position, 0, localZ, room.rotation)
+      const exit = offset(room.position, 0, room.size[1] * HALF + grid.cellSize, room.rotation)
+      carveLine(grid, seat.position, aisle)
+      carveLine(grid, aisle, exit)
+    }
+  }
+  for (const spot of decor) {
+    if (spot.kind !== 'tree') continue
+    if (pathStrengthAt(terrain, pathMask, spot.position) > 0) continue
+    blockDisc(grid, spot.position, trunkRadius * spot.scale)
+  }
   return grid
 }
 

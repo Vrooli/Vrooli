@@ -6,9 +6,9 @@
   "description": "Skeptic for meta-optimization. Scores every pending proposal against seven failure modes (polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, conversion-without-measurement). Owns the aging scan.",
   "status": "active",
   "appearance": {
-    "body": "#374151",
-    "head": "#6B7280",
-    "accent": "#E5E7EB"
+    "body": "#64748B",
+    "head": "#94A3B8",
+    "accent": "#F1F5F9"
   },
   "tags": [
     "meta",

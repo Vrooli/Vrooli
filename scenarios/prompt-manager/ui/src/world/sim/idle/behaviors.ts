@@ -12,6 +12,7 @@ import { Rng } from '../rng'
 import { CAMPFIRE_ID, COMMONS_ID } from '../layout/generate'
 import { routeTo, routeToSeat, releaseSeat, setState, type StepContext } from '../actors/machine'
 import { headingTo } from '../motion/move'
+import { isWalkable } from '../nav/grid'
 
 const HALF = 0.5
 
@@ -74,7 +75,7 @@ export function randomCommonsPoint(state: WorldState, rng: Rng, sim: SimTuning, 
     const radius = inner + (outer - inner) * Math.sqrt(rng.next())
     const angle = rng.next() * Math.PI * 2
     candidate = [center[0] + Math.sin(angle) * radius, center[1] + Math.cos(angle) * radius]
-    if (taken.every((spot) => distance(spot, candidate) >= sim.idle.spacing)) return candidate
+    if (isWalkable(state.nav, candidate) && taken.every((spot) => distance(spot, candidate) >= sim.idle.spacing)) return candidate
   }
   return candidate
 }
@@ -133,6 +134,7 @@ export function rollIdle(state: WorldState, actor: Actor, rng: Rng, sim: SimTuni
     case 2: {
       const partner = idle.find((other) => other.id !== actor.id && other.idle.activity === 'rest' && other.path.length === 0)
       if (partner) {
+        const writablePartner = ctx.touch?.(partner.id) ?? partner
         // Meet on the commons ring: the two stand `socializeGap` apart around a shared spot.
         const spot = randomCommonsPoint(state, rng, sim, layout, actor.id)
         const heading = headingTo(actor.position, spot)
@@ -141,12 +143,12 @@ export function rollIdle(state: WorldState, actor: Actor, rng: Rng, sim: SimTuni
         const theirs: Vec2 = [spot[0] + Math.sin(heading) * gap, spot[1] + Math.cos(heading) * gap]
         const until = state.time + rng.range(sim.idle.socializeSeconds.min, sim.idle.socializeSeconds.max)
         releaseSeat(state, actor)
-        releaseSeat(state, partner)
-        if (routeTo(state, actor, mine, ctx) && routeTo(state, partner, theirs, ctx)) {
+        releaseSeat(state, writablePartner)
+        if (routeTo(state, actor, mine, ctx) && routeTo(state, writablePartner, theirs, ctx)) {
           actor.idle = { activity: 'socialize', until, partnerId: partner.id }
-          partner.idle = { activity: 'socialize', until, partnerId: actor.id }
+          writablePartner.idle = { activity: 'socialize', until, partnerId: actor.id }
           setState(state, actor, 'socializing', sim.eventsRing)
-          setState(state, partner, 'socializing', sim.eventsRing)
+          setState(state, writablePartner, 'socializing', sim.eventsRing)
           return
         }
       }

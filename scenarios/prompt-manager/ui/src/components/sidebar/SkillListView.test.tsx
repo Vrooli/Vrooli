@@ -82,12 +82,12 @@ describe('SkillListView', () => {
     expect(screen.getByText('core')).toBeInTheDocument()
   })
 
-  it('fires context menu', () => {
-    const onCtx = vi.fn()
-    const skills = [skill({ id: '1', name: 'A', modes: ['dev'], folder: 'local' })]
-    render(<SkillListView {...defaultProps} skills={skills} onSkillContextMenu={onCtx} />)
+  it('opens the shared collection menu at the row pointer', () => {
+    const skills = [skill({ id: '1', name: 'A' })]
+    render(<SkillListView {...defaultProps} skills={skills} />)
 
-    fireEvent.contextMenu(screen.getByTestId('skill-list-item'))
-    expect(onCtx).toHaveBeenCalledWith('1', 'A', expect.any(Number), expect.any(Number))
+    fireEvent.contextMenu(screen.getByTestId('skill-list-item'), { clientX: 120, clientY: 240 })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Open Enter' })).toBeInTheDocument()
   })
 })

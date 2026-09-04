@@ -6,9 +6,9 @@
   "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through the strict ladder defined in its HEARTBEAT task loop (SSOT) and investigates one signal in depth. Produces durable runtime-health findings.",
   "status": "active",
   "appearance": {
-    "body": "#0F766E",
-    "head": "#14B8A6",
-    "accent": "#A7F3D0"
+    "body": "#0D9488",
+    "head": "#2DD4BF",
+    "accent": "#CCFBF1"
   },
   "tags": [
     "infra",

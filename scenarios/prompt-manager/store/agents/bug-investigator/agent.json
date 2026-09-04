@@ -6,9 +6,9 @@
   "description": "Drains scenario-qa's bug-inbox/* (universal-source intake — any team's members may write via the report-bug skill). Applies a registered investigation technique from docs/scenario-qa/methods/investigation/, identifies root cause, takes the smallest useful action (drop, observe, file-backlog, file-work, route-to-another-topic, capability-work), and writes a bug-investigation-report/<slug> audit-log entry on close. Calm, methodical, no speculation; honest when investigation is blocked.",
   "status": "active",
   "appearance": {
-    "body": "#1E40AF",
-    "head": "#3B82F6",
-    "accent": "#93C5FD"
+    "body": "#2563EB",
+    "head": "#60A5FA",
+    "accent": "#DBEAFE"
   },
   "tags": [
     "quality",

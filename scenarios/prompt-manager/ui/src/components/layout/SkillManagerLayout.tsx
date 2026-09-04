@@ -367,7 +367,7 @@ function SkillManagerLayoutImpl() {
 
   // Combine store
   const {
-    combineMode,
+    selectionMode,
     combineEntityType,
     combineSelectedIds,
     combineFormat,
@@ -380,7 +380,7 @@ function SkillManagerLayoutImpl() {
     setCombineFormat,
     setIsCombineCopying,
   } = useCombineStore(useShallow((state) => ({
-    combineMode: state.isActive,
+    selectionMode: state.isActive,
     combineEntityType: state.entityType,
     combineSelectedIds: state.selectedIds,
     combineFormat: state.format,
@@ -408,7 +408,7 @@ function SkillManagerLayoutImpl() {
     prefetchAbort.current?.abort()
     setPrefetchedContent(null)
 
-    if (!combineMode || combineSelectedIds.size === 0) return
+    if (!selectionMode || combineSelectedIds.size === 0) return
 
     const identifiers = Array.from(combineSelectedIds)
     const abort = new AbortController()
@@ -472,7 +472,7 @@ function SkillManagerLayoutImpl() {
 
     return () => { abort.abort() }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- agents array identity changes; content depends on IDs not refs
-  }, [combineMode, combineSelectedIds, combineFormat, combineEntityType])
+  }, [selectionMode, combineSelectedIds, combineFormat, combineEntityType])
 
   // Combine helper functions
   const handleCombineCheckboxChange = useCallback(
@@ -1229,7 +1229,7 @@ function SkillManagerLayoutImpl() {
         return
       }
       // Exit combine mode if active
-      if (combineMode) {
+      if (selectionMode) {
         exitCombineMode()
         return
       }
@@ -1401,7 +1401,7 @@ function SkillManagerLayoutImpl() {
         onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
         onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
         onCreateNewFolder={handleCreateNewFolderRequest}
-        combineMode={combineMode}
+        selectionMode={selectionMode}
         combineSelectedIds={combineSelectedIds}
         combineFormat={combineFormat}
         onCombineFormatChange={setCombineFormat}
@@ -1753,7 +1753,7 @@ function SkillManagerLayoutImpl() {
                 onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
                 onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
                 onCreateNewFolder={handleCreateNewFolderRequest}
-                combineMode={combineMode}
+                selectionMode={selectionMode}
                 combineSelectedIds={combineSelectedIds}
                 combineFormat={combineFormat}
                 onCombineFormatChange={setCombineFormat}

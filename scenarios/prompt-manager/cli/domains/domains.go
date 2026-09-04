@@ -5,6 +5,7 @@ import (
 	"prompt-manager/cli/agents"
 	"prompt-manager/cli/discover"
 	"prompt-manager/cli/experiments"
+	"prompt-manager/cli/goal"
 	"prompt-manager/cli/graph"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/members"
@@ -27,6 +28,7 @@ func CommandGroups(ctx appctx.Context) []cliapp.CommandGroup {
 	groups := make([]cliapp.CommandGroup, 0, 14)
 	groups = append(groups, skills.Commands(ctx)...)
 	groups = append(groups,
+		goal.Commands(ctx),
 		actions.Commands(ctx),
 		experiments.Commands(ctx),
 		tags.Commands(ctx),

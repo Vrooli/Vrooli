@@ -73,10 +73,13 @@ const literalSelectors = {
     view: 'world-view',
     canvas: 'world-canvas',
     diagnostics: 'world-diagnostics',
+    webglBanner: 'world-webgl-banner',
+    webglRetry: 'world-webgl-retry',
     hud: {
       root: 'world-hud',
       summary: 'world-hud-summary',
       nextHeartbeat: 'world-hud-next-heartbeat',
+      weather: 'world-hud-weather',
       agentCard: 'world-hud-agent-card',
       agentCardClose: 'world-hud-agent-card-close',
       agentState: 'world-hud-agent-state',

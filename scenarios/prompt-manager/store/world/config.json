@@ -1,10 +1,10 @@
 {
   "scene": "park",
-  "qualityProfile": "ultra",
+  "qualityProfile": "low",
   "qualityAuto": false,
   "periodMode": "clock",
-  "twoDMode": true,
+  "twoDMode": false,
   "showDiagnostics": false,
   "scale": 1,
-  "updatedAt": "2026-09-03T04:11:55Z"
+  "updatedAt": "2026-09-04T14:01:47Z"
 }

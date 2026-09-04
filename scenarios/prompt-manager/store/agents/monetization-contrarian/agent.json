@@ -6,9 +6,9 @@
   "description": "Cross-cutting skeptic for the monetization team. Evaluates every open work item against seven named failure modes (catalog sprawl, premature tier activation, services trap, retention-blind acquisition, hallucinated metrics, positioning drift, marketing-default) and attaches concrete challenge notes.",
   "status": "active",
   "appearance": {
-    "body": "#042F2E",
-    "head": "#0F766E",
-    "accent": "#99F6E4"
+    "body": "#0D9488",
+    "head": "#2DD4BF",
+    "accent": "#CCFBF1"
   },
   "tags": [
     "monetization",

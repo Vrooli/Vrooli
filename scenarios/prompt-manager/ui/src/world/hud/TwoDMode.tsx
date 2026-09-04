@@ -1,5 +1,6 @@
 import { selectors } from '@/constants/selectors'
 import type { ActorView, TeamView } from '../sim'
+import type { WeatherState } from '../sim'
 import { STATE_LABEL, formatDuration } from './format'
 
 interface TwoDModeProps {
@@ -8,6 +9,7 @@ interface TwoDModeProps {
   now: number
   focusedId: string | null
   onFocus: (agentId: string | null) => void
+  weather?: Pick<WeatherState, 'state' | 'pressure'>
 }
 
 /**
@@ -15,7 +17,7 @@ interface TwoDModeProps {
  * the same focus target the 3D view uses. Everything the AgentCard offers is
  * reachable from here.
  */
-export function TwoDMode({ actors, teams, now, focusedId, onFocus }: TwoDModeProps) {
+export function TwoDMode({ actors, teams, now, focusedId, onFocus, weather }: TwoDModeProps) {
   const byTeam = new Map<string, ActorView[]>()
   const unassigned: ActorView[] = []
   for (const actor of actors) {
@@ -34,6 +36,7 @@ export function TwoDMode({ actors, teams, now, focusedId, onFocus }: TwoDModePro
 
   return (
     <div className="h-full overflow-auto p-4" data-testid={selectors.world.hud.twoDMode}>
+      {weather && <p className="mx-auto mb-3 max-w-3xl text-sm text-muted-foreground" data-testid={selectors.world.hud.weather}><span className="font-medium capitalize text-foreground">{weather.state}</span> — health pressure {Math.round(weather.pressure * 100)}%; weather reflects recent run failures and failed agents.</p>}
       <ul className="mx-auto max-w-3xl space-y-4" data-testid={selectors.world.hud.actorList} aria-label="Agents by team">
         {groups.length === 0 && <li className="text-sm text-muted-foreground">No agents match.</li>}
         {groups.map((group) => (

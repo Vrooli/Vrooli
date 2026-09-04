@@ -9,6 +9,7 @@ import "testing"
 func TestCommandGroupsRegistersExpectedDomainGroups(t *testing.T) {
 	want := []string{
 		"Skills",
+		"Goals",
 		"Actions",
 		"Experiments",
 		"Tags",

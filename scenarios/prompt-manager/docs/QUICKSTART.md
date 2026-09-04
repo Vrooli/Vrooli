@@ -52,8 +52,8 @@ cd cli && go build -o prompt-manager .
 # Show a specific skill
 ./prompt-manager skill show <skill-id>
 
-# Use a skill (records usage + copies to clipboard)
-./prompt-manager skill use <skill-id>
+# Read a skill (records the read; use --copy only when needed)
+./prompt-manager skill read <skill-id> --copy
 
 # Search skills
 ./prompt-manager search "debugging"

@@ -10,6 +10,7 @@
 package skills
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -47,7 +48,11 @@ type SkillUsageRow struct {
 	// Projected identifies skills resident in a generated native harness scope.
 	// It prevents an operator from interpreting a projected skill's absent CLI
 	// reads as absence of demand.
-	Projected bool `json:"projected"`
+	Projected       bool     `json:"projected"`
+	ReadsWithRun    int      `json:"readsWithRun,omitempty"`
+	SucceededRuns   int      `json:"succeededRuns,omitempty"`
+	FailedRuns      int      `json:"failedRuns,omitempty"`
+	OutcomeCoverage *float64 `json:"outcomeCoverage,omitempty"`
 }
 
 // SkillUsageReport is the windowed aggregation across all skills seen.
@@ -62,9 +67,16 @@ type SkillUsageReport struct {
 
 // UsageReporter builds SkillUsageReport from the two telemetry logs.
 type UsageReporter struct {
-	reads        *store.SkillReadStore
-	calls        *store.DiscoveryCallStore
-	projectedDir string
+	reads           *store.SkillReadStore
+	calls           *store.DiscoveryCallStore
+	projectedDir    string
+	outcomeResolver RunStatusResolver
+}
+
+// RunStatusResolver is the narrow composition seam for the opt-in outcomes
+// view. The skills package does not depend on heartbeat or agent-manager.
+type RunStatusResolver interface {
+	RunStatus(context.Context, string) (string, error)
 }
 
 // NewUsageReporter builds a reporter over the read and discovery logs.
@@ -72,14 +84,19 @@ func NewUsageReporter(reads *store.SkillReadStore, calls *store.DiscoveryCallSto
 	return &UsageReporter{reads: reads, calls: calls, projectedDir: strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR"))}
 }
 
+func (ur *UsageReporter) SetOutcomeResolver(resolver RunStatusResolver) {
+	ur.outcomeResolver = resolver
+}
+
 // Report aggregates the window. A nil store contributes zero rather than
 // failing, so the report degrades to whichever half is wired.
-func (ur *UsageReporter) Report(window time.Duration) (SkillUsageReport, error) {
+func (ur *UsageReporter) Report(window time.Duration, outcomes ...bool) (SkillUsageReport, error) {
 	report := SkillUsageReport{Since: window.String(), Rows: []SkillUsageRow{}}
 	if ur == nil {
 		return report, nil
 	}
 	rows := map[string]*SkillUsageRow{}
+	runIDs := map[string]map[string]struct{}{}
 	row := func(id string) *SkillUsageRow {
 		if existing, ok := rows[id]; ok {
 			return existing
@@ -133,6 +150,34 @@ func (ur *UsageReporter) Report(window time.Duration) (SkillUsageReport, error) 
 			if entry.At > r.LastReadAt {
 				r.LastReadAt = entry.At
 			}
+			if len(outcomes) > 0 && outcomes[0] && ur.outcomeResolver != nil && entry.AgentRunID != "" {
+				if runIDs[entry.SkillID] == nil {
+					runIDs[entry.SkillID] = map[string]struct{}{}
+				}
+				runIDs[entry.SkillID][entry.AgentRunID] = struct{}{}
+			}
+		}
+	}
+	if len(outcomes) > 0 && outcomes[0] && ur.outcomeResolver != nil {
+		for skillID, ids := range runIDs {
+			r := rows[skillID]
+			for runID := range ids {
+				status, err := ur.outcomeResolver.RunStatus(context.Background(), runID)
+				if err != nil {
+					continue
+				}
+				r.ReadsWithRun++
+				if strings.Contains(strings.ToLower(status), "fail") || strings.Contains(strings.ToLower(status), "cancel") {
+					r.FailedRuns++
+				} else {
+					r.SucceededRuns++
+				}
+			}
+			coverage := float64(r.ReadsWithRun) / float64(maxInt(r.DemandReads, r.Reads))
+			if r.Reads > 0 {
+				coverage = float64(r.ReadsWithRun) / float64(r.Reads)
+			}
+			r.OutcomeCoverage = &coverage
 		}
 	}
 
@@ -180,6 +225,13 @@ func (ur *UsageReporter) Report(window time.Duration) (SkillUsageReport, error) 
 	return report, nil
 }
 
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // parseSinceWindow accepts the same window vocabulary the discovery telemetry
 // commands use ("7d", "24h", "7d12h"), so `--since` means one thing across the
 // three surfaces an operator reads together.
@@ -218,6 +270,7 @@ func (h *Handlers) SkillUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	window := 7 * 24 * time.Hour
+	outcomes := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("outcomes")), "true")
 	if raw := strings.TrimSpace(r.URL.Query().Get("since")); raw != "" {
 		parsed, err := parseSinceWindow(raw)
 		if err != nil {
@@ -226,7 +279,7 @@ func (h *Handlers) SkillUsage(w http.ResponseWriter, r *http.Request) {
 		}
 		window = parsed
 	}
-	report, err := h.usageReporter.Report(window)
+	report, err := h.usageReporter.Report(window, outcomes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -3,6 +3,7 @@
   "title": "Park",
   "environment": "outdoor",
   "assetSet": "park",
+  "biomeSet": "park",
   "props": {
     "desk": "desk",
     "chair": "bench",
@@ -10,31 +11,15 @@
     "seat": "log_seat",
     "campfire": "campfire",
     "lamp": "lamp_post",
-    "board": "sign_board",
-    "trees": [
-      "tree_oak",
-      "tree_pine",
-      "tree_default"
-    ],
-    "decor": [
-      "rock_small",
-      "bush_round",
-      "flowers",
-      "stump"
-    ]
+    "board": "sign_board"
   },
   "palette": {
     "horizon": "#7fa862",
     "ground": "#6fae58",
-    "groundEdge": "#5a3f2c",
     "roomFloor": "#cdb98d",
     "roomWall": "#e6ddcf",
     "commons": "#b39a63",
     "path": "#c9b48c"
-  },
-  "slab": {
-    "thickness": 1.4,
-    "cornerRadius": 0.6
   },
   "camera": {
     "hero": {

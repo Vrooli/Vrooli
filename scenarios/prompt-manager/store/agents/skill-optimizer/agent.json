@@ -6,9 +6,9 @@
   "description": "Applies evolutionary pressure to the skill library. Primary lever: convert prose-heavy skills into thin wrappers over scenario CLIs. Secondary: audit drift, propose deprecation.",
   "status": "active",
   "appearance": {
-    "body": "#4C1D95",
-    "head": "#8B5CF6",
-    "accent": "#DDD6FE"
+    "body": "#7C3AED",
+    "head": "#A78BFA",
+    "accent": "#EDE9FE"
   },
   "tags": [
     "meta",

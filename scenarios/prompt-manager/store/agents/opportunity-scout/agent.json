@@ -6,9 +6,9 @@
   "description": "Generates candidate SKUs, add-ons, and services lines for the monetization catalog. Classifies every idea against bundles/add-ons, attaches explicit revisit triggers, and maintains a durable candidate pool without cluttering active focus.",
   "status": "active",
   "appearance": {
-    "body": "#0F766E",
+    "body": "#0D9488",
     "head": "#2DD4BF",
-    "accent": "#99F6E4"
+    "accent": "#CCFBF1"
   },
   "tags": [
     "monetization",

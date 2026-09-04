@@ -4,9 +4,11 @@
     "description": "Run now from the agent card produces a request notice and a ticker line",
     "labels": {
       "reset": "none",
-      "safety": "mutating"
+      "safety": "isolated-run-state",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1600,

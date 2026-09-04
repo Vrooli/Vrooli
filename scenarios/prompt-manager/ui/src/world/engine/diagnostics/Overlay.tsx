@@ -5,7 +5,7 @@ import { readDiagnostics, subscribeDiagnostics, type WorldDiagnostics } from './
 const REFRESH_MS = 250
 
 /** DOM overlay with the renderer counters. Throttled so it never re-renders per frame. */
-export function DiagnosticsOverlay({ testId = 'world-diagnostics' }: { testId?: string }) {
+export function DiagnosticsOverlay({ seed, seedDigest, testId = 'world-diagnostics' }: { seed: number; seedDigest: string; testId?: string }) {
   const [snapshot, setSnapshot] = useState<WorldDiagnostics>(() => readDiagnostics())
 
   useEffect(() => {
@@ -29,6 +29,7 @@ export function DiagnosticsOverlay({ testId = 'world-diagnostics' }: { testId?: 
     ['triangles', snapshot.triangles.toLocaleString()],
     ['programs', String(snapshot.programs)],
     ['frame p50 / p95', `${snapshot.frameMsP50.toFixed(1)} / ${snapshot.frameMsP95.toFixed(1)} ms`],
+    ['GPU p50 / p95', snapshot.gpuTimerReason ? snapshot.gpuTimerReason : `${snapshot.gpuMsP50.toFixed(2)} / ${snapshot.gpuMsP95.toFixed(2)} ms`],
     ['tone mapping', snapshot.toneMapping],
     ['post', `ao ${snapshot.ao ? 'on' : 'off'} · bloom ${snapshot.bloom ? 'on' : 'off'}`],
     ['nearest hit', snapshot.nearestHit < 0 ? '—' : `${snapshot.nearestHit.toFixed(1)} m`],
@@ -47,6 +48,9 @@ export function DiagnosticsOverlay({ testId = 'world-diagnostics' }: { testId?: 
       data-triangles={snapshot.triangles}
       data-profile={snapshot.profile}
       data-scene={snapshot.scene}
+      data-seed={seed}
+      data-seed-digest={seedDigest}
+      data-weather={snapshot.weather}
       className="pointer-events-none absolute bottom-3 left-3 z-30 rounded-md border border-border bg-background/85 px-3 py-2 font-mono text-[11px] leading-4 text-foreground shadow-sm backdrop-blur"
     >
       <table>

@@ -6,7 +6,8 @@
  *   ?period=dawn|day|dusk|night   ?intro=0 (skip the dolly)   ?diag=1 (overlay)
  *   ?seed=<int> (sim seed)   ?actors=<n> (synthetic roster, no feed: goldens and demos)
  *   ?ao=0 ?bloom=0 ?shadows=0 (diagnostic overrides of the active profile's effects)
- *   ?view=3d|2d (deep-link intent: outranks the stored 2D preference and the narrow-screen default, never a missing WebGL)
+ *   ?view=3d|2d (deep-link intent: outranks stored preferences and narrow screens)
+ *   ?forceWebglFail=1 (permanent fallback/retry test lever)
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Box3, Vector3 } from 'three'
@@ -14,6 +15,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ViewOverlay } from '@/components/shared/ViewOverlay'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
+  biomeSets,
   isPeriodId,
   isQualityProfileId,
   isSceneId,
@@ -27,6 +29,7 @@ import {
   type QualityState,
   type SceneId,
   type TuningOverride,
+  type WeatherId,
 } from './config'
 import {
   CameraRig,
@@ -36,16 +39,21 @@ import {
   PostChain,
   QualityGovernor,
   WorldCanvas,
+  applyWeather,
   applyVerdict,
   pickProfile,
+  probeWebGL,
+  resolveTwoD,
+  retryWebGL,
   setAuto,
+  updateDiagnostics,
   type CameraRigHandle,
   type WorldBounds,
 } from './engine'
-import { Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Stage, Trees, WorldStoreContext } from './scene'
+import { ActorPoseProvider, Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Terrain, Vegetation, Water, Weather, WorldStoreContext } from './scene'
 import { EMPTY_FILTERS, EditorToolbar, WorldHelpContent, WorldHud, WorldSettingsContent, type FilterState, type SummaryFilter } from './hud'
 import { createWorldActions, syntheticRoster, useLayoutPersistence, useWorldPreferences, useWorldRoster, useWorldRuntime } from './data'
-import { canRedo, canUndo, commit, emptyHistory, redo, undo, upsertOverride, type OverrideHistory } from './sim'
+import { canRedo, canUndo, commit, emptyHistory, heightAt, redo, terrainDigest, undo, upsertOverride, type OverrideHistory } from './sim'
 import { poseToPosition } from './engine'
 
 export interface WorldViewProps {
@@ -61,18 +69,10 @@ export type PeriodMode = { kind: 'clock' } | { kind: 'fixed'; period: PeriodId }
 
 const DEFAULT_SEED = 1
 /** The ground disc reaches this share of the far plane; fog hides its edge before the clip does. */
-const HORIZON_SHARE = 0.8
 const SYNTHETIC_PER_TEAM = 5
+const SYNTHETIC_MAX_TEAMS = 5
+const SYNTHETIC_SCALE_MAX_TEAMS = 4
 const TICKER_LIMIT = 12
-
-function hasWebGL(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    return canvas.getContext('webgl2') !== null
-  } catch {
-    return false
-  }
-}
 
 function parseInt10(value: string | null, fallback: number): number {
   const n = value === null ? NaN : Number.parseInt(value, 10)
@@ -108,7 +108,8 @@ export function WorldView(props: WorldViewProps) {
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter | null>(null)
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null)
   const narrow = useMediaQuery('(max-width: 767px)')
-  const webglAvailable = useMemo(() => hasWebGL(), [])
+  const forceWebglFail = params.get('forceWebglFail') === '1'
+  const [webgl, setWebgl] = useState(() => probeWebGL(forceWebglFail))
   const preferences = useWorldPreferences(undefined, syntheticActors === 0)
   const [twoDChoice, setTwoDChoice] = useState<boolean | null>(null)
   // Dev levers: an override merged over the shipped tuning, re-validated on every edit.
@@ -116,9 +117,25 @@ export function WorldView(props: WorldViewProps) {
   const tuning = useMemo(() => (Object.keys(tuningOverride).length > 0 ? withTuningOverride(tuningOverride, shippedTuning) : shippedTuning), [tuningOverride])
   const viewParam = params.get('view')
   const requestedTwoD = viewParam === '2d' ? true : viewParam === '3d' ? false : null
-  const twoD = !webglAvailable || (twoDChoice ?? requestedTwoD ?? (preferences.preferences.twoDMode || narrow))
+  const twoD = resolveTwoD({
+    webglAvailable: webgl.ok,
+    userChoice: twoDChoice,
+    requestedTwoD,
+    storedTwoD: preferences.preferences.twoDMode,
+    narrow,
+  })
+  const askedFor3D = requestedTwoD === false || twoDChoice === false
+
+  useEffect(() => updateDiagnostics({ webgl }), [webgl])
+
+  const retry3D = useCallback(() => {
+    const result = retryWebGL(forceWebglFail)
+    setWebgl(result)
+    if (result.ok) setTwoDChoice(false)
+  }, [forceWebglFail])
 
   const scene = scenes[sceneId]
+  const sceneBiomeSet = biomeSets[scene.biomeSet]
   const baseProfile = tuning.quality.profiles[quality.profileId]
   // Diagnostic overrides let the smoke tool isolate one effect without a new profile.
   const profile = useMemo(() => {
@@ -128,7 +145,7 @@ export function WorldView(props: WorldViewProps) {
   }, [baseProfile, params])
   const periodId: PeriodId =
     periodMode.kind === 'fixed' ? periodMode.period : periodForHour(new Date().getHours(), tuning.lighting)
-  const period = useMemo(() => resolvePeriod(scene, periodId), [scene, periodId])
+  const basePeriod = useMemo(() => resolvePeriod(scene, periodId), [scene, periodId])
 
   // Layout editing: persisted overrides applied over the generated layout by id.
   const layoutStore = useLayoutPersistence(sceneId, syntheticActors === 0, tuning.editor.saveDebounceMs)
@@ -139,7 +156,11 @@ export function WorldView(props: WorldViewProps) {
   // Roster: the live team graph, or a synthetic one for goldens and demos.
   const liveRoster = useWorldRoster()
   const roster = useMemo(
-    () => (syntheticActors > 0 ? { ...syntheticRoster(syntheticActors, SYNTHETIC_PER_TEAM, seed), ready: true } : liveRoster),
+    () => {
+      const maxTeams = syntheticActors > 25 ? SYNTHETIC_SCALE_MAX_TEAMS : SYNTHETIC_MAX_TEAMS
+      const perTeam = Math.max(SYNTHETIC_PER_TEAM, Math.ceil(syntheticActors / maxTeams))
+      return syntheticActors > 0 ? { ...syntheticRoster(syntheticActors, perTeam, seed), ready: true } : liveRoster
+    },
     [syntheticActors, seed, liveRoster],
   )
   // Trees keep clear of the ground point under the hero camera.
@@ -152,12 +173,22 @@ export function WorldView(props: WorldViewProps) {
     scene: sceneId,
     teams: roster.teams,
     agents: roster.agents,
-    treeVariants: scene.props.trees.length,
+    treeVariants: new Set(sceneBiomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation))).size,
     clearPoints,
     live: syntheticActors === 0,
+    step: syntheticActors === 0,
     tuning,
     overrides: layoutStore.loaded ? layoutStore.overrides : undefined,
   })
+  const seedDigest = useMemo(() => terrainDigest(runtime.store.getState()), [runtime.store])
+  const weatherParam = params.get('weather')
+  const pinnedWeather: WeatherId | null = weatherParam === 'clear' || weatherParam === 'cloudy' || weatherParam === 'rain' || weatherParam === 'snow' ? weatherParam : null
+  const pressureRaw = Number(params.get('pressure'))
+  const pinnedPressure = Number.isFinite(pressureRaw) && params.has('pressure') ? Math.max(0, Math.min(1, pressureRaw)) : null
+  const weatherId = pinnedWeather ?? (pinnedPressure !== null && pinnedPressure >= 0.75 ? 'rain' : runtime.store.getState().weather.state)
+  const weatherPreset = tuning.weather.states[weatherId]
+  const period = useMemo(() => applyWeather(basePeriod, weatherId, tuning.weather), [basePeriod, weatherId, tuning.weather])
+  useEffect(() => updateDiagnostics({ weather: weatherId, weatherPressure: pinnedPressure ?? runtime.store.getState().weather.pressure }), [pinnedPressure, runtime.store, weatherId])
 
   // When persisted overrides arrive, seed the history from them.
   useEffect(() => {
@@ -201,16 +232,17 @@ export function WorldView(props: WorldViewProps) {
     const actor = runtime.store.getState().actors[focusedId]
     if (!actor) return
     const radius = tuning.actor.bodyRadius
+    const ground = heightAt(runtime.store.getState().terrain, actor.position[0], actor.position[1])
     const box = new Box3(
-      new Vector3(actor.position[0] - radius, 0, actor.position[1] - radius),
-      new Vector3(actor.position[0] + radius, radius * 2, actor.position[1] + radius),
+      new Vector3(actor.position[0] - radius, ground, actor.position[1] - radius),
+      new Vector3(actor.position[0] + radius, ground + radius * 2, actor.position[1] + radius),
     )
     rig.focus(box, true)
     rig.follow(
       following
         ? () => {
             const live = runtime.store.getState().actors[focusedId]
-            return live ? [live.position[0], radius, live.position[1]] : [0, 0, 0]
+            return live ? [live.position[0], heightAt(runtime.store.getState().terrain, live.position[0], live.position[1]) + radius, live.position[1]] : [0, 0, 0]
           }
         : null,
     )
@@ -283,22 +315,26 @@ export function WorldView(props: WorldViewProps) {
           reducedMotion={reducedMotion}
         />
         <WorldStoreContext.Provider value={runtime.store}>
-          <Stage scene={scene} bounds={bounds} horizon={tuning.camera.far * HORIZON_SHARE} />
+          <Terrain tuning={tuning.terrain} profile={profile} weather={weatherPreset} />
+          <Water tuning={tuning.terrain} profile={profile} />
           <Places scene={scene} layout={tuning.layout} />
           <Props scene={scene} period={period} />
-          <Trees scene={scene} />
-          <Actors profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
-          {editing && (
-            <RoomHandles
-              editor={tuning.editor}
-              selectedRoomId={selectedRoomId}
-              onSelectRoom={setSelectedRoomId}
-              onMove={moveRoom}
-              onDragging={(dragging) => cameraRig.current?.setEnabled(!dragging)}
-            />
-          )}
-          <Labels labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
-          <SceneEnvironment scene={scene} profile={profile} period={period} bounds={bounds} />
+          <Vegetation scene={scene} tuning={tuning.terrain} profile={profile} />
+          <ActorPoseProvider>
+            <Actors profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
+            {editing && (
+              <RoomHandles
+                editor={tuning.editor}
+                selectedRoomId={selectedRoomId}
+                onSelectRoom={setSelectedRoomId}
+                onMove={moveRoom}
+                onDragging={(dragging) => cameraRig.current?.setEnabled(!dragging)}
+              />
+            )}
+            <Labels labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
+          </ActorPoseProvider>
+          <SceneEnvironment scene={scene} profile={profile} period={period} bounds={bounds} weather={weatherPreset} altitude={tuning.weather.cloudAltitude} />
+          <Weather id={weatherId} preset={weatherPreset} tuning={tuning.weather} profile={profile} getTarget={getTarget} />
         </WorldStoreContext.Provider>
         <PostChain profile={profile} />
         <QualityGovernor auto={quality.auto} profile={profile} quality={tuning.quality} onVerdict={onVerdict} />
@@ -310,8 +346,27 @@ export function WorldView(props: WorldViewProps) {
           period={periodId}
           getTarget={getTarget}
           bounds={bounds}
+          measureEnabled={showDiagnostics}
         />
       </WorldCanvas>
+      )}
+      {!webgl.ok && askedFor3D && (
+        <div
+          data-testid="world-webgl-banner"
+          className="absolute left-1/2 top-4 z-40 w-[min(92vw,36rem)] -translate-x-1/2 rounded-md border border-amber-500/60 bg-background/95 px-4 py-3 text-sm text-foreground shadow-lg"
+          role="alert"
+        >
+          <p className="font-medium">3D world unavailable: {webgl.reason}</p>
+          <p className="mt-1 text-muted-foreground">{webgl.detail}</p>
+          <button
+            type="button"
+            data-testid="world-webgl-retry"
+            className="mt-3 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground"
+            onClick={retry3D}
+          >
+            Retry 3D
+          </button>
+        </div>
       )}
       <WorldHud
         store={runtime.store}
@@ -335,8 +390,9 @@ export function WorldView(props: WorldViewProps) {
           preferences.update({ twoDMode: next })
         }}
         tickerLimit={TICKER_LIMIT}
+        weather={pinnedWeather || pinnedPressure !== null ? { state: weatherId, pressure: pinnedPressure ?? runtime.store.getState().weather.pressure } : undefined}
       />
-      {showDiagnostics && !twoD && <DiagnosticsOverlay />}
+      {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} />}
       {!twoD && (
         <div className="pointer-events-none absolute right-3 top-14 z-20">
           <EditorToolbar

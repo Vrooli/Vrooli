@@ -28,7 +28,9 @@ pnpm world:assets           # bake every prop each scene names
 pnpm world:assets --check   # verify outputs and the registry are current
 ```
 
-`scripts/world-assets/build.mjs` reads `src/world/config/scenes/*.json`, runs
+`scripts/world-assets/build.mjs` reads place-bound prop ids from
+`src/world/config/scenes/*.json` and ground-bound prop ids from the selected
+biome records in `src/world/config/biomes.json`, then runs
 `gltf-transform optimize` (join, palette, weld, prune, flatten, meshopt) on
 each source, writes `public/assets/world/<scene>/<prop>.glb` and regenerates
 `src/world/engine/assets/registry.generated.json` with path, bounds (after
@@ -39,16 +41,18 @@ source. Bounds and sizes are in kit units; each scene sets `propScale` and
 
 At runtime `engine/assets/loader.ts` loads a prop through drei's `useGLTF`
 with the meshopt decoder and returns one geometry + material part per
-material; `scene/Props.tsx` draws each part as one `Instances` batch across
-every place of that kind. A prop with two materials costs two draws; the
-registry test caps parts at three.
+material. `scene/Props.tsx` batches place-bound props. `scene/Vegetation.tsx`
+batches ground-bound props per visible terrain tile and material. A prop with
+two materials costs two draws per visible batch; the registry test caps parts
+at three.
 
 ## Adding a prop
 
 1. Copy the source GLB into `ui/assets-src/world/<kit>/` (CC0 only; one
    vendor per scene).
-2. Map a prop id to it in `sources.json`, and name that id in the scene file
-   (`props.decor`, `props.trees`, or one of the place kinds).
+2. Map a prop id to it in `sources.json`. Name a place-bound id in the scene
+   prop block, or name a ground-bound id in a biome's `vegetation` or `decor`
+   density table.
 3. Run `pnpm world:assets`; the registry test (`registry.test.ts`) and the
    smoke tool's budgets keep it honest.
 

@@ -7,9 +7,12 @@
  * (team id, agent id) so the world is stable across reloads and renames.
  * Operator overrides are applied on top by place id.
  */
-import type { LayoutTuning } from '../../config'
+import type { BiomeSet, LayoutTuning, TerrainTuning } from '../../config'
 import type { AgentInput, DecorSpot, LayoutOverride, Place, Seat, TeamInput, Vec2, WorldBounds } from '../model'
-import { Rng, hashString } from '../rng'
+import type { TerrainField } from '../terrain'
+import { selectSites } from './sites'
+import { terraceSite } from './terrace'
+import { scatterDecor } from './scatter'
 
 export interface GeneratedLayout {
   places: Place[]
@@ -26,6 +29,11 @@ export interface GenerateOptions {
   treeVariants: number
   clearPoints?: Vec2[]
   overrides?: LayoutOverride[]
+  terrain: TerrainField
+  terrainTuning: TerrainTuning
+  biomes?: Uint8Array
+  biomeSet?: BiomeSet
+  treePropIds?: readonly string[]
 }
 
 const HALF = 0.5
@@ -52,6 +60,12 @@ function facingToward(from: Vec2, to: Vec2): number {
   return Math.atan2(to[0] - from[0], to[1] - from[1])
 }
 
+function rotate(center: Vec2, localX: number, localZ: number, rotation: number): Vec2 {
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+  return [center[0] + localX * cos + localZ * sin, center[1] - localX * sin + localZ * cos]
+}
+
 function ringSeats(placeId: string, center: Vec2, radius: number, count: number, sitting: boolean, prefix: string): Seat[] {
   const seats: Seat[] = []
   for (let i = 0; i < count; i += 1) {
@@ -72,46 +86,55 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
   const places: Place[] = []
   const deskSeatByAgent: Record<string, string> = {}
 
-  // Rooms: a grid behind the commons, widest room decides the column pitch.
-  const teamWidths = orderedTeams.map((team) => {
+  // The seed chooses buildable ground first; the org graph only assigns teams
+  // to those stable sites in team-id order.
+  const teamSizes = orderedTeams.map((team) => {
     const desks = team.memberIds.filter((id) => agentIds.has(id)).length
-    return Math.max(layout.roomWidth, desks * layout.deskPitch + layout.deskInset * 2)
+    const columns = Math.max(1, Math.ceil(Math.sqrt(desks)))
+    const rows = Math.max(1, Math.ceil(desks / columns))
+    const width = Math.max(layout.roomWidth, columns * layout.deskPitch + layout.deskInset * 2)
+    const meetingDepth = layout.tableSeatRadius * 2 + layout.deskInset
+    const depth = Math.max(layout.roomDepth, rows * layout.deskPitch + layout.deskInset * 2 + meetingDepth)
+    return { width, depth, columns }
   })
-  const roomWidth = teamWidths.length > 0 ? Math.max(...teamWidths) : layout.roomWidth
-  const cols = Math.max(1, Math.min(orderedTeams.length, layout.maxRoomsPerRow))
-  const rows = orderedTeams.length === 0 ? 0 : Math.ceil(orderedTeams.length / cols)
-  const pitchX = roomWidth + layout.roomGap
-  const pitchZ = layout.roomDepth + layout.roomGap
-  const firstRowZ = -(layout.commonsRadius + layout.commonsGap + layout.roomDepth * HALF)
+  const selected = selectSites(options.terrain, { layout, terrain: options.terrainTuning }, teamSizes.map(({ width, depth }) => [width, depth]), options.seed)
+  const commonsSite = terraceSite(options.terrain, options.terrainTuning, selected.commons)
+  const teamSites = selected.sites.map((site) => terraceSite(options.terrain, options.terrainTuning, site))
 
   orderedTeams.forEach((team, index) => {
-    const col = index % cols
-    const row = Math.floor(index / cols)
-    const rowCount = row === rows - 1 ? orderedTeams.length - row * cols : cols
-    const x = (col - (rowCount - 1) * HALF) * pitchX
-    const z = firstRowZ - row * pitchZ
-    const center: Vec2 = [x, z]
+    const site = teamSites[index]
+    if (!site) throw new Error(`site-selection: missing site for ${team.id}`)
+    const center = site.position
+    const teamSize = teamSizes[index] ?? { width: layout.roomWidth, depth: layout.roomDepth, columns: 1 }
+    const roomWidth = teamSize.width
+    const roomDepth = teamSize.depth
     const members = team.memberIds.filter((id) => agentIds.has(id))
     const room: Place = {
       id: roomId(team.id),
       kind: 'room',
       teamId: team.id,
       position: center,
-      rotation: 0,
-      size: [roomWidth, layout.roomDepth],
+      rotation: site.rotation,
+      size: [roomWidth, roomDepth],
       seats: [],
       label: team.name,
     }
     places.push(room)
 
-    const deskZ = z - layout.roomDepth * HALF + layout.deskInset
     members.forEach((agentId, m) => {
-      const deskX = x + (m - (members.length - 1) * HALF) * layout.deskPitch
+      const row = Math.floor(m / teamSize.columns)
+      const column = m % teamSize.columns
+      const rowMembers = Math.min(teamSize.columns, members.length - row * teamSize.columns)
+      const localX = (column - (rowMembers - 1) * HALF) * layout.deskPitch
+      const localZ = -roomDepth * HALF + layout.deskInset + row * layout.deskPitch
+      const deskPosition = rotate(center, localX, localZ, site.rotation)
+      const seatClearance = Math.max(layout.deskSeatOffset, layout.deskInset * HALF + layout.cellSize)
+      const seatPosition = rotate(center, localX, localZ + seatClearance, site.rotation)
       const seat: Seat = {
         id: deskSeatId(agentId),
         placeId: deskId(agentId),
-        position: [deskX, deskZ + layout.deskSeatOffset],
-        facing: FACING_BACK,
+        position: seatPosition,
+        facing: FACING_BACK + site.rotation,
         sitting: false,
       }
       places.push({
@@ -120,8 +143,8 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
         teamId: team.id,
         ownerAgentId: agentId,
         parentId: room.id,
-        position: [deskX, deskZ],
-        rotation: FACING_FRONT,
+        position: deskPosition,
+        rotation: FACING_FRONT + site.rotation,
         size: [layout.deskPitch * HALF, layout.deskInset],
         seats: [seat],
         label: agents.find((a) => a.id === agentId)?.name ?? agentId,
@@ -129,14 +152,14 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
       deskSeatByAgent[agentId] = seat.id
     })
 
-    const tableCenter: Vec2 = [x, z + layout.roomDepth * HALF - layout.tableSeatRadius - layout.deskInset]
+    const tableCenter = rotate(center, 0, roomDepth * HALF - layout.tableSeatRadius - layout.deskInset, site.rotation)
     places.push({
       id: tableId(team.id),
       kind: 'table',
       teamId: team.id,
       parentId: room.id,
       position: tableCenter,
-      rotation: 0,
+      rotation: site.rotation,
       size: [layout.tableRadius * 2, layout.tableRadius * 2],
       seats: ringSeats(tableId(team.id), tableCenter, layout.tableSeatRadius, layout.tableSeats, true, `seat:${tableId(team.id)}`),
       label: `${team.name} table`,
@@ -144,7 +167,7 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
   })
 
   // Commons, campfire and board.
-  const commonsCenter: Vec2 = [0, 0]
+  const commonsCenter = commonsSite.position
   places.push({
     id: COMMONS_ID,
     kind: 'commons',
@@ -164,7 +187,9 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
     seats: ringSeats(CAMPFIRE_ID, commonsCenter, layout.commonsSeatRadius, layout.commonsSeats, true, 'seat:campfire'),
     label: 'Campfire',
   })
-  const boardPosition: Vec2 = [layout.commonsRadius + layout.boardOffset, 0]
+  // boardOffset is defined from the commons centre. Keeping the board inside
+  // the terraced commons also guarantees that it remains above water.
+  const boardPosition: Vec2 = [commonsCenter[0] + layout.boardOffset, commonsCenter[1]]
   places.push({
     id: BOARD_ID,
     kind: 'board',
@@ -182,7 +207,7 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
 
   // Bounds from what was actually placed (after overrides), never smaller than the minimum slab.
   let minX = -layout.commonsRadius
-  let maxX = layout.commonsRadius + layout.boardOffset + layout.deskPitch
+  let maxX = layout.commonsRadius
   let minZ = -layout.commonsRadius
   let maxZ = layout.commonsRadius
   for (const place of places) {
@@ -192,12 +217,15 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
     minZ = Math.min(minZ, place.position[1] - reach)
     maxZ = Math.max(maxZ, place.position[1] + reach)
   }
-  const width = Math.max(layout.minSlabWidth, maxX - minX + layout.slabMargin * 2)
-  const depth = Math.max(layout.minSlabDepth, maxZ - minZ + layout.slabMargin * 2)
-  const center: Vec2 = [(minX + maxX) * HALF, (minZ + maxZ) * HALF]
-  const bounds: WorldBounds = { width, depth, center, footprint: { width: maxX - minX, depth: maxZ - minZ, center }, outline: outlinePoints(places, layout) }
+  const width = options.terrain.radius * 2
+  const depth = options.terrain.radius * 2
+  const footprintCenter: Vec2 = [(minX + maxX) * HALF, (minZ + maxZ) * HALF]
+  const center: Vec2 = [0, 0]
+  const bounds: WorldBounds = { width, depth, center, footprint: { width: maxX - minX, depth: maxZ - minZ, center: footprintCenter }, outline: outlinePoints(places, layout) }
 
-  const decor = options.trees ? scatterTrees(places, bounds, layout, options.seed, options.clearPoints ?? [], options.treeVariants) : []
+  const decor = options.trees && options.biomes && options.biomeSet
+    ? scatterDecor({ field: options.terrain, biomes: options.biomes, biomeSet: options.biomeSet, places, bounds, layout, seed: options.seed, clearPoints: options.clearPoints ?? [], treePropIds: options.treePropIds ?? [] })
+    : []
   return { places, bounds, decor, deskSeatByAgent: survivingDesks }
 }
 
@@ -226,7 +254,7 @@ export function outlinePoints(places: Place[], layout: LayoutTuning): Vec2[] {
   return points
 }
 
-/** Apply operator overrides by place id. Removed places drop with their seats; moved places carry their seats along. */
+/** Apply operator overrides by place id. Removed places drop with their seats; transformed places carry their children. */
 export function applyOverrides(places: Place[], overrides: LayoutOverride[]): void {
   for (const override of overrides) {
     const index = places.findIndex((p) => p.id === override.placeId)
@@ -242,73 +270,25 @@ export function applyOverrides(places: Place[], overrides: LayoutOverride[]): vo
       }
       continue
     }
-    const dx = override.position ? override.position[0] - place.position[0] : 0
-    const dz = override.position ? override.position[1] - place.position[1] : 0
-    const move = (p: Place) => {
-      p.position = [p.position[0] + dx, p.position[1] + dz]
-      for (const seat of p.seats) seat.position = [seat.position[0] + dx, seat.position[1] + dz]
+    const origin = place.position
+    const target = override.position ?? origin
+    const rotationDelta = override.rotation === undefined ? 0 : override.rotation - place.rotation
+    const transformPoint = (point: Vec2): Vec2 => {
+      const localX = point[0] - origin[0]
+      const localZ = point[1] - origin[1]
+      const cos = Math.cos(rotationDelta)
+      const sin = Math.sin(rotationDelta)
+      return [target[0] + localX * cos + localZ * sin, target[1] - localX * sin + localZ * cos]
     }
-    move(place)
-    for (const child of places) if (child.parentId === place.id) move(child)
-    if (override.rotation !== undefined) place.rotation = override.rotation
-  }
-}
-
-function distanceSq(a: Vec2, b: Vec2): number {
-  const dx = a[0] - b[0]
-  const dz = a[1] - b[1]
-  return dx * dx + dz * dz
-}
-
-/** Blocked discs for tree scatter: every place plus the clearing radius, and the clear points. */
-function clearances(places: Place[], layout: LayoutTuning, clearPoints: Vec2[]): Array<{ center: Vec2; radius: number }> {
-  const discs = places.map((p) => ({
-    center: p.position,
-    radius: Math.hypot(p.size[0], p.size[1]) * HALF + layout.clearingRadius,
-  }))
-  for (const point of clearPoints) discs.push({ center: point, radius: layout.clearingRadius })
-  return discs
-}
-
-/**
- * Deterministic tree scatter over the free slab ground: rejection sampling
- * with a minimum spacing, seeded from the layout seed so it is stable.
- */
-export function scatterTrees(places: Place[], bounds: WorldBounds, layout: LayoutTuning, seed: number, clearPoints: Vec2[], variants: number): DecorSpot[] {
-  const rng = new Rng(hashString(`trees:${seed}`))
-  const discs = clearances(places, layout, clearPoints)
-  const halfW = bounds.width * HALF - layout.treeMargin
-  const halfD = bounds.depth * HALF - layout.treeMargin
-  const area = Math.max(0, halfW * 2 * halfD * 2)
-  const wanted = Math.floor(area * layout.treeDensity)
-  const spacingSq = layout.treeMargin * layout.treeMargin
-  const spots: DecorSpot[] = []
-  const attempts = wanted * layout.treeAttemptsPerTree
-  for (let i = 0; i < attempts && spots.length < wanted; i += 1) {
-    const candidate: Vec2 = [bounds.center[0] + rng.range(-halfW, halfW), bounds.center[1] + rng.range(-halfD, halfD)]
-    let blocked = false
-    for (const disc of discs) {
-      if (distanceSq(candidate, disc.center) < disc.radius * disc.radius) {
-        blocked = true
-        break
+    const transform = (p: Place) => {
+      p.position = p === place ? [target[0], target[1]] : transformPoint(p.position)
+      p.rotation += rotationDelta
+      for (const seat of p.seats) {
+        seat.position = transformPoint(seat.position)
+        seat.facing += rotationDelta
       }
     }
-    if (blocked) continue
-    for (const spot of spots) {
-      if (distanceSq(candidate, spot.position) < spacingSq) {
-        blocked = true
-        break
-      }
-    }
-    if (blocked) continue
-    spots.push({
-      id: `tree:${spots.length}`,
-      kind: 'tree',
-      variant: variants > 0 ? rng.int(variants) : 0,
-      position: candidate,
-      rotation: rng.range(0, Math.PI * 2),
-      scale: rng.range(HALF + HALF * HALF, 1 + HALF * HALF),
-    })
+    transform(place)
+    for (const child of places) if (child.parentId === place.id) transform(child)
   }
-  return spots
 }

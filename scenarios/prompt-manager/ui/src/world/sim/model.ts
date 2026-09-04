@@ -41,6 +41,8 @@ export interface DecorSpot {
   kind: DecorKind
   /** Index into the scene's prop list for this kind. */
   variant: number
+  /** Stable asset id for biome-driven vegetation and decor. */
+  propId?: string
   position: Vec2
   rotation: number
   scale: number
@@ -112,7 +114,6 @@ export interface ActorColors {
 /** Deterministic cosmetic variation derived from the actor id. */
 export interface ActorVariant {
   ears: 0 | 1 | 2
-  blush: boolean
   mouth: 0 | 1 | 2
   /** Body width/height ratio nudge in [-1, 1]. */
   aspect: number
@@ -205,6 +206,11 @@ export interface WorldState {
   /** Sim wall-clock time in seconds. */
   time: number
   bounds: WorldBounds
+  terrain: import('./terrain').TerrainField
+  biomes: Uint8Array
+  biomeSetId: string
+  pathMask: Float32Array
+  weather: import('./weather').WeatherState
   places: Record<string, Place>
   placeOrder: string[]
   seats: Record<string, Seat>
