@@ -58,6 +58,9 @@ enum RunStatus {
 
   // Terminal: the run was aborted (operator AbortRun, timeout, or node loss).
   RUN_STATUS_ABORTED = 5;
+  RUN_STATUS_PUSHED = 6;
+  RUN_STATUS_ACKED = 7;
+  RUN_STATUS_FAILED_DELIVERY = 8;
 }
 
 // Run is the durable, server-owned record of one dispatched job. Durable fields

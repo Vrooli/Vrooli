@@ -34,6 +34,8 @@ service FindingsService {
   // CountFindings is the canonical measure: how many findings were captured in
   // a time window.
   rpc CountFindings(CountFindingsRequest) returns (CountFindingsResponse);
+  rpc UsedRate(UsageMeasureRequest) returns (UsageRateResponse);
+  rpc NeverSurfaced(UsageMeasureRequest) returns (UsageCountResponse);
   // ListEffectiveness returns findings joined to their usage telemetry
   // (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
   // blended effective score (age-decayed confidence × usage factor). It is the
@@ -258,6 +260,13 @@ message ListEffectivenessRequest {
   // include_disputed adds DISPUTED findings to the report (default active only).
   bool include_disputed = 2;
 }
+
+message UsageMeasureRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message UsageRateResponse { double rate = 1; }
+message UsageCountResponse { int64 count = 1; }
 
 message ListEffectivenessResponse {
   repeated FindingEffectiveness items = 1;

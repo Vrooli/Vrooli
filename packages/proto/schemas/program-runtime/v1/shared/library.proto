@@ -20,9 +20,18 @@ message LibraryProgram {
   string promotion_reason = 10;
   bool current = 11;
   repeated string called_binding_ids = 12;
+  // promoted is the only legal library tier. The former candidate tier is retired.
   string tier = 13;
   repeated string declared_inputs = 14;
   repeated string declared_outputs = 15;
   string coverage = 16;
   string validated_at = 17;
+  string kind = 18;
+  string scenario = 19;
+  string purpose = 20;
+  string rung = 21;
+  string owner_skill = 22;
+  string validation_error = 23;
+  string path = 24;
+  double score = 25;
 }

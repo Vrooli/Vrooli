@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "deployment-manager",
-  "input_digest": "sha256:a7b66c00ab63042165b0d36b2e71dc0583a9b4daddc7dd806abd43a7e1195fb2",
+  "input_digest": "sha256:a85aa5cd6835f3ecf069b1a4676065747ac60bb05a45311ed6fc4f51a67bbc73",
   "input_files": [
     "schemas/common/v1/evidence.proto",
     "schemas/common/v1/types.proto",
@@ -14,6 +14,7 @@
     "schemas/deployment-manager/v1/lpbs/lpbs.proto",
     "schemas/deployment-manager/v1/migration/migration.proto",
     "schemas/deployment-manager/v1/profiles/profiles.proto",
+    "schemas/deployment-manager/v1/readiness/readiness.proto",
     "schemas/deployment-manager/v1/releases/releases.proto",
     "schemas/deployment-manager/v1/swaps/swaps.proto",
     "schemas/deployment-manager/v1/telemetry/telemetry.proto",
@@ -47,6 +48,8 @@
     "gen/go/deployment-manager/v1/migration/migrationv1connect/migration.connect.go": "sha256:2f3d62114328455d2dd39dc58cc73d782a542accc6d12cac5eea12f4a3b4ca4b",
     "gen/go/deployment-manager/v1/profiles/profiles.pb.go": "sha256:ad6b94a753e91af658451d759dfd151c7226a6e6345306d030b8658bb3b86011",
     "gen/go/deployment-manager/v1/profiles/profilesv1connect/profiles.connect.go": "sha256:241f269cb4a4c6bd59c9b928d7faeb67efb91c529f9e07bc3f99891342e32f9a",
+    "gen/go/deployment-manager/v1/readiness/readiness.pb.go": "sha256:60c31b4a384a7c12b2db17710f3a3aa328d41b28f705afa3d1708f1b3e027cf2",
+    "gen/go/deployment-manager/v1/readiness/readinessv1connect/readiness.connect.go": "sha256:8b318a7426a4d7cba28e33269144e66d40352b64f9cbd6f24c1622a67de24143",
     "gen/go/deployment-manager/v1/releases/releases.pb.go": "sha256:98bd3136ef72e9a9b26d22192b50d8de36ab8111d028d5d34f9b991858a35075",
     "gen/go/deployment-manager/v1/releases/releasesv1connect/releases.connect.go": "sha256:f06adc440b4b19d2d187768c2cb0734e61c422ebf9f7ec10b67cd2046156fc8e",
     "gen/go/deployment-manager/v1/swaps/swaps.pb.go": "sha256:97f25a2831a83192028c129948dbd9e874689ee60e6b2930cce7b6e725ebad83",
@@ -82,6 +85,9 @@
     "gen/python/deployment_manager/v1/profiles/profiles_pb2.pyi": "sha256:0880073cb4afd067a3fc855031c829917ec6e0593e9daa8b3d0866b89e38f4c8",
     "gen/python/deployment_manager/v1/profiles/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/deployment_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/deployment_manager/v1/readiness/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/deployment_manager/v1/readiness/readiness_pb2.py": "sha256:70cbe9c0a53403b8c087695d435216ddf68f512f3c50509023784e1f3a622682",
+    "gen/python/deployment_manager/v1/readiness/readiness_pb2.pyi": "sha256:f3e96408b6656eab11f1e912b5d415ce7e8d3840f0e60ddacbb313d30763620d",
     "gen/python/deployment_manager/v1/releases/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/deployment_manager/v1/releases/releases_pb2.py": "sha256:b356afed8703b765c682ed428a694b5fc10355f520f63855a08d05bd92043d23",
     "gen/python/deployment_manager/v1/releases/releases_pb2.pyi": "sha256:712471f1f6313dad3f231d0e995d44a154f5b8037d87c53b3316195cb0636388",
@@ -100,6 +106,7 @@
     "gen/typescript/deployment-manager/v1/lpbs/lpbs_pb.ts": "sha256:85f503ef4f560ab0a0bf839f2de46e51136a99b8024ef452cffcf2fd2f49917a",
     "gen/typescript/deployment-manager/v1/migration/migration_pb.ts": "sha256:b27e0e90478d957afb12306d57f85d8a8224e6cc8fda7b2ffd843a11318f73ad",
     "gen/typescript/deployment-manager/v1/profiles/profiles_pb.ts": "sha256:110e038c436f928ae7caed235fd4462bcaf7e870ce4850c50d8a61aace636b8b",
+    "gen/typescript/deployment-manager/v1/readiness/readiness_pb.ts": "sha256:ccbe960a98797958b75063cc179e9bbd97da646c27a5c0f2f88c44b823d0a26a",
     "gen/typescript/deployment-manager/v1/releases/releases_pb.ts": "sha256:424932f993b2be66dcffe212da63da1ee3a018669cc922475d8c023fa2faa223",
     "gen/typescript/deployment-manager/v1/swaps/swaps_pb.ts": "sha256:a50511f800faa61d2bd06473424cda966de27006627256e7a64ca3182f843e49",
     "gen/typescript/deployment-manager/v1/telemetry/telemetry_pb.ts": "sha256:b1dc151c8684c02c869d4a4a8fe1ff180963bc9af81b25a0c7df2cac60f0ffe8"

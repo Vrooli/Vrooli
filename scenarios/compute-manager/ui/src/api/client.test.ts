@@ -42,7 +42,10 @@ describe("api/client REST helpers", () => {
 
     await uploadFile("/things/thing-1/attachments", formData);
 
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const call = fetchSpy.mock.calls[0];
+    expect(call).toBeDefined();
+    if (!call) throw new Error("uploadFile did not call fetch");
+    const [url, init] = call;
     expect(url).toMatch(/\/api\/v1\/things\/thing-1\/attachments$/);
     expect(init).toMatchObject({ method: "POST", body: formData, cache: "no-store" });
     expect(init.headers).toBeUndefined();

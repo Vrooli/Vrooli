@@ -4,37 +4,127 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "compute-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "733a76b1b18fb0fe212ea8be308be95e06d0c0e19fa2daf4ec77af77df6b40df",
+  "manifest_hash": "0e0a027fe959981845c71883f54d8148364a7cc048147fce779f8b0b39f0866a",
   "commands": [
+    {
+      "path": "instance adopt",
+      "group": "instance",
+      "command": "adopt",
+      "binding": "InstanceService.AdoptInstance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "instance destroy",
       "group": "instance",
       "command": "destroy",
-      "binding": "InstanceService.DestroyInstance"
+      "binding": "InstanceService.DestroyInstance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "instance extend",
       "group": "instance",
       "command": "extend",
-      "binding": "InstanceService.ExtendInstance"
+      "binding": "InstanceService.ExtendInstance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "instance get",
       "group": "instance",
       "command": "get",
-      "binding": "InstanceService.GetInstance"
+      "binding": "InstanceService.GetInstance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "instance list",
       "group": "instance",
       "command": "list",
-      "binding": "InstanceService.ListInstances"
+      "binding": "InstanceService.ListInstances",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "instance request",
       "group": "instance",
       "command": "request",
-      "binding": "InstanceService.RequestInstance"
+      "binding": "InstanceService.RequestInstance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "intent get",
+      "group": "intent",
+      "command": "get",
+      "binding": "IntentService.GetIntent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "intent list",
+      "group": "intent",
+      "command": "list",
+      "binding": "IntentService.ListIntents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "meter ceiling",
+      "group": "meter",
+      "command": "ceiling",
+      "binding": "MeterService.Ceiling",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "meter reservations",
+      "group": "meter",
+      "command": "reservations",
+      "binding": "MeterService.Reservations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "meter usage",
+      "group": "meter",
+      "command": "usage",
+      "binding": "MeterService.Usage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "reconcile get",
+      "group": "reconcile",
+      "command": "get",
+      "binding": "ReconcileService.GetFinding",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "reconcile list",
+      "group": "reconcile",
+      "command": "list",
+      "binding": "ReconcileService.ListFindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "reconcile quarantine",
+      "group": "reconcile",
+      "command": "quarantine",
+      "binding": "ReconcileService.QuarantineFinding",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "reconcile run",
+      "group": "reconcile",
+      "command": "run",
+      "binding": "ReconcileService.RunReconciliation",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
     }
   ]
 }

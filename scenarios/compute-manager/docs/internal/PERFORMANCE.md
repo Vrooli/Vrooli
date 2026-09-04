@@ -3,15 +3,13 @@
 This document records performance budgets, current measurements, known
 constraints, and regression procedures.
 
-> **There are no measurements, because nothing is built.** The scenario
-> was generated from the `react-vite` template on 2026-09-03 and contains
-> template code only. No domain is implemented, no provider adapter
-> exists, no instance has ever been created, and no loop has ever run.
-> Every number below is a **forward-looking target**, explicitly marked as
-> such, and not one of them has been observed.
+> **Status: implementation measurements are still incomplete.** The scenario
+> now has provider, provisioning and bounded loop implementations, but no
+> provider-live fleet measurement has been captured. Targets below remain
+> forward-looking unless explicitly marked observed.
 >
-> **This document must be rewritten from real numbers once the first
-> instance is provisioned.** That rewrite is a requirement, not a
+> **This document must be updated with real numbers once the first
+> provider-backed instance is provisioned.** That rewrite is a requirement, not a
 > courtesy. `vrooli-bridge` shows the failure to avoid: its
 > `PERFORMANCE.md` still opens by declaring the scenario unbuilt with no
 > measurements long after real data existed, so a stale disclaimer became

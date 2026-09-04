@@ -19,7 +19,7 @@ func RenderFirstBoot(publicKey string, expiry time.Time) (string, error) {
 	if publicKey == "" || strings.ContainsAny(publicKey, "\r\n") || strings.Contains(publicKey, "PRIVATE KEY") || !strings.HasPrefix(publicKey, "ssh-") {
 		return "", fmt.Errorf("invalid onboarding public key")
 	}
-	return fmt.Sprintf("#!/bin/sh\nset -eu\numask 077\nmkdir -p /root/.ssh\nprintf '%%s\\n' '%s' >> /root/.ssh/authorized_keys\ncat > /etc/systemd/system/vrooli-expiry.timer <<'EOF'\n[Timer]\nOnCalendar=%s\nPersistent=true\nEOF\nsystemctl enable --now vrooli-expiry.timer\n", strings.ReplaceAll(publicKey, "'", "'\\''"), expiry.UTC().Format("2006-01-02 15:04:05 UTC")), nil
+	return fmt.Sprintf("#!/bin/sh\nset -eu\numask 077\nmkdir -p /root/.ssh\nprintf '%%s\\n' '%s' >> /root/.ssh/authorized_keys\ncat > /etc/systemd/system/vrooli-expiry.service <<'EOF'\n[Unit]\nDescription=Vrooli compute instance expiry shutdown\n\n[Service]\nType=oneshot\nExecStart=/sbin/shutdown -h now\nEOF\ncat > /etc/systemd/system/vrooli-expiry.timer <<'EOF'\n[Unit]\nDescription=Vrooli compute instance expiry timer\n\n[Timer]\nUnit=vrooli-expiry.service\nOnCalendar=%s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl enable --now vrooli-expiry.timer\n", strings.ReplaceAll(publicKey, "'", "'\\''"), expiry.UTC().Format("2006-01-02 15:04:05 UTC")), nil
 }
 
 type Service struct{ Bridge Bridge }

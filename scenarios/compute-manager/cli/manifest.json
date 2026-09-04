@@ -8,11 +8,26 @@
       "description": "Request and inspect compute instances",
       "commands": [
         {
+          "name": "adopt",
+          "description": "Adopt an operator-owned host without creating provider capacity",
+          "flags": [
+            { "name": "host", "required": true, "description": "Reachable host address" },
+            { "name": "user", "required": true, "description": "Onboarding user" },
+            { "name": "requested-by", "description": "Authenticated requester identity" },
+            { "name": "region", "description": "Optional host region" },
+            { "name": "size", "description": "Optional host size" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "AdoptInstance" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
           "name": "get",
           "description": "Get one compute instance",
           "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "GetInstance" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
         },
         {
           "name": "extend",
@@ -20,20 +35,23 @@
           "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
           "flags": [{ "name": "until", "required": true, "description": "New expiry in RFC3339 format" }],
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "ExtendInstance" },
-          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
         },
         {
           "name": "destroy",
           "description": "Destroy a compute instance",
           "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "DestroyInstance" },
-          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
         },
         {
           "name": "list",
           "description": "List compute instances",
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "ListInstances" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
         },
         {
           "name": "request",
@@ -44,27 +62,137 @@
             { "name": "region", "required": true, "description": "Provider region" },
             { "name": "size", "required": true, "description": "Provider size" },
             { "name": "image", "description": "Provider image" },
-            { "name": "lifetime-seconds", "description": "Requested lifetime" }
+            { "name": "lifetime-seconds", "description": "Requested lifetime" },
+            { "name": "requested-by", "description": "Authenticated requester identity" }
           ],
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "RequestInstance" },
-          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "intent",
+      "description": "Inspect durable provisioning intents",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List provisioning intents",
+          "flags": [
+            { "name": "state", "description": "Filter by intent state" },
+            { "name": "provider", "description": "Filter by provider" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "IntentService", "method": "ListIntents" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "get",
+          "description": "Get a provisioning intent",
+          "positionals": [{ "name": "id", "required": true, "description": "Intent id or idempotency key" }],
+          "binding": { "kind": "connect-rpc", "service": "IntentService", "method": "GetIntent" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "meter",
+      "description": "Inspect compute usage and reservations",
+      "commands": [
+        {
+          "name": "usage",
+          "description": "List metered usage",
+          "flags": [
+            { "name": "instance-id", "description": "Filter by instance" },
+            { "name": "tenant", "description": "Filter by tenant" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeterService", "method": "Usage" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "reservations",
+          "description": "List compute reservations",
+          "flags": [
+            { "name": "instance-id", "description": "Filter by instance" },
+            { "name": "state", "description": "Filter by reservation state" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeterService", "method": "Reservations" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "ceiling",
+          "description": "Show tenant compute ceiling usage",
+          "flags": [{ "name": "tenant", "description": "Tenant identity" }],
+          "binding": { "kind": "connect-rpc", "service": "MeterService", "method": "Ceiling" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "reconcile",
+      "description": "Inspect and safely clean up provider inventory findings",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a bidirectional reconciliation sweep",
+          "binding": { "kind": "connect-rpc", "service": "ReconcileService", "method": "RunReconciliation" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "operational" }
+        },
+        {
+          "name": "list",
+          "description": "List reconciliation findings",
+          "flags": [{ "name": "status", "description": "Filter by finding status" }],
+          "binding": { "kind": "connect-rpc", "service": "ReconcileService", "method": "ListFindings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "get",
+          "description": "Get one reconciliation finding",
+          "positionals": [{ "name": "id", "required": true, "description": "Finding id" }],
+          "binding": { "kind": "connect-rpc", "service": "ReconcileService", "method": "GetFinding" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "quarantine",
+          "description": "Quarantine and destroy a provider-only orphan",
+          "positionals": [{ "name": "id", "required": true, "description": "Finding id" }],
+          "binding": { "kind": "connect-rpc", "service": "ReconcileService", "method": "QuarantineFinding" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
         }
       ]
     }
   ],
   "measures": {
-    "domains": []
+    "domains": [
+      {
+        "domain": "instance",
+        "stateful": true,
+        "reason": "Provider-backed instance lifecycle is the durable business surface; inventory measures are exposed through the instance commands."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "enrollment_queue",
+        "reason": "Enrollment queue rows are operational retry state, not an independent business outcome; enrollment status is exposed through the instance inventory and queue retries are bounded by the control plane."
+      },
+      {
+        "domain": "instance_intents",
+        "reason": "Intent rows are audit history for the instance lifecycle and are not an independent business outcome."
+      },
+      {
+        "domain": "provider_receipts",
+        "reason": "Provider receipts are append-only integration evidence, not an independent business outcome; provider and instance inventory surfaces expose the resulting lifecycle state."
+      }
+    ]
   },
   "exceptions": [],
-  "omitted": [
-    { "service": "IntentService", "method": "ListIntents", "reason": "Intent history is operator-audit data exposed through the API until the intent inventory command is authored." },
-    { "service": "IntentService", "method": "GetIntent", "reason": "Intent history is operator-audit data exposed through the API until the intent inventory command is authored." },
-    { "service": "MeterService", "method": "Usage", "reason": "Usage reporting is rendered with instance inventory until the dedicated metering command is authored." },
-    { "service": "MeterService", "method": "Reservations", "reason": "Reservation chains are rendered with instance inventory until the dedicated metering command is authored." },
-    { "service": "MeterService", "method": "Ceiling", "reason": "Meter ceilings are enforced server-side and will be exposed with the billing command surface." },
-    { "service": "ReconcileService", "method": "RunReconciliation", "reason": "Reconciliation runs are scheduler-owned; operators inspect findings through the inventory surface." },
-    { "service": "ReconcileService", "method": "ListFindings", "reason": "Reconciliation findings are exposed through the inventory surface until a dedicated findings command is authored." },
-    { "service": "ReconcileService", "method": "GetFinding", "reason": "Reconciliation findings are exposed through the inventory surface until a dedicated findings command is authored." },
-    { "service": "ReconcileService", "method": "QuarantineFinding", "reason": "Quarantine is a guarded operator action that will be added with the reconciliation command surface." }
-  ]
+  "omitted": []
 }

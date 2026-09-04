@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/stats/stats.proto\x12\x1dvrooli.swarm_manager.v1.stats\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1a\n\x18GetPortfolioStatsRequest\"\xde\x03\n\x0ePortfolioStats\x12;\n\x0bobserved_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt\x12)\n\x10swarm_throughput\x18\x02 \x01(\x03R\x0fswarmThroughput\x12)\n\x10throughput_stats\x18\x03 \x01(\x03R\x0fthroughputStats\x12.\n\x13swarm_active_agents\x18\x04 \x01(\x03R\x11swarmActiveAgents\x12\x1f\n\x0b\x61gent_stats\x18\x05 \x01(\x01R\nagentStats\x12!\n\x0ctiming_stats\x18\x06 \x01(\x01R\x0btimingStats\x12%\n\x0e\x62locking_stats\x18\x07 \x01(\x03R\rblockingStats\x12\'\n\x0f\x64\x61shboard_stats\x18\x08 \x01(\x03R\x0e\x64\x61shboardStats\x12\x31\n\x14\x63omposite_throughput\x18\t \x01(\x03R\x13\x63ompositeThroughput\x12!\n\x0creview_stats\x18\n \x01(\x03R\x0breviewStats\x12\x1f\n\x0bscope_stats\x18\x0b \x01(\x03R\nscopeStats2\x8b\x01\n\x0cStatsService\x12{\n\x11GetPortfolioStats\x12\x37.vrooli.swarm_manager.v1.stats.GetPortfolioStatsRequest\x1a-.vrooli.swarm_manager.v1.stats.PortfolioStatsBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats;stats_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"swarm-manager/v1/stats/stats.proto\x12\x1dvrooli.swarm_manager.v1.stats\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1a\n\x18GetPortfolioStatsRequest\"\x95\x04\n\x0ePortfolioStats\x12;\n\x0bobserved_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nobservedAt\x12)\n\x10swarm_throughput\x18\x02 \x01(\x03R\x0fswarmThroughput\x12)\n\x10throughput_stats\x18\x03 \x01(\x03R\x0fthroughputStats\x12.\n\x13swarm_active_agents\x18\x04 \x01(\x03R\x11swarmActiveAgents\x12\x1f\n\x0b\x61gent_stats\x18\x05 \x01(\x01R\nagentStats\x12!\n\x0ctiming_stats\x18\x06 \x01(\x01R\x0btimingStats\x12%\n\x0e\x62locking_stats\x18\x07 \x01(\x03R\rblockingStats\x12\'\n\x0f\x64\x61shboard_stats\x18\x08 \x01(\x03R\x0e\x64\x61shboardStats\x12\x31\n\x14\x63omposite_throughput\x18\t \x01(\x03R\x13\x63ompositeThroughput\x12!\n\x0creview_stats\x18\n \x01(\x03R\x0breviewStats\x12\x1f\n\x0bscope_stats\x18\x0b \x01(\x03R\nscopeStats\x12\x35\n\x17\x61gent_stats_sample_size\x18\x0c \x01(\x03R\x14\x61gentStatsSampleSize2\x8b\x01\n\x0cStatsService\x12{\n\x11GetPortfolioStats\x12\x37.vrooli.swarm_manager.v1.stats.GetPortfolioStatsRequest\x1a-.vrooli.swarm_manager.v1.stats.PortfolioStatsBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats;stats_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,7 +36,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETPORTFOLIOSTATSREQUEST']._serialized_start=102
   _globals['_GETPORTFOLIOSTATSREQUEST']._serialized_end=128
   _globals['_PORTFOLIOSTATS']._serialized_start=131
-  _globals['_PORTFOLIOSTATS']._serialized_end=609
-  _globals['_STATSSERVICE']._serialized_start=612
-  _globals['_STATSSERVICE']._serialized_end=751
+  _globals['_PORTFOLIOSTATS']._serialized_end=664
+  _globals['_STATSSERVICE']._serialized_start=667
+  _globals['_STATSSERVICE']._serialized_end=806
 # @@protoc_insertion_point(module_scope)

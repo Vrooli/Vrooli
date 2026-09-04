@@ -37,9 +37,9 @@ Deployment surfaces: A Go API server with Connect-RPC over proto-owned wire cont
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | Customer purchase through the subscription | The scenario may sell provisioned compute to a subscriber through the existing entitlement and credit rails rather than a separate payment path
-- [x] OT-P2-002 | Ephemeral capacity for validation | The scenario may supply short-lived nodes so the cross-operating-system gate can burst beyond the standing fleet
-- [x] OT-P2-003 | Warm pooling against hourly rounding | The scenario may reuse warm instances so provider hour rounding does not dominate the cost of short workloads
+- [ ] OT-P2-001 | Customer purchase through the subscription | The scenario may sell provisioned compute to a subscriber through the existing entitlement and credit rails rather than a separate payment path
+- [ ] OT-P2-002 | Ephemeral capacity for validation | The scenario may supply short-lived nodes so the cross-operating-system gate can burst beyond the standing fleet
+- [ ] OT-P2-003 | Warm pooling against hourly rounding | The scenario may reuse warm instances so provider hour rounding does not dominate the cost of short workloads
 
 ## 🧱 Tech Direction Snapshot
 

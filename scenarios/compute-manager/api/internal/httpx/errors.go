@@ -13,7 +13,7 @@
 package httpx
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -72,7 +72,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		slog.Error("httpx.WriteError: protojson marshal failed", "error", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -86,7 +86,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		slog.Error("httpx.WriteProto: protojson marshal failed", "error", err)
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}

@@ -23,6 +23,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// MetricsServiceName is the fully-qualified name of the MetricsService service.
 	MetricsServiceName = "landing_page_business_suite.v1.MetricsService"
+	// AdminRevenueServiceName is the fully-qualified name of the AdminRevenueService service.
+	AdminRevenueServiceName = "landing_page_business_suite.v1.AdminRevenueService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -42,6 +44,18 @@ const (
 	// MetricsServiceGetVariantStatsProcedure is the fully-qualified name of the MetricsService's
 	// GetVariantStats RPC.
 	MetricsServiceGetVariantStatsProcedure = "/landing_page_business_suite.v1.MetricsService/GetVariantStats"
+	// MetricsServiceGetTrafficBreakdownProcedure is the fully-qualified name of the MetricsService's
+	// GetTrafficBreakdown RPC.
+	MetricsServiceGetTrafficBreakdownProcedure = "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown"
+	// MetricsServiceGetTrafficSeriesProcedure is the fully-qualified name of the MetricsService's
+	// GetTrafficSeries RPC.
+	MetricsServiceGetTrafficSeriesProcedure = "/landing_page_business_suite.v1.MetricsService/GetTrafficSeries"
+	// AdminRevenueServiceGetRevenueProcedure is the fully-qualified name of the AdminRevenueService's
+	// GetRevenue RPC.
+	AdminRevenueServiceGetRevenueProcedure = "/landing_page_business_suite.v1.AdminRevenueService/GetRevenue"
+	// AdminRevenueServiceGetRevenueSummaryProcedure is the fully-qualified name of the
+	// AdminRevenueService's GetRevenueSummary RPC.
+	AdminRevenueServiceGetRevenueSummaryProcedure = "/landing_page_business_suite.v1.AdminRevenueService/GetRevenueSummary"
 )
 
 // MetricsServiceClient is a client for the landing_page_business_suite.v1.MetricsService service.
@@ -52,6 +66,8 @@ type MetricsServiceClient interface {
 	GetAnalyticsSummary(context.Context, *connect.Request[v1.GetAnalyticsSummaryRequest]) (*connect.Response[v1.AnalyticsSummary], error)
 	// Returns per-variant funnel stats for a window (admin).
 	GetVariantStats(context.Context, *connect.Request[v1.GetVariantStatsRequest]) (*connect.Response[v1.GetVariantStatsResponse], error)
+	GetTrafficBreakdown(context.Context, *connect.Request[v1.GetTrafficBreakdownRequest]) (*connect.Response[v1.GetTrafficBreakdownResponse], error)
+	GetTrafficSeries(context.Context, *connect.Request[v1.GetTrafficSeriesRequest]) (*connect.Response[v1.GetTrafficSeriesResponse], error)
 }
 
 // NewMetricsServiceClient constructs a client for the landing_page_business_suite.v1.MetricsService
@@ -83,6 +99,18 @@ func NewMetricsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(metricsServiceMethods.ByName("GetVariantStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getTrafficBreakdown: connect.NewClient[v1.GetTrafficBreakdownRequest, v1.GetTrafficBreakdownResponse](
+			httpClient,
+			baseURL+MetricsServiceGetTrafficBreakdownProcedure,
+			connect.WithSchema(metricsServiceMethods.ByName("GetTrafficBreakdown")),
+			connect.WithClientOptions(opts...),
+		),
+		getTrafficSeries: connect.NewClient[v1.GetTrafficSeriesRequest, v1.GetTrafficSeriesResponse](
+			httpClient,
+			baseURL+MetricsServiceGetTrafficSeriesProcedure,
+			connect.WithSchema(metricsServiceMethods.ByName("GetTrafficSeries")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -91,6 +119,8 @@ type metricsServiceClient struct {
 	trackEvent          *connect.Client[v1.TrackEventRequest, v1.TrackEventResponse]
 	getAnalyticsSummary *connect.Client[v1.GetAnalyticsSummaryRequest, v1.AnalyticsSummary]
 	getVariantStats     *connect.Client[v1.GetVariantStatsRequest, v1.GetVariantStatsResponse]
+	getTrafficBreakdown *connect.Client[v1.GetTrafficBreakdownRequest, v1.GetTrafficBreakdownResponse]
+	getTrafficSeries    *connect.Client[v1.GetTrafficSeriesRequest, v1.GetTrafficSeriesResponse]
 }
 
 // TrackEvent calls landing_page_business_suite.v1.MetricsService.TrackEvent.
@@ -108,6 +138,16 @@ func (c *metricsServiceClient) GetVariantStats(ctx context.Context, req *connect
 	return c.getVariantStats.CallUnary(ctx, req)
 }
 
+// GetTrafficBreakdown calls landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown.
+func (c *metricsServiceClient) GetTrafficBreakdown(ctx context.Context, req *connect.Request[v1.GetTrafficBreakdownRequest]) (*connect.Response[v1.GetTrafficBreakdownResponse], error) {
+	return c.getTrafficBreakdown.CallUnary(ctx, req)
+}
+
+// GetTrafficSeries calls landing_page_business_suite.v1.MetricsService.GetTrafficSeries.
+func (c *metricsServiceClient) GetTrafficSeries(ctx context.Context, req *connect.Request[v1.GetTrafficSeriesRequest]) (*connect.Response[v1.GetTrafficSeriesResponse], error) {
+	return c.getTrafficSeries.CallUnary(ctx, req)
+}
+
 // MetricsServiceHandler is an implementation of the landing_page_business_suite.v1.MetricsService
 // service.
 type MetricsServiceHandler interface {
@@ -117,6 +157,8 @@ type MetricsServiceHandler interface {
 	GetAnalyticsSummary(context.Context, *connect.Request[v1.GetAnalyticsSummaryRequest]) (*connect.Response[v1.AnalyticsSummary], error)
 	// Returns per-variant funnel stats for a window (admin).
 	GetVariantStats(context.Context, *connect.Request[v1.GetVariantStatsRequest]) (*connect.Response[v1.GetVariantStatsResponse], error)
+	GetTrafficBreakdown(context.Context, *connect.Request[v1.GetTrafficBreakdownRequest]) (*connect.Response[v1.GetTrafficBreakdownResponse], error)
+	GetTrafficSeries(context.Context, *connect.Request[v1.GetTrafficSeriesRequest]) (*connect.Response[v1.GetTrafficSeriesResponse], error)
 }
 
 // NewMetricsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -144,6 +186,18 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(metricsServiceMethods.ByName("GetVariantStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	metricsServiceGetTrafficBreakdownHandler := connect.NewUnaryHandler(
+		MetricsServiceGetTrafficBreakdownProcedure,
+		svc.GetTrafficBreakdown,
+		connect.WithSchema(metricsServiceMethods.ByName("GetTrafficBreakdown")),
+		connect.WithHandlerOptions(opts...),
+	)
+	metricsServiceGetTrafficSeriesHandler := connect.NewUnaryHandler(
+		MetricsServiceGetTrafficSeriesProcedure,
+		svc.GetTrafficSeries,
+		connect.WithSchema(metricsServiceMethods.ByName("GetTrafficSeries")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.MetricsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MetricsServiceTrackEventProcedure:
@@ -152,6 +206,10 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 			metricsServiceGetAnalyticsSummaryHandler.ServeHTTP(w, r)
 		case MetricsServiceGetVariantStatsProcedure:
 			metricsServiceGetVariantStatsHandler.ServeHTTP(w, r)
+		case MetricsServiceGetTrafficBreakdownProcedure:
+			metricsServiceGetTrafficBreakdownHandler.ServeHTTP(w, r)
+		case MetricsServiceGetTrafficSeriesProcedure:
+			metricsServiceGetTrafficSeriesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -171,4 +229,111 @@ func (UnimplementedMetricsServiceHandler) GetAnalyticsSummary(context.Context, *
 
 func (UnimplementedMetricsServiceHandler) GetVariantStats(context.Context, *connect.Request[v1.GetVariantStatsRequest]) (*connect.Response[v1.GetVariantStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.MetricsService.GetVariantStats is not implemented"))
+}
+
+func (UnimplementedMetricsServiceHandler) GetTrafficBreakdown(context.Context, *connect.Request[v1.GetTrafficBreakdownRequest]) (*connect.Response[v1.GetTrafficBreakdownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown is not implemented"))
+}
+
+func (UnimplementedMetricsServiceHandler) GetTrafficSeries(context.Context, *connect.Request[v1.GetTrafficSeriesRequest]) (*connect.Response[v1.GetTrafficSeriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.MetricsService.GetTrafficSeries is not implemented"))
+}
+
+// AdminRevenueServiceClient is a client for the landing_page_business_suite.v1.AdminRevenueService
+// service.
+type AdminRevenueServiceClient interface {
+	GetRevenue(context.Context, *connect.Request[v1.GetAdminRevenueRequest]) (*connect.Response[v1.AdminRevenue], error)
+	GetRevenueSummary(context.Context, *connect.Request[v1.GetRevenueSummaryRequest]) (*connect.Response[v1.RevenueSummary], error)
+}
+
+// NewAdminRevenueServiceClient constructs a client for the
+// landing_page_business_suite.v1.AdminRevenueService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAdminRevenueServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminRevenueServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	adminRevenueServiceMethods := v1.File_landing_page_business_suite_v1_metrics_proto.Services().ByName("AdminRevenueService").Methods()
+	return &adminRevenueServiceClient{
+		getRevenue: connect.NewClient[v1.GetAdminRevenueRequest, v1.AdminRevenue](
+			httpClient,
+			baseURL+AdminRevenueServiceGetRevenueProcedure,
+			connect.WithSchema(adminRevenueServiceMethods.ByName("GetRevenue")),
+			connect.WithClientOptions(opts...),
+		),
+		getRevenueSummary: connect.NewClient[v1.GetRevenueSummaryRequest, v1.RevenueSummary](
+			httpClient,
+			baseURL+AdminRevenueServiceGetRevenueSummaryProcedure,
+			connect.WithSchema(adminRevenueServiceMethods.ByName("GetRevenueSummary")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// adminRevenueServiceClient implements AdminRevenueServiceClient.
+type adminRevenueServiceClient struct {
+	getRevenue        *connect.Client[v1.GetAdminRevenueRequest, v1.AdminRevenue]
+	getRevenueSummary *connect.Client[v1.GetRevenueSummaryRequest, v1.RevenueSummary]
+}
+
+// GetRevenue calls landing_page_business_suite.v1.AdminRevenueService.GetRevenue.
+func (c *adminRevenueServiceClient) GetRevenue(ctx context.Context, req *connect.Request[v1.GetAdminRevenueRequest]) (*connect.Response[v1.AdminRevenue], error) {
+	return c.getRevenue.CallUnary(ctx, req)
+}
+
+// GetRevenueSummary calls landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary.
+func (c *adminRevenueServiceClient) GetRevenueSummary(ctx context.Context, req *connect.Request[v1.GetRevenueSummaryRequest]) (*connect.Response[v1.RevenueSummary], error) {
+	return c.getRevenueSummary.CallUnary(ctx, req)
+}
+
+// AdminRevenueServiceHandler is an implementation of the
+// landing_page_business_suite.v1.AdminRevenueService service.
+type AdminRevenueServiceHandler interface {
+	GetRevenue(context.Context, *connect.Request[v1.GetAdminRevenueRequest]) (*connect.Response[v1.AdminRevenue], error)
+	GetRevenueSummary(context.Context, *connect.Request[v1.GetRevenueSummaryRequest]) (*connect.Response[v1.RevenueSummary], error)
+}
+
+// NewAdminRevenueServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAdminRevenueServiceHandler(svc AdminRevenueServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminRevenueServiceMethods := v1.File_landing_page_business_suite_v1_metrics_proto.Services().ByName("AdminRevenueService").Methods()
+	adminRevenueServiceGetRevenueHandler := connect.NewUnaryHandler(
+		AdminRevenueServiceGetRevenueProcedure,
+		svc.GetRevenue,
+		connect.WithSchema(adminRevenueServiceMethods.ByName("GetRevenue")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminRevenueServiceGetRevenueSummaryHandler := connect.NewUnaryHandler(
+		AdminRevenueServiceGetRevenueSummaryProcedure,
+		svc.GetRevenueSummary,
+		connect.WithSchema(adminRevenueServiceMethods.ByName("GetRevenueSummary")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/landing_page_business_suite.v1.AdminRevenueService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AdminRevenueServiceGetRevenueProcedure:
+			adminRevenueServiceGetRevenueHandler.ServeHTTP(w, r)
+		case AdminRevenueServiceGetRevenueSummaryProcedure:
+			adminRevenueServiceGetRevenueSummaryHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAdminRevenueServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminRevenueServiceHandler struct{}
+
+func (UnimplementedAdminRevenueServiceHandler) GetRevenue(context.Context, *connect.Request[v1.GetAdminRevenueRequest]) (*connect.Response[v1.AdminRevenue], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminRevenueService.GetRevenue is not implemented"))
+}
+
+func (UnimplementedAdminRevenueServiceHandler) GetRevenueSummary(context.Context, *connect.Request[v1.GetRevenueSummaryRequest]) (*connect.Response[v1.RevenueSummary], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary is not implemented"))
 }

@@ -461,6 +461,7 @@ func (x *IntroOffer) GetIntroTier() string {
 type GetLandingConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	VariantSlug   string                 `protobuf:"bytes,1,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
+	VisitorId     string                 `protobuf:"bytes,2,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -498,6 +499,13 @@ func (*GetLandingConfigRequest) Descriptor() ([]byte, []int) {
 func (x *GetLandingConfigRequest) GetVariantSlug() string {
 	if x != nil {
 		return x.VariantSlug
+	}
+	return ""
+}
+
+func (x *GetLandingConfigRequest) GetVisitorId() string {
+	if x != nil {
+		return x.VisitorId
 	}
 	return ""
 }
@@ -688,9 +696,11 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\x10_max_redemptionsB\f\n" +
 	"\n" +
 	"_redeem_byB\r\n" +
-	"\v_intro_tier\"<\n" +
+	"\v_intro_tier\"[\n" +
 	"\x17GetLandingConfigRequest\x12!\n" +
-	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\"\xc2\x06\n" +
+	"\fvariant_slug\x18\x01 \x01(\tR\vvariantSlug\x12\x1d\n" +
+	"\n" +
+	"visitor_id\x18\x02 \x01(\tR\tvisitorId\"\xc2\x06\n" +
 	"\x15LandingConfigResponse\x12O\n" +
 	"\avariant\x18\x01 \x01(\v25.landing_page_business_suite.v1.LandingVariantSummaryR\avariant\x12J\n" +
 	"\bsections\x18\x02 \x03(\v2..landing_page_business_suite.v1.LandingSectionR\bsections\x12W\n" +

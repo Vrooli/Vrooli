@@ -29,3 +29,21 @@ class RouteLatencyResponse(_message.Message):
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     latency_ms: int
     def __init__(self, latency_ms: _Optional[int] = ...) -> None: ...
+
+class RouteCostResponse(_message.Message):
+    __slots__ = ("cost_usd",)
+    COST_USD_FIELD_NUMBER: _ClassVar[int]
+    cost_usd: float
+    def __init__(self, cost_usd: _Optional[float] = ...) -> None: ...
+
+class RouteTokenResponse(_message.Message):
+    __slots__ = ("total_tokens",)
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    total_tokens: int
+    def __init__(self, total_tokens: _Optional[int] = ...) -> None: ...
+
+class RouteShareResponse(_message.Message):
+    __slots__ = ("share",)
+    SHARE_FIELD_NUMBER: _ClassVar[int]
+    share: float
+    def __init__(self, share: _Optional[float] = ...) -> None: ...

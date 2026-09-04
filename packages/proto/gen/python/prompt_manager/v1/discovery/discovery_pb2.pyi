@@ -198,13 +198,15 @@ class GetDiscoveryMetricsResponse(_message.Message):
     def __init__(self, since: _Optional[str] = ..., call_count: _Optional[int] = ..., returned_count: _Optional[_Union[DistributionStats, _Mapping]] = ..., budgeted_call_count: _Optional[int] = ..., over_budget_rate: _Optional[float] = ..., near_threshold_rate: _Optional[float] = ..., probed_call_count: _Optional[int] = ..., threshold_clip_rate: _Optional[float] = ..., clipped_per_probe: _Optional[_Union[DistributionStats, _Mapping]] = ..., per_complexity: _Optional[_Mapping[str, ComplexityMetric]] = ..., budget_hogs: _Optional[_Iterable[_Union[BudgetHogSkill, _Mapping]]] = ...) -> None: ...
 
 class GetSkillUsageRequest(_message.Message):
-    __slots__ = ("since",)
+    __slots__ = ("since", "outcomes")
     SINCE_FIELD_NUMBER: _ClassVar[int]
+    OUTCOMES_FIELD_NUMBER: _ClassVar[int]
     since: str
-    def __init__(self, since: _Optional[str] = ...) -> None: ...
+    outcomes: bool
+    def __init__(self, since: _Optional[str] = ..., outcomes: _Optional[bool] = ...) -> None: ...
 
 class SkillUsageRow(_message.Message):
-    __slots__ = ("skill_id", "returned", "reads", "demand_reads", "via_discovery", "reads_by_caller_kind", "conversion_rate", "last_read_at")
+    __slots__ = ("skill_id", "returned", "reads", "demand_reads", "via_discovery", "reads_by_caller_kind", "conversion_rate", "last_read_at", "projected", "reads_with_run", "succeeded_runs", "failed_runs", "outcome_coverage")
     class ReadsByCallerKindEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -220,6 +222,11 @@ class SkillUsageRow(_message.Message):
     READS_BY_CALLER_KIND_FIELD_NUMBER: _ClassVar[int]
     CONVERSION_RATE_FIELD_NUMBER: _ClassVar[int]
     LAST_READ_AT_FIELD_NUMBER: _ClassVar[int]
+    PROJECTED_FIELD_NUMBER: _ClassVar[int]
+    READS_WITH_RUN_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    FAILED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     skill_id: str
     returned: int
     reads: int
@@ -228,7 +235,12 @@ class SkillUsageRow(_message.Message):
     reads_by_caller_kind: _containers.ScalarMap[str, int]
     conversion_rate: float
     last_read_at: str
-    def __init__(self, skill_id: _Optional[str] = ..., returned: _Optional[int] = ..., reads: _Optional[int] = ..., demand_reads: _Optional[int] = ..., via_discovery: _Optional[int] = ..., reads_by_caller_kind: _Optional[_Mapping[str, int]] = ..., conversion_rate: _Optional[float] = ..., last_read_at: _Optional[str] = ...) -> None: ...
+    projected: bool
+    reads_with_run: int
+    succeeded_runs: int
+    failed_runs: int
+    outcome_coverage: float
+    def __init__(self, skill_id: _Optional[str] = ..., returned: _Optional[int] = ..., reads: _Optional[int] = ..., demand_reads: _Optional[int] = ..., via_discovery: _Optional[int] = ..., reads_by_caller_kind: _Optional[_Mapping[str, int]] = ..., conversion_rate: _Optional[float] = ..., last_read_at: _Optional[str] = ..., projected: _Optional[bool] = ..., reads_with_run: _Optional[int] = ..., succeeded_runs: _Optional[int] = ..., failed_runs: _Optional[int] = ..., outcome_coverage: _Optional[float] = ...) -> None: ...
 
 class GetSkillUsageResponse(_message.Message):
     __slots__ = ("since", "unread", "rows")
@@ -239,3 +251,33 @@ class GetSkillUsageResponse(_message.Message):
     unread: _containers.RepeatedScalarFieldContainer[str]
     rows: _containers.RepeatedCompositeFieldContainer[SkillUsageRow]
     def __init__(self, since: _Optional[str] = ..., unread: _Optional[_Iterable[str]] = ..., rows: _Optional[_Iterable[_Union[SkillUsageRow, _Mapping]]] = ...) -> None: ...
+
+class ValidateSkillSetRequest(_message.Message):
+    __slots__ = ("scenario",)
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    def __init__(self, scenario: _Optional[str] = ...) -> None: ...
+
+class SkillSetRole(_message.Message):
+    __slots__ = ("role", "status", "source", "reason")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    status: str
+    source: str
+    reason: str
+    def __init__(self, role: _Optional[str] = ..., status: _Optional[str] = ..., source: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ValidateSkillSetResponse(_message.Message):
+    __slots__ = ("scenario", "status", "roles", "findings")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    status: str
+    roles: _containers.RepeatedCompositeFieldContainer[SkillSetRole]
+    findings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[SkillSetRole, _Mapping]]] = ..., findings: _Optional[_Iterable[str]] = ...) -> None: ...

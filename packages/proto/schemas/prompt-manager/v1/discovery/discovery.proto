@@ -9,6 +9,7 @@ service DiscoveryService {
   rpc ListDiscoveryGaps(ListDiscoveryGapsRequest) returns (ListDiscoveryGapsResponse);
   rpc GetDiscoveryMetrics(GetDiscoveryMetricsRequest) returns (GetDiscoveryMetricsResponse);
   rpc GetSkillUsage(GetSkillUsageRequest) returns (GetSkillUsageResponse);
+  rpc ValidateSkillSet(ValidateSkillSetRequest) returns (ValidateSkillSetResponse);
 }
 
 message DiscoverRequest { repeated string queries = 1; string complexity = 2; int32 limit = 3; string type = 4; }
@@ -49,10 +50,16 @@ message GetDiscoveryMetricsResponse {
   map<string, ComplexityMetric> per_complexity = 10; repeated BudgetHogSkill budget_hogs = 11;
 }
 
-message GetSkillUsageRequest { string since = 1; }
+message GetSkillUsageRequest { string since = 1; bool outcomes = 2; }
 message SkillUsageRow {
   string skill_id = 1; int32 returned = 2; int32 reads = 3; int32 demand_reads = 4;
   int32 via_discovery = 5; map<string, int32> reads_by_caller_kind = 6;
   optional double conversion_rate = 7; string last_read_at = 8;
+  bool projected = 9;
+	int32 reads_with_run = 10; int32 succeeded_runs = 11; int32 failed_runs = 12; optional double outcome_coverage = 13;
 }
 message GetSkillUsageResponse { string since = 1; repeated string unread = 2; repeated SkillUsageRow rows = 3; }
+
+message ValidateSkillSetRequest { string scenario = 1; }
+message SkillSetRole { string role = 1; string status = 2; string source = 3; string reason = 4; }
+message ValidateSkillSetResponse { string scenario = 1; string status = 2; repeated SkillSetRole roles = 3; repeated string findings = 4; }

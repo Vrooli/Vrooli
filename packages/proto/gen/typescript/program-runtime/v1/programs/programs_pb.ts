@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/programs/programs.proto.
  */
 export const file_program_runtime_v1_programs_programs: GenFile = /*@__PURE__*/
-  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvcHJvZ3JhbXMvcHJvZ3JhbXMucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMihgQKB1Byb2dyYW0SCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSQgoKcHJvdmVuYW5jZRgEIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvdmVuYW5jZRJBCgZzdGF0dXMYBSABKA4yMS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW1TdGF0dXMSDgoGc3Rkb3V0GAYgASgJEhYKDmZhaWx1cmVfZGV0YWlsGAcgASgJEhUKDWZhaWx1cmVfc2hhcGUYCCABKAkSFQoNY29udGV4dF9ieXRlcxgJIAEoAxISCgpjcmVhdGVkX2F0GAogASgJEhoKEm91dHB1dF9saW1pdF9ieXRlcxgLIAEoAxITCgthZ2VudF9ieXRlcxgMIAEoAxIUCgxjb21wbGV0ZWRfYXQYDSABKAkSGAoQd2FsbF90aW1lX21pbGxpcxgOIAEoAxIXCg9jcHVfdGltZV9taWxsaXMYDyABKAMSFwoPbGlicmFyeV92ZXJzaW9uGBAgASgJEkcKDWZhaWx1cmVfY2F1c2UYESABKA4yMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVDYXVzZSJiCgpEaWFnbm9zdGljEhAKCHNldmVyaXR5GAEgASgJEgwKBGxpbmUYAiABKAUSDAoEbmFtZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhUKDW5lYXJlc3RfbWF0Y2gYBSABKAkivAEKFFN1Ym1pdFByb2dyYW1SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGc291cmNlGAIgASgJEkIKCnByb3ZlbmFuY2UYAyABKA4yLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb3ZlbmFuY2USHAoUaW5jbHVkZV9tYXRlcmlhbGl6ZWQYBCABKAgSDQoFYXN5bmMYBSABKAgSDwoHZXhwbGFpbhgGIAEoCCKaAQoVU3VibWl0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0SQwoLZGlhZ25vc3RpY3MYAiADKAsyLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkRpYWdub3N0aWMiHwoRR2V0UHJvZ3JhbVJlcXVlc3QSCgoCaWQYASABKAkiUgoSR2V0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iOwoVV2FpdEZvclByb2dyYW1SZXF1ZXN0EgoKAmlkGAEgASgJEhYKDnRpbWVvdXRfbWlsbGlzGAIgASgDIn8KFldhaXRGb3JQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDIkMKE0xpc3RQcm9ncmFtc1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIYChBpbmNsdWRlX29wZXJhdG9yGAIgASgIIlUKFExpc3RQcm9ncmFtc1Jlc3BvbnNlEj0KCHByb2dyYW1zGAEgAygLMisudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm9ncmFtIi8KE01pbmVGYWlsdXJlc1JlcXVlc3QSGAoQaW5jbHVkZV9vcGVyYXRvchgBIAEoCCJuCgxGYWlsdXJlU2hhcGUSDQoFc2hhcGUYASABKAkSDQoFY291bnQYAiABKAMSEgoKZmlyc3Rfc2VlbhgDIAEoCRIRCglsYXN0X3NlZW4YBCABKAkSGQoRc2FtcGxlX3Byb2dyYW1faWQYBSABKAkiZwoUTWluZUZhaWx1cmVzUmVzcG9uc2USQAoGc2hhcGVzGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5GYWlsdXJlU2hhcGUSDQoFY291bnQYAiABKAMiLwoTTWluZVJlZnVzYWxzUmVxdWVzdBIYChBpbmNsdWRlX29wZXJhdG9yGAEgASgIIlQKDFJlZnVzYWxTaGFwZRISCgpiaW5kaW5nX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCRINCgVjb3VudBgDIAEoAxIRCglsYXN0X3NlZW4YBCABKAkiZwoUTWluZVJlZnVzYWxzUmVzcG9uc2USQAoGc2hhcGVzGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5SZWZ1c2FsU2hhcGUSDQoFY291bnQYAiABKAMiOQodTWluZVVucmVzb2x2ZWRCaW5kaW5nc1JlcXVlc3QSGAoQaW5jbHVkZV9vcGVyYXRvchgBIAEoCCJSChZVbnJlc29sdmVkQmluZGluZ1NoYXBlEhYKDmF0dGVtcHRlZF9uYW1lGAEgASgJEg0KBWNvdW50GAIgASgDEhEKCWxhc3Rfc2VlbhgDIAEoCSJ7Ch5NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVzcG9uc2USSgoGc2hhcGVzGAEgAygLMjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5VbnJlc29sdmVkQmluZGluZ1NoYXBlEg0KBWNvdW50GAIgASgDIkoKFkdvdmVybmFuY2VTaGFyZVJlcXVlc3QSFgoOd2luZG93X3NlY29uZHMYASABKAMSGAoQaW5jbHVkZV9vcGVyYXRvchgCIAEoCCJLCg9PYnNlcnZlZENvbW1hbmQSFgoOYXR0ZW1wdGVkX25hbWUYASABKAkSDQoFY291bnQYAiABKAMSEQoJbGFzdF9zZWVuGAMgASgJIvMBChdHb3Zlcm5hbmNlU2hhcmVSZXNwb25zZRIWCg5nb3Zlcm5lZF9jYWxscxgBIAEoAxIWCg5vYnNlcnZlZF9jYWxscxgCIAEoAxIWCg5nb3Zlcm5lZF9zaGFyZRgDIAEoARIWCg53aW5kb3dfc2Vjb25kcxgEIAEoAxIUCgx3aW5kb3dfc3RhcnQYBSABKAkSEgoKd2luZG93X2VuZBgGIAEoCRJOChFvYnNlcnZlZF9jb21tYW5kcxgHIAMoCzIzLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuT2JzZXJ2ZWRDb21tYW5kIjsKF1J1bkF1dGhvcmluZ0V2YWxSZXF1ZXN0Eg0KBXN1aXRlGAEgASgJEhEKCW1heF9jYXNlcxgCIAEoBSKuAQoTQXV0aG9yaW5nQ2FzZVJlc3VsdBIPCgdjYXNlX2lkGAEgASgJEhAKCGF1dGhvcmVkGAIgASgIEhgKEGZpcnN0X2F0dGVtcHRfb2sYAyABKAgSDQoFY2F1c2UYBCABKAkSEwoLYWdlbnRfYnl0ZXMYBSABKAMSDQoFbW9kZWwYBiABKAkSDwoHcnVsZV9pZBgHIAEoCRIWCg5mYWlsdXJlX2RldGFpbBgIIAEoCSIzChFBdXRob3JpbmdSdWxlTWlzcxIPCgdydWxlX2lkGAEgASgJEg0KBWNvdW50GAIgASgFIvMCChhSdW5BdXRob3JpbmdFdmFsUmVzcG9uc2USDQoFc3VpdGUYASABKAkSDgoGc3RhdHVzGAIgASgJEg4KBnJlYXNvbhgDIAEoCRINCgVjYXNlcxgEIAEoBRILCgNtZXQYBSABKAUSDgoGbWlzc2VkGAYgASgFEhQKDHdyb25nX3Jlc3VsdBgHIAEoBRITCgt1bmF2YWlsYWJsZRgIIAEoBRINCgVmbG9vchgJIAEoBRJICgdyZXN1bHRzGAogAygLMjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5BdXRob3JpbmdDYXNlUmVzdWx0EhUKDW5vdF9hdHRlbXB0ZWQYCyABKAUSFQoNaGFybmVzc19zdGFtcBgMIAEoCRJKCgtydWxlX21pc3NlcxgNIAMoCzI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuQXV0aG9yaW5nUnVsZU1pc3MqgwEKClByb3ZlbmFuY2USGgoWUFJPVkVOQU5DRV9VTlNQRUNJRklFRBAAEhQKEFBST1ZFTkFOQ0VfQUdFTlQQARIXChNQUk9WRU5BTkNFX09QRVJBVE9SEAISEwoPUFJPVkVOQU5DRV9URVNUEAMSFQoRUFJPVkVOQU5DRV9SRVBMQVkQBCq/AQoNUHJvZ3JhbVN0YXR1cxIeChpQUk9HUkFNX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF1BST0dSQU1fU1RBVFVTX0FDQ0VQVEVEEAESGgoWUFJPR1JBTV9TVEFUVVNfUlVOTklORxACEhwKGFBST0dSQU1fU1RBVFVTX1NVQ0NFRURFRBADEhkKFVBST0dSQU1fU1RBVFVTX0ZBSUxFRBAEEhwKGFBST0dSQU1fU1RBVFVTX0NBTkNFTExFRBAFKpcECgxGYWlsdXJlQ2F1c2USHQoZRkFJTFVSRV9DQVVTRV9VTlNQRUNJRklFRBAAEiEKHUZBSUxVUkVfQ0FVU0VfVU5SRVNPTFZFRF9OQU1FEAESHwobRkFJTFVSRV9DQVVTRV9VTktOT1dOX0ZJRUxEEAISJAogRkFJTFVSRV9DQVVTRV9BTUJJR1VPVVNfUkVTUE9OU0UQAxImCiJGQUlMVVJFX0NBVVNFX1VOUkVBQ0hBQkxFX1NDRU5BUklPEAQSIgoeRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PX0dSQU5UEAUSKgomRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PVF9SVU5fRUxJR0lCTEUQBhIqCiZGQUlMVVJFX0NBVVNFX0lORkVSRU5DRV9TUEVORF9FWENFRURFRBAHEi4KKkZBSUxVUkVfQ0FVU0VfREVMRUdBVEVEX1JVTl9TUEVORF9FWENFRURFRBAIEiMKH0ZBSUxVUkVfQ0FVU0VfREVBRExJTkVfRVhDRUVERUQQCRIfChtGQUlMVVJFX0NBVVNFX0tFUk5FTF9TWU5UQVgQChIgChxGQUlMVVJFX0NBVVNFX0tFUk5FTF9SVU5USU1FEAsSIgoeRkFJTFVSRV9DQVVTRV9CUklER0VfVFJBTlNQT1JUEAwSHgoaRkFJTFVSRV9DQVVTRV9VTkNMQVNTSUZJRUQQDTLpCQoOUHJvZ3JhbVNlcnZpY2UShAEKDVN1Ym1pdFByb2dyYW0SOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlN1Ym1pdFByb2dyYW1SZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5TdWJtaXRQcm9ncmFtUmVzcG9uc2USewoKR2V0UHJvZ3JhbRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuR2V0UHJvZ3JhbVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkdldFByb2dyYW1SZXNwb25zZRKHAQoOV2FpdEZvclByb2dyYW0SOS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLldhaXRGb3JQcm9ncmFtUmVxdWVzdBo6LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuV2FpdEZvclByb2dyYW1SZXNwb25zZRKBAQoMTGlzdFByb2dyYW1zEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5MaXN0UHJvZ3JhbXNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5MaXN0UHJvZ3JhbXNSZXNwb25zZRKBAQoMTWluZUZhaWx1cmVzEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lRmFpbHVyZXNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lRmFpbHVyZXNSZXNwb25zZRKBAQoMTWluZVJlZnVzYWxzEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lUmVmdXNhbHNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lUmVmdXNhbHNSZXNwb25zZRKfAQoWTWluZVVucmVzb2x2ZWRCaW5kaW5ncxJBLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuTWluZVVucmVzb2x2ZWRCaW5kaW5nc1JlcXVlc3QaQi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVVbnJlc29sdmVkQmluZGluZ3NSZXNwb25zZRKKAQoPR292ZXJuYW5jZVNoYXJlEjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Hb3Zlcm5hbmNlU2hhcmVSZXF1ZXN0GjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Hb3Zlcm5hbmNlU2hhcmVSZXNwb25zZRKNAQoQUnVuQXV0aG9yaW5nRXZhbBI7LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUnVuQXV0aG9yaW5nRXZhbFJlcXVlc3QaPC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlJ1bkF1dGhvcmluZ0V2YWxSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9wcm9ncmFtcztwcm9ncmFtc192MWIGcHJvdG8z");
+  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvcHJvZ3JhbXMvcHJvZ3JhbXMucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMihgQKB1Byb2dyYW0SCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSQgoKcHJvdmVuYW5jZRgEIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvdmVuYW5jZRJBCgZzdGF0dXMYBSABKA4yMS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW1TdGF0dXMSDgoGc3Rkb3V0GAYgASgJEhYKDmZhaWx1cmVfZGV0YWlsGAcgASgJEhUKDWZhaWx1cmVfc2hhcGUYCCABKAkSFQoNY29udGV4dF9ieXRlcxgJIAEoAxISCgpjcmVhdGVkX2F0GAogASgJEhoKEm91dHB1dF9saW1pdF9ieXRlcxgLIAEoAxITCgthZ2VudF9ieXRlcxgMIAEoAxIUCgxjb21wbGV0ZWRfYXQYDSABKAkSGAoQd2FsbF90aW1lX21pbGxpcxgOIAEoAxIXCg9jcHVfdGltZV9taWxsaXMYDyABKAMSFwoPbGlicmFyeV92ZXJzaW9uGBAgASgJEkcKDWZhaWx1cmVfY2F1c2UYESABKA4yMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVDYXVzZSJiCgpEaWFnbm9zdGljEhAKCHNldmVyaXR5GAEgASgJEgwKBGxpbmUYAiABKAUSDAoEbmFtZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhUKDW5lYXJlc3RfbWF0Y2gYBSABKAkivAEKFFN1Ym1pdFByb2dyYW1SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGc291cmNlGAIgASgJEkIKCnByb3ZlbmFuY2UYAyABKA4yLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb3ZlbmFuY2USHAoUaW5jbHVkZV9tYXRlcmlhbGl6ZWQYBCABKAgSDQoFYXN5bmMYBSABKAgSDwoHZXhwbGFpbhgGIAEoCCKaAQoVU3VibWl0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0SQwoLZGlhZ25vc3RpY3MYAiADKAsyLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkRpYWdub3N0aWMiHwoRR2V0UHJvZ3JhbVJlcXVlc3QSCgoCaWQYASABKAkiUgoSR2V0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iOwoVV2FpdEZvclByb2dyYW1SZXF1ZXN0EgoKAmlkGAEgASgJEhYKDnRpbWVvdXRfbWlsbGlzGAIgASgDIn8KFldhaXRGb3JQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDIowBChNMaXN0UHJvZ3JhbXNSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSGAoQaW5jbHVkZV9vcGVyYXRvchgCIAEoCBISCgpwcm92ZW5hbmNlGAMgASgJEhUKDXNpbmNlX3NlY29uZHMYBCABKAMSDQoFdW50aWwYBSABKAkSDQoFbGltaXQYBiABKAUiVQoUTGlzdFByb2dyYW1zUmVzcG9uc2USPQoIcHJvZ3JhbXMYASADKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iLwoTTWluZUZhaWx1cmVzUmVxdWVzdBIYChBpbmNsdWRlX29wZXJhdG9yGAEgASgIIm4KDEZhaWx1cmVTaGFwZRINCgVzaGFwZRgBIAEoCRINCgVjb3VudBgCIAEoAxISCgpmaXJzdF9zZWVuGAMgASgJEhEKCWxhc3Rfc2VlbhgEIAEoCRIZChFzYW1wbGVfcHJvZ3JhbV9pZBgFIAEoCSJnChRNaW5lRmFpbHVyZXNSZXNwb25zZRJACgZzaGFwZXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVTaGFwZRINCgVjb3VudBgCIAEoAyIvChNNaW5lUmVmdXNhbHNSZXF1ZXN0EhgKEGluY2x1ZGVfb3BlcmF0b3IYASABKAgiVAoMUmVmdXNhbFNoYXBlEhIKCmJpbmRpbmdfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEg0KBWNvdW50GAMgASgDEhEKCWxhc3Rfc2VlbhgEIAEoCSJnChRNaW5lUmVmdXNhbHNSZXNwb25zZRJACgZzaGFwZXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlJlZnVzYWxTaGFwZRINCgVjb3VudBgCIAEoAyI5Ch1NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVxdWVzdBIYChBpbmNsdWRlX29wZXJhdG9yGAEgASgIIlIKFlVucmVzb2x2ZWRCaW5kaW5nU2hhcGUSFgoOYXR0ZW1wdGVkX25hbWUYASABKAkSDQoFY291bnQYAiABKAMSEQoJbGFzdF9zZWVuGAMgASgJInsKHk1pbmVVbnJlc29sdmVkQmluZGluZ3NSZXNwb25zZRJKCgZzaGFwZXMYASADKAsyOi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlVucmVzb2x2ZWRCaW5kaW5nU2hhcGUSDQoFY291bnQYAiABKAMiSgoWR292ZXJuYW5jZVNoYXJlUmVxdWVzdBIWCg53aW5kb3dfc2Vjb25kcxgBIAEoAxIYChBpbmNsdWRlX29wZXJhdG9yGAIgASgIIksKD09ic2VydmVkQ29tbWFuZBIWCg5hdHRlbXB0ZWRfbmFtZRgBIAEoCRINCgVjb3VudBgCIAEoAxIRCglsYXN0X3NlZW4YAyABKAki8wEKF0dvdmVybmFuY2VTaGFyZVJlc3BvbnNlEhYKDmdvdmVybmVkX2NhbGxzGAEgASgDEhYKDm9ic2VydmVkX2NhbGxzGAIgASgDEhYKDmdvdmVybmVkX3NoYXJlGAMgASgBEhYKDndpbmRvd19zZWNvbmRzGAQgASgDEhQKDHdpbmRvd19zdGFydBgFIAEoCRISCgp3aW5kb3dfZW5kGAYgASgJEk4KEW9ic2VydmVkX2NvbW1hbmRzGAcgAygLMjMudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5PYnNlcnZlZENvbW1hbmQiTAoXUnVuQXV0aG9yaW5nRXZhbFJlcXVlc3QSDQoFc3VpdGUYASABKAkSEQoJbWF4X2Nhc2VzGAIgASgFEg8KB25vX2dhdGUYAyABKAgirgEKE0F1dGhvcmluZ0Nhc2VSZXN1bHQSDwoHY2FzZV9pZBgBIAEoCRIQCghhdXRob3JlZBgCIAEoCBIYChBmaXJzdF9hdHRlbXB0X29rGAMgASgIEg0KBWNhdXNlGAQgASgJEhMKC2FnZW50X2J5dGVzGAUgASgDEg0KBW1vZGVsGAYgASgJEg8KB3J1bGVfaWQYByABKAkSFgoOZmFpbHVyZV9kZXRhaWwYCCABKAkiMwoRQXV0aG9yaW5nUnVsZU1pc3MSDwoHcnVsZV9pZBgBIAEoCRINCgVjb3VudBgCIAEoBSKGAwoYUnVuQXV0aG9yaW5nRXZhbFJlc3BvbnNlEg0KBXN1aXRlGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZyZWFzb24YAyABKAkSDQoFY2FzZXMYBCABKAUSCwoDbWV0GAUgASgFEg4KBm1pc3NlZBgGIAEoBRIUCgx3cm9uZ19yZXN1bHQYByABKAUSEwoLdW5hdmFpbGFibGUYCCABKAUSDQoFZmxvb3IYCSABKAUSSAoHcmVzdWx0cxgKIAMoCzI3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuQXV0aG9yaW5nQ2FzZVJlc3VsdBIVCg1ub3RfYXR0ZW1wdGVkGAsgASgFEhUKDWhhcm5lc3Nfc3RhbXAYDCABKAkSSgoLcnVsZV9taXNzZXMYDSADKAsyNS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkF1dGhvcmluZ1J1bGVNaXNzEhEKCWZsb29yX21ldBgOIAEoCCJaChdSdW5EaXNjb3ZlcnlFdmFsUmVxdWVzdBINCgVzdWl0ZRgBIAEoCRIMCgRtb2RlGAIgASgJEhEKCW1heF9jYXNlcxgDIAEoBRIPCgdub19nYXRlGAQgASgIIrwBChNEaXNjb3ZlcnlDYXNlUmVzdWx0Eg8KB2Nhc2VfaWQYASABKAkSDgoGaW50ZW50GAIgASgJEhsKE2V4cGVjdGVkX2JpbmRpbmdfaWQYAyABKAkSGwoTc2VsZWN0ZWRfYmluZGluZ19pZBgEIAEoCRILCgNtZXQYBSABKAgSFAoMbnVsbF92ZXJkaWN0GAYgASgIEhcKD3dyb25nX3NlbGVjdGlvbhgHIAEoCBIOCgZyZWFzb24YCCABKAkipgIKGFJ1bkRpc2NvdmVyeUV2YWxSZXNwb25zZRINCgVzdWl0ZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGcmVhc29uGAMgASgJEg0KBWNhc2VzGAQgASgFEgsKA21ldBgFIAEoBRIOCgZtaXNzZWQYBiABKAUSFwoPd3Jvbmdfc2VsZWN0aW9uGAcgASgFEhQKDG51bGxfdmVyZGljdBgIIAEoBRINCgVmbG9vchgJIAEoBRIUCgxmbG9vcl9yZWFzb24YCiABKAkSSAoHcmVzdWx0cxgLIAMoCzI3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuRGlzY292ZXJ5Q2FzZVJlc3VsdBIRCglmbG9vcl9tZXQYDCABKAgqgwEKClByb3ZlbmFuY2USGgoWUFJPVkVOQU5DRV9VTlNQRUNJRklFRBAAEhQKEFBST1ZFTkFOQ0VfQUdFTlQQARIXChNQUk9WRU5BTkNFX09QRVJBVE9SEAISEwoPUFJPVkVOQU5DRV9URVNUEAMSFQoRUFJPVkVOQU5DRV9SRVBMQVkQBCq/AQoNUHJvZ3JhbVN0YXR1cxIeChpQUk9HUkFNX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF1BST0dSQU1fU1RBVFVTX0FDQ0VQVEVEEAESGgoWUFJPR1JBTV9TVEFUVVNfUlVOTklORxACEhwKGFBST0dSQU1fU1RBVFVTX1NVQ0NFRURFRBADEhkKFVBST0dSQU1fU1RBVFVTX0ZBSUxFRBAEEhwKGFBST0dSQU1fU1RBVFVTX0NBTkNFTExFRBAFKsAECgxGYWlsdXJlQ2F1c2USHQoZRkFJTFVSRV9DQVVTRV9VTlNQRUNJRklFRBAAEiEKHUZBSUxVUkVfQ0FVU0VfVU5SRVNPTFZFRF9OQU1FEAESHwobRkFJTFVSRV9DQVVTRV9VTktOT1dOX0ZJRUxEEAISJAogRkFJTFVSRV9DQVVTRV9BTUJJR1VPVVNfUkVTUE9OU0UQAxImCiJGQUlMVVJFX0NBVVNFX1VOUkVBQ0hBQkxFX1NDRU5BUklPEAQSIgoeRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PX0dSQU5UEAUSKgomRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PVF9SVU5fRUxJR0lCTEUQBhIqCiZGQUlMVVJFX0NBVVNFX0lORkVSRU5DRV9TUEVORF9FWENFRURFRBAHEi4KKkZBSUxVUkVfQ0FVU0VfREVMRUdBVEVEX1JVTl9TUEVORF9FWENFRURFRBAIEiMKH0ZBSUxVUkVfQ0FVU0VfREVBRExJTkVfRVhDRUVERUQQCRIfChtGQUlMVVJFX0NBVVNFX0tFUk5FTF9TWU5UQVgQChIgChxGQUlMVVJFX0NBVVNFX0tFUk5FTF9SVU5USU1FEAsSIgoeRkFJTFVSRV9DQVVTRV9CUklER0VfVFJBTlNQT1JUEAwSHgoaRkFJTFVSRV9DQVVTRV9VTkNMQVNTSUZJRUQQDRInCiNGQUlMVVJFX0NBVVNFX1BST1RFQ1RFRF9OQU1FX01JU1VTRRAOMvkKCg5Qcm9ncmFtU2VydmljZRKEAQoNU3VibWl0UHJvZ3JhbRI4LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuU3VibWl0UHJvZ3JhbVJlcXVlc3QaOS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlN1Ym1pdFByb2dyYW1SZXNwb25zZRJ7CgpHZXRQcm9ncmFtEjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5HZXRQcm9ncmFtUmVxdWVzdBo2LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuR2V0UHJvZ3JhbVJlc3BvbnNlEocBCg5XYWl0Rm9yUHJvZ3JhbRI5LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuV2FpdEZvclByb2dyYW1SZXF1ZXN0GjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5XYWl0Rm9yUHJvZ3JhbVJlc3BvbnNlEoEBCgxMaXN0UHJvZ3JhbXMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkxpc3RQcm9ncmFtc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkxpc3RQcm9ncmFtc1Jlc3BvbnNlEoEBCgxNaW5lRmFpbHVyZXMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVGYWlsdXJlc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVGYWlsdXJlc1Jlc3BvbnNlEoEBCgxNaW5lUmVmdXNhbHMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVSZWZ1c2Fsc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVSZWZ1c2Fsc1Jlc3BvbnNlEp8BChZNaW5lVW5yZXNvbHZlZEJpbmRpbmdzEkEudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVxdWVzdBpCLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuTWluZVVucmVzb2x2ZWRCaW5kaW5nc1Jlc3BvbnNlEooBCg9Hb3Zlcm5hbmNlU2hhcmUSOi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkdvdmVybmFuY2VTaGFyZVJlcXVlc3QaOy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkdvdmVybmFuY2VTaGFyZVJlc3BvbnNlEo0BChBSdW5BdXRob3JpbmdFdmFsEjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5SdW5BdXRob3JpbmdFdmFsUmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUnVuQXV0aG9yaW5nRXZhbFJlc3BvbnNlEo0BChBSdW5EaXNjb3ZlcnlFdmFsEjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5SdW5EaXNjb3ZlcnlFdmFsUmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUnVuRGlzY292ZXJ5RXZhbFJlc3BvbnNlQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL3Byb2dyYW1zO3Byb2dyYW1zX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.Program
@@ -326,6 +326,34 @@ export type ListProgramsRequest = Message<"vrooli.program_runtime.v1.programs.Li
    * @generated from field: bool include_operator = 2;
    */
   includeOperator: boolean;
+
+  /**
+   * Optional provenance filter: agent, operator, or test.
+   *
+   * @generated from field: string provenance = 3;
+   */
+  provenance: string;
+
+  /**
+   * Only include programs created within this many seconds.
+   *
+   * @generated from field: int64 since_seconds = 4;
+   */
+  sinceSeconds: bigint;
+
+  /**
+   * RFC3339 lower/upper creation-time bounds, when supplied.
+   *
+   * @generated from field: string until = 5;
+   */
+  until: string;
+
+  /**
+   * Maximum rows returned; zero uses the server default.
+   *
+   * @generated from field: int32 limit = 6;
+   */
+  limit: number;
 };
 
 /**
@@ -674,6 +702,11 @@ export type RunAuthoringEvalRequest = Message<"vrooli.program_runtime.v1.program
    * @generated from field: int32 max_cases = 2;
    */
   maxCases: number;
+
+  /**
+   * @generated from field: bool no_gate = 3;
+   */
+  noGate: boolean;
 };
 
 /**
@@ -809,6 +842,8 @@ export type RunAuthoringEvalResponse = Message<"vrooli.program_runtime.v1.progra
   unavailable: number;
 
   /**
+   * False when a complete measured run is below the corpus floor.
+   *
    * @generated from field: int32 floor = 9;
    */
   floor: number;
@@ -841,6 +876,13 @@ export type RunAuthoringEvalResponse = Message<"vrooli.program_runtime.v1.progra
    * @generated from field: repeated vrooli.program_runtime.v1.programs.AuthoringRuleMiss rule_misses = 13;
    */
   ruleMisses: AuthoringRuleMiss[];
+
+  /**
+   * False when a complete measured run is below the corpus floor.
+   *
+   * @generated from field: bool floor_met = 14;
+   */
+  floorMet: boolean;
 };
 
 /**
@@ -849,6 +891,162 @@ export type RunAuthoringEvalResponse = Message<"vrooli.program_runtime.v1.progra
  */
 export const RunAuthoringEvalResponseSchema: GenMessage<RunAuthoringEvalResponse> = /*@__PURE__*/
   messageDesc(file_program_runtime_v1_programs_programs, 25);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest
+ */
+export type RunDiscoveryEvalRequest = Message<"vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest"> & {
+  /**
+   * @generated from field: string suite = 1;
+   */
+  suite: string;
+
+  /**
+   * @generated from field: string mode = 2;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: int32 max_cases = 3;
+   */
+  maxCases: number;
+
+  /**
+   * @generated from field: bool no_gate = 4;
+   */
+  noGate: boolean;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest.
+ * Use `create(RunDiscoveryEvalRequestSchema)` to create a new message.
+ */
+export const RunDiscoveryEvalRequestSchema: GenMessage<RunDiscoveryEvalRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_programs_programs, 26);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.programs.DiscoveryCaseResult
+ */
+export type DiscoveryCaseResult = Message<"vrooli.program_runtime.v1.programs.DiscoveryCaseResult"> & {
+  /**
+   * @generated from field: string case_id = 1;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: string intent = 2;
+   */
+  intent: string;
+
+  /**
+   * @generated from field: string expected_binding_id = 3;
+   */
+  expectedBindingId: string;
+
+  /**
+   * @generated from field: string selected_binding_id = 4;
+   */
+  selectedBindingId: string;
+
+  /**
+   * @generated from field: bool met = 5;
+   */
+  met: boolean;
+
+  /**
+   * @generated from field: bool null_verdict = 6;
+   */
+  nullVerdict: boolean;
+
+  /**
+   * @generated from field: bool wrong_selection = 7;
+   */
+  wrongSelection: boolean;
+
+  /**
+   * @generated from field: string reason = 8;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.programs.DiscoveryCaseResult.
+ * Use `create(DiscoveryCaseResultSchema)` to create a new message.
+ */
+export const DiscoveryCaseResultSchema: GenMessage<DiscoveryCaseResult> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_programs_programs, 27);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse
+ */
+export type RunDiscoveryEvalResponse = Message<"vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse"> & {
+  /**
+   * @generated from field: string suite = 1;
+   */
+  suite: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int32 cases = 4;
+   */
+  cases: number;
+
+  /**
+   * @generated from field: int32 met = 5;
+   */
+  met: number;
+
+  /**
+   * @generated from field: int32 missed = 6;
+   */
+  missed: number;
+
+  /**
+   * @generated from field: int32 wrong_selection = 7;
+   */
+  wrongSelection: number;
+
+  /**
+   * @generated from field: int32 null_verdict = 8;
+   */
+  nullVerdict: number;
+
+  /**
+   * @generated from field: int32 floor = 9;
+   */
+  floor: number;
+
+  /**
+   * @generated from field: string floor_reason = 10;
+   */
+  floorReason: string;
+
+  /**
+   * @generated from field: repeated vrooli.program_runtime.v1.programs.DiscoveryCaseResult results = 11;
+   */
+  results: DiscoveryCaseResult[];
+
+  /**
+   * @generated from field: bool floor_met = 12;
+   */
+  floorMet: boolean;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse.
+ * Use `create(RunDiscoveryEvalResponseSchema)` to create a new message.
+ */
+export const RunDiscoveryEvalResponseSchema: GenMessage<RunDiscoveryEvalResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_programs_programs, 28);
 
 /**
  * @generated from enum vrooli.program_runtime.v1.programs.Provenance
@@ -1000,6 +1198,11 @@ export enum FailureCause {
    * @generated from enum value: FAILURE_CAUSE_UNCLASSIFIED = 13;
    */
   UNCLASSIFIED = 13,
+
+  /**
+   * @generated from enum value: FAILURE_CAUSE_PROTECTED_NAME_MISUSE = 14;
+   */
+  PROTECTED_NAME_MISUSE = 14,
 }
 
 /**
@@ -1083,6 +1286,14 @@ export const ProgramService: GenService<{
     methodKind: "unary";
     input: typeof RunAuthoringEvalRequestSchema;
     output: typeof RunAuthoringEvalResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval
+   */
+  runDiscoveryEval: {
+    methodKind: "unary";
+    input: typeof RunDiscoveryEvalRequestSchema;
+    output: typeof RunDiscoveryEvalResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_program_runtime_v1_programs_programs, 0);

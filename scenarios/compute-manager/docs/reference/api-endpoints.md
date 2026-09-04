@@ -8,11 +8,11 @@ from the CLI commands it claims to mirror.
 
 ## Read this first: implementation status
 
-**No Compute Manager domain is implemented yet.** This scenario was
-generated from the `react-vite` template and currently carries only two
-endpoints: `/health` and the capabilities probe. The template's `notes`
-CRUD example has been removed by `template-manager detemplate
-compute-manager`, so no worked vertical slice remains in the tree.
+**Compute Manager is partially implemented.** The scenario was generated
+from the `react-vite` template, but the instance, intent, meter and
+reconciliation domain contracts and handlers now exist alongside the
+health and capabilities endpoints. Provider-live enrollment and several
+operator-only/post-launch surfaces remain open.
 
 This document is therefore split into two parts, and they must not be
 confused:
@@ -20,12 +20,11 @@ confused:
 | Part | What it describes | Trust level |
 |---|---|---|
 | Part 1: The surface that exists today | Endpoints that are registered, mounted and reachable right now | Verified against `api/handlers/` and `.vrooli/endpoints.json` |
-| Part 2: The planned surface | The domain services this scenario intends to expose | Proposal only. Nothing here is built, callable or wire-frozen |
+| Part 2: Remaining/planned surface | Domain methods not yet exposed through the current API/CLI surface | Proposal or deferred work; verify against generated endpoints |
 
-Nothing in Part 2 may be called, generated against, or cited as an
-available capability. When a planned service becomes real, its rows move
-from Part 2 into Part 1 in the same change that adds the proto, the
-handler and the `make endpoints` regeneration.
+The generated endpoint inventory is authoritative for what is callable.
+When a remaining planned method becomes real, update this reference and
+regenerate the endpoint inventory in the same change.
 
 Wire shapes for every implemented endpoint live in
 `packages/proto/schemas/compute-manager/v1/<domain>/<file>.proto`.
@@ -81,10 +80,10 @@ HTTP 503. The proto type lives at
 `packages/proto/schemas/compute-manager/v1/shared/health.proto` and
 mirrors `api-core/health.Response` field for field.
 
-When the planned domains land, the dependency map is where the business
-suite, the bridge and each provider adapter will report. None of them is
-registered today, so a green `/health` currently proves the database is
-reachable and nothing more.
+The dependency map currently reports the declared scenario dependencies;
+provider and business-suite call health remain separate integration
+signals. A green `/health` proves the database is reachable, not that
+live provider enrollment has succeeded.
 
 #### `GET /api/v1/capabilities/describe`
 
@@ -112,29 +111,25 @@ and `offer-desk`. Each carries the manifest's `required` and
 action, and each is probed by a checker that shells out to `vrooli
 scenario status <slug> --json`.
 
-What the response does **not** yet describe is any provider adapter or
-any domain-level capability, because no domain exists. The registry
-describes declared dependencies, not working integrations: an
+What the response does **not** describe is provider adapter state or
+domain-level lifecycle state. The registry describes declared dependencies,
+not working integrations: an
 `available` verdict means the dependency scenario is running, never that
 this scenario can call it.
 
 ---
 
-## Part 2: The planned surface (not yet implemented)
+## Part 2: Remaining and planned surface
 
-None of the services below exists. There is no proto file, no handler,
-no route and no entry in
-[`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) for any of
-them. Method names here are a working proposal derived from the PRD's
-operational targets and the domains in
-[`../concepts/DOMAINS.md`](../concepts/DOMAINS.md). They are settled when
-the proto is authored, not before, so treat them as intent and not as a
+The proto contracts and several handlers for these services now exist.
+Methods absent from the generated endpoint inventory remain planned.
+Treat the generated bindings and endpoint inventory as the callable
 contract.
 
-Each planned service maps to exactly one domain, and each domain owns
+Each service section maps to exactly one domain, and each domain owns
 the operational targets listed against it.
 
-### `intent`, planned `IntentService`
+### `intent`, implemented `IntentService` (partial surface)
 
 Owns `OT-P0-002`. The durable record that a request was made, written
 with its idempotency key before any provider client is reachable.
@@ -148,7 +143,7 @@ There is no `CreateIntent` on the wire. Intent is written by the
 instance request path, because the ordering guarantee is worthless if a
 caller can request an instance without one.
 
-### `instance`, planned `InstanceService`
+### `instance`, implemented `InstanceService`
 
 Owns `OT-P0-001`. The lifecycle state machine over `requested`,
 `creating`, `running`, `draining` and `destroyed`, plus the two states
@@ -178,7 +173,7 @@ exactly four methods internally: create, describe, list and destroy.
 Billing facts are data an adapter declares, never assumptions buried in
 adapter code, because product decisions depend on them.
 
-### `meter`, planned `MeterService`
+### `meter`, implemented `MeterService`
 
 Owns `OT-P0-006` and `OT-P1-002`. Reserve, provision, re-reserve on a
 heartbeat, settle on teardown, release on failure.
@@ -194,7 +189,7 @@ the machine boots and the tier is never read from the request. A refused
 reservation short-circuits with no provider call, and out of credit must
 be distinguishable from a server error.
 
-### `reconcile`, planned `ReconcileService`
+### `reconcile`, implemented `ReconcileService` (partial surface)
 
 Owns `OT-P0-003` and `OT-P1-003`. Compares provider inventory against
 local records in both directions.
@@ -206,9 +201,11 @@ local records in both directions.
 | `GetFinding` | Read one finding with its evidence | Operator acts on it, the sweep does not |
 | `CompareCost` | Compare metered usage against a provider statement | Alarms beyond a threshold. Provider billing lags, so it is a signal and never a control |
 
-This service reports and never resolves. There is no `ResolveFinding`
+This service reports and never destroys. There is no `ResolveFinding`
 that destroys anything, because a reconciler bug must not be able to
-delete a paying customer's node. Mark, then let an operator sweep. The
+delete a paying customer's node. A local-only observation may settle its
+known usage window through the meter-owned callback. Mark, then let an
+operator handle any provider-side action. The
 operator procedure is
 [Quarantine An Unaccounted Instance](../operations/RUNBOOK.md#quarantine-an-unaccounted-instance).
 

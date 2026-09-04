@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:37e886e00e111c5297e2fdb4dd4b835e9e6a30eb6b5f081d38437c8717106bb9",
+  "input_digest": "sha256:8bd0b39904252680a8946034b72a99c0e2e9c504fb7504af80f99920e4502e6e",
   "input_files": [
     "schemas/setup/v1/selection.proto",
     "schemas/vrooli-bridge/v1/credentialgrant/credentialgrant.proto",

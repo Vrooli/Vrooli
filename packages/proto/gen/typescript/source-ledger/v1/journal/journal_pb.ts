@@ -6,13 +6,54 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { TimeWindow } from "../../../measures/v1/measures_pb";
+import { file_measures_v1_measures } from "../../../measures/v1/measures_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file source-ledger/v1/journal/journal.proto.
  */
 export const file_source_ledger_v1_journal_journal: GenFile = /*@__PURE__*/
-  fileDesc("CiZzb3VyY2UtbGVkZ2VyL3YxL2pvdXJuYWwvam91cm5hbC5wcm90bxIfdnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbCI+CglGYWNldFRleHQSDAoEa2luZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhUKDWVtYmVkZGluZ19yZWYYAyABKAkimgEKC0F0dHJpYnV0aW9uEhAKCGFjdG9yX2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSFgoOc291cmNlX3J1bnRpbWUYAyABKAkSGwoTdmVyaWZpY2F0aW9uX3N0YXR1cxgEIAEoCRIaChJoYXJuZXNzX3Nlc3Npb25faWQYBSABKAkSFAoMaGFybmVzc19raW5kGAYgASgJIlAKC0NvcnJlbGF0aW9uEg4KBnJ1bl9pZBgBIAEoCRIdChV3b3JrZmxvd19leGVjdXRpb25faWQYAiABKAkSEgoKYWN0b3Jfa2luZBgDIAEoCSJRChBJbXBvcnRQcm92ZW5hbmNlEg8KB3J1bnRpbWUYASABKAkSFgoOc291cmNlX2xvY2F0b3IYAiABKAkSFAoMY29udGVudF9oYXNoGAMgASgJIrkDCgVFbnRyeRIKCgJpZBgBIAEoCRIMCgRib2R5GAIgASgJEhAKCGZhY2V0X2lkGAMgASgJEkEKC2F0dHJpYnV0aW9uGAQgASgLMiwudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5BdHRyaWJ1dGlvbhJBCgtjb3JyZWxhdGlvbhgFIAEoCzIsLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuQ29ycmVsYXRpb24STAoRaW1wb3J0X3Byb3ZlbmFuY2UYBiABKAsyMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkltcG9ydFByb3ZlbmFuY2USPwoLZmFjZXRfdGV4dHMYByADKAsyKi52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkZhY2V0VGV4dBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIxCg1zdXBlcnNlZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRraW5kGAogASgJIusCChJBcHBlbmRFbnRyeVJlcXVlc3QSDAoEYm9keRgBIAEoCRIQCghmYWNldF9pZBgCIAEoCRIMCgRraW5kGAMgASgJEkEKC2F0dHJpYnV0aW9uGAQgASgLMiwudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5BdHRyaWJ1dGlvbhJBCgtjb3JyZWxhdGlvbhgFIAEoCzIsLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuQ29ycmVsYXRpb24STAoRaW1wb3J0X3Byb3ZlbmFuY2UYBiABKAsyMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkltcG9ydFByb3ZlbmFuY2USDwoHdHJpZ2dlchgHIAEoCRIQCghhcHByb2FjaBgIIAEoCRIQCghldmlkZW5jZRgJIAEoCRIPCgdvdXRjb21lGAogASgJEg0KBXNjb3BlGAsgASgJIl4KE0FwcGVuZEVudHJ5UmVzcG9uc2USNQoFZW50cnkYASABKAsyJi52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkVudHJ5EhAKCGV4aXN0aW5nGAIgASgIIiwKD0dldEVudHJ5UmVxdWVzdBIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCSJJChBHZXRFbnRyeVJlc3BvbnNlEjUKBWVudHJ5GAEgASgLMiYudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5FbnRyeSJUChJMaXN0RW50cmllc1JlcXVlc3QSEAoIZmFjZXRfaWQYASABKAkSDQoFbGltaXQYAiABKAUSDgoGY3Vyc29yGAMgASgJEg0KBXNjb3BlGAQgASgJImMKE0xpc3RFbnRyaWVzUmVzcG9uc2USNwoHZW50cmllcxgBIAMoCzImLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuRW50cnkSEwoLbmV4dF9jdXJzb3IYAiABKAkiQwojUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1JlcXVlc3QSDQoFbGltaXQYASABKAUSDQoFc2NvcGUYAiABKAkiZQokUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1Jlc3BvbnNlEhEKCXByb2Nlc3NlZBgBIAEoBRIQCghkZWZlcnJlZBgCIAEoBRIYChBhbHJlYWR5X3Jlc29sdmVkGAMgASgFIj4KHlByb2Nlc3NFbWJlZGRpbmdSZXRyaWVzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRINCgVzY29wZRgCIAEoCSJgCh9Qcm9jZXNzRW1iZWRkaW5nUmV0cmllc1Jlc3BvbnNlEhEKCXByb2Nlc3NlZBgBIAEoBRIQCghkZWZlcnJlZBgCIAEoBRIYChBhbHJlYWR5X3Jlc29sdmVkGAMgASgFMsIFCg5Kb3VybmFsU2VydmljZRJ4CgtBcHBlbmRFbnRyeRIzLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuQXBwZW5kRW50cnlSZXF1ZXN0GjQudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5BcHBlbmRFbnRyeVJlc3BvbnNlEm8KCEdldEVudHJ5EjAudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5HZXRFbnRyeVJlcXVlc3QaMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkdldEVudHJ5UmVzcG9uc2USeAoLTGlzdEVudHJpZXMSMy52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkxpc3RFbnRyaWVzUmVxdWVzdBo0LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuTGlzdEVudHJpZXNSZXNwb25zZRKrAQocUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllcxJELnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1JlcXVlc3QaRS52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLlByb2Nlc3NDbGFzc2lmaWNhdGlvblJldHJpZXNSZXNwb25zZRKcAQoXUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXMSPy52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLlByb2Nlc3NFbWJlZGRpbmdSZXRyaWVzUmVxdWVzdBpALnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXNSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NvdXJjZS1sZWRnZXIvdjEvam91cm5hbDtqb3VybmFsX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CiZzb3VyY2UtbGVkZ2VyL3YxL2pvdXJuYWwvam91cm5hbC5wcm90bxIfdnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbCJUChNDb3VudEVudHJpZXNSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93Eg0KBXNjb3BlGAIgASgJIiUKFENvdW50RW50cmllc1Jlc3BvbnNlEg0KBWNvdW50GAEgASgDIj4KCUZhY2V0VGV4dBIMCgRraW5kGAEgASgJEgwKBHRleHQYAiABKAkSFQoNZW1iZWRkaW5nX3JlZhgDIAEoCSKaAQoLQXR0cmlidXRpb24SEAoIYWN0b3JfaWQYASABKAkSEgoKYWN0b3Jfa2luZBgCIAEoCRIWCg5zb3VyY2VfcnVudGltZRgDIAEoCRIbChN2ZXJpZmljYXRpb25fc3RhdHVzGAQgASgJEhoKEmhhcm5lc3Nfc2Vzc2lvbl9pZBgFIAEoCRIUCgxoYXJuZXNzX2tpbmQYBiABKAkiUAoLQ29ycmVsYXRpb24SDgoGcnVuX2lkGAEgASgJEh0KFXdvcmtmbG93X2V4ZWN1dGlvbl9pZBgCIAEoCRISCgphY3Rvcl9raW5kGAMgASgJIlEKEEltcG9ydFByb3ZlbmFuY2USDwoHcnVudGltZRgBIAEoCRIWCg5zb3VyY2VfbG9jYXRvchgCIAEoCRIUCgxjb250ZW50X2hhc2gYAyABKAkiuQMKBUVudHJ5EgoKAmlkGAEgASgJEgwKBGJvZHkYAiABKAkSEAoIZmFjZXRfaWQYAyABKAkSQQoLYXR0cmlidXRpb24YBCABKAsyLC52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkF0dHJpYnV0aW9uEkEKC2NvcnJlbGF0aW9uGAUgASgLMiwudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5Db3JyZWxhdGlvbhJMChFpbXBvcnRfcHJvdmVuYW5jZRgGIAEoCzIxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuSW1wb3J0UHJvdmVuYW5jZRI/CgtmYWNldF90ZXh0cxgHIAMoCzIqLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuRmFjZXRUZXh0Ei4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKDXN1cGVyc2VkZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGtpbmQYCiABKAki6wIKEkFwcGVuZEVudHJ5UmVxdWVzdBIMCgRib2R5GAEgASgJEhAKCGZhY2V0X2lkGAIgASgJEgwKBGtpbmQYAyABKAkSQQoLYXR0cmlidXRpb24YBCABKAsyLC52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkF0dHJpYnV0aW9uEkEKC2NvcnJlbGF0aW9uGAUgASgLMiwudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5Db3JyZWxhdGlvbhJMChFpbXBvcnRfcHJvdmVuYW5jZRgGIAEoCzIxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuSW1wb3J0UHJvdmVuYW5jZRIPCgd0cmlnZ2VyGAcgASgJEhAKCGFwcHJvYWNoGAggASgJEhAKCGV2aWRlbmNlGAkgASgJEg8KB291dGNvbWUYCiABKAkSDQoFc2NvcGUYCyABKAkiXgoTQXBwZW5kRW50cnlSZXNwb25zZRI1CgVlbnRyeRgBIAEoCzImLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuRW50cnkSEAoIZXhpc3RpbmcYAiABKAgiLAoPR2V0RW50cnlSZXF1ZXN0EgoKAmlkGAEgASgJEg0KBXNjb3BlGAIgASgJIkkKEEdldEVudHJ5UmVzcG9uc2USNQoFZW50cnkYASABKAsyJi52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkVudHJ5IlQKEkxpc3RFbnRyaWVzUmVxdWVzdBIQCghmYWNldF9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBRIOCgZjdXJzb3IYAyABKAkSDQoFc2NvcGUYBCABKAkiYwoTTGlzdEVudHJpZXNSZXNwb25zZRI3CgdlbnRyaWVzGAEgAygLMiYudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5FbnRyeRITCgtuZXh0X2N1cnNvchgCIAEoCSJDCiNQcm9jZXNzQ2xhc3NpZmljYXRpb25SZXRyaWVzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRINCgVzY29wZRgCIAEoCSJlCiRQcm9jZXNzQ2xhc3NpZmljYXRpb25SZXRyaWVzUmVzcG9uc2USEQoJcHJvY2Vzc2VkGAEgASgFEhAKCGRlZmVycmVkGAIgASgFEhgKEGFscmVhZHlfcmVzb2x2ZWQYAyABKAUiPgoeUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg0KBXNjb3BlGAIgASgJImAKH1Byb2Nlc3NFbWJlZGRpbmdSZXRyaWVzUmVzcG9uc2USEQoJcHJvY2Vzc2VkGAEgASgFEhAKCGRlZmVycmVkGAIgASgFEhgKEGFscmVhZHlfcmVzb2x2ZWQYAyABKAUyvwYKDkpvdXJuYWxTZXJ2aWNlEngKC0FwcGVuZEVudHJ5EjMudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5BcHBlbmRFbnRyeVJlcXVlc3QaNC52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkFwcGVuZEVudHJ5UmVzcG9uc2USbwoIR2V0RW50cnkSMC52cm9vbGkuc291cmNlX2xlZGdlci52MS5qb3VybmFsLkdldEVudHJ5UmVxdWVzdBoxLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuR2V0RW50cnlSZXNwb25zZRJ4CgtMaXN0RW50cmllcxIzLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuTGlzdEVudHJpZXNSZXF1ZXN0GjQudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5MaXN0RW50cmllc1Jlc3BvbnNlEqsBChxQcm9jZXNzQ2xhc3NpZmljYXRpb25SZXRyaWVzEkQudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5Qcm9jZXNzQ2xhc3NpZmljYXRpb25SZXRyaWVzUmVxdWVzdBpFLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuUHJvY2Vzc0NsYXNzaWZpY2F0aW9uUmV0cmllc1Jlc3BvbnNlEpwBChdQcm9jZXNzRW1iZWRkaW5nUmV0cmllcxI/LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuUHJvY2Vzc0VtYmVkZGluZ1JldHJpZXNSZXF1ZXN0GkAudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuam91cm5hbC5Qcm9jZXNzRW1iZWRkaW5nUmV0cmllc1Jlc3BvbnNlEnsKDENvdW50RW50cmllcxI0LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuQ291bnRFbnRyaWVzUmVxdWVzdBo1LnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLmpvdXJuYWwuQ291bnRFbnRyaWVzUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zb3VyY2UtbGVkZ2VyL3YxL2pvdXJuYWw7am91cm5hbF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_measures_v1_measures]);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.journal.CountEntriesRequest
+ */
+export type CountEntriesRequest = Message<"vrooli.source_ledger.v1.journal.CountEntriesRequest"> & {
+  /**
+   * @generated from field: vrooli.measures.v1.TimeWindow window = 1;
+   */
+  window?: TimeWindow | undefined;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.journal.CountEntriesRequest.
+ * Use `create(CountEntriesRequestSchema)` to create a new message.
+ */
+export const CountEntriesRequestSchema: GenMessage<CountEntriesRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_journal_journal, 0);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.journal.CountEntriesResponse
+ */
+export type CountEntriesResponse = Message<"vrooli.source_ledger.v1.journal.CountEntriesResponse"> & {
+  /**
+   * @generated from field: int64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.journal.CountEntriesResponse.
+ * Use `create(CountEntriesResponseSchema)` to create a new message.
+ */
+export const CountEntriesResponseSchema: GenMessage<CountEntriesResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_journal_journal, 1);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.FacetText
@@ -39,7 +80,7 @@ export type FacetText = Message<"vrooli.source_ledger.v1.journal.FacetText"> & {
  * Use `create(FacetTextSchema)` to create a new message.
  */
 export const FacetTextSchema: GenMessage<FacetText> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 0);
+  messageDesc(file_source_ledger_v1_journal_journal, 2);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.Attribution
@@ -81,7 +122,7 @@ export type Attribution = Message<"vrooli.source_ledger.v1.journal.Attribution">
  * Use `create(AttributionSchema)` to create a new message.
  */
 export const AttributionSchema: GenMessage<Attribution> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 1);
+  messageDesc(file_source_ledger_v1_journal_journal, 3);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.Correlation
@@ -108,7 +149,7 @@ export type Correlation = Message<"vrooli.source_ledger.v1.journal.Correlation">
  * Use `create(CorrelationSchema)` to create a new message.
  */
 export const CorrelationSchema: GenMessage<Correlation> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 2);
+  messageDesc(file_source_ledger_v1_journal_journal, 4);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ImportProvenance
@@ -135,7 +176,7 @@ export type ImportProvenance = Message<"vrooli.source_ledger.v1.journal.ImportPr
  * Use `create(ImportProvenanceSchema)` to create a new message.
  */
 export const ImportProvenanceSchema: GenMessage<ImportProvenance> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 3);
+  messageDesc(file_source_ledger_v1_journal_journal, 5);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.Entry
@@ -197,7 +238,7 @@ export type Entry = Message<"vrooli.source_ledger.v1.journal.Entry"> & {
  * Use `create(EntrySchema)` to create a new message.
  */
 export const EntrySchema: GenMessage<Entry> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 4);
+  messageDesc(file_source_ledger_v1_journal_journal, 6);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.AppendEntryRequest
@@ -264,7 +305,7 @@ export type AppendEntryRequest = Message<"vrooli.source_ledger.v1.journal.Append
  * Use `create(AppendEntryRequestSchema)` to create a new message.
  */
 export const AppendEntryRequestSchema: GenMessage<AppendEntryRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 5);
+  messageDesc(file_source_ledger_v1_journal_journal, 7);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.AppendEntryResponse
@@ -286,7 +327,7 @@ export type AppendEntryResponse = Message<"vrooli.source_ledger.v1.journal.Appen
  * Use `create(AppendEntryResponseSchema)` to create a new message.
  */
 export const AppendEntryResponseSchema: GenMessage<AppendEntryResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 6);
+  messageDesc(file_source_ledger_v1_journal_journal, 8);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.GetEntryRequest
@@ -308,7 +349,7 @@ export type GetEntryRequest = Message<"vrooli.source_ledger.v1.journal.GetEntryR
  * Use `create(GetEntryRequestSchema)` to create a new message.
  */
 export const GetEntryRequestSchema: GenMessage<GetEntryRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 7);
+  messageDesc(file_source_ledger_v1_journal_journal, 9);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.GetEntryResponse
@@ -325,7 +366,7 @@ export type GetEntryResponse = Message<"vrooli.source_ledger.v1.journal.GetEntry
  * Use `create(GetEntryResponseSchema)` to create a new message.
  */
 export const GetEntryResponseSchema: GenMessage<GetEntryResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 8);
+  messageDesc(file_source_ledger_v1_journal_journal, 10);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ListEntriesRequest
@@ -357,7 +398,7 @@ export type ListEntriesRequest = Message<"vrooli.source_ledger.v1.journal.ListEn
  * Use `create(ListEntriesRequestSchema)` to create a new message.
  */
 export const ListEntriesRequestSchema: GenMessage<ListEntriesRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 9);
+  messageDesc(file_source_ledger_v1_journal_journal, 11);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ListEntriesResponse
@@ -379,7 +420,7 @@ export type ListEntriesResponse = Message<"vrooli.source_ledger.v1.journal.ListE
  * Use `create(ListEntriesResponseSchema)` to create a new message.
  */
 export const ListEntriesResponseSchema: GenMessage<ListEntriesResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 10);
+  messageDesc(file_source_ledger_v1_journal_journal, 12);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
@@ -401,7 +442,7 @@ export type ProcessClassificationRetriesRequest = Message<"vrooli.source_ledger.
  * Use `create(ProcessClassificationRetriesRequestSchema)` to create a new message.
  */
 export const ProcessClassificationRetriesRequestSchema: GenMessage<ProcessClassificationRetriesRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 11);
+  messageDesc(file_source_ledger_v1_journal_journal, 13);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
@@ -428,7 +469,7 @@ export type ProcessClassificationRetriesResponse = Message<"vrooli.source_ledger
  * Use `create(ProcessClassificationRetriesResponseSchema)` to create a new message.
  */
 export const ProcessClassificationRetriesResponseSchema: GenMessage<ProcessClassificationRetriesResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 12);
+  messageDesc(file_source_ledger_v1_journal_journal, 14);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
@@ -450,7 +491,7 @@ export type ProcessEmbeddingRetriesRequest = Message<"vrooli.source_ledger.v1.jo
  * Use `create(ProcessEmbeddingRetriesRequestSchema)` to create a new message.
  */
 export const ProcessEmbeddingRetriesRequestSchema: GenMessage<ProcessEmbeddingRetriesRequest> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 13);
+  messageDesc(file_source_ledger_v1_journal_journal, 15);
 
 /**
  * @generated from message vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
@@ -477,7 +518,7 @@ export type ProcessEmbeddingRetriesResponse = Message<"vrooli.source_ledger.v1.j
  * Use `create(ProcessEmbeddingRetriesResponseSchema)` to create a new message.
  */
 export const ProcessEmbeddingRetriesResponseSchema: GenMessage<ProcessEmbeddingRetriesResponse> = /*@__PURE__*/
-  messageDesc(file_source_ledger_v1_journal_journal, 14);
+  messageDesc(file_source_ledger_v1_journal_journal, 16);
 
 /**
  * @generated from service vrooli.source_ledger.v1.journal.JournalService
@@ -522,6 +563,14 @@ export const JournalService: GenService<{
     methodKind: "unary";
     input: typeof ProcessEmbeddingRetriesRequestSchema;
     output: typeof ProcessEmbeddingRetriesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.journal.JournalService.CountEntries
+   */
+  countEntries: {
+    methodKind: "unary";
+    input: typeof CountEntriesRequestSchema;
+    output: typeof CountEntriesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_source_ledger_v1_journal_journal, 0);

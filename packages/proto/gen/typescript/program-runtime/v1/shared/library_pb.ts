@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/shared/library.proto.
  */
 export const file_program_runtime_v1_shared_library: GenFile = /*@__PURE__*/
-  fileDesc("Cidwcm9ncmFtLXJ1bnRpbWUvdjEvc2hhcmVkL2xpYnJhcnkucHJvdG8SIHZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkIuQCCg5MaWJyYXJ5UHJvZ3JhbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAMSDgoGc291cmNlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEg4KBm9yaWdpbhgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEhkKEXNvdXJjZV9wcm9ncmFtX2lkGAggASgJEhMKC3Byb21vdGVkX2J5GAkgASgJEhgKEHByb21vdGlvbl9yZWFzb24YCiABKAkSDwoHY3VycmVudBgLIAEoCBIaChJjYWxsZWRfYmluZGluZ19pZHMYDCADKAkSDAoEdGllchgNIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYDiADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgPIAMoCRIQCghjb3ZlcmFnZRgQIAEoCRIUCgx2YWxpZGF0ZWRfYXQYESABKAlCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wcm9ncmFtLXJ1bnRpbWUvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("Cidwcm9ncmFtLXJ1bnRpbWUvdjEvc2hhcmVkL2xpYnJhcnkucHJvdG8SIHZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkIu8DCg5MaWJyYXJ5UHJvZ3JhbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAMSDgoGc291cmNlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEg4KBm9yaWdpbhgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEhkKEXNvdXJjZV9wcm9ncmFtX2lkGAggASgJEhMKC3Byb21vdGVkX2J5GAkgASgJEhgKEHByb21vdGlvbl9yZWFzb24YCiABKAkSDwoHY3VycmVudBgLIAEoCBIaChJjYWxsZWRfYmluZGluZ19pZHMYDCADKAkSDAoEdGllchgNIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYDiADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgPIAMoCRIQCghjb3ZlcmFnZRgQIAEoCRIUCgx2YWxpZGF0ZWRfYXQYESABKAkSDAoEa2luZBgSIAEoCRIQCghzY2VuYXJpbxgTIAEoCRIPCgdwdXJwb3NlGBQgASgJEgwKBHJ1bmcYFSABKAkSEwoLb3duZXJfc2tpbGwYFiABKAkSGAoQdmFsaWRhdGlvbl9lcnJvchgXIAEoCRIMCgRwYXRoGBggASgJEg0KBXNjb3JlGBkgASgBQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
 
 /**
  * LibraryProgram is the frozen, versioned representation of a reusable
@@ -81,6 +81,8 @@ export type LibraryProgram = Message<"vrooli.program_runtime.v1.shared.LibraryPr
   calledBindingIds: string[];
 
   /**
+   * promoted is the only legal library tier. The former candidate tier is retired.
+   *
    * @generated from field: string tier = 13;
    */
   tier: string;
@@ -104,6 +106,46 @@ export type LibraryProgram = Message<"vrooli.program_runtime.v1.shared.LibraryPr
    * @generated from field: string validated_at = 17;
    */
   validatedAt: string;
+
+  /**
+   * @generated from field: string kind = 18;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string scenario = 19;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string purpose = 20;
+   */
+  purpose: string;
+
+  /**
+   * @generated from field: string rung = 21;
+   */
+  rung: string;
+
+  /**
+   * @generated from field: string owner_skill = 22;
+   */
+  ownerSkill: string;
+
+  /**
+   * @generated from field: string validation_error = 23;
+   */
+  validationError: string;
+
+  /**
+   * @generated from field: string path = 24;
+   */
+  path: string;
+
+  /**
+   * @generated from field: double score = 25;
+   */
+  score: number;
 };
 
 /**

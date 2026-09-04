@@ -83,6 +83,7 @@ message IntroOffer {
 // variant_slug triggers weighted-random selection.
 message GetLandingConfigRequest {
   string variant_slug = 1;
+  string visitor_id = 2;
 }
 
 // LandingConfigResponse is the aggregated public landing payload.

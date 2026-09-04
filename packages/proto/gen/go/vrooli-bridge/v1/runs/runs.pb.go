@@ -40,7 +40,10 @@ const (
 	// Terminal: the job exited non-zero.
 	RunStatus_RUN_STATUS_FAILED RunStatus = 4
 	// Terminal: the run was aborted (operator AbortRun, timeout, or node loss).
-	RunStatus_RUN_STATUS_ABORTED RunStatus = 5
+	RunStatus_RUN_STATUS_ABORTED         RunStatus = 5
+	RunStatus_RUN_STATUS_PUSHED          RunStatus = 6
+	RunStatus_RUN_STATUS_ACKED           RunStatus = 7
+	RunStatus_RUN_STATUS_FAILED_DELIVERY RunStatus = 8
 )
 
 // Enum value maps for RunStatus.
@@ -52,14 +55,20 @@ var (
 		3: "RUN_STATUS_PASSED",
 		4: "RUN_STATUS_FAILED",
 		5: "RUN_STATUS_ABORTED",
+		6: "RUN_STATUS_PUSHED",
+		7: "RUN_STATUS_ACKED",
+		8: "RUN_STATUS_FAILED_DELIVERY",
 	}
 	RunStatus_value = map[string]int32{
-		"RUN_STATUS_UNSPECIFIED": 0,
-		"RUN_STATUS_QUEUED":      1,
-		"RUN_STATUS_RUNNING":     2,
-		"RUN_STATUS_PASSED":      3,
-		"RUN_STATUS_FAILED":      4,
-		"RUN_STATUS_ABORTED":     5,
+		"RUN_STATUS_UNSPECIFIED":     0,
+		"RUN_STATUS_QUEUED":          1,
+		"RUN_STATUS_RUNNING":         2,
+		"RUN_STATUS_PASSED":          3,
+		"RUN_STATUS_FAILED":          4,
+		"RUN_STATUS_ABORTED":         5,
+		"RUN_STATUS_PUSHED":          6,
+		"RUN_STATUS_ACKED":           7,
+		"RUN_STATUS_FAILED_DELIVERY": 8,
 	}
 )
 
@@ -868,14 +877,17 @@ const file_vrooli_bridge_v1_runs_runs_proto_rawDesc = "" +
 	"\x15ReportRunEventRequest\x12>\n" +
 	"\x05event\x18\x01 \x01(\v2(.vrooli.vrooli_bridge.v1.shared.RunEventR\x05event\"4\n" +
 	"\x16ReportRunEventResponse\x12\x1a\n" +
-	"\baccepted\x18\x01 \x01(\bR\baccepted*\x9c\x01\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted*\xe9\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n" +
 	"\x12RUN_STATUS_RUNNING\x10\x02\x12\x15\n" +
 	"\x11RUN_STATUS_PASSED\x10\x03\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\x04\x12\x16\n" +
-	"\x12RUN_STATUS_ABORTED\x10\x052\xa7\x05\n" +
+	"\x12RUN_STATUS_ABORTED\x10\x05\x12\x15\n" +
+	"\x11RUN_STATUS_PUSHED\x10\x06\x12\x14\n" +
+	"\x10RUN_STATUS_ACKED\x10\a\x12\x1e\n" +
+	"\x1aRUN_STATUS_FAILED_DELIVERY\x10\b2\xa7\x05\n" +
 	"\vRunsService\x12c\n" +
 	"\x06GetRun\x12+.vrooli.vrooli_bridge.v1.runs.GetRunRequest\x1a,.vrooli.vrooli_bridge.v1.runs.GetRunResponse\x12i\n" +
 	"\bListRuns\x12-.vrooli.vrooli_bridge.v1.runs.ListRunsRequest\x1a..vrooli.vrooli_bridge.v1.runs.ListRunsResponse\x12f\n" +

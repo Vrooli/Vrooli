@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS instances (
   address TEXT NOT NULL DEFAULT '',
   bridge_machine_id TEXT NOT NULL DEFAULT '',
   tenant TEXT NOT NULL DEFAULT '',
+  reservation_id TEXT NOT NULL DEFAULT '',
   tags_json TEXT NOT NULL DEFAULT '{}',
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
@@ -55,6 +56,14 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 CREATE INDEX IF NOT EXISTS idx_reservations_instance_state ON reservations(instance_id, state);
 
+CREATE TABLE IF NOT EXISTS tenant_ceiling_holds (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_ceiling_holds_active ON tenant_ceiling_holds(tenant, expires_at);
+
 CREATE TABLE IF NOT EXISTS usage_records (
   id TEXT PRIMARY KEY,
   instance_id TEXT NOT NULL,
@@ -76,6 +85,20 @@ CREATE TABLE IF NOT EXISTS reconcile_findings (
   detail_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_reconcile_findings_status_observed ON reconcile_findings(status, observed_at);
+
+CREATE TABLE IF NOT EXISTS enrollment_queue (
+  id TEXT PRIMARY KEY,
+  instance_id TEXT NOT NULL,
+  host TEXT NOT NULL,
+  user_name TEXT NOT NULL DEFAULT 'root',
+  machine_id TEXT NOT NULL DEFAULT '',
+  state TEXT NOT NULL DEFAULT 'pending',
+  last_error TEXT NOT NULL DEFAULT '',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_enrollment_queue_state_updated ON enrollment_queue(state, updated_at);
 
 CREATE TABLE IF NOT EXISTS bridge_key_cache (
   id INTEGER PRIMARY KEY CHECK (id = 1),

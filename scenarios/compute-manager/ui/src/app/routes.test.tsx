@@ -24,4 +24,18 @@ describe("AppRouter", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
+
+  it("renders the capacity request page at /request", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/request"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.request)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.requestForm)).toBeInTheDocument();
+  });
+
+  it("renders the findings and instance routes", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/findings"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.findings)).toBeInTheDocument();
+    cleanup();
+    renderWithProviders(<TestAppRouter initialEntries={["/instances/instance-1"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.instance)).toBeInTheDocument();
+  });
 });

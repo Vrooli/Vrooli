@@ -60,6 +60,9 @@ const (
 	// ProgramServiceRunAuthoringEvalProcedure is the fully-qualified name of the ProgramService's
 	// RunAuthoringEval RPC.
 	ProgramServiceRunAuthoringEvalProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/RunAuthoringEval"
+	// ProgramServiceRunDiscoveryEvalProcedure is the fully-qualified name of the ProgramService's
+	// RunDiscoveryEval RPC.
+	ProgramServiceRunDiscoveryEvalProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/RunDiscoveryEval"
 )
 
 // ProgramServiceClient is a client for the vrooli.program_runtime.v1.programs.ProgramService
@@ -74,6 +77,7 @@ type ProgramServiceClient interface {
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
+	RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error)
 }
 
 // NewProgramServiceClient constructs a client for the
@@ -142,6 +146,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("RunAuthoringEval")),
 			connect.WithClientOptions(opts...),
 		),
+		runDiscoveryEval: connect.NewClient[programs.RunDiscoveryEvalRequest, programs.RunDiscoveryEvalResponse](
+			httpClient,
+			baseURL+ProgramServiceRunDiscoveryEvalProcedure,
+			connect.WithSchema(programServiceMethods.ByName("RunDiscoveryEval")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -156,6 +166,7 @@ type programServiceClient struct {
 	mineUnresolvedBindings *connect.Client[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse]
 	governanceShare        *connect.Client[programs.GovernanceShareRequest, programs.GovernanceShareResponse]
 	runAuthoringEval       *connect.Client[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse]
+	runDiscoveryEval       *connect.Client[programs.RunDiscoveryEvalRequest, programs.RunDiscoveryEvalResponse]
 }
 
 // SubmitProgram calls vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram.
@@ -204,6 +215,11 @@ func (c *programServiceClient) RunAuthoringEval(ctx context.Context, req *connec
 	return c.runAuthoringEval.CallUnary(ctx, req)
 }
 
+// RunDiscoveryEval calls vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval.
+func (c *programServiceClient) RunDiscoveryEval(ctx context.Context, req *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error) {
+	return c.runDiscoveryEval.CallUnary(ctx, req)
+}
+
 // ProgramServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.programs.ProgramService service.
 type ProgramServiceHandler interface {
@@ -216,6 +232,7 @@ type ProgramServiceHandler interface {
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
 	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
+	RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error)
 }
 
 // NewProgramServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -279,6 +296,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		connect.WithSchema(programServiceMethods.ByName("RunAuthoringEval")),
 		connect.WithHandlerOptions(opts...),
 	)
+	programServiceRunDiscoveryEvalHandler := connect.NewUnaryHandler(
+		ProgramServiceRunDiscoveryEvalProcedure,
+		svc.RunDiscoveryEval,
+		connect.WithSchema(programServiceMethods.ByName("RunDiscoveryEval")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.programs.ProgramService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProgramServiceSubmitProgramProcedure:
@@ -299,6 +322,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceGovernanceShareHandler.ServeHTTP(w, r)
 		case ProgramServiceRunAuthoringEvalProcedure:
 			programServiceRunAuthoringEvalHandler.ServeHTTP(w, r)
+		case ProgramServiceRunDiscoveryEvalProcedure:
+			programServiceRunDiscoveryEvalHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -342,4 +367,8 @@ func (UnimplementedProgramServiceHandler) GovernanceShare(context.Context, *conn
 
 func (UnimplementedProgramServiceHandler) RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) RunDiscoveryEval(context.Context, *connect.Request[programs.RunDiscoveryEvalRequest]) (*connect.Response[programs.RunDiscoveryEvalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval is not implemented"))
 }

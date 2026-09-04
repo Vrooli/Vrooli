@@ -78,12 +78,13 @@ automatically):
 
 ```bash
 compute-manager status
-compute-manager --help
+compute-manager instance list --json
 ```
 
-`status` and the other cli-core built-ins are the whole dispatchable
-surface right now. There is no `instance`, `provider`, `reconcile`,
-`expiry`, `meter`, `intent` or `enroll` group yet; those are proposed in
+`status` and the `instance` group are the dispatchable
+surface right now. Provider, reconcile, expiry, meter, intent and enroll
+groups are not exposed as separate CLI groups; their current operator
+surfaces are the instance inventory and the web UI.
 Part 2 of [`reference/cli-commands.md`](reference/cli-commands.md) and
 become real only when they are declared in `cli/manifest.json` and bound
 to a handler.

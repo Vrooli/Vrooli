@@ -36,6 +36,7 @@ enum FailureCause {
   FAILURE_CAUSE_KERNEL_RUNTIME = 11;
   FAILURE_CAUSE_BRIDGE_TRANSPORT = 12;
   FAILURE_CAUSE_UNCLASSIFIED = 13;
+  FAILURE_CAUSE_PROTECTED_NAME_MISUSE = 14;
 }
 
 message Program {
@@ -112,6 +113,14 @@ message WaitForProgramResponse {
 message ListProgramsRequest {
   string session_id = 1;
   bool include_operator = 2;
+  // Optional provenance filter: agent, operator, or test.
+  string provenance = 3;
+  // Only include programs created within this many seconds.
+  int64 since_seconds = 4;
+  // RFC3339 lower/upper creation-time bounds, when supplied.
+  string until = 5;
+  // Maximum rows returned; zero uses the server default.
+  int32 limit = 6;
 }
 message ListProgramsResponse {
   repeated Program programs = 1;
@@ -177,6 +186,7 @@ message GovernanceShareResponse {
 message RunAuthoringEvalRequest {
   string suite = 1;
   int32 max_cases = 2;
+  bool no_gate = 3;
 }
 
 message AuthoringCaseResult {
@@ -209,6 +219,7 @@ message RunAuthoringEvalResponse {
   int32 missed = 6;
   int32 wrong_result = 7;
   int32 unavailable = 8;
+  // False when a complete measured run is below the corpus floor.
   int32 floor = 9;
   repeated AuthoringCaseResult results = 10;
   // Cases skipped because the response deadline approached. A partial run
@@ -220,6 +231,41 @@ message RunAuthoringEvalResponse {
   // Sorted miss counts. The sum equals missed + wrong_result for every
   // measured or partial response.
   repeated AuthoringRuleMiss rule_misses = 13;
+  // False when a complete measured run is below the corpus floor.
+  bool floor_met = 14;
+}
+
+message RunDiscoveryEvalRequest {
+  string suite = 1;
+  string mode = 2;
+  int32 max_cases = 3;
+  bool no_gate = 4;
+}
+
+message DiscoveryCaseResult {
+  string case_id = 1;
+  string intent = 2;
+  string expected_binding_id = 3;
+  string selected_binding_id = 4;
+  bool met = 5;
+  bool null_verdict = 6;
+  bool wrong_selection = 7;
+  string reason = 8;
+}
+
+message RunDiscoveryEvalResponse {
+  string suite = 1;
+  string status = 2;
+  string reason = 3;
+  int32 cases = 4;
+  int32 met = 5;
+  int32 missed = 6;
+  int32 wrong_selection = 7;
+  int32 null_verdict = 8;
+  int32 floor = 9;
+  string floor_reason = 10;
+  repeated DiscoveryCaseResult results = 11;
+  bool floor_met = 12;
 }
 
 service ProgramService {
@@ -232,4 +278,5 @@ service ProgramService {
   rpc MineUnresolvedBindings(MineUnresolvedBindingsRequest) returns (MineUnresolvedBindingsResponse);
   rpc GovernanceShare(GovernanceShareRequest) returns (GovernanceShareResponse);
   rpc RunAuthoringEval(RunAuthoringEvalRequest) returns (RunAuthoringEvalResponse);
+  rpc RunDiscoveryEval(RunDiscoveryEvalRequest) returns (RunDiscoveryEvalResponse);
 }

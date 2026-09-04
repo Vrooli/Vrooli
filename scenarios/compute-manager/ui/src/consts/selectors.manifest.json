@@ -1,5 +1,41 @@
 {
   "selectors": {
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
+    },
+    "library.navigation.page-header.root": {
+      "testId": "navigation.page-header",
+      "selector": "[data-testid=\"navigation.page-header\"]"
+    },
+    "library.navigation.page-header.storyPageHeader": {
+      "testId": "navigation.page-header.story-page-header",
+      "selector": "[data-testid=\"navigation.page-header.story-page-header\"]"
+    },
+    "library.react-component-library:SettingsList.root": {
+      "testId": "react-component-library:SettingsList",
+      "selector": "[data-testid=\"react-component-library:SettingsList\"]"
+    },
+    "library.react-component-library:SettingsList.settingsListArbitraryChild": {
+      "testId": "react-component-library:SettingsList.settings-list-arbitrary-child",
+      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-arbitrary-child\"]"
+    },
+    "library.react-component-library:SettingsList.settingsListMeasurement": {
+      "testId": "react-component-library:SettingsList.settings-list-measurement",
+      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-measurement\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.data-display.data-table.content": {
+      "testId": "data-display.data-table.content",
+      "selector": "[data-testid=\"data-display.data-table.content\"]"
+    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -84,6 +120,30 @@
       "testId": "page-dashboard-placeholder",
       "selector": "[data-testid=\"page-dashboard-placeholder\"]"
     },
+    "pages.findings": {
+      "testId": "page-findings",
+      "selector": "[data-testid=\"page-findings\"]"
+    },
+    "pages.instance": {
+      "testId": "page-instance",
+      "selector": "[data-testid=\"page-instance\"]"
+    },
+    "pages.request": {
+      "testId": "page-request",
+      "selector": "[data-testid=\"page-request\"]"
+    },
+    "pages.requestForm": {
+      "testId": "page-request-form",
+      "selector": "[data-testid=\"page-request-form\"]"
+    },
+    "pages.requestSubmit": {
+      "testId": "page-request-submit",
+      "selector": "[data-testid=\"page-request-submit\"]"
+    },
+    "pages.requestStatus": {
+      "testId": "page-request-status",
+      "selector": "[data-testid=\"page-request-status\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -108,6 +168,8 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "findings",
+            "request",
             "settings"
           ]
         }
@@ -123,6 +185,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "findings",
             "settings"
           ]
         }

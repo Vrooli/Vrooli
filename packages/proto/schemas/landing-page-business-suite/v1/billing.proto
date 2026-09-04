@@ -203,6 +203,12 @@ message CreateCheckoutSessionRequest {
   // Key: Metadata identifier (e.g., "utm_source", "referral_code")
   // Value: JSON-compatible value for tracking and analytics
   map<string, common.v1.JsonValue> metadata = 7;
+  string visitor_id = 8;
+  string utm_source = 9;
+  string utm_medium = 10;
+  string utm_campaign = 11;
+  string referrer_kind = 12;
+  string country_code = 13;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.

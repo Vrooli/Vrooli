@@ -269,6 +269,10 @@ message OnboardingStepEvent {
 }
 
 service OnboardService {
+  // GetOnboardingPublicKey returns the Bridge-owned SSH public key used for
+  // unattended enrollment. It creates the keypair on first use and is owner-gated.
+  rpc GetOnboardingPublicKey(GetOnboardingPublicKeyRequest) returns (GetOnboardingPublicKeyResponse);
+
   // PreflightOnboarding resolves the durable Machine and decides whether the
   // canonical connect command may proceed without a password. It may create a
   // new empty Machine intent for a genuinely new target, but never mutates the
@@ -550,3 +554,12 @@ message RemoveFailedOnboardingRequest {
 }
 
 message RemoveFailedOnboardingResponse {}
+
+message GetOnboardingPublicKeyRequest {}
+
+message GetOnboardingPublicKeyResponse {
+  // The public half of Bridge's onboarding key. Never includes private key material.
+  string public_key = 1;
+  string fingerprint = 2;
+  string key_type = 3;
+}

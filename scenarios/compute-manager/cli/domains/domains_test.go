@@ -1,8 +1,10 @@
 package domains
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,6 +19,25 @@ import (
 func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
 	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+}
+
+func TestInstanceManifestHasNoPowerStateVerbs(t *testing.T) { // [REQ:COMPUTEM-P0-007]
+	var manifest struct {
+		Groups []struct {
+			Commands []struct {
+				Name string `json:"name"`
+			} `json:"commands"`
+		} `json:"groups"`
+	}
+	require.NoError(t, json.Unmarshal(readManifestForTest(t), &manifest))
+	for _, group := range manifest.Groups {
+		for _, command := range group.Commands {
+			name := strings.ToLower(command.Name)
+			for _, forbidden := range []string{"pause", "stop", "suspend", "halt", "shutdown"} {
+				require.NotEqual(t, forbidden, name, "manifest must not expose a power-state verb")
+			}
+		}
+	}
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

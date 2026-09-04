@@ -13,19 +13,18 @@ command that touches the API.
 
 ## Read this first: implementation status
 
-**No Compute Manager command exists yet.** This scenario was generated
-from the `react-vite` template. The CLI currently carries the cli-core
-built-ins and nothing else: `template-manager detemplate compute-manager`
-removed the template's `notes` CRUD example, and `cli/manifest.json`
-declares no groups. There is no `instance` command, no `provider`
-command, and no way to create or destroy capacity from this CLI.
+**The Compute Manager CLI is partially implemented.** The instance and
+reconciliation groups are manifest-declared and dispatchable through
+generated Connect primitives. Intent/provider/meter and several operational
+commands remain planned or intentionally omitted from the current headless
+surface.
 
 This document is split into two parts:
 
 | Part | What it describes | Trust level |
 |---|---|---|
-| What exists today | The cli-core built-ins only | Verified against `cli/manifest.json` and `cli/domains/domains.go` |
-| Planned commands | The command groups this scenario intends to expose | Proposal only. Nothing here is dispatchable |
+| What exists today | Manifest-declared instance and reconciliation commands plus cli-core built-ins | Verified against `cli/manifest.json` and `cli/domains/domains.go` |
+| Planned commands | Command groups and methods not yet exposed by the manifest | Proposal or deferred work; verify against the manifest before dispatch |
 
 A planned command becomes real only when it is declared in
 `cli/manifest.json`, bound to a handler, and moved into the first part of
@@ -36,7 +35,7 @@ this document.
 The CLI's command surface, meaning groups, commands, positionals, flags,
 RPC bindings and governance metadata, is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`,
+project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`,
 schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -77,7 +76,7 @@ commands. A declaration with no matching evidence is advisory
 not-yet-verified debt, a mismatch is a gating error, and a stale or
 missing artifact keeps declared primitives unverified. See the CLI
 architecture maturity reference
-(`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
+(`path:../cli-health/docs/reference/cli-architecture-maturity.md`).
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert that
 every RPC on the bound proto service either has a manifest command
@@ -142,7 +141,7 @@ resolved per [`configuration.md`](configuration.md#cli-config-file).
 
 ```bash
 compute-manager configure api_base http://localhost:15001/api/v1
-compute-manager configure token <token>
+compute-manager configure token "<token>"
 ```
 
 Read values back without an argument:
@@ -185,7 +184,8 @@ Command groups mirror the API domains one for one.
 
 ### `compute-manager instance ...`
 
-The group an operator uses most. Mirrors the planned `InstanceService`.
+The group an operator uses most. Mirrors the implemented `InstanceService`
+commands currently declared in the manifest.
 
 | Planned verb | Contract | Effect | Notes |
 |---|---|---|---|

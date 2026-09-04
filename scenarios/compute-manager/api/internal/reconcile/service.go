@@ -5,6 +5,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"compute-manager/internal/provider"
 )
@@ -15,11 +16,15 @@ const (
 	ProviderOnly Kind = "provider_only"
 	LocalOnly    Kind = "local_only"
 	StateDrift   Kind = "state_drift"
+	CostDrift    Kind = "cost_divergence"
 )
 
 type Local struct {
-	ProviderID string
-	State      string
+	InstanceID    string
+	ProviderID    string
+	State         string
+	ReservationID string
+	CreatedAt     time.Time
 }
 
 type Finding struct {
@@ -28,8 +33,37 @@ type Finding struct {
 	Detail     string
 }
 
+type CostObservation struct {
+	ProviderID, InstanceID string
+	MeteredMinutes         int64
+	ProviderMinutes        int64
+	DeltaMinutes           int64
+	Alarm                  bool
+}
+
+// CompareCost compares locally-derived lifecycle usage with provider
+// accounting observations. It only reports; it never alters usage or money.
+func CompareCost(metered map[string]int64, statements []provider.BillingStatement, threshold int64) []CostObservation {
+	if threshold < 0 {
+		threshold = 0
+	}
+	out := make([]CostObservation, 0, len(statements))
+	for _, statement := range statements {
+		local := metered[statement.ProviderInstanceID]
+		delta := local - statement.Minutes
+		if delta < 0 {
+			delta = -delta
+		}
+		out = append(out, CostObservation{ProviderID: statement.Provider, InstanceID: statement.ProviderInstanceID, MeteredMinutes: local, ProviderMinutes: statement.Minutes, DeltaMinutes: delta, Alarm: delta > threshold})
+	}
+	return out
+}
+
 type Service struct {
 	Provider provider.Provider
+	// Settle closes usage for a locally-recorded instance that the provider no
+	// longer has. It must not destroy provider resources.
+	Settle func(context.Context, Local) error
 }
 
 func (s Service) Sweep(ctx context.Context, local []Local) ([]Finding, error) {
@@ -50,6 +84,11 @@ func (s Service) Sweep(ctx context.Context, local []Local) ([]Finding, error) {
 		localByID[item.ProviderID] = item
 		observedItem, ok := byID[item.ProviderID]
 		if !ok {
+			if s.Settle != nil {
+				if err := s.Settle(ctx, item); err != nil {
+					return nil, fmt.Errorf("settle local-only instance %s: %w", item.ProviderID, err)
+				}
+			}
 			findings = append(findings, Finding{Kind: LocalOnly, ProviderID: item.ProviderID, Detail: "local instance is absent at provider"})
 			continue
 		}

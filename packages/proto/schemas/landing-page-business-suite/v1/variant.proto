@@ -38,7 +38,9 @@ message VariantSnapshot {
   optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 8;
   repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 9;
 }
-message SelectVariantRequest {}
+message SelectVariantRequest {
+  string visitor_id = 1;
+}
 message GetPublicVariantRequest {
   string slug = 1;
 }

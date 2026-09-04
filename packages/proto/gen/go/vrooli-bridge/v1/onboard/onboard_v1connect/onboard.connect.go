@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// OnboardServiceGetOnboardingPublicKeyProcedure is the fully-qualified name of the OnboardService's
+	// GetOnboardingPublicKey RPC.
+	OnboardServiceGetOnboardingPublicKeyProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetOnboardingPublicKey"
 	// OnboardServicePreflightOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// PreflightOnboarding RPC.
 	OnboardServicePreflightOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/PreflightOnboarding"
@@ -61,6 +64,9 @@ const (
 
 // OnboardServiceClient is a client for the vrooli.vrooli_bridge.v1.onboard.OnboardService service.
 type OnboardServiceClient interface {
+	// GetOnboardingPublicKey returns the Bridge-owned SSH public key used for
+	// unattended enrollment. It creates the keypair on first use and is owner-gated.
+	GetOnboardingPublicKey(context.Context, *connect.Request[onboard.GetOnboardingPublicKeyRequest]) (*connect.Response[onboard.GetOnboardingPublicKeyResponse], error)
 	// PreflightOnboarding resolves the durable Machine and decides whether the
 	// canonical connect command may proceed without a password. It may create a
 	// new empty Machine intent for a genuinely new target, but never mutates the
@@ -116,6 +122,12 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	onboardServiceMethods := onboard.File_vrooli_bridge_v1_onboard_onboard_proto.Services().ByName("OnboardService").Methods()
 	return &onboardServiceClient{
+		getOnboardingPublicKey: connect.NewClient[onboard.GetOnboardingPublicKeyRequest, onboard.GetOnboardingPublicKeyResponse](
+			httpClient,
+			baseURL+OnboardServiceGetOnboardingPublicKeyProcedure,
+			connect.WithSchema(onboardServiceMethods.ByName("GetOnboardingPublicKey")),
+			connect.WithClientOptions(opts...),
+		),
 		preflightOnboarding: connect.NewClient[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse](
 			httpClient,
 			baseURL+OnboardServicePreflightOnboardingProcedure,
@@ -169,6 +181,7 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // onboardServiceClient implements OnboardServiceClient.
 type onboardServiceClient struct {
+	getOnboardingPublicKey *connect.Client[onboard.GetOnboardingPublicKeyRequest, onboard.GetOnboardingPublicKeyResponse]
 	preflightOnboarding    *connect.Client[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse]
 	startOnboarding        *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
 	protectOnboarding      *connect.Client[onboard.ProtectOnboardingRequest, onboard.ProtectOnboardingResponse]
@@ -177,6 +190,12 @@ type onboardServiceClient struct {
 	waitOnboarding         *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
 	cancelOnboarding       *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
 	removeFailedOnboarding *connect.Client[onboard.RemoveFailedOnboardingRequest, onboard.RemoveFailedOnboardingResponse]
+}
+
+// GetOnboardingPublicKey calls
+// vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboardingPublicKey.
+func (c *onboardServiceClient) GetOnboardingPublicKey(ctx context.Context, req *connect.Request[onboard.GetOnboardingPublicKeyRequest]) (*connect.Response[onboard.GetOnboardingPublicKeyResponse], error) {
+	return c.getOnboardingPublicKey.CallUnary(ctx, req)
 }
 
 // PreflightOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding.
@@ -223,6 +242,9 @@ func (c *onboardServiceClient) RemoveFailedOnboarding(ctx context.Context, req *
 // OnboardServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.onboard.OnboardService
 // service.
 type OnboardServiceHandler interface {
+	// GetOnboardingPublicKey returns the Bridge-owned SSH public key used for
+	// unattended enrollment. It creates the keypair on first use and is owner-gated.
+	GetOnboardingPublicKey(context.Context, *connect.Request[onboard.GetOnboardingPublicKeyRequest]) (*connect.Response[onboard.GetOnboardingPublicKeyResponse], error)
 	// PreflightOnboarding resolves the durable Machine and decides whether the
 	// canonical connect command may proceed without a password. It may create a
 	// new empty Machine intent for a genuinely new target, but never mutates the
@@ -273,6 +295,12 @@ type OnboardServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	onboardServiceMethods := onboard.File_vrooli_bridge_v1_onboard_onboard_proto.Services().ByName("OnboardService").Methods()
+	onboardServiceGetOnboardingPublicKeyHandler := connect.NewUnaryHandler(
+		OnboardServiceGetOnboardingPublicKeyProcedure,
+		svc.GetOnboardingPublicKey,
+		connect.WithSchema(onboardServiceMethods.ByName("GetOnboardingPublicKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	onboardServicePreflightOnboardingHandler := connect.NewUnaryHandler(
 		OnboardServicePreflightOnboardingProcedure,
 		svc.PreflightOnboarding,
@@ -323,6 +351,8 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.vrooli_bridge.v1.onboard.OnboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case OnboardServiceGetOnboardingPublicKeyProcedure:
+			onboardServiceGetOnboardingPublicKeyHandler.ServeHTTP(w, r)
 		case OnboardServicePreflightOnboardingProcedure:
 			onboardServicePreflightOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceStartOnboardingProcedure:
@@ -347,6 +377,10 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 
 // UnimplementedOnboardServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOnboardServiceHandler struct{}
+
+func (UnimplementedOnboardServiceHandler) GetOnboardingPublicKey(context.Context, *connect.Request[onboard.GetOnboardingPublicKeyRequest]) (*connect.Response[onboard.GetOnboardingPublicKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboardingPublicKey is not implemented"))
+}
 
 func (UnimplementedOnboardServiceHandler) PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding is not implemented"))

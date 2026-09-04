@@ -179,6 +179,14 @@
         "description": "Authorises instance creation and destruction at Hetzner Cloud. Resolved through credential-authority-go at call time and deliberately NOT injected into the process environment, so it cannot be read from the process table or inherited by a child process.",
         "required": false,
         "obtain_url": "https://console.hetzner.cloud/"
+      },
+      {
+        "logical_id": "vrooli/compute-manager",
+        "field": "digitalocean-api-token",
+        "label": "DigitalOcean API token",
+        "description": "Authorises DigitalOcean Droplet lifecycle calls. Resolved through credential-authority-go at call time and deliberately NOT injected into the process environment.",
+        "required": false,
+        "obtain_url": "https://cloud.digitalocean.com/account/api/tokens"
       }
     ]
   },
@@ -195,6 +203,19 @@
           "max_bytes": "5GiB",
           "rationale": "A single-operator fleet holds tens of instances and a modest resale product holds thousands. This ceiling is far above any legitimate size and exists to force review before an append-only evidence table grows without a retention policy, which is how a sibling scenario reached half its database in audit rows."
         }
+      },
+      "retention-receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Retention receipts are bounded by size and age."
+        }
       }
     },
     "rationale": "One durable SQLite database. Credentials live in the credential authority and money lives in the business suite; neither is claimed here."
@@ -204,6 +225,7 @@
     "COMPUTE_MANAGER_BRIDGE_BASE_URL": "",
     "COMPUTE_MANAGER_RECONCILE_INTERVAL": "15m",
     "COMPUTE_MANAGER_EXPIRY_INTERVAL": "1m",
-    "COMPUTE_MANAGER_MINIMUM_BILLABLE_UNIT": "1h"
+    "COMPUTE_MANAGER_MINIMUM_BILLABLE_UNIT": "1h",
+    "COMPUTE_MANAGER_TENANT_CEILING_MINUTES": "1440"
   }
 }

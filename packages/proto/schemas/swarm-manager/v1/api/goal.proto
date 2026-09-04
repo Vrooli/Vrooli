@@ -4,6 +4,7 @@ package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/goal.proto";
+import "swarm-manager/v1/domain/plan.proto";
 import "swarm-manager/v1/shared/goal.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
@@ -132,6 +133,7 @@ message ApplyGoalWorkflowResponse {
 message GoalResponse {
   domain.Goal goal = 1;
   domain.GoalScope scope = 2;
+  domain.PlanEtaBand eta = 3;
 }
 message ListGoalsResponse {
   repeated GoalResponse goals = 1;

@@ -61,19 +61,22 @@ func (*GetPortfolioStatsRequest) Descriptor() ([]byte, []int) {
 type PortfolioStats struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time at which the producer refreshed this aggregate projection.
-	ObservedAt          *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	SwarmThroughput     int64                  `protobuf:"varint,2,opt,name=swarm_throughput,json=swarmThroughput,proto3" json:"swarm_throughput,omitempty"`
-	ThroughputStats     int64                  `protobuf:"varint,3,opt,name=throughput_stats,json=throughputStats,proto3" json:"throughput_stats,omitempty"`
-	SwarmActiveAgents   int64                  `protobuf:"varint,4,opt,name=swarm_active_agents,json=swarmActiveAgents,proto3" json:"swarm_active_agents,omitempty"`
-	AgentStats          float64                `protobuf:"fixed64,5,opt,name=agent_stats,json=agentStats,proto3" json:"agent_stats,omitempty"`
-	TimingStats         float64                `protobuf:"fixed64,6,opt,name=timing_stats,json=timingStats,proto3" json:"timing_stats,omitempty"`
-	BlockingStats       int64                  `protobuf:"varint,7,opt,name=blocking_stats,json=blockingStats,proto3" json:"blocking_stats,omitempty"`
-	DashboardStats      int64                  `protobuf:"varint,8,opt,name=dashboard_stats,json=dashboardStats,proto3" json:"dashboard_stats,omitempty"`
-	CompositeThroughput int64                  `protobuf:"varint,9,opt,name=composite_throughput,json=compositeThroughput,proto3" json:"composite_throughput,omitempty"`
-	ReviewStats         int64                  `protobuf:"varint,10,opt,name=review_stats,json=reviewStats,proto3" json:"review_stats,omitempty"`
-	ScopeStats          int64                  `protobuf:"varint,11,opt,name=scope_stats,json=scopeStats,proto3" json:"scope_stats,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	ObservedAt        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	SwarmThroughput   int64                  `protobuf:"varint,2,opt,name=swarm_throughput,json=swarmThroughput,proto3" json:"swarm_throughput,omitempty"`
+	ThroughputStats   int64                  `protobuf:"varint,3,opt,name=throughput_stats,json=throughputStats,proto3" json:"throughput_stats,omitempty"`
+	SwarmActiveAgents int64                  `protobuf:"varint,4,opt,name=swarm_active_agents,json=swarmActiveAgents,proto3" json:"swarm_active_agents,omitempty"`
+	// Success rate as a percent in the range 0 to 100, not a 0 to 1 ratio.
+	AgentStats          float64 `protobuf:"fixed64,5,opt,name=agent_stats,json=agentStats,proto3" json:"agent_stats,omitempty"`
+	TimingStats         float64 `protobuf:"fixed64,6,opt,name=timing_stats,json=timingStats,proto3" json:"timing_stats,omitempty"`
+	BlockingStats       int64   `protobuf:"varint,7,opt,name=blocking_stats,json=blockingStats,proto3" json:"blocking_stats,omitempty"`
+	DashboardStats      int64   `protobuf:"varint,8,opt,name=dashboard_stats,json=dashboardStats,proto3" json:"dashboard_stats,omitempty"`
+	CompositeThroughput int64   `protobuf:"varint,9,opt,name=composite_throughput,json=compositeThroughput,proto3" json:"composite_throughput,omitempty"`
+	ReviewStats         int64   `protobuf:"varint,10,opt,name=review_stats,json=reviewStats,proto3" json:"review_stats,omitempty"`
+	ScopeStats          int64   `protobuf:"varint,11,opt,name=scope_stats,json=scopeStats,proto3" json:"scope_stats,omitempty"`
+	// Number of finished executions used to calculate agent_stats.
+	AgentStatsSampleSize int64 `protobuf:"varint,12,opt,name=agent_stats_sample_size,json=agentStatsSampleSize,proto3" json:"agent_stats_sample_size,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PortfolioStats) Reset() {
@@ -183,12 +186,19 @@ func (x *PortfolioStats) GetScopeStats() int64 {
 	return 0
 }
 
+func (x *PortfolioStats) GetAgentStatsSampleSize() int64 {
+	if x != nil {
+		return x.AgentStatsSampleSize
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_stats_stats_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_stats_stats_proto_rawDesc = "" +
 	"\n" +
 	"\"swarm-manager/v1/stats/stats.proto\x12\x1dvrooli.swarm_manager.v1.stats\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1a\n" +
-	"\x18GetPortfolioStatsRequest\"\xde\x03\n" +
+	"\x18GetPortfolioStatsRequest\"\x95\x04\n" +
 	"\x0ePortfolioStats\x12;\n" +
 	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12)\n" +
@@ -204,7 +214,8 @@ const file_swarm_manager_v1_stats_stats_proto_rawDesc = "" +
 	"\freview_stats\x18\n" +
 	" \x01(\x03R\vreviewStats\x12\x1f\n" +
 	"\vscope_stats\x18\v \x01(\x03R\n" +
-	"scopeStats2\x8b\x01\n" +
+	"scopeStats\x125\n" +
+	"\x17agent_stats_sample_size\x18\f \x01(\x03R\x14agentStatsSampleSize2\x8b\x01\n" +
 	"\fStatsService\x12{\n" +
 	"\x11GetPortfolioStats\x127.vrooli.swarm_manager.v1.stats.GetPortfolioStatsRequest\x1a-.vrooli.swarm_manager.v1.stats.PortfolioStatsBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/stats;stats_v1b\x06proto3"
 

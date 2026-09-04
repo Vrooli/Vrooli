@@ -13,9 +13,9 @@ reserved, and no offer has ever been sold.
 **Pricing, bundle membership and whether to monetize at all are
 operator-curated canon.** This document states a hypothesis and the
 evidence behind it; it does not set strategy. Read, do not write:
-`path:docs/monetization/README.md`,
-`path:docs/monetization/strategy/STRATEGY.md`, and the catalog. Wiring a
-paid feature follows `path:docs/concepts/PAID_FEATURES.md`.
+`path:../../docs/monetization/README.md`,
+`path:../../docs/monetization/strategy/STRATEGY.md`, and the catalog. Wiring a
+paid feature follows `path:../../docs/concepts/PAID_FEATURES.md`.
 
 ## Purpose Of This Document
 
@@ -33,7 +33,7 @@ A note on vocabulary. The words `deferred`, `not-applicable` and
 `hypothesis` are used below as document-local status labels. They are
 **not** Offer Desk catalog states. The catalog lifecycle is `idea`,
 `candidate`, `trigger-met`, `proposed`, `active`, `shipped`, `retired`,
-per `path:docs/monetization/catalogs/CATALOG.md`. Nothing in this document
+per `path:../../docs/monetization/catalogs/CATALOG.md`. Nothing in this document
 sets or reports a catalog state.
 
 ## Role In Vrooli
@@ -64,7 +64,7 @@ anyone outside Vrooli ever buys a minute of it.
 ### The delivery tier this actually serves
 
 The framing above treats the paid path as a narrow P2 add-on, and that
-framing understates it. `path:../../../docs/monetization/strategy/TIERS.md`
+framing understates it. `path:../../docs/monetization/strategy/TIERS.md`
 describes Tier 3, `hosted_cloud`, as "a managed, per-account Vrooli
 instance on our infrastructure", calls it "probably the largest long-term
 revenue surface", and gives it a revisit trigger whose second condition is
@@ -138,7 +138,7 @@ risk: "this is the tier where unit economics matter most". Everything under
 
 ### The free / metered / gated split
 
-The governing rule is the one in `path:docs/concepts/PAID_FEATURES.md`:
+The governing rule is the one in `path:../../docs/concepts/PAID_FEATURES.md`:
 if a self-hoster could run it with their own keys, gating it means the
 framing is wrong. That rule decides almost everything here, because
 almost all of this scenario is exactly that.
@@ -234,7 +234,7 @@ the second as a defect in this scenario.
 ### The manifest to declare
 
 Declaring the meter means writing `.vrooli/monetization.json` in this
-scenario. `path:.vrooli/schemas/monetization.schema.json` sets
+scenario. `path:../../.vrooli/schemas/monetization.schema.json` sets
 `"additionalProperties": false` at the top level and requires `version`,
 `bundle_key`, `app_key`, `features` and `meters`. `version` is
 `{ "const": 2 }`. The intended shape, once enforcement code exists:
@@ -264,7 +264,7 @@ Four field decisions, each with its reason:
   `true`, so omitting the field would silently assert a gate this document
   says does not exist.
 - **`byok: true`.** This is the machine-readable form of the free-forever
-  path. `path:docs/concepts/PAID_FEATURES.md` states the rule as "BYOK
+  path. `path:../../docs/concepts/PAID_FEATURES.md` states the rule as "BYOK
   must remain a valid path: a metered feature falls back to the user's own
   provider key with no credit charge", which is exactly the first four rows
   of the free/metered table. The field surfaces in the generated inventory
@@ -405,7 +405,7 @@ count-gated; it is not.
 ### The class, and where enforcement runs
 
 Hosted compute is named verbatim as a Class A, cost-bearing example in
-`path:docs/concepts/PAID_FEATURES.md`, in the same list as LLM tokens and
+`path:../../docs/concepts/PAID_FEATURES.md`, in the same list as LLM tokens and
 TTS/STT seconds. Vrooli pays the provider in real money, per hour, whether
 or not the client is honest. Therefore:
 
@@ -942,7 +942,7 @@ any defensible price.
 
 ### Revisit triggers
 
-`path:docs/monetization/catalogs/CATALOG.md` requires a catalog revisit
+`path:../../docs/monetization/catalogs/CATALOG.md` requires a catalog revisit
 trigger to be machine-evaluable and warns against phrasings like "revisit
 when we feel ready". The triggers below are stated in that form. They are
 document-local until a catalog record exists for this scenario, at which
@@ -966,7 +966,7 @@ knows what a compute minute actually costs to deliver here.
 `hypothesis`, and nothing is implemented. As of 2026-09-03 the scenario
 contains generated template code only. The free/metered/gated split, the
 Class A placement, the manifest shape, the seed spec and the prerequisite
-list above are argued from `path:docs/concepts/PAID_FEATURES.md`, the
+list above are argued from `path:../../docs/concepts/PAID_FEATURES.md`, the
 schema, the upstream source cited inline, the PRD and the design brief.
 The prices, the bundle and the decision to sell at all remain operator
 canon and are not decided here. No willingness-to-pay evidence exists.
@@ -989,7 +989,7 @@ all and are marked as such in that document's unsourced-claims table.
 - [`../internal/SECURITY.md`](../internal/SECURITY.md): account termination as a fleet-wide availability failure, and the missing per-tenant isolation
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md): cost-relevant timing budgets, all targets
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md): telemetry needed for business validation
-- Paid-features contract: `path:docs/concepts/PAID_FEATURES.md`
-- Project-level monetization strategy: `path:docs/monetization/README.md`
-- Tier definitions and the `plan_tier` vocabulary: `path:../../../docs/monetization/strategy/TIERS.md`
-- Catalog lifecycle and revisit-trigger discipline: `path:docs/monetization/catalogs/CATALOG.md`
+- Paid-features contract: `path:../../docs/concepts/PAID_FEATURES.md`
+- Project-level monetization strategy: `path:../../docs/monetization/README.md`
+- Tier definitions and the `plan_tier` vocabulary: `path:../../docs/monetization/strategy/TIERS.md`
+- Catalog lifecycle and revisit-trigger discipline: `path:../../docs/monetization/catalogs/CATALOG.md`

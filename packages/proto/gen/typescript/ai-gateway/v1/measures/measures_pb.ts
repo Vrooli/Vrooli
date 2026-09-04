@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/measures/measures.proto.
  */
 export const file_ai_gateway_v1_measures_measures: GenFile = /*@__PURE__*/
-  fileDesc("CiVhaS1nYXRld2F5L3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEh12cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcyJFChNSb3V0ZU1lYXN1cmVSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiMKElJvdXRlQ291bnRSZXNwb25zZRINCgVjb3VudBgBIAEoAyIhChFSb3V0ZVJhdGVSZXNwb25zZRIMCgRyYXRlGAEgASgBIioKFFJvdXRlTGF0ZW5jeVJlc3BvbnNlEhIKCmxhdGVuY3lfbXMYASABKAMy+wYKD01lYXN1cmVzU2VydmljZRJ5ChBDb3VudFJvdXRlRXZlbnRzEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBoxLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlQ291bnRSZXNwb25zZRJ4ChBSb3V0ZVN1Y2Nlc3NSYXRlEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlUmF0ZVJlc3BvbnNlEnkKEVJvdXRlRmFsbGJhY2tSYXRlEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlUmF0ZVJlc3BvbnNlEngKEFJvdXRlRmFpbHVyZVJhdGUSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZU1lYXN1cmVSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVSYXRlUmVzcG9uc2USfwoWQ291bnRCcmVha2VyT3BlblJvdXRlcxIyLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlTWVhc3VyZVJlcXVlc3QaMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZUNvdW50UmVzcG9uc2USgAEKF0NvdW50Q2FwYWNpdHlSZWplY3Rpb25zEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBoxLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlQ291bnRSZXNwb25zZRJ6Cg9Sb3V0ZUxhdGVuY3lQOTUSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZU1lYXN1cmVSZXF1ZXN0GjMudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVMYXRlbmN5UmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL21lYXN1cmVzO21lYXN1cmVzX3YxYgZwcm90bzM", [file_measures_v1_measures]);
+  fileDesc("CiVhaS1nYXRld2F5L3YxL21lYXN1cmVzL21lYXN1cmVzLnByb3RvEh12cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcyJFChNSb3V0ZU1lYXN1cmVSZXF1ZXN0Ei4KBndpbmRvdxgBIAEoCzIeLnZyb29saS5tZWFzdXJlcy52MS5UaW1lV2luZG93IiMKElJvdXRlQ291bnRSZXNwb25zZRINCgVjb3VudBgBIAEoAyIhChFSb3V0ZVJhdGVSZXNwb25zZRIMCgRyYXRlGAEgASgBIioKFFJvdXRlTGF0ZW5jeVJlc3BvbnNlEhIKCmxhdGVuY3lfbXMYASABKAMiJQoRUm91dGVDb3N0UmVzcG9uc2USEAoIY29zdF91c2QYASABKAEiKgoSUm91dGVUb2tlblJlc3BvbnNlEhQKDHRvdGFsX3Rva2VucxgBIAEoAyIjChJSb3V0ZVNoYXJlUmVzcG9uc2USDQoFc2hhcmUYASABKAEy3gkKD01lYXN1cmVzU2VydmljZRJ5ChBDb3VudFJvdXRlRXZlbnRzEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBoxLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlQ291bnRSZXNwb25zZRJ4ChBSb3V0ZVN1Y2Nlc3NSYXRlEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlUmF0ZVJlc3BvbnNlEnkKEVJvdXRlRmFsbGJhY2tSYXRlEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlUmF0ZVJlc3BvbnNlEngKEFJvdXRlRmFpbHVyZVJhdGUSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZU1lYXN1cmVSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVSYXRlUmVzcG9uc2USfwoWQ291bnRCcmVha2VyT3BlblJvdXRlcxIyLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlTWVhc3VyZVJlcXVlc3QaMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZUNvdW50UmVzcG9uc2USgAEKF0NvdW50Q2FwYWNpdHlSZWplY3Rpb25zEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBoxLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlQ291bnRSZXNwb25zZRJ6Cg9Sb3V0ZUxhdGVuY3lQOTUSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZU1lYXN1cmVSZXF1ZXN0GjMudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVMYXRlbmN5UmVzcG9uc2UScQoJUm91dGVDb3N0EjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlQ29zdFJlc3BvbnNlEnQKC1JvdXRlVG9rZW5zEjIudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVNZWFzdXJlUmVxdWVzdBoxLnZyb29saS5haV9nYXRld2F5LnYxLm1lYXN1cmVzLlJvdXRlVG9rZW5SZXNwb25zZRJ4Cg9Sb3V0ZUxvY2FsU2hhcmUSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5tZWFzdXJlcy5Sb3V0ZU1lYXN1cmVSZXF1ZXN0GjEudnJvb2xpLmFpX2dhdGV3YXkudjEubWVhc3VyZXMuUm91dGVTaGFyZVJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9tZWFzdXJlczttZWFzdXJlc192MWIGcHJvdG8z", [file_measures_v1_measures]);
 
 /**
  * RouteMeasureRequest scopes a route measure to a time window. The shared
@@ -95,6 +95,57 @@ export const RouteLatencyResponseSchema: GenMessage<RouteLatencyResponse> = /*@_
   messageDesc(file_ai_gateway_v1_measures_measures, 3);
 
 /**
+ * @generated from message vrooli.ai_gateway.v1.measures.RouteCostResponse
+ */
+export type RouteCostResponse = Message<"vrooli.ai_gateway.v1.measures.RouteCostResponse"> & {
+  /**
+   * @generated from field: double cost_usd = 1;
+   */
+  costUsd: number;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.measures.RouteCostResponse.
+ * Use `create(RouteCostResponseSchema)` to create a new message.
+ */
+export const RouteCostResponseSchema: GenMessage<RouteCostResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_measures_measures, 4);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.measures.RouteTokenResponse
+ */
+export type RouteTokenResponse = Message<"vrooli.ai_gateway.v1.measures.RouteTokenResponse"> & {
+  /**
+   * @generated from field: int64 total_tokens = 1;
+   */
+  totalTokens: bigint;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.measures.RouteTokenResponse.
+ * Use `create(RouteTokenResponseSchema)` to create a new message.
+ */
+export const RouteTokenResponseSchema: GenMessage<RouteTokenResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_measures_measures, 5);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.measures.RouteShareResponse
+ */
+export type RouteShareResponse = Message<"vrooli.ai_gateway.v1.measures.RouteShareResponse"> & {
+  /**
+   * @generated from field: double share = 1;
+   */
+  share: number;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.measures.RouteShareResponse.
+ * Use `create(RouteShareResponseSchema)` to create a new message.
+ */
+export const RouteShareResponseSchema: GenMessage<RouteShareResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_measures_measures, 6);
+
+/**
  * MeasuresService exposes AI Gateway's declared route-analytics measures as
  * read-only, run-eligible Connect-RPC methods. Each is bound from a manifest
  * `measure` block (cli/manifest.json) and shares its compute path with the
@@ -175,6 +226,30 @@ export const MeasuresService: GenService<{
     methodKind: "unary";
     input: typeof RouteMeasureRequestSchema;
     output: typeof RouteLatencyResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.measures.MeasuresService.RouteCost
+   */
+  routeCost: {
+    methodKind: "unary";
+    input: typeof RouteMeasureRequestSchema;
+    output: typeof RouteCostResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.measures.MeasuresService.RouteTokens
+   */
+  routeTokens: {
+    methodKind: "unary";
+    input: typeof RouteMeasureRequestSchema;
+    output: typeof RouteTokenResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.measures.MeasuresService.RouteLocalShare
+   */
+  routeLocalShare: {
+    methodKind: "unary";
+    input: typeof RouteMeasureRequestSchema;
+    output: typeof RouteShareResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ai_gateway_v1_measures_measures, 0);

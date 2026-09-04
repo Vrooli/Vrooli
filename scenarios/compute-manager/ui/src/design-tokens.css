@@ -356,7 +356,9 @@
   --tracking-tight: -.02em;
   /* @tier Expression */
   --weight-medium: 500;
-}
+/* rcl:tokens:begin */
+
+/* rcl:tokens:end */}
 
 :root {
   --text-heading-sm: 600 16px / 22px var(--font-sans);

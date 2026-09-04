@@ -7,10 +7,9 @@ the authority over each table, what it deliberately does not store, and how the
 data is expected to age. Read it before adding a table or a column, so a fact
 gets exactly one owner.
 
-> **Status: designed, not implemented.** No schema file exists yet. The tables
-> below are the intended shape, recorded ahead of the build so the first
-> migration is a decision that was already made rather than one improvised at
-> the keyboard.
+> **Status: partially implemented.** The scenario-owned schema is loaded from
+> `api/internal/store/schema.sql` through the domain schema provider. The
+> retention and production migration portions below remain design guidance.
 
 ## Storage Overview
 
@@ -143,11 +142,10 @@ be audited.
 | `status` | `open`, `acknowledged`, `quarantined`, `resolved` |
 | `detail_json` | What differed |
 
-Findings are reported, never auto-resolved by the sweep that raised them.
-Marking precedes any sweep so a reconciler defect cannot destroy a running
-node, and by the same rule the sweep never settles or releases a reservation.
-A `destroyed_out_of_band` finding is actionable: the meter domain drains it and
-closes the usage window, so settlement has exactly one owner.
+Findings are reported, and the sweep never destroys a provider resource. A
+`destroyed_out_of_band` finding carries the local instance and reservation
+context to the meter-owned settlement callback, which closes the usage window
+without allowing the reconciler to implement billing policy.
 
 ## Migrations And Compatibility
 

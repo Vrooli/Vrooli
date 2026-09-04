@@ -1,7 +1,6 @@
 import {
   create,
   fromJson,
-  type JsonValue,
 } from "@bufbuild/protobuf";
 import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
 import {
@@ -11,7 +10,7 @@ import {
 
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
-const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
+const PROTO_READ_OPTIONS = { ignoreUnknownFields: true };
 
 export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
 
@@ -40,7 +39,7 @@ export function makeApiError(code: string, message: string, status = 500): ApiEr
 export async function decodeApiError(res: Response): Promise<ApiError> {
   let envelope: ErrorEnvelope;
   try {
-    const json = (await res.json()) as JsonValue;
+    const json = await res.json();
     envelope = fromJson(ErrorEnvelopeSchema, json, PROTO_READ_OPTIONS);
   } catch {
     envelope = create(ErrorEnvelopeSchema, {
@@ -60,4 +59,4 @@ export async function uploadFile(path: string, formData: FormData): Promise<Resp
 }
 
 export { fromJson, PROTO_READ_OPTIONS };
-export type { ErrorEnvelope, JsonValue };
+export type { ErrorEnvelope };

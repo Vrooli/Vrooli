@@ -85,6 +85,10 @@ func SourceToken(s architecturev1.FindingSource) string {
 		return "branding"
 	case architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW:
 		return "workflow"
+	case architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS:
+		return "programs"
+	case architecturev1.FindingSource_FINDING_SOURCE_SKILLS:
+		return "skills"
 	default:
 		return "unspecified"
 	}

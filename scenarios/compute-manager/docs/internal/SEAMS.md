@@ -1,14 +1,9 @@
 # Seams — Compute Manager
 
-> **Status: specified, not built.** The scenario was generated from the
-> `react-vite` template on 2026-09-03 and contains template code only. No
-> domain package exists, no provider adapter exists, and no seam below
-> that carries the **specified** label has a line of code behind it. The
-> interface paths in those rows say where the boundary will live, not
-> where it is. Only the rows labelled **template** exist today, and they
-> exist because the scaffold shipped them, not because this scenario
-> proved it needed them. Nothing here has been substituted in a passing
-> test of this scenario's own behaviour.
+> **Status: partially implemented.** Provider, metering, bridge, clock,
+> storage, reconciliation and provisioning seams have executable fakes and
+> focused tests. The remaining specified seams correspond to post-launch or
+> provider-live behavior and are still design guidance.
 
 A **seam** is a deliberate boundary where production code calls an
 interface, not a concrete dependency. The fake substitutes through that
@@ -115,7 +110,7 @@ reusable and because the scenario seams are built on top of it.
 
 | | |
 |---|---|
-| **Seam** | Cloud provider control plane (**specified**) |
+| **Seam** | Cloud provider control plane (**implemented**) |
 | **Interface** | `api/internal/provider/adapter.go::Adapter`, four methods and no more: `Create(ctx, Spec) (Instance, error)`, `Describe(ctx, providerID) (Instance, error)`, `List(ctx) ([]Instance, error)`, `Destroy(ctx, providerID) error`. Each implementation also declares its provider's billing facts as data: rounding behaviour, minimum billable unit, whether a stopped instance bills, and whether inbound traffic counts against the transfer allowance. |
 | **Production wiring** | A registry in `api/internal/provider` holds one adapter per configured provider, keyed by identifier. `main.go` registers the adapters the deployment is configured for and hands the registry to the domains that provision and reconcile. Callers select by identifier and no caller names a provider, which is what makes `OT-P1-004` a code-free change for a second provider. Hetzner Cloud is the first adapter, chosen on contract terms rather than API quality. |
 | **Test fake** | `api/internal/provider/mocks::FakeAdapter`: an in-memory inventory with a per-method error knob, a settable create latency, and a lever for the specific failure the whole design is shaped around, a create that succeeds while its response is lost. |
@@ -125,17 +120,17 @@ reusable and because the scenario seams are built on top of it.
 
 | | |
 |---|---|
-| **Seam** | Enrollment delegation to `vrooli-bridge` (**specified**) |
+| **Seam** | Enrollment delegation to `vrooli-bridge` (**implemented**) |
 | **Interface** | `api/internal/enroll/bridge.go::Onboarder`: fetch the bridge onboarding public key, create the bridge Machine record with the instance address as a locator, and start onboarding. That is the whole surface. |
 | **Production wiring** | `main.go` constructs a generated Connect client against the configured bridge API and injects it into the enroll domain's module. The key is served from the domain's cache rather than fetched on the provisioning path, because it has to be embedded in the create call and cannot be retrofitted afterwards. With a warm cache an unreachable bridge is a degrade: the instance is created, metered and expiring, and its enrollment is queued and visibly flagged. With a cold cache it is a refusal, because an instance created without the key in its first-boot configuration can never be enrolled by the unattended path. |
 | **Test fake** | `api/internal/enroll/mocks::FakeOnboarder` records the machine record and locators it was asked to create, returns a fixed onboarding key, and can fail at each of the three steps independently. Cold cache and warm cache are separate levers, because they produce opposite outcomes and both need a test. The assertion that matters most is negative: no password, token or private key appears in any field it received or in any log line the path produced. |
-| **Why it exists** | This scenario contains no SSH implementation and never will. First touch, bootstrap and node trust belong to bridge, and the instance trusts the bridge onboarding key from first boot, so no credential crosses any wire during enrollment. Keeping that delegation behind one narrow interface is what stops the tempting shortcut, which is to pass an owner password through this scenario to bridge's first touch. **This seam is blocked upstream.** Bridge can read its own onboarding public key internally at `scenarios/vrooli-bridge/api/internal/onboard/ssh/keys.go:106`, but exposes it on no RPC, so the first call the production implementation needs to make has no wire contract to make it against. The gap is recorded in [`PROBLEMS.md`](PROBLEMS.md) and it blocks `OT-P0-005`. Build against the fake; do not build a substitute enrollment path around the missing endpoint. |
+| **Why it exists** | This scenario contains no SSH implementation and never will. First touch, bootstrap and node trust belong to bridge, and the instance trusts the bridge onboarding key from first boot, so no credential crosses any wire during enrollment. Keeping that delegation behind one narrow interface prevents the shortcut of passing an owner password through this scenario. Bridge now publishes the public key through its owner-gated RPC; the remaining gap is provider-live enrollment proof. Build against the fake and do not add a substitute SSH path. |
 
 ### Metering and reservation client
 
 | | |
 |---|---|
-| **Seam** | Credit reservation and settlement against `landing-page-business-suite` (**specified**) |
+| **Seam** | Credit reservation and settlement against `landing-page-business-suite` (**implemented**) |
 | **Interface** | `api/internal/meter/client.go::Reserver`: reserve credit for a request, re-reserve on a heartbeat before the upstream window closes, settle measured usage at teardown, and release a reservation when provisioning fails. |
 | **Production wiring** | `main.go` constructs the business suite client from configured endpoint and credential references, and injects it into the meter domain. This scenario stores reservation identifiers and nothing else: no wallet, no plan, no invoice, no balance. |
 | **Test fake** | `api/internal/meter/mocks::FakeReserver` returns a held reservation, a refusal that names a ceiling, or a transport error, each independently. Its counters are what the settle-and-release tests assert on, because the property under test is that exactly one terminal outcome is recorded per reservation. |
@@ -145,7 +140,7 @@ reusable and because the scenario seams are built on top of it.
 
 | | |
 |---|---|
-| **Seam** | Resolve a provider or metering credential by reference at call time (**specified**) |
+| **Seam** | Resolve a provider or metering credential by reference at call time (**implemented**) |
 | **Interface** | `api/internal/provider/credentials.go::CredentialResolver` (`Resolve(ctx, logicalReference) (value, error)`), modelled directly on Treasury's `instrument.CredentialResolver` at `scenarios/treasury/docs/internal/SEAMS.md:153`. |
 | **Production wiring** | `main.go` constructs the repository-standard typed credential client over the Vrooli credential authority and injects the resolver into the provider registry and the meter client. An unavailable authority wires a fail-closed resolver, so a provider call cannot proceed with no credential rather than proceeding with an empty one. |
 | **Test fake** | A recording resolver that returns an in-memory value and captures which logical reference was asked for. The assertions that matter are negative and belong in the same test: the resolved value appears in no database column, no response body, no log line, no error message and no command argument. |
@@ -155,7 +150,7 @@ reusable and because the scenario seams are built on top of it.
 
 | | |
 |---|---|
-| **Seam** | Wall-clock time, and the schedule every cost-safety loop runs on (**template**, unused by any domain yet) |
+| **Seam** | Wall-clock time, and the schedule every cost-safety loop runs on (**implemented**) |
 | **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`), plus the tickers the expiry sweeper and the reconciler will schedule against. |
 | **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. The expiry sweeper and the reconciler receive the same seam at composition time rather than reaching for `time.Now()` or `time.NewTicker` themselves. |
 | **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). Sweeper and reconciler tests advance it; they never sleep. |

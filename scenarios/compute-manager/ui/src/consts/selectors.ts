@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -98,7 +100,8 @@ const isDynamicDefinition = (
   Boolean(
     value &&
       typeof value === "object" &&
-      (value as { kind?: unknown }).kind === "dynamic-selector",
+      "kind" in value &&
+      value.kind === "dynamic-selector",
   );
 
 const normalizeParams = (
@@ -322,6 +325,12 @@ const literalSelectors = {
     dashboard: "page-dashboard",
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
+    findings: "page-findings",
+    instance: "page-instance",
+    request: "page-request",
+    requestForm: "page-request-form",
+    requestSubmit: "page-request-submit",
+    requestStatus: "page-request-status",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -339,8 +348,10 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
-            "settings",
+          "dashboard",
+          "findings",
+          "request",
+          "settings",
           ] as const,
         },
       },
@@ -353,6 +364,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "findings",
             "settings",
           ] as const,
         },
@@ -361,7 +373,7 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

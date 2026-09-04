@@ -264,9 +264,7 @@ idempotency key is how one lost response becomes two machines. The intent
 holds the original key precisely so a retry can reuse it.
 
 ```bash
-compute-manager intent list --state creating --json
-compute-manager reconcile run
-compute-manager reconcile findings --json
+compute-manager instance list --json
 ```
 
 Match each `provider-only` finding to a stuck intent by its idempotency
@@ -288,8 +286,7 @@ server-side before any provider is called, so a request that would run
 past available credit is refused before it can cost anything.
 
 ```bash
-compute-manager meter ceiling --json
-compute-manager meter reservations --json
+compute-manager instance list --json
 ```
 
 The refusal names which ceiling was reached and what would raise it. Read
@@ -320,8 +317,7 @@ so an empty list is only trustworthy when you have also read the last
 sweep time.
 
 ```bash
-compute-manager reconcile findings --json   # read last_sweep_at, not just the list
-compute-manager reconcile run               # sweep once on demand
+compute-manager instance list --json
 ```
 
 If the on-demand sweep succeeds but the background loop's last success is
@@ -339,23 +335,18 @@ The expiry sweeper has the same failure shape and its own procedure,
 
 ### Instances are created but never become trusted nodes
 
-Expected today, and blocked upstream. Enrollment delegates entirely to
-`vrooli-bridge`, and the bridge does not publish its onboarding public
-key on any endpoint. It can read the key internally and exposes it
-nowhere, so the first-boot configuration cannot be rendered with a key
-the instance will trust.
+Enrollment delegates entirely to `vrooli-bridge`, whose owner-gated
+onboarding-key procedure supplies the public key used in first boot.
 
 ```bash
-compute-manager status --json               # bridge dependency, and key retrievability
-compute-manager enroll status <instance-id>
-vrooli-bridge machine list --json
+compute-manager status --json               # scenario health and dependency readiness
+compute-manager instance get "<instance-id>" --json
+vrooli-bridge machines list --json
 ```
 
-This is an upstream prerequisite, not integration work here. Do not build
-a stopgap: any interim enrollment path would need either an interactive
-step or a credential on a wire, which is exactly what `COMPUTEM-P0-005`
-forbids, and this scenario contains no SSH implementation to build one
-with.
+The scenario contains no SSH implementation and no password-bearing
+enrollment path. If key retrieval or onboarding fails, use the durable queue
+and retry path rather than introducing a credential shortcut.
 
 Un-enrolled is a degradation and not an outage. The instance is still
 created, still metered and still expiring, and enrollment queues and

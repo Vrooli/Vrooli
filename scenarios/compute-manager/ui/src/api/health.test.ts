@@ -24,7 +24,10 @@ describe("api/health.fetchHealth", () => {
     await fetchHealth();
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const call = fetchSpy.mock.calls[0];
+    expect(call).toBeDefined();
+    if (!call) throw new Error("fetchHealth did not call fetch");
+    const [url, init] = call;
     expect(url).toMatch(/\/health$/);
     expect(init).toMatchObject({
       method: "GET",

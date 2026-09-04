@@ -20,14 +20,19 @@ type db interface {
 }
 type service struct {
 	meterconnect.UnimplementedMeterServiceHandler
-	db db
+	db    db
+	limit int64
 }
 
 func NewModule(database db) (module.Module, error) {
+	return NewModuleWithCeiling(database, -1)
+}
+
+func NewModuleWithCeiling(database db, limit int64) (module.Module, error) {
 	if database == nil {
 		return module.Module{}, errors.New("meter database is required")
 	}
-	s := &service{db: database}
+	s := &service{db: database, limit: limit}
 	path, handler := meterconnect.NewMeterServiceHandler(s)
 	return module.Module{Name: "meter", Mount: func(r *mux.Router) { r.PathPrefix(path).Handler(handler) }, Endpoints: Endpoints}, nil
 }
@@ -72,11 +77,10 @@ func (s *service) Reservations(ctx context.Context, req *connect.Request[meterv1
 
 func (s *service) Ceiling(ctx context.Context, req *connect.Request[meterv1.CeilingRequest]) (*connect.Response[meterv1.CeilingResponse], error) {
 	var used int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity),0) FROM usage_records WHERE (?='' OR tenant=?)`, req.Msg.GetTenant(), req.Msg.GetTenant()).Scan(&used); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(r.quantity),0) FROM reservations r LEFT JOIN instance_intents i ON i.id=r.intent_id LEFT JOIN instances inst ON inst.id=r.instance_id WHERE r.state='held' AND (?='' OR COALESCE(i.requested_by,inst.tenant)=?)`, req.Msg.GetTenant(), req.Msg.GetTenant()).Scan(&used); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	// Usage is intentionally reported from usage_records; account limits are owned by LPBS.
-	return connect.NewResponse(&meterv1.CeilingResponse{Used: used, Limit: -1}), nil
+	return connect.NewResponse(&meterv1.CeilingResponse{Used: used, Limit: s.limit}), nil
 }
 
 func stamp(value string) *timestamppb.Timestamp {

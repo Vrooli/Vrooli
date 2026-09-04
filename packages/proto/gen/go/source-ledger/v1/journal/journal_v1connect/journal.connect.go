@@ -47,6 +47,9 @@ const (
 	// JournalServiceProcessEmbeddingRetriesProcedure is the fully-qualified name of the
 	// JournalService's ProcessEmbeddingRetries RPC.
 	JournalServiceProcessEmbeddingRetriesProcedure = "/vrooli.source_ledger.v1.journal.JournalService/ProcessEmbeddingRetries"
+	// JournalServiceCountEntriesProcedure is the fully-qualified name of the JournalService's
+	// CountEntries RPC.
+	JournalServiceCountEntriesProcedure = "/vrooli.source_ledger.v1.journal.JournalService/CountEntries"
 )
 
 // JournalServiceClient is a client for the vrooli.source_ledger.v1.journal.JournalService service.
@@ -56,6 +59,7 @@ type JournalServiceClient interface {
 	ListEntries(context.Context, *connect.Request[journal.ListEntriesRequest]) (*connect.Response[journal.ListEntriesResponse], error)
 	ProcessClassificationRetries(context.Context, *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error)
 	ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error)
+	CountEntries(context.Context, *connect.Request[journal.CountEntriesRequest]) (*connect.Response[journal.CountEntriesResponse], error)
 }
 
 // NewJournalServiceClient constructs a client for the
@@ -100,6 +104,12 @@ func NewJournalServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(journalServiceMethods.ByName("ProcessEmbeddingRetries")),
 			connect.WithClientOptions(opts...),
 		),
+		countEntries: connect.NewClient[journal.CountEntriesRequest, journal.CountEntriesResponse](
+			httpClient,
+			baseURL+JournalServiceCountEntriesProcedure,
+			connect.WithSchema(journalServiceMethods.ByName("CountEntries")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -110,6 +120,7 @@ type journalServiceClient struct {
 	listEntries                  *connect.Client[journal.ListEntriesRequest, journal.ListEntriesResponse]
 	processClassificationRetries *connect.Client[journal.ProcessClassificationRetriesRequest, journal.ProcessClassificationRetriesResponse]
 	processEmbeddingRetries      *connect.Client[journal.ProcessEmbeddingRetriesRequest, journal.ProcessEmbeddingRetriesResponse]
+	countEntries                 *connect.Client[journal.CountEntriesRequest, journal.CountEntriesResponse]
 }
 
 // AppendEntry calls vrooli.source_ledger.v1.journal.JournalService.AppendEntry.
@@ -139,6 +150,11 @@ func (c *journalServiceClient) ProcessEmbeddingRetries(ctx context.Context, req 
 	return c.processEmbeddingRetries.CallUnary(ctx, req)
 }
 
+// CountEntries calls vrooli.source_ledger.v1.journal.JournalService.CountEntries.
+func (c *journalServiceClient) CountEntries(ctx context.Context, req *connect.Request[journal.CountEntriesRequest]) (*connect.Response[journal.CountEntriesResponse], error) {
+	return c.countEntries.CallUnary(ctx, req)
+}
+
 // JournalServiceHandler is an implementation of the vrooli.source_ledger.v1.journal.JournalService
 // service.
 type JournalServiceHandler interface {
@@ -147,6 +163,7 @@ type JournalServiceHandler interface {
 	ListEntries(context.Context, *connect.Request[journal.ListEntriesRequest]) (*connect.Response[journal.ListEntriesResponse], error)
 	ProcessClassificationRetries(context.Context, *connect.Request[journal.ProcessClassificationRetriesRequest]) (*connect.Response[journal.ProcessClassificationRetriesResponse], error)
 	ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error)
+	CountEntries(context.Context, *connect.Request[journal.CountEntriesRequest]) (*connect.Response[journal.CountEntriesResponse], error)
 }
 
 // NewJournalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -186,6 +203,12 @@ func NewJournalServiceHandler(svc JournalServiceHandler, opts ...connect.Handler
 		connect.WithSchema(journalServiceMethods.ByName("ProcessEmbeddingRetries")),
 		connect.WithHandlerOptions(opts...),
 	)
+	journalServiceCountEntriesHandler := connect.NewUnaryHandler(
+		JournalServiceCountEntriesProcedure,
+		svc.CountEntries,
+		connect.WithSchema(journalServiceMethods.ByName("CountEntries")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.source_ledger.v1.journal.JournalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case JournalServiceAppendEntryProcedure:
@@ -198,6 +221,8 @@ func NewJournalServiceHandler(svc JournalServiceHandler, opts ...connect.Handler
 			journalServiceProcessClassificationRetriesHandler.ServeHTTP(w, r)
 		case JournalServiceProcessEmbeddingRetriesProcedure:
 			journalServiceProcessEmbeddingRetriesHandler.ServeHTTP(w, r)
+		case JournalServiceCountEntriesProcedure:
+			journalServiceCountEntriesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -225,4 +250,8 @@ func (UnimplementedJournalServiceHandler) ProcessClassificationRetries(context.C
 
 func (UnimplementedJournalServiceHandler) ProcessEmbeddingRetries(context.Context, *connect.Request[journal.ProcessEmbeddingRetriesRequest]) (*connect.Response[journal.ProcessEmbeddingRetriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries is not implemented"))
+}
+
+func (UnimplementedJournalServiceHandler) CountEntries(context.Context, *connect.Request[journal.CountEntriesRequest]) (*connect.Response[journal.CountEntriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.journal.JournalService.CountEntries is not implemented"))
 }

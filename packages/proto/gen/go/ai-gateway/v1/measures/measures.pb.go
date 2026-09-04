@@ -206,6 +206,138 @@ func (x *RouteLatencyResponse) GetLatencyMs() int64 {
 	return 0
 }
 
+type RouteCostResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CostUsd       float64                `protobuf:"fixed64,1,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RouteCostResponse) Reset() {
+	*x = RouteCostResponse{}
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RouteCostResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteCostResponse) ProtoMessage() {}
+
+func (x *RouteCostResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteCostResponse.ProtoReflect.Descriptor instead.
+func (*RouteCostResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_measures_measures_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RouteCostResponse) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+type RouteTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TotalTokens   int64                  `protobuf:"varint,1,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RouteTokenResponse) Reset() {
+	*x = RouteTokenResponse{}
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RouteTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteTokenResponse) ProtoMessage() {}
+
+func (x *RouteTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteTokenResponse.ProtoReflect.Descriptor instead.
+func (*RouteTokenResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_measures_measures_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RouteTokenResponse) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+type RouteShareResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Share         float64                `protobuf:"fixed64,1,opt,name=share,proto3" json:"share,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RouteShareResponse) Reset() {
+	*x = RouteShareResponse{}
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RouteShareResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteShareResponse) ProtoMessage() {}
+
+func (x *RouteShareResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_measures_measures_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteShareResponse.ProtoReflect.Descriptor instead.
+func (*RouteShareResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_measures_measures_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RouteShareResponse) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
 var File_ai_gateway_v1_measures_measures_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_measures_measures_proto_rawDesc = "" +
@@ -219,7 +351,13 @@ const file_ai_gateway_v1_measures_measures_proto_rawDesc = "" +
 	"\x04rate\x18\x01 \x01(\x01R\x04rate\"5\n" +
 	"\x14RouteLatencyResponse\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\x01 \x01(\x03R\tlatencyMs2\xfb\x06\n" +
+	"latency_ms\x18\x01 \x01(\x03R\tlatencyMs\".\n" +
+	"\x11RouteCostResponse\x12\x19\n" +
+	"\bcost_usd\x18\x01 \x01(\x01R\acostUsd\"7\n" +
+	"\x12RouteTokenResponse\x12!\n" +
+	"\ftotal_tokens\x18\x01 \x01(\x03R\vtotalTokens\"*\n" +
+	"\x12RouteShareResponse\x12\x14\n" +
+	"\x05share\x18\x01 \x01(\x01R\x05share2\xde\t\n" +
 	"\x0fMeasuresService\x12y\n" +
 	"\x10CountRouteEvents\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a1.vrooli.ai_gateway.v1.measures.RouteCountResponse\x12x\n" +
 	"\x10RouteSuccessRate\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a0.vrooli.ai_gateway.v1.measures.RouteRateResponse\x12y\n" +
@@ -227,7 +365,10 @@ const file_ai_gateway_v1_measures_measures_proto_rawDesc = "" +
 	"\x10RouteFailureRate\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a0.vrooli.ai_gateway.v1.measures.RouteRateResponse\x12\x7f\n" +
 	"\x16CountBreakerOpenRoutes\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a1.vrooli.ai_gateway.v1.measures.RouteCountResponse\x12\x80\x01\n" +
 	"\x17CountCapacityRejections\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a1.vrooli.ai_gateway.v1.measures.RouteCountResponse\x12z\n" +
-	"\x0fRouteLatencyP95\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a3.vrooli.ai_gateway.v1.measures.RouteLatencyResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures;measures_v1b\x06proto3"
+	"\x0fRouteLatencyP95\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a3.vrooli.ai_gateway.v1.measures.RouteLatencyResponse\x12q\n" +
+	"\tRouteCost\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a0.vrooli.ai_gateway.v1.measures.RouteCostResponse\x12t\n" +
+	"\vRouteTokens\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a1.vrooli.ai_gateway.v1.measures.RouteTokenResponse\x12x\n" +
+	"\x0fRouteLocalShare\x122.vrooli.ai_gateway.v1.measures.RouteMeasureRequest\x1a1.vrooli.ai_gateway.v1.measures.RouteShareResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures;measures_v1b\x06proto3"
 
 var (
 	file_ai_gateway_v1_measures_measures_proto_rawDescOnce sync.Once
@@ -241,35 +382,44 @@ func file_ai_gateway_v1_measures_measures_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_measures_measures_proto_rawDescData
 }
 
-var file_ai_gateway_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ai_gateway_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ai_gateway_v1_measures_measures_proto_goTypes = []any{
 	(*RouteMeasureRequest)(nil),  // 0: vrooli.ai_gateway.v1.measures.RouteMeasureRequest
 	(*RouteCountResponse)(nil),   // 1: vrooli.ai_gateway.v1.measures.RouteCountResponse
 	(*RouteRateResponse)(nil),    // 2: vrooli.ai_gateway.v1.measures.RouteRateResponse
 	(*RouteLatencyResponse)(nil), // 3: vrooli.ai_gateway.v1.measures.RouteLatencyResponse
-	(*v1.TimeWindow)(nil),        // 4: vrooli.measures.v1.TimeWindow
+	(*RouteCostResponse)(nil),    // 4: vrooli.ai_gateway.v1.measures.RouteCostResponse
+	(*RouteTokenResponse)(nil),   // 5: vrooli.ai_gateway.v1.measures.RouteTokenResponse
+	(*RouteShareResponse)(nil),   // 6: vrooli.ai_gateway.v1.measures.RouteShareResponse
+	(*v1.TimeWindow)(nil),        // 7: vrooli.measures.v1.TimeWindow
 }
 var file_ai_gateway_v1_measures_measures_proto_depIdxs = []int32{
-	4, // 0: vrooli.ai_gateway.v1.measures.RouteMeasureRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0, // 1: vrooli.ai_gateway.v1.measures.MeasuresService.CountRouteEvents:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 2: vrooli.ai_gateway.v1.measures.MeasuresService.RouteSuccessRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 3: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFallbackRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 4: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFailureRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 5: vrooli.ai_gateway.v1.measures.MeasuresService.CountBreakerOpenRoutes:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 6: vrooli.ai_gateway.v1.measures.MeasuresService.CountCapacityRejections:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	0, // 7: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLatencyP95:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
-	1, // 8: vrooli.ai_gateway.v1.measures.MeasuresService.CountRouteEvents:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
-	2, // 9: vrooli.ai_gateway.v1.measures.MeasuresService.RouteSuccessRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
-	2, // 10: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFallbackRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
-	2, // 11: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFailureRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
-	1, // 12: vrooli.ai_gateway.v1.measures.MeasuresService.CountBreakerOpenRoutes:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
-	1, // 13: vrooli.ai_gateway.v1.measures.MeasuresService.CountCapacityRejections:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
-	3, // 14: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLatencyP95:output_type -> vrooli.ai_gateway.v1.measures.RouteLatencyResponse
-	8, // [8:15] is the sub-list for method output_type
-	1, // [1:8] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7,  // 0: vrooli.ai_gateway.v1.measures.RouteMeasureRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,  // 1: vrooli.ai_gateway.v1.measures.MeasuresService.CountRouteEvents:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 2: vrooli.ai_gateway.v1.measures.MeasuresService.RouteSuccessRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 3: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFallbackRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 4: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFailureRate:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 5: vrooli.ai_gateway.v1.measures.MeasuresService.CountBreakerOpenRoutes:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 6: vrooli.ai_gateway.v1.measures.MeasuresService.CountCapacityRejections:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 7: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLatencyP95:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 8: vrooli.ai_gateway.v1.measures.MeasuresService.RouteCost:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 9: vrooli.ai_gateway.v1.measures.MeasuresService.RouteTokens:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	0,  // 10: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLocalShare:input_type -> vrooli.ai_gateway.v1.measures.RouteMeasureRequest
+	1,  // 11: vrooli.ai_gateway.v1.measures.MeasuresService.CountRouteEvents:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
+	2,  // 12: vrooli.ai_gateway.v1.measures.MeasuresService.RouteSuccessRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
+	2,  // 13: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFallbackRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
+	2,  // 14: vrooli.ai_gateway.v1.measures.MeasuresService.RouteFailureRate:output_type -> vrooli.ai_gateway.v1.measures.RouteRateResponse
+	1,  // 15: vrooli.ai_gateway.v1.measures.MeasuresService.CountBreakerOpenRoutes:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
+	1,  // 16: vrooli.ai_gateway.v1.measures.MeasuresService.CountCapacityRejections:output_type -> vrooli.ai_gateway.v1.measures.RouteCountResponse
+	3,  // 17: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLatencyP95:output_type -> vrooli.ai_gateway.v1.measures.RouteLatencyResponse
+	4,  // 18: vrooli.ai_gateway.v1.measures.MeasuresService.RouteCost:output_type -> vrooli.ai_gateway.v1.measures.RouteCostResponse
+	5,  // 19: vrooli.ai_gateway.v1.measures.MeasuresService.RouteTokens:output_type -> vrooli.ai_gateway.v1.measures.RouteTokenResponse
+	6,  // 20: vrooli.ai_gateway.v1.measures.MeasuresService.RouteLocalShare:output_type -> vrooli.ai_gateway.v1.measures.RouteShareResponse
+	11, // [11:21] is the sub-list for method output_type
+	1,  // [1:11] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_measures_measures_proto_init() }
@@ -283,7 +433,7 @@ func file_ai_gateway_v1_measures_measures_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_measures_measures_proto_rawDesc), len(file_ai_gateway_v1_measures_measures_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

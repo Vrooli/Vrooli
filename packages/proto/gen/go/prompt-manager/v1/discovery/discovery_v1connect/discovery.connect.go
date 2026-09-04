@@ -45,6 +45,9 @@ const (
 	// DiscoveryServiceGetSkillUsageProcedure is the fully-qualified name of the DiscoveryService's
 	// GetSkillUsage RPC.
 	DiscoveryServiceGetSkillUsageProcedure = "/vrooli.prompt_manager.v1.discovery.DiscoveryService/GetSkillUsage"
+	// DiscoveryServiceValidateSkillSetProcedure is the fully-qualified name of the DiscoveryService's
+	// ValidateSkillSet RPC.
+	DiscoveryServiceValidateSkillSetProcedure = "/vrooli.prompt_manager.v1.discovery.DiscoveryService/ValidateSkillSet"
 )
 
 // DiscoveryServiceClient is a client for the vrooli.prompt_manager.v1.discovery.DiscoveryService
@@ -54,6 +57,7 @@ type DiscoveryServiceClient interface {
 	ListDiscoveryGaps(context.Context, *connect.Request[discovery.ListDiscoveryGapsRequest]) (*connect.Response[discovery.ListDiscoveryGapsResponse], error)
 	GetDiscoveryMetrics(context.Context, *connect.Request[discovery.GetDiscoveryMetricsRequest]) (*connect.Response[discovery.GetDiscoveryMetricsResponse], error)
 	GetSkillUsage(context.Context, *connect.Request[discovery.GetSkillUsageRequest]) (*connect.Response[discovery.GetSkillUsageResponse], error)
+	ValidateSkillSet(context.Context, *connect.Request[discovery.ValidateSkillSetRequest]) (*connect.Response[discovery.ValidateSkillSetResponse], error)
 }
 
 // NewDiscoveryServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(discoveryServiceMethods.ByName("GetSkillUsage")),
 			connect.WithClientOptions(opts...),
 		),
+		validateSkillSet: connect.NewClient[discovery.ValidateSkillSetRequest, discovery.ValidateSkillSetResponse](
+			httpClient,
+			baseURL+DiscoveryServiceValidateSkillSetProcedure,
+			connect.WithSchema(discoveryServiceMethods.ByName("ValidateSkillSet")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type discoveryServiceClient struct {
 	listDiscoveryGaps   *connect.Client[discovery.ListDiscoveryGapsRequest, discovery.ListDiscoveryGapsResponse]
 	getDiscoveryMetrics *connect.Client[discovery.GetDiscoveryMetricsRequest, discovery.GetDiscoveryMetricsResponse]
 	getSkillUsage       *connect.Client[discovery.GetSkillUsageRequest, discovery.GetSkillUsageResponse]
+	validateSkillSet    *connect.Client[discovery.ValidateSkillSetRequest, discovery.ValidateSkillSetResponse]
 }
 
 // Discover calls vrooli.prompt_manager.v1.discovery.DiscoveryService.Discover.
@@ -124,6 +135,11 @@ func (c *discoveryServiceClient) GetSkillUsage(ctx context.Context, req *connect
 	return c.getSkillUsage.CallUnary(ctx, req)
 }
 
+// ValidateSkillSet calls vrooli.prompt_manager.v1.discovery.DiscoveryService.ValidateSkillSet.
+func (c *discoveryServiceClient) ValidateSkillSet(ctx context.Context, req *connect.Request[discovery.ValidateSkillSetRequest]) (*connect.Response[discovery.ValidateSkillSetResponse], error) {
+	return c.validateSkillSet.CallUnary(ctx, req)
+}
+
 // DiscoveryServiceHandler is an implementation of the
 // vrooli.prompt_manager.v1.discovery.DiscoveryService service.
 type DiscoveryServiceHandler interface {
@@ -131,6 +147,7 @@ type DiscoveryServiceHandler interface {
 	ListDiscoveryGaps(context.Context, *connect.Request[discovery.ListDiscoveryGapsRequest]) (*connect.Response[discovery.ListDiscoveryGapsResponse], error)
 	GetDiscoveryMetrics(context.Context, *connect.Request[discovery.GetDiscoveryMetricsRequest]) (*connect.Response[discovery.GetDiscoveryMetricsResponse], error)
 	GetSkillUsage(context.Context, *connect.Request[discovery.GetSkillUsageRequest]) (*connect.Response[discovery.GetSkillUsageResponse], error)
+	ValidateSkillSet(context.Context, *connect.Request[discovery.ValidateSkillSetRequest]) (*connect.Response[discovery.ValidateSkillSetResponse], error)
 }
 
 // NewDiscoveryServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -164,6 +181,12 @@ func NewDiscoveryServiceHandler(svc DiscoveryServiceHandler, opts ...connect.Han
 		connect.WithSchema(discoveryServiceMethods.ByName("GetSkillUsage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	discoveryServiceValidateSkillSetHandler := connect.NewUnaryHandler(
+		DiscoveryServiceValidateSkillSetProcedure,
+		svc.ValidateSkillSet,
+		connect.WithSchema(discoveryServiceMethods.ByName("ValidateSkillSet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.prompt_manager.v1.discovery.DiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DiscoveryServiceDiscoverProcedure:
@@ -174,6 +197,8 @@ func NewDiscoveryServiceHandler(svc DiscoveryServiceHandler, opts ...connect.Han
 			discoveryServiceGetDiscoveryMetricsHandler.ServeHTTP(w, r)
 		case DiscoveryServiceGetSkillUsageProcedure:
 			discoveryServiceGetSkillUsageHandler.ServeHTTP(w, r)
+		case DiscoveryServiceValidateSkillSetProcedure:
+			discoveryServiceValidateSkillSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -197,4 +222,8 @@ func (UnimplementedDiscoveryServiceHandler) GetDiscoveryMetrics(context.Context,
 
 func (UnimplementedDiscoveryServiceHandler) GetSkillUsage(context.Context, *connect.Request[discovery.GetSkillUsageRequest]) (*connect.Response[discovery.GetSkillUsageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.discovery.DiscoveryService.GetSkillUsage is not implemented"))
+}
+
+func (UnimplementedDiscoveryServiceHandler) ValidateSkillSet(context.Context, *connect.Request[discovery.ValidateSkillSetRequest]) (*connect.Response[discovery.ValidateSkillSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.discovery.DiscoveryService.ValidateSkillSet is not implemented"))
 }

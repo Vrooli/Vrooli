@@ -7,6 +7,9 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
+import { FindingsPage } from "../pages/FindingsPage";
+import { InstancePage } from "../pages/InstancePage";
+import { RequestCapacityPage } from "../pages/RequestCapacityPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
@@ -22,6 +25,9 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "findings", element: <FindingsPage /> },
+      { path: "instances/:id", element: <InstancePage /> },
+      { path: "request", element: <RequestCapacityPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

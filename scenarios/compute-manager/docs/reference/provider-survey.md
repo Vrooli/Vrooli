@@ -490,7 +490,7 @@ unauthenticated.
 
 ## Revisit Triggers
 
-Machine-evaluable, per the discipline in `path:docs/monetization/catalogs/CATALOG.md`.
+Machine-evaluable, per the discipline in `path:../../docs/monetization/catalogs/CATALOG.md`.
 
 - **Before the first real provider credential is configured for any provider**,
   re-read that provider's rows. Nothing here is older than one retrieval cycle

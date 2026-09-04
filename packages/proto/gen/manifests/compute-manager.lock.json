@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "scenario": "compute-manager",
+  "input_digest": "sha256:0d0f912a9e7fb0b219907705fb722988ebef524e2b0fb55127a4957bb0af7406",
+  "input_files": [
+    "schemas/compute-manager/v1/instance/instance.proto",
+    "schemas/compute-manager/v1/intent/intent.proto",
+    "schemas/compute-manager/v1/meter/meter.proto",
+    "schemas/compute-manager/v1/reconcile/reconcile.proto",
+    "schemas/compute-manager/v1/shared/errors.proto",
+    "schemas/compute-manager/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/compute-manager/v1/instance/instance.pb.go": "sha256:f65e5baeb89d3559d424e51c154277c104030a372023d93304243c8b9996b0de",
+    "gen/go/compute-manager/v1/instance/instance_v1connect/instance.connect.go": "sha256:f1f3f2c0280e016d0c2d6b4cefb5f441e4812456175e0466aabf7de9c50ae446",
+    "gen/go/compute-manager/v1/intent/intent.pb.go": "sha256:50c312e5456d6235533b9c142ec6242a00c551c20a6a9c63950acc303053d9a5",
+    "gen/go/compute-manager/v1/intent/intent_v1connect/intent.connect.go": "sha256:06cbacdf4ef6a19f1e01050ffcb552b6e4aa27c2fdaa4822ace16ff48cbdc543",
+    "gen/go/compute-manager/v1/meter/meter.pb.go": "sha256:69e9351e376bd03ba07e7390f53d113cbd961cf99b30446e3561ab5466b8b307",
+    "gen/go/compute-manager/v1/meter/meter_v1connect/meter.connect.go": "sha256:a823c5336adf49af4048b8923d61f66bb5304f475d47964b4b890f0cf0fafd0f",
+    "gen/go/compute-manager/v1/reconcile/reconcile.pb.go": "sha256:c3926e261b8de3f3461b4154f7b3fe5a60e73ec31ff25a1d2e30859f3f8cbee6",
+    "gen/go/compute-manager/v1/reconcile/reconcile_v1connect/reconcile.connect.go": "sha256:fa16590d697d7ebb7ab4d338cc3803c4728ac46de88edc09ecf21cf19fae242e",
+    "gen/go/compute-manager/v1/shared/errors.pb.go": "sha256:e01e6bfe567b5b004490f69bdd910f8030e1fdf1512960e6946cfd6e0d6bd04a",
+    "gen/go/compute-manager/v1/shared/health.pb.go": "sha256:d46a8b19527608e2fdecac6b4195e3be977520602fa0eb53ccfbef133b6c88b3",
+    "gen/python/compute_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/instance/instance_pb2.py": "sha256:f28e2137e9a52e0280b9a3403ca8c2019b828da7b1cb658d4b187a4769eb9fdb",
+    "gen/python/compute_manager/v1/instance/instance_pb2.pyi": "sha256:df34310d15090e0469a4502469dbbd6b10b5433c65daeb165f45f59a2e34f71d",
+    "gen/python/compute_manager/v1/instance/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/intent/intent_pb2.py": "sha256:b908d9ddeacd98fb4098a6f70a1a94b9ba80178fb2cb16ad628b572252cf048a",
+    "gen/python/compute_manager/v1/intent/intent_pb2.pyi": "sha256:81d33364957ec6c158098791d226a9563a4472cf83ff199274137de31edfa171",
+    "gen/python/compute_manager/v1/intent/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/meter/meter_pb2.py": "sha256:67c47e1080d7dd5522e38d22c4208eaa8a3d2f2616a60ef1060d9730d001e900",
+    "gen/python/compute_manager/v1/meter/meter_pb2.pyi": "sha256:2280513c3266d2291ee7d3d8150ffe184d85808659885361153314b65890a771",
+    "gen/python/compute_manager/v1/meter/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/reconcile/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/compute_manager/v1/reconcile/reconcile_pb2.py": "sha256:bb00c0859b1474a4d1b375d2da9b7bcfb7e460860277c9af63862a8005064755",
+    "gen/python/compute_manager/v1/reconcile/reconcile_pb2.pyi": "sha256:7b6ffbebcb10ab8d3f168e2078bbb3724f2c08d863230a8b8dbb49269e0e484e",
+    "gen/python/compute_manager/v1/shared/errors_pb2.py": "sha256:8df70e3dacb901f7d53e6e2df5680d373189cbb3a6d9bc7cbf8d9dce98bcaf2b",
+    "gen/python/compute_manager/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/compute_manager/v1/shared/health_pb2.py": "sha256:914129483414866760f343ce4bde50926370fe6b92a6ca80ac6a7ba497f38b4a",
+    "gen/python/compute_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/compute_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/compute-manager/v1/instance/instance_pb.ts": "sha256:7ca37fa53439ef5879a346452ab5a9cc6277f81e0fec38fe7e925d7201f257d1",
+    "gen/typescript/compute-manager/v1/intent/intent_pb.ts": "sha256:8fb30a1a756b66048b456f31bee0f9b7b2302d1439b293c12f7bee92f4acb414",
+    "gen/typescript/compute-manager/v1/meter/meter_pb.ts": "sha256:6e9fe9904aa902a38b074d90152f642d8f0948a0bc729767311b920b083fc61f",
+    "gen/typescript/compute-manager/v1/reconcile/reconcile_pb.ts": "sha256:016274b0835eebb7a1dce97dd9f8f8f2cc0321f0cd8ebac547dc09172fce241c",
+    "gen/typescript/compute-manager/v1/shared/errors_pb.ts": "sha256:7c7fd770d1a0ae966207a45553edebe19347227f3be1f026484deee964b2957a",
+    "gen/typescript/compute-manager/v1/shared/health_pb.ts": "sha256:14934d8011fd8c04d929b8ae41baaaef3d27d21ab89de9bedf034eb8fbac9335"
+  }
+}

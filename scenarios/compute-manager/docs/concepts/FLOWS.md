@@ -7,9 +7,9 @@ step is allowed to fail, and what must already be durable before the next step
 runs. Ordering is the substance here. Most of this scenario's failure modes are
 ordering mistakes rather than logic mistakes.
 
-> **Status: designed, not implemented.** No flow below executes today. They are
-> recorded ahead of the build because the ordering rules are the expensive part
-> to discover later.
+> **Status: partially implemented.** Provision, retire, reconcile, extend and
+> adopt have executable slices and focused fake-boundary tests. Provider-live
+> enrollment, billing and the remaining post-launch flows are still open.
 
 ## Flow Inventory
 
@@ -131,19 +131,17 @@ flowchart TD
     R --> A[operator acts]
 ```
 
-**It reports and never resolves.** A finding is a row someone or something
-else acts on, not an action the sweep takes. Marking precedes any sweep, so a
-reconciler defect cannot destroy a running node, and for the same reason it
-cannot move money.
+**It reports and never destroys.** A finding is a row someone or something
+else acts on, not a provider action the sweep takes. Marking precedes any
+destructive sweep, so a reconciler defect cannot destroy a running node. For a
+local record whose provider instance is absent, the sweep uses the injected
+meter settlement callback to close that usage window; it does not destroy a
+provider resource.
 
 That second property is why the destroyed-out-of-band edge produces a finding
-rather than closing the usage window itself. Closing a window settles credit,
-and settlement belongs to the meter domain. The meter drains actionable
-findings of that kind on its own schedule and performs the settlement, so
-exactly one domain writes money and the reconciler stays powerless by
-construction. The cost of the split is a bounded delay between discovering the
-machine is gone and releasing its hold; the benefit is that a reconciler bug
-cannot silently settle a live customer's reservation.
+and uses only the meter-owned settlement callback. Closing a window settles
+credit, and settlement belongs to the meter domain; the reconciler supplies
+the observed local record but never implements billing or provider mutation.
 
 Building only the provider-side direction is the common shortcut. The
 local-side direction is what stops billing for a machine destroyed out of

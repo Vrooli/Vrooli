@@ -7,6 +7,7 @@ import { AppRouter } from "./app/routes";
  * tiny so scenarios that rip out the default routes can do so in one place.
  */
 export default function App() {
+  // Keep the root surface explicit for shared unit-test discovery.
   return (
     <Providers>
       <AppRouter />

@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from measures.v1 import measures_pb2 as measures_dot_v1_dot_measures__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&source-ledger/v1/journal/journal.proto\x12\x1fvrooli.source_ledger.v1.journal\x1a\x1fgoogle/protobuf/timestamp.proto\"X\n\tFacetText\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n\x04text\x18\x02 \x01(\tR\x04text\x12#\n\rembedding_ref\x18\x03 \x01(\tR\x0c\x65mbeddingRef\"\xf0\x01\n\x0b\x41ttribution\x12\x19\n\x08\x61\x63tor_id\x18\x01 \x01(\tR\x07\x61\x63torId\x12\x1d\n\nactor_kind\x18\x02 \x01(\tR\tactorKind\x12%\n\x0esource_runtime\x18\x03 \x01(\tR\rsourceRuntime\x12/\n\x13verification_status\x18\x04 \x01(\tR\x12verificationStatus\x12,\n\x12harness_session_id\x18\x05 \x01(\tR\x10harnessSessionId\x12!\n\x0charness_kind\x18\x06 \x01(\tR\x0bharnessKind\"w\n\x0b\x43orrelation\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x32\n\x15workflow_execution_id\x18\x02 \x01(\tR\x13workflowExecutionId\x12\x1d\n\nactor_kind\x18\x03 \x01(\tR\tactorKind\"v\n\x10ImportProvenance\x12\x18\n\x07runtime\x18\x01 \x01(\tR\x07runtime\x12%\n\x0esource_locator\x18\x02 \x01(\tR\rsourceLocator\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\"\xa3\x04\n\x05\x45ntry\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04\x62ody\x18\x02 \x01(\tR\x04\x62ody\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x03 \x01(\tR\x07\x66\x61\x63\x65tId\x12N\n\x0b\x61ttribution\x18\x04 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.AttributionR\x0b\x61ttribution\x12N\n\x0b\x63orrelation\x18\x05 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.CorrelationR\x0b\x63orrelation\x12^\n\x11import_provenance\x18\x06 \x01(\x0b\x32\x31.vrooli.source_ledger.v1.journal.ImportProvenanceR\x10importProvenance\x12K\n\x0b\x66\x61\x63\x65t_texts\x18\x07 \x03(\x0b\x32*.vrooli.source_ledger.v1.journal.FacetTextR\nfacetTexts\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12?\n\rsuperseded_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0csupersededAt\x12\x12\n\x04kind\x18\n \x01(\tR\x04kind\"\xd9\x03\n\x12\x41ppendEntryRequest\x12\x12\n\x04\x62ody\x18\x01 \x01(\tR\x04\x62ody\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04kind\x18\x03 \x01(\tR\x04kind\x12N\n\x0b\x61ttribution\x18\x04 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.AttributionR\x0b\x61ttribution\x12N\n\x0b\x63orrelation\x18\x05 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.CorrelationR\x0b\x63orrelation\x12^\n\x11import_provenance\x18\x06 \x01(\x0b\x32\x31.vrooli.source_ledger.v1.journal.ImportProvenanceR\x10importProvenance\x12\x18\n\x07trigger\x18\x07 \x01(\tR\x07trigger\x12\x1a\n\x08\x61pproach\x18\x08 \x01(\tR\x08\x61pproach\x12\x1a\n\x08\x65vidence\x18\t \x01(\tR\x08\x65vidence\x12\x18\n\x07outcome\x18\n \x01(\tR\x07outcome\x12\x14\n\x05scope\x18\x0b \x01(\tR\x05scope\"o\n\x13\x41ppendEntryResponse\x12<\n\x05\x65ntry\x18\x01 \x01(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x05\x65ntry\x12\x1a\n\x08\x65xisting\x18\x02 \x01(\x08R\x08\x65xisting\"7\n\x0fGetEntryRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"P\n\x10GetEntryResponse\x12<\n\x05\x65ntry\x18\x01 \x01(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x05\x65ntry\"s\n\x12ListEntriesRequest\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x01 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06\x63ursor\x18\x03 \x01(\tR\x06\x63ursor\x12\x14\n\x05scope\x18\x04 \x01(\tR\x05scope\"x\n\x13ListEntriesResponse\x12@\n\x07\x65ntries\x18\x01 \x03(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x07\x65ntries\x12\x1f\n\x0bnext_cursor\x18\x02 \x01(\tR\nnextCursor\"Q\n#ProcessClassificationRetriesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x8b\x01\n$ProcessClassificationRetriesResponse\x12\x1c\n\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n\x08\x64\x65\x66\x65rred\x18\x02 \x01(\x05R\x08\x64\x65\x66\x65rred\x12)\n\x10\x61lready_resolved\x18\x03 \x01(\x05R\x0f\x61lreadyResolved\"L\n\x1eProcessEmbeddingRetriesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x86\x01\n\x1fProcessEmbeddingRetriesResponse\x12\x1c\n\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n\x08\x64\x65\x66\x65rred\x18\x02 \x01(\x05R\x08\x64\x65\x66\x65rred\x12)\n\x10\x61lready_resolved\x18\x03 \x01(\x05R\x0f\x61lreadyResolved2\xc2\x05\n\x0eJournalService\x12x\n\x0b\x41ppendEntry\x12\x33.vrooli.source_ledger.v1.journal.AppendEntryRequest\x1a\x34.vrooli.source_ledger.v1.journal.AppendEntryResponse\x12o\n\x08GetEntry\x12\x30.vrooli.source_ledger.v1.journal.GetEntryRequest\x1a\x31.vrooli.source_ledger.v1.journal.GetEntryResponse\x12x\n\x0bListEntries\x12\x33.vrooli.source_ledger.v1.journal.ListEntriesRequest\x1a\x34.vrooli.source_ledger.v1.journal.ListEntriesResponse\x12\xab\x01\n\x1cProcessClassificationRetries\x12\x44.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest\x1a\x45.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse\x12\x9c\x01\n\x17ProcessEmbeddingRetries\x12?.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest\x1a@.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&source-ledger/v1/journal/journal.proto\x12\x1fvrooli.source_ledger.v1.journal\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1ameasures/v1/measures.proto\"c\n\x13\x43ountEntriesRequest\x12\x36\n\x06window\x18\x01 \x01(\x0b\x32\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\",\n\x14\x43ountEntriesResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x03R\x05\x63ount\"X\n\tFacetText\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n\x04text\x18\x02 \x01(\tR\x04text\x12#\n\rembedding_ref\x18\x03 \x01(\tR\x0c\x65mbeddingRef\"\xf0\x01\n\x0b\x41ttribution\x12\x19\n\x08\x61\x63tor_id\x18\x01 \x01(\tR\x07\x61\x63torId\x12\x1d\n\nactor_kind\x18\x02 \x01(\tR\tactorKind\x12%\n\x0esource_runtime\x18\x03 \x01(\tR\rsourceRuntime\x12/\n\x13verification_status\x18\x04 \x01(\tR\x12verificationStatus\x12,\n\x12harness_session_id\x18\x05 \x01(\tR\x10harnessSessionId\x12!\n\x0charness_kind\x18\x06 \x01(\tR\x0bharnessKind\"w\n\x0b\x43orrelation\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x32\n\x15workflow_execution_id\x18\x02 \x01(\tR\x13workflowExecutionId\x12\x1d\n\nactor_kind\x18\x03 \x01(\tR\tactorKind\"v\n\x10ImportProvenance\x12\x18\n\x07runtime\x18\x01 \x01(\tR\x07runtime\x12%\n\x0esource_locator\x18\x02 \x01(\tR\rsourceLocator\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\"\xa3\x04\n\x05\x45ntry\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04\x62ody\x18\x02 \x01(\tR\x04\x62ody\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x03 \x01(\tR\x07\x66\x61\x63\x65tId\x12N\n\x0b\x61ttribution\x18\x04 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.AttributionR\x0b\x61ttribution\x12N\n\x0b\x63orrelation\x18\x05 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.CorrelationR\x0b\x63orrelation\x12^\n\x11import_provenance\x18\x06 \x01(\x0b\x32\x31.vrooli.source_ledger.v1.journal.ImportProvenanceR\x10importProvenance\x12K\n\x0b\x66\x61\x63\x65t_texts\x18\x07 \x03(\x0b\x32*.vrooli.source_ledger.v1.journal.FacetTextR\nfacetTexts\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12?\n\rsuperseded_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0csupersededAt\x12\x12\n\x04kind\x18\n \x01(\tR\x04kind\"\xd9\x03\n\x12\x41ppendEntryRequest\x12\x12\n\x04\x62ody\x18\x01 \x01(\tR\x04\x62ody\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04kind\x18\x03 \x01(\tR\x04kind\x12N\n\x0b\x61ttribution\x18\x04 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.AttributionR\x0b\x61ttribution\x12N\n\x0b\x63orrelation\x18\x05 \x01(\x0b\x32,.vrooli.source_ledger.v1.journal.CorrelationR\x0b\x63orrelation\x12^\n\x11import_provenance\x18\x06 \x01(\x0b\x32\x31.vrooli.source_ledger.v1.journal.ImportProvenanceR\x10importProvenance\x12\x18\n\x07trigger\x18\x07 \x01(\tR\x07trigger\x12\x1a\n\x08\x61pproach\x18\x08 \x01(\tR\x08\x61pproach\x12\x1a\n\x08\x65vidence\x18\t \x01(\tR\x08\x65vidence\x12\x18\n\x07outcome\x18\n \x01(\tR\x07outcome\x12\x14\n\x05scope\x18\x0b \x01(\tR\x05scope\"o\n\x13\x41ppendEntryResponse\x12<\n\x05\x65ntry\x18\x01 \x01(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x05\x65ntry\x12\x1a\n\x08\x65xisting\x18\x02 \x01(\x08R\x08\x65xisting\"7\n\x0fGetEntryRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"P\n\x10GetEntryResponse\x12<\n\x05\x65ntry\x18\x01 \x01(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x05\x65ntry\"s\n\x12ListEntriesRequest\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x01 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06\x63ursor\x18\x03 \x01(\tR\x06\x63ursor\x12\x14\n\x05scope\x18\x04 \x01(\tR\x05scope\"x\n\x13ListEntriesResponse\x12@\n\x07\x65ntries\x18\x01 \x03(\x0b\x32&.vrooli.source_ledger.v1.journal.EntryR\x07\x65ntries\x12\x1f\n\x0bnext_cursor\x18\x02 \x01(\tR\nnextCursor\"Q\n#ProcessClassificationRetriesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x8b\x01\n$ProcessClassificationRetriesResponse\x12\x1c\n\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n\x08\x64\x65\x66\x65rred\x18\x02 \x01(\x05R\x08\x64\x65\x66\x65rred\x12)\n\x10\x61lready_resolved\x18\x03 \x01(\x05R\x0f\x61lreadyResolved\"L\n\x1eProcessEmbeddingRetriesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x86\x01\n\x1fProcessEmbeddingRetriesResponse\x12\x1c\n\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n\x08\x64\x65\x66\x65rred\x18\x02 \x01(\x05R\x08\x64\x65\x66\x65rred\x12)\n\x10\x61lready_resolved\x18\x03 \x01(\x05R\x0f\x61lreadyResolved2\xbf\x06\n\x0eJournalService\x12x\n\x0b\x41ppendEntry\x12\x33.vrooli.source_ledger.v1.journal.AppendEntryRequest\x1a\x34.vrooli.source_ledger.v1.journal.AppendEntryResponse\x12o\n\x08GetEntry\x12\x30.vrooli.source_ledger.v1.journal.GetEntryRequest\x1a\x31.vrooli.source_ledger.v1.journal.GetEntryResponse\x12x\n\x0bListEntries\x12\x33.vrooli.source_ledger.v1.journal.ListEntriesRequest\x1a\x34.vrooli.source_ledger.v1.journal.ListEntriesResponse\x12\xab\x01\n\x1cProcessClassificationRetries\x12\x44.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest\x1a\x45.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse\x12\x9c\x01\n\x17ProcessEmbeddingRetries\x12?.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest\x1a@.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse\x12{\n\x0c\x43ountEntries\x12\x34.vrooli.source_ledger.v1.journal.CountEntriesRequest\x1a\x35.vrooli.source_ledger.v1.journal.CountEntriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,36 +34,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'source_ledger.v1.journal.jo
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1'
-  _globals['_FACETTEXT']._serialized_start=108
-  _globals['_FACETTEXT']._serialized_end=196
-  _globals['_ATTRIBUTION']._serialized_start=199
-  _globals['_ATTRIBUTION']._serialized_end=439
-  _globals['_CORRELATION']._serialized_start=441
-  _globals['_CORRELATION']._serialized_end=560
-  _globals['_IMPORTPROVENANCE']._serialized_start=562
-  _globals['_IMPORTPROVENANCE']._serialized_end=680
-  _globals['_ENTRY']._serialized_start=683
-  _globals['_ENTRY']._serialized_end=1230
-  _globals['_APPENDENTRYREQUEST']._serialized_start=1233
-  _globals['_APPENDENTRYREQUEST']._serialized_end=1706
-  _globals['_APPENDENTRYRESPONSE']._serialized_start=1708
-  _globals['_APPENDENTRYRESPONSE']._serialized_end=1819
-  _globals['_GETENTRYREQUEST']._serialized_start=1821
-  _globals['_GETENTRYREQUEST']._serialized_end=1876
-  _globals['_GETENTRYRESPONSE']._serialized_start=1878
-  _globals['_GETENTRYRESPONSE']._serialized_end=1958
-  _globals['_LISTENTRIESREQUEST']._serialized_start=1960
-  _globals['_LISTENTRIESREQUEST']._serialized_end=2075
-  _globals['_LISTENTRIESRESPONSE']._serialized_start=2077
-  _globals['_LISTENTRIESRESPONSE']._serialized_end=2197
-  _globals['_PROCESSCLASSIFICATIONRETRIESREQUEST']._serialized_start=2199
-  _globals['_PROCESSCLASSIFICATIONRETRIESREQUEST']._serialized_end=2280
-  _globals['_PROCESSCLASSIFICATIONRETRIESRESPONSE']._serialized_start=2283
-  _globals['_PROCESSCLASSIFICATIONRETRIESRESPONSE']._serialized_end=2422
-  _globals['_PROCESSEMBEDDINGRETRIESREQUEST']._serialized_start=2424
-  _globals['_PROCESSEMBEDDINGRETRIESREQUEST']._serialized_end=2500
-  _globals['_PROCESSEMBEDDINGRETRIESRESPONSE']._serialized_start=2503
-  _globals['_PROCESSEMBEDDINGRETRIESRESPONSE']._serialized_end=2637
-  _globals['_JOURNALSERVICE']._serialized_start=2640
-  _globals['_JOURNALSERVICE']._serialized_end=3346
+  _globals['_COUNTENTRIESREQUEST']._serialized_start=136
+  _globals['_COUNTENTRIESREQUEST']._serialized_end=235
+  _globals['_COUNTENTRIESRESPONSE']._serialized_start=237
+  _globals['_COUNTENTRIESRESPONSE']._serialized_end=281
+  _globals['_FACETTEXT']._serialized_start=283
+  _globals['_FACETTEXT']._serialized_end=371
+  _globals['_ATTRIBUTION']._serialized_start=374
+  _globals['_ATTRIBUTION']._serialized_end=614
+  _globals['_CORRELATION']._serialized_start=616
+  _globals['_CORRELATION']._serialized_end=735
+  _globals['_IMPORTPROVENANCE']._serialized_start=737
+  _globals['_IMPORTPROVENANCE']._serialized_end=855
+  _globals['_ENTRY']._serialized_start=858
+  _globals['_ENTRY']._serialized_end=1405
+  _globals['_APPENDENTRYREQUEST']._serialized_start=1408
+  _globals['_APPENDENTRYREQUEST']._serialized_end=1881
+  _globals['_APPENDENTRYRESPONSE']._serialized_start=1883
+  _globals['_APPENDENTRYRESPONSE']._serialized_end=1994
+  _globals['_GETENTRYREQUEST']._serialized_start=1996
+  _globals['_GETENTRYREQUEST']._serialized_end=2051
+  _globals['_GETENTRYRESPONSE']._serialized_start=2053
+  _globals['_GETENTRYRESPONSE']._serialized_end=2133
+  _globals['_LISTENTRIESREQUEST']._serialized_start=2135
+  _globals['_LISTENTRIESREQUEST']._serialized_end=2250
+  _globals['_LISTENTRIESRESPONSE']._serialized_start=2252
+  _globals['_LISTENTRIESRESPONSE']._serialized_end=2372
+  _globals['_PROCESSCLASSIFICATIONRETRIESREQUEST']._serialized_start=2374
+  _globals['_PROCESSCLASSIFICATIONRETRIESREQUEST']._serialized_end=2455
+  _globals['_PROCESSCLASSIFICATIONRETRIESRESPONSE']._serialized_start=2458
+  _globals['_PROCESSCLASSIFICATIONRETRIESRESPONSE']._serialized_end=2597
+  _globals['_PROCESSEMBEDDINGRETRIESREQUEST']._serialized_start=2599
+  _globals['_PROCESSEMBEDDINGRETRIESREQUEST']._serialized_end=2675
+  _globals['_PROCESSEMBEDDINGRETRIESRESPONSE']._serialized_start=2678
+  _globals['_PROCESSEMBEDDINGRETRIESRESPONSE']._serialized_end=2812
+  _globals['_JOURNALSERVICE']._serialized_start=2815
+  _globals['_JOURNALSERVICE']._serialized_end=3646
 # @@protoc_insertion_point(module_scope)

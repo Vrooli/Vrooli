@@ -19,12 +19,18 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_PASSED: _ClassVar[RunStatus]
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_ABORTED: _ClassVar[RunStatus]
+    RUN_STATUS_PUSHED: _ClassVar[RunStatus]
+    RUN_STATUS_ACKED: _ClassVar[RunStatus]
+    RUN_STATUS_FAILED_DELIVERY: _ClassVar[RunStatus]
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_QUEUED: RunStatus
 RUN_STATUS_RUNNING: RunStatus
 RUN_STATUS_PASSED: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_ABORTED: RunStatus
+RUN_STATUS_PUSHED: RunStatus
+RUN_STATUS_ACKED: RunStatus
+RUN_STATUS_FAILED_DELIVERY: RunStatus
 
 class Run(_message.Message):
     __slots__ = ("id", "node_id", "scenario", "verb", "args", "status", "exit_code", "timeout_seconds", "created_at", "started_at", "finished_at", "artifact_refs")

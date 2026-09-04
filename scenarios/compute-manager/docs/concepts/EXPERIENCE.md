@@ -8,11 +8,10 @@ and what the design is accountable for. It is the prose companion to the
 machine-readable contract in `experience/`; where the two disagree,
 `experience/` wins because a validator reads it.
 
-> **Status: designed, not built.** The UI is still the generated template. Every
-> page in `experience/` is status `draft` and every claim is tier
-> `aspirational`, because machine-tier claims gate CI and there are no stable
-> selectors to check against. The bindings declared there are the selectors the
-> UI will be built to match, not selectors that exist.
+> **Status: partially built.** Inventory, findings and instance-detail pages now
+> have real routes, stable selectors and component/route tests. Browser health
+> evidence and remaining visual findings are still open; the bindings below
+> remain the machine-readable contract for those slices.
 
 ## The Comparison
 
@@ -106,9 +105,9 @@ sweeping.
 
 ## Cross-References
 
-- `path:../START-HERE.md` — Gate 5
-- `path:../guides/choosing-ui.md` — the reasoning behind each section
-- `path:../../experience/README.md` — the typed contract
-- `path:../../DESIGN.md` — the token contract
-- `path:DOMAINS.md` — the domains these surfaces expose
-- `path:FLOWS.md` — the journeys these surfaces sit in
+- `path:docs/START-HERE.md` — Gate 5
+- `path:docs/guides/choosing-ui.md` — the reasoning behind each section
+- `path:experience/README.md` — the typed contract
+- `path:DESIGN.md` — the token contract
+- `path:docs/concepts/DOMAINS.md` — the domains these surfaces expose
+- `path:docs/concepts/FLOWS.md` — the journeys these surfaces sit in

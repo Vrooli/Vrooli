@@ -33,11 +33,10 @@ This document does not own:
 
 ## Scenario Shape
 
-> **Status: designed, not implemented.** The scenario was generated from the
-> `react-vite` template on 2026-09-03 and currently contains only template
-> framework code. The template example domain was removed with
-> `template-manager detemplate` on the same day. Every shape described below
-> is a decision recorded ahead of the build.
+> **Status: partially implemented.** The scenario was generated from the
+> `react-vite` template on 2026-09-03. The provisioning, metering,
+> reconciliation, expiry, enrollment, CLI and inventory slices now exist;
+> provider-live proof and several post-launch controls remain open.
 
 Compute Manager acquires, tracks and retires remote compute, and knows what it
 costs. It owns **capacity and cost, and nothing else.**
@@ -110,9 +109,11 @@ metered and expiring whether or not bridge is reachable.
 observes what is running. A dead observer stops billing while the provider keeps
 charging.
 
-**The reconciler reports and never resolves.** Findings are rows an operator
+**The reconciler reports and never destroys.** Findings are rows an operator
 acts on. Marking precedes sweeping, so a reconciler defect cannot destroy a
-running node.
+running node. For a local record whose provider instance is already gone, the
+reconciler may invoke the meter's explicit settlement callback to close the
+known usage window; it never calls the provider destroy operation.
 
 The provider boundary is four methods: create, describe, list, destroy. There is
 no stop, because a stopped instance still bills at the full rate on most
@@ -177,17 +178,18 @@ Honest reading: the contract is authored and nothing is implemented.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| Product contract | Authored | PRD with 15 operational targets; `vrooli scenario requirements validate compute-manager --json` reports zero findings | Every requirement is `planned`. Validation entries name the test path they will occupy; none is `implemented` |
-| Domain design | Authored | Seven domains with owners, archetypes and boundaries recorded | No domain package exists |
-| API | Template only | Generated scaffold, health and capabilities only; the template example domain has been removed | No scenario proto, no scenario domain, no handler |
-| CLI | Template only | Framework wiring only; the template example verbs have been removed | No scenario command group |
-| UI | Template only | Generated pages | Experience contract is authored; every page is `draft` and every claim is `aspirational` |
-| Docs | Authored | Concepts, operations, business, reference and internal documents written against the doc contract | Will need rewriting from real behaviour once the first slice lands |
-| Storage | Designed | Six tables specified in `DATA.md` | No schema file |
+| Product contract | In progress | PRD with 15 operational targets; requirements validation reports zero structural findings | P0/P1 claims remain planned until their full evidence set and live proof are complete |
+| Domain design | In progress | Provider, intent, instance, meter, reconcile, expiry, enroll and provision packages exist | Post-launch ceiling and daily cost domains remain unimplemented |
+| API | Partial implementation | Proto-backed lifecycle, adoption, reconciliation, metering and health endpoints are registered | Provider-live proof and remaining post-launch endpoints are open |
+| CLI | Partial implementation | Manifest-declared instance, intent, meter and reconcile commands are wired | Full operator workflow evidence remains open |
+| UI | Partial implementation | Inventory, findings and instance-detail routes render with component and accessibility tests | Browser health evidence and remaining visual findings are open |
+| Docs | In progress | Operational and contract docs are being aligned with implemented behavior | Several generated design-era statements still require cleanup |
+| Storage | Implemented slice | Scenario-owned SQLite schema is loaded through the domain schema provider | Retention/pruning and production migration evidence remain open |
 
-The first implementation slice should be the provisioning spine against a fake
-provider: reserve, intent, create, reconcile, expire. All four of the expensive
-failure modes are reachable without a real API key.
+The remaining implementation slices should extend the fake-provider spine with
+the post-launch controls and then prove the provider adapter against a real
+credentialed environment. The expensive failure modes are reachable without a
+real API key; provider billing and enrollment behavior are not.
 
 
 ## Intentional Deviations

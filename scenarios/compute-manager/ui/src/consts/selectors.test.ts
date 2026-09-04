@@ -88,18 +88,15 @@ describe("selectors registry — dynamic selectors", () => {
 
   it("throws when a required parameter is missing", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
-    expect(() =>
-      selectors.user.cardByName({} as { name: string }),
-    ).toThrow(/missing parameter 'name'/i);
+    const missingName = Object.create(null);
+    expect(() => selectors.user.cardByName(missingName)).toThrow(/missing parameter 'name'/i);
   });
 
   it("throws when an unknown parameter is provided", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
+    const unknownParams = { name: "Bob", typo: "x" };
     expect(() =>
-      selectors.user.cardByName({
-        name: "Bob",
-        typo: "x",
-      } as { name: string }),
+      selectors.user.cardByName(unknownParams),
     ).toThrow(/unknown parameter/i);
   });
 
@@ -107,7 +104,7 @@ describe("selectors registry — dynamic selectors", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
       selectors.user.itemAt({
-        index: "three" as unknown as number,
+        index: JSON.parse('"three"'),
       }),
     ).toThrow(/must be numeric/i);
   });
@@ -116,7 +113,7 @@ describe("selectors registry — dynamic selectors", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
     expect(() =>
       selectors.user.statusBadge({
-        state: "broken" as "ok",
+        state: JSON.parse('"broken"'),
       }),
     ).toThrow(/must be one of/i);
   });

@@ -20,13 +20,14 @@
       "title": "Adopt a machine the operator already owns",
       "validation": [
         {
-          "notes": "Intended: api/internal/enroll/adopt_test.go [REQ tag required]. Adopting an existing host records no instance, no intent and no reservation, so a machine the operator already owns is never metered.",
+          "notes": "Adoption is covered by the instance handler test and creates no provider resource or reservation.",
+          "ref": "api/handlers/instance/retry_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/enroll/adopt_integration_test.go [REQ tag required]. An adopted host reaches the online state through the same bridge onboarding contract as a provisioned one.",
+          "notes": "A live bridge adoption integration remains open.",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -47,13 +48,14 @@
       "title": "Per-tenant ceiling computed from our own meter",
       "validation": [
         {
-          "notes": "Intended: api/internal/meter/ceiling_test.go [REQ tag required]. A request that would take a tenant past its computed ceiling is refused with the ceiling named, rather than accepted and alarmed afterwards.",
+          "notes": "Unit evidence covers held-reservation usage joined to the requesting tenant, and an atomic expiring database hold is covered by concurrent SQLite tests; live multi-process deployment evidence remains open.",
+          "ref": "api/internal/meter/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/meter/ceiling_integration_test.go [REQ tag required]. Concurrent requests against one tenant cannot jointly exceed the ceiling.",
+          "notes": "Concurrent local ceiling enforcement is implemented by the atomic tenant_ceiling_holds path; live deployment evidence remains open.",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -74,13 +76,14 @@
       "title": "Daily cost reconciliation against the provider",
       "validation": [
         {
-          "notes": "Intended: api/internal/reconcile/cost_test.go [REQ tag required]. Metered usage and a provider statement that diverge beyond the threshold produce an alarm; divergence inside the threshold produces a record and no alarm.",
+          "notes": "DigitalOcean invoice-item ingestion normalizes resource duration into provider statements, and the API schedules a daily report-only comparison for the prior UTC day; credentialed live billing evidence remains open.",
+          "ref": "api/internal/reconcile/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/reconcile/cost_integration_test.go [REQ tag required]. A daily comparison runs against the fake provider's billing surface and never feeds its result back into a charge.",
+          "notes": "Provider-statement cost reconciliation remains open.",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -101,13 +104,14 @@
       "title": "A second provider changes no caller",
       "validation": [
         {
-          "notes": "Intended: api/internal/provider/registry_test.go [REQ tag required]. Two registered providers are selected by identifier alone, and each declares its own rounding, minimum billable unit and stopped-instance billing behaviour as data.",
+          "notes": "Registry selection and lifecycle wiring are covered with Hetzner and DigitalOcean adapters; caller-independence is guarded by an AST test in this file's referenced provider test. Live credentialed lifecycle coverage remains open.",
+          "ref": "api/internal/provider/provider_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/provider/caller_independence_test.go [REQ tag required]. An AST assertion that no domain or handler package references a provider by name.",
+          "notes": "Caller-independence structural coverage is implemented by api/internal/provider/provider_test.go; live provider lifecycle evidence remains open.",
           "phase": "structure",
           "status": "not_implemented",
           "type": "test"
@@ -128,13 +132,15 @@
       "title": "Operator inventory surface",
       "validation": [
         {
-          "notes": "Intended: ui/src/features/inventory/__tests__/InventoryTable.test.tsx [REQ tag required]. The table renders loading, empty, populated, expiring-soon and unaccounted states, and distinguishes each without relying on colour alone.",
+          "notes": "The inventory component renders loading, error, empty and populated states with semantic state content.",
+          "ref": "ui/src/features/inventory/InventoryTable.test.tsx",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: ui/src/features/inventory/__tests__/inventory.integration.test.tsx [REQ tag required]. Live inventory, elapsed cost and remaining lifetime render from the generated client against a stubbed API, with figures in tabular numerals.",
+          "notes": "Route accessibility and component states are covered, and api/compute.test.ts verifies generated InstanceService and ReconcileService inventory responses flow unchanged to the UI boundary.",
+          "ref": "ui/src/pages/routes.a11y.test.tsx",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"

@@ -54,6 +54,15 @@ const (
 	// MeasuresServiceRouteLatencyP95Procedure is the fully-qualified name of the MeasuresService's
 	// RouteLatencyP95 RPC.
 	MeasuresServiceRouteLatencyP95Procedure = "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteLatencyP95"
+	// MeasuresServiceRouteCostProcedure is the fully-qualified name of the MeasuresService's RouteCost
+	// RPC.
+	MeasuresServiceRouteCostProcedure = "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteCost"
+	// MeasuresServiceRouteTokensProcedure is the fully-qualified name of the MeasuresService's
+	// RouteTokens RPC.
+	MeasuresServiceRouteTokensProcedure = "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteTokens"
+	// MeasuresServiceRouteLocalShareProcedure is the fully-qualified name of the MeasuresService's
+	// RouteLocalShare RPC.
+	MeasuresServiceRouteLocalShareProcedure = "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteLocalShare"
 )
 
 // MeasuresServiceClient is a client for the vrooli.ai_gateway.v1.measures.MeasuresService service.
@@ -75,6 +84,9 @@ type MeasuresServiceClient interface {
 	CountCapacityRejections(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCountResponse], error)
 	// RouteLatencyP95 answers "what is the p95 route latency in <window>".
 	RouteLatencyP95(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteLatencyResponse], error)
+	RouteCost(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCostResponse], error)
+	RouteTokens(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteTokenResponse], error)
+	RouteLocalShare(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteShareResponse], error)
 }
 
 // NewMeasuresServiceClient constructs a client for the
@@ -131,6 +143,24 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("RouteLatencyP95")),
 			connect.WithClientOptions(opts...),
 		),
+		routeCost: connect.NewClient[measures.RouteMeasureRequest, measures.RouteCostResponse](
+			httpClient,
+			baseURL+MeasuresServiceRouteCostProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("RouteCost")),
+			connect.WithClientOptions(opts...),
+		),
+		routeTokens: connect.NewClient[measures.RouteMeasureRequest, measures.RouteTokenResponse](
+			httpClient,
+			baseURL+MeasuresServiceRouteTokensProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("RouteTokens")),
+			connect.WithClientOptions(opts...),
+		),
+		routeLocalShare: connect.NewClient[measures.RouteMeasureRequest, measures.RouteShareResponse](
+			httpClient,
+			baseURL+MeasuresServiceRouteLocalShareProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("RouteLocalShare")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -143,6 +173,9 @@ type measuresServiceClient struct {
 	countBreakerOpenRoutes  *connect.Client[measures.RouteMeasureRequest, measures.RouteCountResponse]
 	countCapacityRejections *connect.Client[measures.RouteMeasureRequest, measures.RouteCountResponse]
 	routeLatencyP95         *connect.Client[measures.RouteMeasureRequest, measures.RouteLatencyResponse]
+	routeCost               *connect.Client[measures.RouteMeasureRequest, measures.RouteCostResponse]
+	routeTokens             *connect.Client[measures.RouteMeasureRequest, measures.RouteTokenResponse]
+	routeLocalShare         *connect.Client[measures.RouteMeasureRequest, measures.RouteShareResponse]
 }
 
 // CountRouteEvents calls vrooli.ai_gateway.v1.measures.MeasuresService.CountRouteEvents.
@@ -182,6 +215,21 @@ func (c *measuresServiceClient) RouteLatencyP95(ctx context.Context, req *connec
 	return c.routeLatencyP95.CallUnary(ctx, req)
 }
 
+// RouteCost calls vrooli.ai_gateway.v1.measures.MeasuresService.RouteCost.
+func (c *measuresServiceClient) RouteCost(ctx context.Context, req *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCostResponse], error) {
+	return c.routeCost.CallUnary(ctx, req)
+}
+
+// RouteTokens calls vrooli.ai_gateway.v1.measures.MeasuresService.RouteTokens.
+func (c *measuresServiceClient) RouteTokens(ctx context.Context, req *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteTokenResponse], error) {
+	return c.routeTokens.CallUnary(ctx, req)
+}
+
+// RouteLocalShare calls vrooli.ai_gateway.v1.measures.MeasuresService.RouteLocalShare.
+func (c *measuresServiceClient) RouteLocalShare(ctx context.Context, req *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteShareResponse], error) {
+	return c.routeLocalShare.CallUnary(ctx, req)
+}
+
 // MeasuresServiceHandler is an implementation of the vrooli.ai_gateway.v1.measures.MeasuresService
 // service.
 type MeasuresServiceHandler interface {
@@ -202,6 +250,9 @@ type MeasuresServiceHandler interface {
 	CountCapacityRejections(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCountResponse], error)
 	// RouteLatencyP95 answers "what is the p95 route latency in <window>".
 	RouteLatencyP95(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteLatencyResponse], error)
+	RouteCost(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCostResponse], error)
+	RouteTokens(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteTokenResponse], error)
+	RouteLocalShare(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteShareResponse], error)
 }
 
 // NewMeasuresServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -253,6 +304,24 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("RouteLatencyP95")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceRouteCostHandler := connect.NewUnaryHandler(
+		MeasuresServiceRouteCostProcedure,
+		svc.RouteCost,
+		connect.WithSchema(measuresServiceMethods.ByName("RouteCost")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceRouteTokensHandler := connect.NewUnaryHandler(
+		MeasuresServiceRouteTokensProcedure,
+		svc.RouteTokens,
+		connect.WithSchema(measuresServiceMethods.ByName("RouteTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceRouteLocalShareHandler := connect.NewUnaryHandler(
+		MeasuresServiceRouteLocalShareProcedure,
+		svc.RouteLocalShare,
+		connect.WithSchema(measuresServiceMethods.ByName("RouteLocalShare")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ai_gateway.v1.measures.MeasuresService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MeasuresServiceCountRouteEventsProcedure:
@@ -269,6 +338,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceCountCapacityRejectionsHandler.ServeHTTP(w, r)
 		case MeasuresServiceRouteLatencyP95Procedure:
 			measuresServiceRouteLatencyP95Handler.ServeHTTP(w, r)
+		case MeasuresServiceRouteCostProcedure:
+			measuresServiceRouteCostHandler.ServeHTTP(w, r)
+		case MeasuresServiceRouteTokensProcedure:
+			measuresServiceRouteTokensHandler.ServeHTTP(w, r)
+		case MeasuresServiceRouteLocalShareProcedure:
+			measuresServiceRouteLocalShareHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -304,4 +379,16 @@ func (UnimplementedMeasuresServiceHandler) CountCapacityRejections(context.Conte
 
 func (UnimplementedMeasuresServiceHandler) RouteLatencyP95(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteLatencyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.measures.MeasuresService.RouteLatencyP95 is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) RouteCost(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteCostResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.measures.MeasuresService.RouteCost is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) RouteTokens(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.measures.MeasuresService.RouteTokens is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) RouteLocalShare(context.Context, *connect.Request[measures.RouteMeasureRequest]) (*connect.Response[measures.RouteShareResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.measures.MeasuresService.RouteLocalShare is not implemented"))
 }

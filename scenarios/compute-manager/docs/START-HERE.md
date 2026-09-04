@@ -34,7 +34,7 @@ durable infrastructure below. In particular:
   pane scrolls or fills. Change that configuration freely in Gate 5; it is
   three constants. Do not redraw the shell. If it cannot do what your primary
   surface needs, record the gap in `docs/reference/component-library-gaps.md`
-  and eject with `react-component-library adoptions eject --reason`, so the
+  and record the gap in `docs/reference/component-library-gaps.md`, so the
   library owes you the fix rather than every scenario re-inventing one.
 - The home page is a placeholder that the "Design decision" orientation gate
   (step id `design-language`) fails until you replace it. It is marked `PLACEHOLDER:home-surface` in
@@ -321,8 +321,8 @@ surface and the page templates is `docs/guides/choosing-ui.md`.
       for your route list and link it:
 
 ```bash
-react-component-library adoptions suggest compute-manager --json
-react-component-library adoptions link <component-id> compute-manager
+react-component-library adoptions list --scenario compute-manager --json
+react-component-library adoptions link "<component-id>" compute-manager
 react-component-library adoptions obligations compute-manager --json
 ```
 
@@ -486,10 +486,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -498,17 +498,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest compute-manager <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest compute-manager "<tsx-path>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> compute-manager
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>"
+react-component-library catalog readiness --json
+react-component-library catalog gates --all --json
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -516,14 +514,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario compute-manager
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario compute-manager
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions link <component-id> compute-manager
+react-component-library adoptions link "<component-id>" compute-manager
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

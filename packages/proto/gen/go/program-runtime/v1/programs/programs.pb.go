@@ -151,6 +151,7 @@ const (
 	FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME               FailureCause = 11
 	FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT             FailureCause = 12
 	FailureCause_FAILURE_CAUSE_UNCLASSIFIED                 FailureCause = 13
+	FailureCause_FAILURE_CAUSE_PROTECTED_NAME_MISUSE        FailureCause = 14
 )
 
 // Enum value maps for FailureCause.
@@ -170,6 +171,7 @@ var (
 		11: "FAILURE_CAUSE_KERNEL_RUNTIME",
 		12: "FAILURE_CAUSE_BRIDGE_TRANSPORT",
 		13: "FAILURE_CAUSE_UNCLASSIFIED",
+		14: "FAILURE_CAUSE_PROTECTED_NAME_MISUSE",
 	}
 	FailureCause_value = map[string]int32{
 		"FAILURE_CAUSE_UNSPECIFIED":                  0,
@@ -186,6 +188,7 @@ var (
 		"FAILURE_CAUSE_KERNEL_RUNTIME":               11,
 		"FAILURE_CAUSE_BRIDGE_TRANSPORT":             12,
 		"FAILURE_CAUSE_UNCLASSIFIED":                 13,
+		"FAILURE_CAUSE_PROTECTED_NAME_MISUSE":        14,
 	}
 )
 
@@ -820,8 +823,16 @@ type ListProgramsRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	SessionId       string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	IncludeOperator bool                   `protobuf:"varint,2,opt,name=include_operator,json=includeOperator,proto3" json:"include_operator,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Optional provenance filter: agent, operator, or test.
+	Provenance string `protobuf:"bytes,3,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	// Only include programs created within this many seconds.
+	SinceSeconds int64 `protobuf:"varint,4,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
+	// RFC3339 lower/upper creation-time bounds, when supplied.
+	Until string `protobuf:"bytes,5,opt,name=until,proto3" json:"until,omitempty"`
+	// Maximum rows returned; zero uses the server default.
+	Limit         int32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListProgramsRequest) Reset() {
@@ -866,6 +877,34 @@ func (x *ListProgramsRequest) GetIncludeOperator() bool {
 		return x.IncludeOperator
 	}
 	return false
+}
+
+func (x *ListProgramsRequest) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *ListProgramsRequest) GetSinceSeconds() int64 {
+	if x != nil {
+		return x.SinceSeconds
+	}
+	return 0
+}
+
+func (x *ListProgramsRequest) GetUntil() string {
+	if x != nil {
+		return x.Until
+	}
+	return ""
+}
+
+func (x *ListProgramsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
 }
 
 type ListProgramsResponse struct {
@@ -1612,6 +1651,7 @@ type RunAuthoringEvalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
 	MaxCases      int32                  `protobuf:"varint,2,opt,name=max_cases,json=maxCases,proto3" json:"max_cases,omitempty"`
+	NoGate        bool                   `protobuf:"varint,3,opt,name=no_gate,json=noGate,proto3" json:"no_gate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1658,6 +1698,13 @@ func (x *RunAuthoringEvalRequest) GetMaxCases() int32 {
 		return x.MaxCases
 	}
 	return 0
+}
+
+func (x *RunAuthoringEvalRequest) GetNoGate() bool {
+	if x != nil {
+		return x.NoGate
+	}
+	return false
 }
 
 type AuthoringCaseResult struct {
@@ -1827,8 +1874,9 @@ type RunAuthoringEvalResponse struct {
 	Missed      int32                  `protobuf:"varint,6,opt,name=missed,proto3" json:"missed,omitempty"`
 	WrongResult int32                  `protobuf:"varint,7,opt,name=wrong_result,json=wrongResult,proto3" json:"wrong_result,omitempty"`
 	Unavailable int32                  `protobuf:"varint,8,opt,name=unavailable,proto3" json:"unavailable,omitempty"`
-	Floor       int32                  `protobuf:"varint,9,opt,name=floor,proto3" json:"floor,omitempty"`
-	Results     []*AuthoringCaseResult `protobuf:"bytes,10,rep,name=results,proto3" json:"results,omitempty"`
+	// False when a complete measured run is below the corpus floor.
+	Floor   int32                  `protobuf:"varint,9,opt,name=floor,proto3" json:"floor,omitempty"`
+	Results []*AuthoringCaseResult `protobuf:"bytes,10,rep,name=results,proto3" json:"results,omitempty"`
 	// Cases skipped because the response deadline approached. A partial run
 	// states this instead of reporting a low score as a whole-corpus result.
 	NotAttempted int32 `protobuf:"varint,11,opt,name=not_attempted,json=notAttempted,proto3" json:"not_attempted,omitempty"`
@@ -1837,7 +1885,9 @@ type RunAuthoringEvalResponse struct {
 	HarnessStamp string `protobuf:"bytes,12,opt,name=harness_stamp,json=harnessStamp,proto3" json:"harness_stamp,omitempty"`
 	// Sorted miss counts. The sum equals missed + wrong_result for every
 	// measured or partial response.
-	RuleMisses    []*AuthoringRuleMiss `protobuf:"bytes,13,rep,name=rule_misses,json=ruleMisses,proto3" json:"rule_misses,omitempty"`
+	RuleMisses []*AuthoringRuleMiss `protobuf:"bytes,13,rep,name=rule_misses,json=ruleMisses,proto3" json:"rule_misses,omitempty"`
+	// False when a complete measured run is below the corpus floor.
+	FloorMet      bool `protobuf:"varint,14,opt,name=floor_met,json=floorMet,proto3" json:"floor_met,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1963,6 +2013,313 @@ func (x *RunAuthoringEvalResponse) GetRuleMisses() []*AuthoringRuleMiss {
 	return nil
 }
 
+func (x *RunAuthoringEvalResponse) GetFloorMet() bool {
+	if x != nil {
+		return x.FloorMet
+	}
+	return false
+}
+
+type RunDiscoveryEvalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	Mode          string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	MaxCases      int32                  `protobuf:"varint,3,opt,name=max_cases,json=maxCases,proto3" json:"max_cases,omitempty"`
+	NoGate        bool                   `protobuf:"varint,4,opt,name=no_gate,json=noGate,proto3" json:"no_gate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunDiscoveryEvalRequest) Reset() {
+	*x = RunDiscoveryEvalRequest{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunDiscoveryEvalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunDiscoveryEvalRequest) ProtoMessage() {}
+
+func (x *RunDiscoveryEvalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunDiscoveryEvalRequest.ProtoReflect.Descriptor instead.
+func (*RunDiscoveryEvalRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RunDiscoveryEvalRequest) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalRequest) GetMaxCases() int32 {
+	if x != nil {
+		return x.MaxCases
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalRequest) GetNoGate() bool {
+	if x != nil {
+		return x.NoGate
+	}
+	return false
+}
+
+type DiscoveryCaseResult struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	CaseId            string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Intent            string                 `protobuf:"bytes,2,opt,name=intent,proto3" json:"intent,omitempty"`
+	ExpectedBindingId string                 `protobuf:"bytes,3,opt,name=expected_binding_id,json=expectedBindingId,proto3" json:"expected_binding_id,omitempty"`
+	SelectedBindingId string                 `protobuf:"bytes,4,opt,name=selected_binding_id,json=selectedBindingId,proto3" json:"selected_binding_id,omitempty"`
+	Met               bool                   `protobuf:"varint,5,opt,name=met,proto3" json:"met,omitempty"`
+	NullVerdict       bool                   `protobuf:"varint,6,opt,name=null_verdict,json=nullVerdict,proto3" json:"null_verdict,omitempty"`
+	WrongSelection    bool                   `protobuf:"varint,7,opt,name=wrong_selection,json=wrongSelection,proto3" json:"wrong_selection,omitempty"`
+	Reason            string                 `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DiscoveryCaseResult) Reset() {
+	*x = DiscoveryCaseResult{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveryCaseResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveryCaseResult) ProtoMessage() {}
+
+func (x *DiscoveryCaseResult) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveryCaseResult.ProtoReflect.Descriptor instead.
+func (*DiscoveryCaseResult) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *DiscoveryCaseResult) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *DiscoveryCaseResult) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *DiscoveryCaseResult) GetExpectedBindingId() string {
+	if x != nil {
+		return x.ExpectedBindingId
+	}
+	return ""
+}
+
+func (x *DiscoveryCaseResult) GetSelectedBindingId() string {
+	if x != nil {
+		return x.SelectedBindingId
+	}
+	return ""
+}
+
+func (x *DiscoveryCaseResult) GetMet() bool {
+	if x != nil {
+		return x.Met
+	}
+	return false
+}
+
+func (x *DiscoveryCaseResult) GetNullVerdict() bool {
+	if x != nil {
+		return x.NullVerdict
+	}
+	return false
+}
+
+func (x *DiscoveryCaseResult) GetWrongSelection() bool {
+	if x != nil {
+		return x.WrongSelection
+	}
+	return false
+}
+
+func (x *DiscoveryCaseResult) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RunDiscoveryEvalResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Suite          string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	Status         string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Reason         string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	Cases          int32                  `protobuf:"varint,4,opt,name=cases,proto3" json:"cases,omitempty"`
+	Met            int32                  `protobuf:"varint,5,opt,name=met,proto3" json:"met,omitempty"`
+	Missed         int32                  `protobuf:"varint,6,opt,name=missed,proto3" json:"missed,omitempty"`
+	WrongSelection int32                  `protobuf:"varint,7,opt,name=wrong_selection,json=wrongSelection,proto3" json:"wrong_selection,omitempty"`
+	NullVerdict    int32                  `protobuf:"varint,8,opt,name=null_verdict,json=nullVerdict,proto3" json:"null_verdict,omitempty"`
+	Floor          int32                  `protobuf:"varint,9,opt,name=floor,proto3" json:"floor,omitempty"`
+	FloorReason    string                 `protobuf:"bytes,10,opt,name=floor_reason,json=floorReason,proto3" json:"floor_reason,omitempty"`
+	Results        []*DiscoveryCaseResult `protobuf:"bytes,11,rep,name=results,proto3" json:"results,omitempty"`
+	FloorMet       bool                   `protobuf:"varint,12,opt,name=floor_met,json=floorMet,proto3" json:"floor_met,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RunDiscoveryEvalResponse) Reset() {
+	*x = RunDiscoveryEvalResponse{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunDiscoveryEvalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunDiscoveryEvalResponse) ProtoMessage() {}
+
+func (x *RunDiscoveryEvalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunDiscoveryEvalResponse.ProtoReflect.Descriptor instead.
+func (*RunDiscoveryEvalResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RunDiscoveryEvalResponse) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalResponse) GetCases() int32 {
+	if x != nil {
+		return x.Cases
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetMet() int32 {
+	if x != nil {
+		return x.Met
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetMissed() int32 {
+	if x != nil {
+		return x.Missed
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetWrongSelection() int32 {
+	if x != nil {
+		return x.WrongSelection
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetNullVerdict() int32 {
+	if x != nil {
+		return x.NullVerdict
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetFloor() int32 {
+	if x != nil {
+		return x.Floor
+	}
+	return 0
+}
+
+func (x *RunDiscoveryEvalResponse) GetFloorReason() string {
+	if x != nil {
+		return x.FloorReason
+	}
+	return ""
+}
+
+func (x *RunDiscoveryEvalResponse) GetResults() []*DiscoveryCaseResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *RunDiscoveryEvalResponse) GetFloorMet() bool {
+	if x != nil {
+		return x.FloorMet
+	}
+	return false
+}
+
 var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
@@ -2022,11 +2379,17 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x16WaitForProgramResponse\x12E\n" +
 	"\aprogram\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.programs.ProgramR\aprogram\x12\x1a\n" +
 	"\bterminal\x18\x02 \x01(\bR\bterminal\x12#\n" +
-	"\rwaited_millis\x18\x03 \x01(\x03R\fwaitedMillis\"_\n" +
+	"\rwaited_millis\x18\x03 \x01(\x03R\fwaitedMillis\"\xd0\x01\n" +
 	"\x13ListProgramsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12)\n" +
-	"\x10include_operator\x18\x02 \x01(\bR\x0fincludeOperator\"_\n" +
+	"\x10include_operator\x18\x02 \x01(\bR\x0fincludeOperator\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\x03 \x01(\tR\n" +
+	"provenance\x12#\n" +
+	"\rsince_seconds\x18\x04 \x01(\x03R\fsinceSeconds\x12\x14\n" +
+	"\x05until\x18\x05 \x01(\tR\x05until\x12\x14\n" +
+	"\x05limit\x18\x06 \x01(\x05R\x05limit\"_\n" +
 	"\x14ListProgramsResponse\x12G\n" +
 	"\bprograms\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.programs.ProgramR\bprograms\"@\n" +
 	"\x13MineFailuresRequest\x12)\n" +
@@ -2076,10 +2439,11 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\fwindow_start\x18\x05 \x01(\tR\vwindowStart\x12\x1d\n" +
 	"\n" +
 	"window_end\x18\x06 \x01(\tR\twindowEnd\x12`\n" +
-	"\x11observed_commands\x18\a \x03(\v23.vrooli.program_runtime.v1.programs.ObservedCommandR\x10observedCommands\"L\n" +
+	"\x11observed_commands\x18\a \x03(\v23.vrooli.program_runtime.v1.programs.ObservedCommandR\x10observedCommands\"e\n" +
 	"\x17RunAuthoringEvalRequest\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1b\n" +
-	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\"\x81\x02\n" +
+	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\x12\x17\n" +
+	"\ano_gate\x18\x03 \x01(\bR\x06noGate\"\x81\x02\n" +
 	"\x13AuthoringCaseResult\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x1a\n" +
 	"\bauthored\x18\x02 \x01(\bR\bauthored\x12(\n" +
@@ -2092,7 +2456,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x0efailure_detail\x18\b \x01(\tR\rfailureDetail\"B\n" +
 	"\x11AuthoringRuleMiss\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\xf0\x03\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x8d\x04\n" +
 	"\x18RunAuthoringEvalResponse\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
@@ -2108,7 +2472,36 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\rnot_attempted\x18\v \x01(\x05R\fnotAttempted\x12#\n" +
 	"\rharness_stamp\x18\f \x01(\tR\fharnessStamp\x12V\n" +
 	"\vrule_misses\x18\r \x03(\v25.vrooli.program_runtime.v1.programs.AuthoringRuleMissR\n" +
-	"ruleMisses*\x83\x01\n" +
+	"ruleMisses\x12\x1b\n" +
+	"\tfloor_met\x18\x0e \x01(\bR\bfloorMet\"y\n" +
+	"\x17RunDiscoveryEvalRequest\x12\x14\n" +
+	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x1b\n" +
+	"\tmax_cases\x18\x03 \x01(\x05R\bmaxCases\x12\x17\n" +
+	"\ano_gate\x18\x04 \x01(\bR\x06noGate\"\x9c\x02\n" +
+	"\x13DiscoveryCaseResult\x12\x17\n" +
+	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x16\n" +
+	"\x06intent\x18\x02 \x01(\tR\x06intent\x12.\n" +
+	"\x13expected_binding_id\x18\x03 \x01(\tR\x11expectedBindingId\x12.\n" +
+	"\x13selected_binding_id\x18\x04 \x01(\tR\x11selectedBindingId\x12\x10\n" +
+	"\x03met\x18\x05 \x01(\bR\x03met\x12!\n" +
+	"\fnull_verdict\x18\x06 \x01(\bR\vnullVerdict\x12'\n" +
+	"\x0fwrong_selection\x18\a \x01(\bR\x0ewrongSelection\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\"\x95\x03\n" +
+	"\x18RunDiscoveryEvalResponse\x12\x14\n" +
+	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x14\n" +
+	"\x05cases\x18\x04 \x01(\x05R\x05cases\x12\x10\n" +
+	"\x03met\x18\x05 \x01(\x05R\x03met\x12\x16\n" +
+	"\x06missed\x18\x06 \x01(\x05R\x06missed\x12'\n" +
+	"\x0fwrong_selection\x18\a \x01(\x05R\x0ewrongSelection\x12!\n" +
+	"\fnull_verdict\x18\b \x01(\x05R\vnullVerdict\x12\x14\n" +
+	"\x05floor\x18\t \x01(\x05R\x05floor\x12!\n" +
+	"\ffloor_reason\x18\n" +
+	" \x01(\tR\vfloorReason\x12Q\n" +
+	"\aresults\x18\v \x03(\v27.vrooli.program_runtime.v1.programs.DiscoveryCaseResultR\aresults\x12\x1b\n" +
+	"\tfloor_met\x18\f \x01(\bR\bfloorMet*\x83\x01\n" +
 	"\n" +
 	"Provenance\x12\x1a\n" +
 	"\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -2122,7 +2515,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x16PROGRAM_STATUS_RUNNING\x10\x02\x12\x1c\n" +
 	"\x18PROGRAM_STATUS_SUCCEEDED\x10\x03\x12\x19\n" +
 	"\x15PROGRAM_STATUS_FAILED\x10\x04\x12\x1c\n" +
-	"\x18PROGRAM_STATUS_CANCELLED\x10\x05*\x97\x04\n" +
+	"\x18PROGRAM_STATUS_CANCELLED\x10\x05*\xc0\x04\n" +
 	"\fFailureCause\x12\x1d\n" +
 	"\x19FAILURE_CAUSE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dFAILURE_CAUSE_UNRESOLVED_NAME\x10\x01\x12\x1f\n" +
@@ -2138,7 +2531,9 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x12 \n" +
 	"\x1cFAILURE_CAUSE_KERNEL_RUNTIME\x10\v\x12\"\n" +
 	"\x1eFAILURE_CAUSE_BRIDGE_TRANSPORT\x10\f\x12\x1e\n" +
-	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r2\xe9\t\n" +
+	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r\x12'\n" +
+	"#FAILURE_CAUSE_PROTECTED_NAME_MISUSE\x10\x0e2\xf9\n" +
+	"\n" +
 	"\x0eProgramService\x12\x84\x01\n" +
 	"\rSubmitProgram\x128.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a9.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n" +
 	"\n" +
@@ -2149,7 +2544,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\fMineRefusals\x127.vrooli.program_runtime.v1.programs.MineRefusalsRequest\x1a8.vrooli.program_runtime.v1.programs.MineRefusalsResponse\x12\x9f\x01\n" +
 	"\x16MineUnresolvedBindings\x12A.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest\x1aB.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse\x12\x8a\x01\n" +
 	"\x0fGovernanceShare\x12:.vrooli.program_runtime.v1.programs.GovernanceShareRequest\x1a;.vrooli.program_runtime.v1.programs.GovernanceShareResponse\x12\x8d\x01\n" +
-	"\x10RunAuthoringEval\x12;.vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest\x1a<.vrooli.program_runtime.v1.programs.RunAuthoringEvalResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3"
+	"\x10RunAuthoringEval\x12;.vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest\x1a<.vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse\x12\x8d\x01\n" +
+	"\x10RunDiscoveryEval\x12;.vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest\x1a<.vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_programs_programs_proto_rawDescOnce sync.Once
@@ -2164,7 +2560,7 @@ func file_program_runtime_v1_programs_programs_proto_rawDescGZIP() []byte {
 }
 
 var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(Provenance)(0),                        // 0: vrooli.program_runtime.v1.programs.Provenance
 	(ProgramStatus)(0),                     // 1: vrooli.program_runtime.v1.programs.ProgramStatus
@@ -2195,6 +2591,9 @@ var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(*AuthoringCaseResult)(nil),            // 26: vrooli.program_runtime.v1.programs.AuthoringCaseResult
 	(*AuthoringRuleMiss)(nil),              // 27: vrooli.program_runtime.v1.programs.AuthoringRuleMiss
 	(*RunAuthoringEvalResponse)(nil),       // 28: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	(*RunDiscoveryEvalRequest)(nil),        // 29: vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest
+	(*DiscoveryCaseResult)(nil),            // 30: vrooli.program_runtime.v1.programs.DiscoveryCaseResult
+	(*RunDiscoveryEvalResponse)(nil),       // 31: vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse
 }
 var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.programs.Program.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
@@ -2212,29 +2611,32 @@ var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	23, // 12: vrooli.program_runtime.v1.programs.GovernanceShareResponse.observed_commands:type_name -> vrooli.program_runtime.v1.programs.ObservedCommand
 	26, // 13: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.AuthoringCaseResult
 	27, // 14: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.rule_misses:type_name -> vrooli.program_runtime.v1.programs.AuthoringRuleMiss
-	5,  // 15: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	7,  // 16: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
-	9,  // 17: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
-	11, // 18: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
-	13, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
-	16, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	19, // 21: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	22, // 22: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:input_type -> vrooli.program_runtime.v1.programs.GovernanceShareRequest
-	25, // 23: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
-	6,  // 24: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	8,  // 25: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
-	10, // 26: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
-	12, // 27: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
-	15, // 28: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
-	18, // 29: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	21, // 30: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	24, // 31: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:output_type -> vrooli.program_runtime.v1.programs.GovernanceShareResponse
-	28, // 32: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
-	24, // [24:33] is the sub-list for method output_type
-	15, // [15:24] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	30, // 15: vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.DiscoveryCaseResult
+	5,  // 16: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	7,  // 17: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
+	9,  // 18: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
+	11, // 19: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
+	13, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
+	16, // 21: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	19, // 22: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	22, // 23: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:input_type -> vrooli.program_runtime.v1.programs.GovernanceShareRequest
+	25, // 24: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	29, // 25: vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval:input_type -> vrooli.program_runtime.v1.programs.RunDiscoveryEvalRequest
+	6,  // 26: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	8,  // 27: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
+	10, // 28: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
+	12, // 29: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
+	15, // 30: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
+	18, // 31: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	21, // 32: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	24, // 33: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:output_type -> vrooli.program_runtime.v1.programs.GovernanceShareResponse
+	28, // 34: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	31, // 35: vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval:output_type -> vrooli.program_runtime.v1.programs.RunDiscoveryEvalResponse
+	26, // [26:36] is the sub-list for method output_type
+	16, // [16:26] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_programs_programs_proto_init() }
@@ -2248,7 +2650,7 @@ func file_program_runtime_v1_programs_programs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_programs_programs_proto_rawDesc), len(file_program_runtime_v1_programs_programs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

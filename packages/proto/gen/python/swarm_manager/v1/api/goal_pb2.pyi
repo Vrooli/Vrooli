@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import goal_pb2 as _goal_pb2
+from swarm_manager.v1.domain import plan_pb2 as _plan_pb2
 from swarm_manager.v1.shared import goal_pb2 as _goal_pb2_1
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -176,12 +177,14 @@ class ApplyGoalWorkflowResponse(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., session_id: _Optional[str] = ..., proposal_ids: _Optional[_Iterable[str]] = ..., outcome: _Optional[str] = ..., already_applied: _Optional[bool] = ...) -> None: ...
 
 class GoalResponse(_message.Message):
-    __slots__ = ("goal", "scope")
+    __slots__ = ("goal", "scope", "eta")
     GOAL_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    ETA_FIELD_NUMBER: _ClassVar[int]
     goal: _goal_pb2.Goal
     scope: _goal_pb2.GoalScope
-    def __init__(self, goal: _Optional[_Union[_goal_pb2.Goal, _Mapping]] = ..., scope: _Optional[_Union[_goal_pb2.GoalScope, _Mapping]] = ...) -> None: ...
+    eta: _plan_pb2.PlanEtaBand
+    def __init__(self, goal: _Optional[_Union[_goal_pb2.Goal, _Mapping]] = ..., scope: _Optional[_Union[_goal_pb2.GoalScope, _Mapping]] = ..., eta: _Optional[_Union[_plan_pb2.PlanEtaBand, _Mapping]] = ...) -> None: ...
 
 class ListGoalsResponse(_message.Message):
     __slots__ = ("goals",)

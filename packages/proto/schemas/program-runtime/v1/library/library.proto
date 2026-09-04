@@ -6,7 +6,11 @@ import "program-runtime/v1/shared/library.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1";
 
-message ListLibraryRequest {}
+message ListLibraryRequest {
+  string query = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
 message ListLibraryResponse { repeated vrooli.program_runtime.v1.shared.LibraryProgram programs = 1; }
 message GetLibraryRequest { string name = 1; int64 version = 2; }
 message BindingDrift {

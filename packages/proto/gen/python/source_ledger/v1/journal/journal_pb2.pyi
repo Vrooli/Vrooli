@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from measures.v1 import measures_pb2 as _measures_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -8,6 +9,20 @@ from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class CountEntriesRequest(_message.Message):
+    __slots__ = ("window", "scope")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    scope: str
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., scope: _Optional[str] = ...) -> None: ...
+
+class CountEntriesResponse(_message.Message):
+    __slots__ = ("count",)
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    count: int
+    def __init__(self, count: _Optional[int] = ...) -> None: ...
 
 class FacetText(_message.Message):
     __slots__ = ("kind", "text", "embedding_ref")

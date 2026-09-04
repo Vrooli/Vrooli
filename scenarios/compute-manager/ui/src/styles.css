@@ -22,3 +22,10 @@ body {
   outline: var(--border-focus) solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Keep native text-entry controls at the mobile browser's no-zoom minimum. */
+@media (max-width: 639px) {
+  :where(input, textarea, select) {
+    font-size: 16px;
+  }
+}

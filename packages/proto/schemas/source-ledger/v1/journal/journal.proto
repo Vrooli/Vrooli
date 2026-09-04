@@ -2,6 +2,7 @@ syntax = "proto3";
 package vrooli.source_ledger.v1.journal;
 
 import "google/protobuf/timestamp.proto";
+import "measures/v1/measures.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1";
 
@@ -11,7 +12,10 @@ service JournalService {
   rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse);
   rpc ProcessClassificationRetries(ProcessClassificationRetriesRequest) returns (ProcessClassificationRetriesResponse);
   rpc ProcessEmbeddingRetries(ProcessEmbeddingRetriesRequest) returns (ProcessEmbeddingRetriesResponse);
+  rpc CountEntries(CountEntriesRequest) returns (CountEntriesResponse);
 }
+message CountEntriesRequest { vrooli.measures.v1.TimeWindow window = 1; string scope = 2; }
+message CountEntriesResponse { int64 count = 1; }
 message FacetText {
   string kind = 1;
   string text = 2;

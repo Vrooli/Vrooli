@@ -51,6 +51,18 @@ message RouteLatencyResponse {
   int64 latency_ms = 1;
 }
 
+message RouteCostResponse {
+  double cost_usd = 1;
+}
+
+message RouteTokenResponse {
+	int64 total_tokens = 1;
+}
+
+message RouteShareResponse {
+  double share = 1;
+}
+
 // MeasuresService exposes AI Gateway's declared route-analytics measures as
 // read-only, run-eligible Connect-RPC methods. Each is bound from a manifest
 // `measure` block (cli/manifest.json) and shares its compute path with the
@@ -73,4 +85,7 @@ service MeasuresService {
   rpc CountCapacityRejections(RouteMeasureRequest) returns (RouteCountResponse);
   // RouteLatencyP95 answers "what is the p95 route latency in <window>".
   rpc RouteLatencyP95(RouteMeasureRequest) returns (RouteLatencyResponse);
+  rpc RouteCost(RouteMeasureRequest) returns (RouteCostResponse);
+  rpc RouteTokens(RouteMeasureRequest) returns (RouteTokenResponse);
+  rpc RouteLocalShare(RouteMeasureRequest) returns (RouteShareResponse);
 }

@@ -113,7 +113,7 @@ const ACCESSOR_RE = /\bstrings\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
 // Match every quoted dotted-string literal (single or double quotes) that
 // looks like an i18next key (`"feature.key"`, `"a.b.c"`). The string must
 // contain at least one `.` so we don't match every plain identifier string.
-const DOTTED_RE = /["']([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)["']/g;
+const DOTTED_RE = /["']([A-Za-z_$][\w$-]*(?:\.[A-Za-z_$][\w$-]*)+)["']/g;
 
 const computeOrphans = () => {
   if (cached) return cached;

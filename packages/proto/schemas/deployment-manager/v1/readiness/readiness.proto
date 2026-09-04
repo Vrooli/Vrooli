@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package vrooli.deployment_manager.v1.readiness;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness;readinessv1";
+
+message ReviewIdentity {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 2 [(buf.validate.field).string.min_len = 1];
+  string candidate_commit = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4 [(buf.validate.field).string.min_len = 1];
+  repeated string targets = 5 [(buf.validate.field).repeated.min_items = 1];
+  string channel = 6 [(buf.validate.field).string.min_len = 1];
+  int32 policy_version = 7 [(buf.validate.field).int32.gt = 0];
+}
+
+message PrepareReviewRequest {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 2 [(buf.validate.field).string.min_len = 1];
+  string candidate_commit = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4 [(buf.validate.field).string.min_len = 1];
+  repeated string targets = 5 [(buf.validate.field).repeated.min_items = 1];
+  string channel = 6 [(buf.validate.field).string.min_len = 1];
+  int32 policy_version = 7 [(buf.validate.field).int32.gt = 0];
+  string deliverable = 8;
+  string trigger = 9;
+  // Facts are attributable release-shape observations used only to decide
+  // criterion applicability. Unknown facts remain unknown and fail closed.
+  map<string, string> facts = 10;
+}
+
+message ReviewResponse {
+  string review_key = 1;
+  string status = 2;
+  ReviewIdentity identity = 3;
+  string comparison_mode = 4;
+  string predecessor_release_id = 5;
+  string predecessor_commit = 6;
+  string predecessor_artifact_digest = 7;
+  string goal_ref = 8;
+  google.protobuf.Timestamp goal_closed_at = 9;
+  google.protobuf.Timestamp approved_at = 10;
+  string approved_by = 11;
+  repeated google.protobuf.Struct findings = 12;
+  repeated google.protobuf.Struct evidence = 13;
+  repeated string next_actions = 14;
+  bool deduped = 15;
+}
+
+message GetReviewRequest {
+  string review_key = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListReviewsRequest {
+  string status = 1;
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 500}];
+}
+
+message ListReviewsResponse {
+  repeated ReviewResponse reviews = 1;
+  int32 count = 2;
+}
+
+message ListReviewWaiversRequest {
+  string review_key = 1;
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 500}];
+}
+
+message ReviewWaiver {
+  string review_key = 1;
+  string criterion_id = 2;
+  string actor = 3;
+  string reason = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  string invalidation_trigger = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message ListReviewWaiversResponse {
+  repeated ReviewWaiver waivers = 1;
+  int32 count = 2;
+}
+
+message SynchronizeGoalClosureRequest {
+  string review_key = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ApproveReviewRequest {
+  string review_key = 1 [(buf.validate.field).string.min_len = 1];
+  ReviewIdentity identity = 2 [(buf.validate.field).required = true];
+  string actor = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message CreateWaiverRequest {
+  string review_key = 1 [(buf.validate.field).string.min_len = 1];
+  string criterion_id = 2 [(buf.validate.field).string.min_len = 1];
+  string actor = 3 [(buf.validate.field).string.min_len = 1];
+  string reason = 4 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp expires_at = 5 [(buf.validate.field).required = true];
+  string invalidation_trigger = 6;
+}
+
+message RecordHumanCheckRequest {
+  string review_key = 1 [(buf.validate.field).string.min_len = 1];
+  string criterion_id = 2 [(buf.validate.field).string.min_len = 1];
+  string verdict = 3 [(buf.validate.field).string.min_len = 1];
+  string actor = 4 [(buf.validate.field).string.min_len = 1];
+  string evidence_reference = 5 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp reviewed_at = 6 [(buf.validate.field).required = true];
+}
+
+message CheckPolicyProjectionRequest {
+  bytes policy_json = 1;
+}
+
+message CheckPolicyProjectionResponse {
+  int32 policy_version = 1;
+  int32 criterion_count = 2;
+  bool matches = 3;
+}
+
+// ReportEvidence records a producer-owned observation for one exact release
+// identity. Preparation consumes it only when criterion_id and the policy's
+// declared producer binding match.
+message ReportEvidenceRequest {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 2 [(buf.validate.field).string.min_len = 1];
+  string candidate_commit = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4 [(buf.validate.field).string.min_len = 1];
+  repeated string targets = 5 [(buf.validate.field).repeated.min_items = 1];
+  string channel = 6 [(buf.validate.field).string.min_len = 1];
+  int32 policy_version = 7 [(buf.validate.field).int32.gt = 0];
+  string criterion_id = 8 [(buf.validate.field).string.min_len = 1];
+  string producer_binding = 9 [(buf.validate.field).string.min_len = 1];
+  string producer_version = 10;
+  string status = 11 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp observed_at = 12 [(buf.validate.field).required = true];
+  string evidence_reference = 13 [(buf.validate.field).string.min_len = 1];
+  string detail = 14;
+}
+
+message ReportEvidenceResponse {
+  string identity_key = 1;
+  string criterion_id = 2;
+  string producer_binding = 3;
+  bool accepted = 4;
+}
+
+service ReadinessService {
+  rpc ReportEvidence(ReportEvidenceRequest) returns (ReportEvidenceResponse);
+  rpc PrepareReview(PrepareReviewRequest) returns (ReviewResponse);
+  rpc GetReview(GetReviewRequest) returns (ReviewResponse);
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
+  rpc ListReviewWaivers(ListReviewWaiversRequest) returns (ListReviewWaiversResponse);
+  rpc SynchronizeGoalClosure(SynchronizeGoalClosureRequest) returns (ReviewResponse);
+  rpc ApproveReview(ApproveReviewRequest) returns (ReviewResponse);
+  rpc CreateWaiver(CreateWaiverRequest) returns (ReviewResponse);
+  rpc RecordHumanCheck(RecordHumanCheckRequest) returns (ReviewResponse);
+  rpc CheckPolicyProjection(CheckPolicyProjectionRequest) returns (CheckPolicyProjectionResponse);
+}

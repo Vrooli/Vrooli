@@ -19,6 +19,8 @@ class EventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROGRAM_ACCEPTED: _ClassVar[EventKind]
     PROGRAM_RUNNING: _ClassVar[EventKind]
     PROGRAM_CANCELLED: _ClassVar[EventKind]
+    NOMINATION: _ClassVar[EventKind]
+    COVERAGE_MISS: _ClassVar[EventKind]
 EVENT_KIND_UNSPECIFIED: EventKind
 PROGRAM_SUBMITTED: EventKind
 PROGRAM_SUCCEEDED: EventKind
@@ -29,9 +31,11 @@ BINDING_INVOKED: EventKind
 PROGRAM_ACCEPTED: EventKind
 PROGRAM_RUNNING: EventKind
 PROGRAM_CANCELLED: EventKind
+NOMINATION: EventKind
+COVERAGE_MISS: EventKind
 
 class ProgramEvent(_message.Message):
-    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location", "sequence")
+    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location", "sequence", "shape_key", "shape_binding_ids", "shape_occurrences", "shape_sessions", "dominant_scenario", "covering_contract_id")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -45,6 +49,12 @@ class ProgramEvent(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     FAILURE_LOCATION_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    SHAPE_KEY_FIELD_NUMBER: _ClassVar[int]
+    SHAPE_BINDING_IDS_FIELD_NUMBER: _ClassVar[int]
+    SHAPE_OCCURRENCES_FIELD_NUMBER: _ClassVar[int]
+    SHAPE_SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    DOMINANT_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    COVERING_CONTRACT_ID_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     occurred_at: str
     kind: EventKind
@@ -58,7 +68,13 @@ class ProgramEvent(_message.Message):
     reason: str
     failure_location: str
     sequence: int
-    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ..., failure_location: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
+    shape_key: str
+    shape_binding_ids: _containers.RepeatedScalarFieldContainer[str]
+    shape_occurrences: int
+    shape_sessions: int
+    dominant_scenario: str
+    covering_contract_id: str
+    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ..., failure_location: _Optional[str] = ..., sequence: _Optional[int] = ..., shape_key: _Optional[str] = ..., shape_binding_ids: _Optional[_Iterable[str]] = ..., shape_occurrences: _Optional[int] = ..., shape_sessions: _Optional[int] = ..., dominant_scenario: _Optional[str] = ..., covering_contract_id: _Optional[str] = ...) -> None: ...
 
 class ListEventsRequest(_message.Message):
     __slots__ = ("session_id", "kind")

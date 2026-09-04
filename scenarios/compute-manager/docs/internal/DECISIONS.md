@@ -10,7 +10,7 @@ otherwise make the opposite choice.
 Rows are written once. When a decision is overturned it moves to Superseded
 Decisions with a pointer to its replacement, rather than being edited in place.
 
-> **Status: designed, not implemented.** These decisions were taken during the
+> **Status: partially implemented.** These decisions were taken during the
 > design review that preceded generation. None of them has been tested against
 > running code, and the Revisit Trigger column is where that is expected to show.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -31,6 +31,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   consoleError.mockRestore();
 });
 
@@ -69,9 +70,11 @@ describe("ErrorBoundary", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     const call = onError.mock.calls[0];
     expect(call).toBeDefined();
-    const [err, info] = call!;
+    if (!call) throw new Error("ErrorBoundary did not report the thrown error");
+    const [err, info] = call;
     expect(err).toBeInstanceOf(Error);
-    expect((err as Error).message).toBe("boundary-test");
+    if (!(err instanceof Error)) throw new Error("ErrorBoundary reported a non-Error value");
+    expect(err.message).toBe("boundary-test");
     expect(info).toHaveProperty("componentStack");
   });
 

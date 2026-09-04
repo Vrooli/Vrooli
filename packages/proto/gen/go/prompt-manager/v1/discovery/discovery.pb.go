@@ -980,6 +980,7 @@ func (x *GetDiscoveryMetricsResponse) GetBudgetHogs() []*BudgetHogSkill {
 type GetSkillUsageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Since         string                 `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Outcomes      bool                   `protobuf:"varint,2,opt,name=outcomes,proto3" json:"outcomes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1021,6 +1022,13 @@ func (x *GetSkillUsageRequest) GetSince() string {
 	return ""
 }
 
+func (x *GetSkillUsageRequest) GetOutcomes() bool {
+	if x != nil {
+		return x.Outcomes
+	}
+	return false
+}
+
 type SkillUsageRow struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	SkillId           string                 `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
@@ -1031,6 +1039,11 @@ type SkillUsageRow struct {
 	ReadsByCallerKind map[string]int32       `protobuf:"bytes,6,rep,name=reads_by_caller_kind,json=readsByCallerKind,proto3" json:"reads_by_caller_kind,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	ConversionRate    *float64               `protobuf:"fixed64,7,opt,name=conversion_rate,json=conversionRate,proto3,oneof" json:"conversion_rate,omitempty"`
 	LastReadAt        string                 `protobuf:"bytes,8,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	Projected         bool                   `protobuf:"varint,9,opt,name=projected,proto3" json:"projected,omitempty"`
+	ReadsWithRun      int32                  `protobuf:"varint,10,opt,name=reads_with_run,json=readsWithRun,proto3" json:"reads_with_run,omitempty"`
+	SucceededRuns     int32                  `protobuf:"varint,11,opt,name=succeeded_runs,json=succeededRuns,proto3" json:"succeeded_runs,omitempty"`
+	FailedRuns        int32                  `protobuf:"varint,12,opt,name=failed_runs,json=failedRuns,proto3" json:"failed_runs,omitempty"`
+	OutcomeCoverage   *float64               `protobuf:"fixed64,13,opt,name=outcome_coverage,json=outcomeCoverage,proto3,oneof" json:"outcome_coverage,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1121,6 +1134,41 @@ func (x *SkillUsageRow) GetLastReadAt() string {
 	return ""
 }
 
+func (x *SkillUsageRow) GetProjected() bool {
+	if x != nil {
+		return x.Projected
+	}
+	return false
+}
+
+func (x *SkillUsageRow) GetReadsWithRun() int32 {
+	if x != nil {
+		return x.ReadsWithRun
+	}
+	return 0
+}
+
+func (x *SkillUsageRow) GetSucceededRuns() int32 {
+	if x != nil {
+		return x.SucceededRuns
+	}
+	return 0
+}
+
+func (x *SkillUsageRow) GetFailedRuns() int32 {
+	if x != nil {
+		return x.FailedRuns
+	}
+	return 0
+}
+
+func (x *SkillUsageRow) GetOutcomeCoverage() float64 {
+	if x != nil && x.OutcomeCoverage != nil {
+		return *x.OutcomeCoverage
+	}
+	return 0
+}
+
 type GetSkillUsageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Since         string                 `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
@@ -1177,6 +1225,186 @@ func (x *GetSkillUsageResponse) GetUnread() []string {
 func (x *GetSkillUsageResponse) GetRows() []*SkillUsageRow {
 	if x != nil {
 		return x.Rows
+	}
+	return nil
+}
+
+type ValidateSkillSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateSkillSetRequest) Reset() {
+	*x = ValidateSkillSetRequest{}
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateSkillSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateSkillSetRequest) ProtoMessage() {}
+
+func (x *ValidateSkillSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateSkillSetRequest.ProtoReflect.Descriptor instead.
+func (*ValidateSkillSetRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_discovery_discovery_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ValidateSkillSetRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+type SkillSetRole struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkillSetRole) Reset() {
+	*x = SkillSetRole{}
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkillSetRole) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkillSetRole) ProtoMessage() {}
+
+func (x *SkillSetRole) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkillSetRole.ProtoReflect.Descriptor instead.
+func (*SkillSetRole) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_discovery_discovery_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SkillSetRole) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *SkillSetRole) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SkillSetRole) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *SkillSetRole) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ValidateSkillSetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Roles         []*SkillSetRole        `protobuf:"bytes,3,rep,name=roles,proto3" json:"roles,omitempty"`
+	Findings      []string               `protobuf:"bytes,4,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateSkillSetResponse) Reset() {
+	*x = ValidateSkillSetResponse{}
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateSkillSetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateSkillSetResponse) ProtoMessage() {}
+
+func (x *ValidateSkillSetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_discovery_discovery_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateSkillSetResponse.ProtoReflect.Descriptor instead.
+func (*ValidateSkillSetResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_discovery_discovery_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ValidateSkillSetResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ValidateSkillSetResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ValidateSkillSetResponse) GetRoles() []*SkillSetRole {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *ValidateSkillSetResponse) GetFindings() []string {
+	if x != nil {
+		return x.Findings
 	}
 	return nil
 }
@@ -1284,9 +1512,10 @@ const file_prompt_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"budgetHogs\x1av\n" +
 	"\x12PerComplexityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12J\n" +
-	"\x05value\x18\x02 \x01(\v24.vrooli.prompt_manager.v1.discovery.ComplexityMetricR\x05value:\x028\x01\",\n" +
+	"\x05value\x18\x02 \x01(\v24.vrooli.prompt_manager.v1.discovery.ComplexityMetricR\x05value:\x028\x01\"H\n" +
 	"\x14GetSkillUsageRequest\x12\x14\n" +
-	"\x05since\x18\x01 \x01(\tR\x05since\"\xc9\x03\n" +
+	"\x05since\x18\x01 \x01(\tR\x05since\x12\x1a\n" +
+	"\boutcomes\x18\x02 \x01(\bR\boutcomes\"\x9a\x05\n" +
 	"\rSkillUsageRow\x12\x19\n" +
 	"\bskill_id\x18\x01 \x01(\tR\askillId\x12\x1a\n" +
 	"\breturned\x18\x02 \x01(\x05R\breturned\x12\x14\n" +
@@ -1296,20 +1525,41 @@ const file_prompt_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"\x14reads_by_caller_kind\x18\x06 \x03(\v2H.vrooli.prompt_manager.v1.discovery.SkillUsageRow.ReadsByCallerKindEntryR\x11readsByCallerKind\x12,\n" +
 	"\x0fconversion_rate\x18\a \x01(\x01H\x00R\x0econversionRate\x88\x01\x01\x12 \n" +
 	"\flast_read_at\x18\b \x01(\tR\n" +
-	"lastReadAt\x1aD\n" +
+	"lastReadAt\x12\x1c\n" +
+	"\tprojected\x18\t \x01(\bR\tprojected\x12$\n" +
+	"\x0ereads_with_run\x18\n" +
+	" \x01(\x05R\freadsWithRun\x12%\n" +
+	"\x0esucceeded_runs\x18\v \x01(\x05R\rsucceededRuns\x12\x1f\n" +
+	"\vfailed_runs\x18\f \x01(\x05R\n" +
+	"failedRuns\x12.\n" +
+	"\x10outcome_coverage\x18\r \x01(\x01H\x01R\x0foutcomeCoverage\x88\x01\x01\x1aD\n" +
 	"\x16ReadsByCallerKindEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\x12\n" +
-	"\x10_conversion_rate\"\x8c\x01\n" +
+	"\x10_conversion_rateB\x13\n" +
+	"\x11_outcome_coverage\"\x8c\x01\n" +
 	"\x15GetSkillUsageResponse\x12\x14\n" +
 	"\x05since\x18\x01 \x01(\tR\x05since\x12\x16\n" +
 	"\x06unread\x18\x02 \x03(\tR\x06unread\x12E\n" +
-	"\x04rows\x18\x03 \x03(\v21.vrooli.prompt_manager.v1.discovery.SkillUsageRowR\x04rows2\xbc\x04\n" +
+	"\x04rows\x18\x03 \x03(\v21.vrooli.prompt_manager.v1.discovery.SkillUsageRowR\x04rows\"5\n" +
+	"\x17ValidateSkillSetRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"j\n" +
+	"\fSkillSetRole\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xb2\x01\n" +
+	"\x18ValidateSkillSetResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12F\n" +
+	"\x05roles\x18\x03 \x03(\v20.vrooli.prompt_manager.v1.discovery.SkillSetRoleR\x05roles\x12\x1a\n" +
+	"\bfindings\x18\x04 \x03(\tR\bfindings2\xcc\x05\n" +
 	"\x10DiscoveryService\x12u\n" +
 	"\bDiscover\x123.vrooli.prompt_manager.v1.discovery.DiscoverRequest\x1a4.vrooli.prompt_manager.v1.discovery.DiscoverResponse\x12\x90\x01\n" +
 	"\x11ListDiscoveryGaps\x12<.vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsRequest\x1a=.vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsResponse\x12\x96\x01\n" +
 	"\x13GetDiscoveryMetrics\x12>.vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsRequest\x1a?.vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse\x12\x84\x01\n" +
-	"\rGetSkillUsage\x128.vrooli.prompt_manager.v1.discovery.GetSkillUsageRequest\x1a9.vrooli.prompt_manager.v1.discovery.GetSkillUsageResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery;discovery_v1b\x06proto3"
+	"\rGetSkillUsage\x128.vrooli.prompt_manager.v1.discovery.GetSkillUsageRequest\x1a9.vrooli.prompt_manager.v1.discovery.GetSkillUsageResponse\x12\x8d\x01\n" +
+	"\x10ValidateSkillSet\x12;.vrooli.prompt_manager.v1.discovery.ValidateSkillSetRequest\x1a<.vrooli.prompt_manager.v1.discovery.ValidateSkillSetResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery;discovery_v1b\x06proto3"
 
 var (
 	file_prompt_manager_v1_discovery_discovery_proto_rawDescOnce sync.Once
@@ -1323,7 +1573,7 @@ func file_prompt_manager_v1_discovery_discovery_proto_rawDescGZIP() []byte {
 	return file_prompt_manager_v1_discovery_discovery_proto_rawDescData
 }
 
-var file_prompt_manager_v1_discovery_discovery_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_prompt_manager_v1_discovery_discovery_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_prompt_manager_v1_discovery_discovery_proto_goTypes = []any{
 	(*DiscoverRequest)(nil),             // 0: vrooli.prompt_manager.v1.discovery.DiscoverRequest
 	(*DiscoverResult)(nil),              // 1: vrooli.prompt_manager.v1.discovery.DiscoverResult
@@ -1339,32 +1589,38 @@ var file_prompt_manager_v1_discovery_discovery_proto_goTypes = []any{
 	(*GetSkillUsageRequest)(nil),        // 11: vrooli.prompt_manager.v1.discovery.GetSkillUsageRequest
 	(*SkillUsageRow)(nil),               // 12: vrooli.prompt_manager.v1.discovery.SkillUsageRow
 	(*GetSkillUsageResponse)(nil),       // 13: vrooli.prompt_manager.v1.discovery.GetSkillUsageResponse
-	nil,                                 // 14: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry
-	nil,                                 // 15: vrooli.prompt_manager.v1.discovery.SkillUsageRow.ReadsByCallerKindEntry
+	(*ValidateSkillSetRequest)(nil),     // 14: vrooli.prompt_manager.v1.discovery.ValidateSkillSetRequest
+	(*SkillSetRole)(nil),                // 15: vrooli.prompt_manager.v1.discovery.SkillSetRole
+	(*ValidateSkillSetResponse)(nil),    // 16: vrooli.prompt_manager.v1.discovery.ValidateSkillSetResponse
+	nil,                                 // 17: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry
+	nil,                                 // 18: vrooli.prompt_manager.v1.discovery.SkillUsageRow.ReadsByCallerKindEntry
 }
 var file_prompt_manager_v1_discovery_discovery_proto_depIdxs = []int32{
 	1,  // 0: vrooli.prompt_manager.v1.discovery.DiscoverResponse.results:type_name -> vrooli.prompt_manager.v1.discovery.DiscoverResult
 	4,  // 1: vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsResponse.clusters:type_name -> vrooli.prompt_manager.v1.discovery.DiscoveryGap
 	6,  // 2: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.returned_count:type_name -> vrooli.prompt_manager.v1.discovery.DistributionStats
 	6,  // 3: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.clipped_per_probe:type_name -> vrooli.prompt_manager.v1.discovery.DistributionStats
-	14, // 4: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.per_complexity:type_name -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry
+	17, // 4: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.per_complexity:type_name -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry
 	8,  // 5: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.budget_hogs:type_name -> vrooli.prompt_manager.v1.discovery.BudgetHogSkill
-	15, // 6: vrooli.prompt_manager.v1.discovery.SkillUsageRow.reads_by_caller_kind:type_name -> vrooli.prompt_manager.v1.discovery.SkillUsageRow.ReadsByCallerKindEntry
+	18, // 6: vrooli.prompt_manager.v1.discovery.SkillUsageRow.reads_by_caller_kind:type_name -> vrooli.prompt_manager.v1.discovery.SkillUsageRow.ReadsByCallerKindEntry
 	12, // 7: vrooli.prompt_manager.v1.discovery.GetSkillUsageResponse.rows:type_name -> vrooli.prompt_manager.v1.discovery.SkillUsageRow
-	7,  // 8: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry.value:type_name -> vrooli.prompt_manager.v1.discovery.ComplexityMetric
-	0,  // 9: vrooli.prompt_manager.v1.discovery.DiscoveryService.Discover:input_type -> vrooli.prompt_manager.v1.discovery.DiscoverRequest
-	3,  // 10: vrooli.prompt_manager.v1.discovery.DiscoveryService.ListDiscoveryGaps:input_type -> vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsRequest
-	9,  // 11: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetDiscoveryMetrics:input_type -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsRequest
-	11, // 12: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetSkillUsage:input_type -> vrooli.prompt_manager.v1.discovery.GetSkillUsageRequest
-	2,  // 13: vrooli.prompt_manager.v1.discovery.DiscoveryService.Discover:output_type -> vrooli.prompt_manager.v1.discovery.DiscoverResponse
-	5,  // 14: vrooli.prompt_manager.v1.discovery.DiscoveryService.ListDiscoveryGaps:output_type -> vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsResponse
-	10, // 15: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetDiscoveryMetrics:output_type -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse
-	13, // 16: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetSkillUsage:output_type -> vrooli.prompt_manager.v1.discovery.GetSkillUsageResponse
-	13, // [13:17] is the sub-list for method output_type
-	9,  // [9:13] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	15, // 8: vrooli.prompt_manager.v1.discovery.ValidateSkillSetResponse.roles:type_name -> vrooli.prompt_manager.v1.discovery.SkillSetRole
+	7,  // 9: vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse.PerComplexityEntry.value:type_name -> vrooli.prompt_manager.v1.discovery.ComplexityMetric
+	0,  // 10: vrooli.prompt_manager.v1.discovery.DiscoveryService.Discover:input_type -> vrooli.prompt_manager.v1.discovery.DiscoverRequest
+	3,  // 11: vrooli.prompt_manager.v1.discovery.DiscoveryService.ListDiscoveryGaps:input_type -> vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsRequest
+	9,  // 12: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetDiscoveryMetrics:input_type -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsRequest
+	11, // 13: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetSkillUsage:input_type -> vrooli.prompt_manager.v1.discovery.GetSkillUsageRequest
+	14, // 14: vrooli.prompt_manager.v1.discovery.DiscoveryService.ValidateSkillSet:input_type -> vrooli.prompt_manager.v1.discovery.ValidateSkillSetRequest
+	2,  // 15: vrooli.prompt_manager.v1.discovery.DiscoveryService.Discover:output_type -> vrooli.prompt_manager.v1.discovery.DiscoverResponse
+	5,  // 16: vrooli.prompt_manager.v1.discovery.DiscoveryService.ListDiscoveryGaps:output_type -> vrooli.prompt_manager.v1.discovery.ListDiscoveryGapsResponse
+	10, // 17: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetDiscoveryMetrics:output_type -> vrooli.prompt_manager.v1.discovery.GetDiscoveryMetricsResponse
+	13, // 18: vrooli.prompt_manager.v1.discovery.DiscoveryService.GetSkillUsage:output_type -> vrooli.prompt_manager.v1.discovery.GetSkillUsageResponse
+	16, // 19: vrooli.prompt_manager.v1.discovery.DiscoveryService.ValidateSkillSet:output_type -> vrooli.prompt_manager.v1.discovery.ValidateSkillSetResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_prompt_manager_v1_discovery_discovery_proto_init() }
@@ -1380,7 +1636,7 @@ func file_prompt_manager_v1_discovery_discovery_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prompt_manager_v1_discovery_discovery_proto_rawDesc), len(file_prompt_manager_v1_discovery_discovery_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

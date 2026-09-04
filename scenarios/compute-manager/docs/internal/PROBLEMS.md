@@ -39,6 +39,26 @@ Use this shape so entries are scannable. Newest at the top.
 
 ## Entries
 
+### 2026-09-03 — Live proof and requirement-earned validation remain open
+
+**Symptom:** The implementation is exercised against fakes and local service
+contracts, but no credentialed Hetzner lifecycle transcript or comprehensive
+requirement sync has been produced.
+
+**Root cause:** The live cloud credential and a disposable operator-approved
+machine are external state, while the current focused tests intentionally avoid
+network provisioning.
+
+**Workaround:** Use the fake provider, durable reservation/reconciliation
+paths, and targeted Test Genie phases for development validation.
+
+**Real fix:** Obtain operator-authorized Hetzner credentials, run the full
+create/enroll/meter/destroy proof, then sync tagged requirement evidence.
+
+**Owner:** operator
+
+**Refs:** `api/internal/provider/hetzner`, `api/handlers/instance`, plan phase 16
+
 ### 2026-09-03 — The CLI manifest cannot be schema-valid until the first domain lands
 
 **Symptom:** The `contracts` phase fails with
@@ -69,25 +89,20 @@ slice.
 **Refs:** `cli/manifest.json`, `.vrooli/schemas/cli-manifest.schema.json`, scenario-qa `knw-1788462360339936549`
 
 
-### 2026-09-03 — Nothing is implemented, and the requirements registry says so
+### 2026-09-04 — Requirement evidence is not yet synchronized
 
-**Symptom:** All fifteen requirements are `planned`. Every automated validation
-entry is `not_implemented` and carries no `ref`, because naming a test file that
-does not exist would be a fabricated claim. Six validation entries do carry a
-`ref`, and all six point at documentation rather than code: three manual
-business validations on `COMPUTEM-P0-003`, `-004` and `-005` point at runbook
-procedures, and the three `COMPUTEM-P2-*` roadmap entries point at the design
-sections that define them.
+**Symptom:** Focused tests now exist and carry requirement tags, but the
+requirements registry still contains stale intended-path notes and has not
+been refreshed by a comprehensive suite run.
 
-**Root cause:** The scenario was generated and documented in one session, ahead
-of any implementation. This is intended, not accidental.
+**Root cause:** Implementation landed incrementally after the registry was
+authored; the sync writer only earns statuses from a fresh comprehensive run.
 
-**Workaround:** None needed. The intended test path for each automated layer is
-recorded in the validation `notes` field, so the first implementation slice
-knows exactly which file to create and which requirement tag to carry.
+**Workaround:** Use the focused tagged tests and targeted API checks. Do not
+hand-promote requirement statuses.
 
-**Real fix:** Build the first vertical slice. As each test lands, add its `ref`
-and let the sync earn the status. Never hand-set a status to `complete`.
+**Real fix:** Update validation refs to the tests that actually exist, add any
+missing behavioral tests, then run the governed sync and inspect its result.
 
 **Owner:** unassigned
 
@@ -150,21 +165,19 @@ an attestation, and `delivery_scope` should survive a sync unchanged.
 
 **Refs:** `requirements/03-future/module.json`, scenario-qa `knw-1788462423812925000`, run `20260903-190022-c2883150`
 
-### 2026-09-03 — Bridge publishes no onboarding public key, which blocks unattended enrollment
+### 2026-09-04 — Bridge onboarding public key is now published
 
-**Symptom:** `OT-P0-005` cannot be completed. There is no way for this scenario
-to obtain the key it must embed in an instance's first-boot configuration.
+**Symptom:** This former blocker prevented unattended enrollment.
 
 **Root cause:** `vrooli-bridge` can read its own onboarding public key
 internally, but exposes it on no endpoint. The capability exists; the wire
 contract does not.
 
-**Workaround:** None acceptable. The tempting substitute is to pass an owner
-password through this scenario to bridge's first touch, which would put a
-credential on a wire that currently carries none. Do not do this.
+**Workaround:** No workaround is required now; compute-manager reads the
+public-key endpoint and continues to avoid passwords.
 
-**Real fix:** Bridge adds one endpoint returning its onboarding public key. This
-is the single new wire contract the whole compute effort needs, and it is small.
+**Real fix:** Landed. Bridge exposes the public key and compute-manager embeds it
+in first-boot configuration. Live enrollment proof remains open.
 
 **Owner:** unassigned, upstream in `vrooli-bridge`
 
@@ -222,10 +235,12 @@ matching meter key.
 Declaring `compute_minutes` in this scenario's monetization manifest with its
 enforcement paths, regenerating the meter inventory and seeding the per-tier
 limit rows clears the undeclared-stream half. The deliverable-meter-gap half is
-attributed to `vrooli-bridge`, because the gap check only follows `unlocks`
-edges and the only such edge into this stream comes from bridge. Closing it
-needs a compute-manager deliverable node and a rewired edge, which is operator
-work in the catalog.
+still attributed to `vrooli-bridge`, because the gap check follows all
+`unlocks` edges. The Compute Manager deliverable and its `unlocks` edge are now
+present, but the older bridge edge remains in the operator-owned catalog.
+Removing or rewiring that edge is catalog-canon work, and the supported Offer
+Desk surface has no agent-authorized edge-removal operation. An operator must
+curate it rather than mutating the repository.
 
 **Owner:** unassigned
 
@@ -253,6 +268,13 @@ distinction.
 **Owner:** unassigned
 
 **Refs:** `docs/concepts/INTEGRATIONS.md` failure modes
+
+## Work ladder
+
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` found no goal whose name, title, or description names `compute-manager`; the active implementation plan is the governing work artifact, so the W0 goal comparison is unverifiable through the scenario ladder.
+- Blocker: no named swarm-manager goal is available for the W0 comparison; continue under the active Plan Manager execution and keep completion claims evidence-based.
+- Measured: 2026-09-04
 
 ## Architecture Drift
 

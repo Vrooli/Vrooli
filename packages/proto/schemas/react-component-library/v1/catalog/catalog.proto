@@ -17,7 +17,21 @@ service CatalogService {
 	rpc GetHealthOverview(GetHealthOverviewRequest) returns (GetHealthOverviewResponse);
 	rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
 	rpc CaptureEvidence(CaptureEvidenceRequest) returns (CaptureEvidenceResponse);
+	rpc SearchAssets(SearchAssetsRequest) returns (SearchAssetsResponse);
+	rpc SearchStatus(SearchStatusRequest) returns (SearchStatusResponse);
+	rpc ReindexSearch(ReindexSearchRequest) returns (ReindexSearchResponse);
 }
+
+message SearchAssetsRequest { string query = 1; int32 limit = 2; string kind = 3; string domain = 4; string accepts = 5; }
+message SearchAssetResult {
+	string catalog_id = 1; string name = 2; string description = 3; string declaration_path = 4;
+	double score = 5; int32 layer = 6; bool implemented = 7; string kind = 8; string domain = 9;
+}
+message SearchAssetsResponse { repeated SearchAssetResult results = 1; int32 total = 2; }
+message SearchStatusRequest {}
+message SearchStatusResponse { int32 indexed_count = 1; string indexed_at = 2; bool available = 3; }
+message ReindexSearchRequest {}
+message ReindexSearchResponse { int32 indexed_count = 1; string indexed_at = 2; }
 
 message AssetNode {
 	string asset_id = 1;

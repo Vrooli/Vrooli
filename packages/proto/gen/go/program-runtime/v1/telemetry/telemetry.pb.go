@@ -34,21 +34,25 @@ const (
 	EventKind_PROGRAM_ACCEPTED       EventKind = 7
 	EventKind_PROGRAM_RUNNING        EventKind = 8
 	EventKind_PROGRAM_CANCELLED      EventKind = 9
+	EventKind_NOMINATION             EventKind = 10
+	EventKind_COVERAGE_MISS          EventKind = 11
 )
 
 // Enum value maps for EventKind.
 var (
 	EventKind_name = map[int32]string{
-		0: "EVENT_KIND_UNSPECIFIED",
-		1: "PROGRAM_SUBMITTED",
-		2: "PROGRAM_SUCCEEDED",
-		3: "PROGRAM_FAILED",
-		4: "BINDING_REFUSED",
-		5: "SESSION_RECLAIMED",
-		6: "BINDING_INVOKED",
-		7: "PROGRAM_ACCEPTED",
-		8: "PROGRAM_RUNNING",
-		9: "PROGRAM_CANCELLED",
+		0:  "EVENT_KIND_UNSPECIFIED",
+		1:  "PROGRAM_SUBMITTED",
+		2:  "PROGRAM_SUCCEEDED",
+		3:  "PROGRAM_FAILED",
+		4:  "BINDING_REFUSED",
+		5:  "SESSION_RECLAIMED",
+		6:  "BINDING_INVOKED",
+		7:  "PROGRAM_ACCEPTED",
+		8:  "PROGRAM_RUNNING",
+		9:  "PROGRAM_CANCELLED",
+		10: "NOMINATION",
+		11: "COVERAGE_MISS",
 	}
 	EventKind_value = map[string]int32{
 		"EVENT_KIND_UNSPECIFIED": 0,
@@ -61,6 +65,8 @@ var (
 		"PROGRAM_ACCEPTED":       7,
 		"PROGRAM_RUNNING":        8,
 		"PROGRAM_CANCELLED":      9,
+		"NOMINATION":             10,
+		"COVERAGE_MISS":          11,
 	}
 )
 
@@ -92,22 +98,28 @@ func (EventKind) EnumDescriptor() ([]byte, []int) {
 }
 
 type ProgramEvent struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	EventId         string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	OccurredAt      string                 `protobuf:"bytes,2,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	Kind            EventKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.program_runtime.v1.telemetry.EventKind" json:"kind,omitempty"`
-	ProgramId       string                 `protobuf:"bytes,4,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
-	SessionId       string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	BindingId       string                 `protobuf:"bytes,6,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
-	Effect          string                 `protobuf:"bytes,7,opt,name=effect,proto3" json:"effect,omitempty"`
-	Provenance      string                 `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	FailureShape    string                 `protobuf:"bytes,9,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
-	ContextBytes    int64                  `protobuf:"varint,10,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
-	Reason          string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
-	FailureLocation string                 `protobuf:"bytes,12,opt,name=failure_location,json=failureLocation,proto3" json:"failure_location,omitempty"`
-	Sequence        int64                  `protobuf:"varint,13,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	EventId            string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	OccurredAt         string                 `protobuf:"bytes,2,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Kind               EventKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.program_runtime.v1.telemetry.EventKind" json:"kind,omitempty"`
+	ProgramId          string                 `protobuf:"bytes,4,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
+	SessionId          string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	BindingId          string                 `protobuf:"bytes,6,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	Effect             string                 `protobuf:"bytes,7,opt,name=effect,proto3" json:"effect,omitempty"`
+	Provenance         string                 `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	FailureShape       string                 `protobuf:"bytes,9,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
+	ContextBytes       int64                  `protobuf:"varint,10,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
+	Reason             string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
+	FailureLocation    string                 `protobuf:"bytes,12,opt,name=failure_location,json=failureLocation,proto3" json:"failure_location,omitempty"`
+	Sequence           int64                  `protobuf:"varint,13,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	ShapeKey           string                 `protobuf:"bytes,14,opt,name=shape_key,json=shapeKey,proto3" json:"shape_key,omitempty"`
+	ShapeBindingIds    []string               `protobuf:"bytes,15,rep,name=shape_binding_ids,json=shapeBindingIds,proto3" json:"shape_binding_ids,omitempty"`
+	ShapeOccurrences   int64                  `protobuf:"varint,16,opt,name=shape_occurrences,json=shapeOccurrences,proto3" json:"shape_occurrences,omitempty"`
+	ShapeSessions      int64                  `protobuf:"varint,17,opt,name=shape_sessions,json=shapeSessions,proto3" json:"shape_sessions,omitempty"`
+	DominantScenario   string                 `protobuf:"bytes,18,opt,name=dominant_scenario,json=dominantScenario,proto3" json:"dominant_scenario,omitempty"`
+	CoveringContractId string                 `protobuf:"bytes,19,opt,name=covering_contract_id,json=coveringContractId,proto3" json:"covering_contract_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProgramEvent) Reset() {
@@ -231,6 +243,48 @@ func (x *ProgramEvent) GetSequence() int64 {
 	return 0
 }
 
+func (x *ProgramEvent) GetShapeKey() string {
+	if x != nil {
+		return x.ShapeKey
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetShapeBindingIds() []string {
+	if x != nil {
+		return x.ShapeBindingIds
+	}
+	return nil
+}
+
+func (x *ProgramEvent) GetShapeOccurrences() int64 {
+	if x != nil {
+		return x.ShapeOccurrences
+	}
+	return 0
+}
+
+func (x *ProgramEvent) GetShapeSessions() int64 {
+	if x != nil {
+		return x.ShapeSessions
+	}
+	return 0
+}
+
+func (x *ProgramEvent) GetDominantScenario() string {
+	if x != nil {
+		return x.DominantScenario
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetCoveringContractId() string {
+	if x != nil {
+		return x.CoveringContractId
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -331,7 +385,7 @@ var File_program_runtime_v1_telemetry_telemetry_proto protoreflect.FileDescripto
 
 const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\n" +
-	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xcc\x03\n" +
+	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xc8\x05\n" +
 	"\fProgramEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
 	"\voccurred_at\x18\x02 \x01(\tR\n" +
@@ -352,13 +406,19 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	" \x01(\x03R\fcontextBytes\x12\x16\n" +
 	"\x06reason\x18\v \x01(\tR\x06reason\x12)\n" +
 	"\x10failure_location\x18\f \x01(\tR\x0ffailureLocation\x12\x1a\n" +
-	"\bsequence\x18\r \x01(\x03R\bsequence\"v\n" +
+	"\bsequence\x18\r \x01(\x03R\bsequence\x12\x1b\n" +
+	"\tshape_key\x18\x0e \x01(\tR\bshapeKey\x12*\n" +
+	"\x11shape_binding_ids\x18\x0f \x03(\tR\x0fshapeBindingIds\x12+\n" +
+	"\x11shape_occurrences\x18\x10 \x01(\x03R\x10shapeOccurrences\x12%\n" +
+	"\x0eshape_sessions\x18\x11 \x01(\x03R\rshapeSessions\x12+\n" +
+	"\x11dominant_scenario\x18\x12 \x01(\tR\x10dominantScenario\x120\n" +
+	"\x14covering_contract_id\x18\x13 \x01(\tR\x12coveringContractId\"v\n" +
 	"\x11ListEventsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +
 	"\x04kind\x18\x02 \x01(\x0e2..vrooli.program_runtime.v1.telemetry.EventKindR\x04kind\"_\n" +
 	"\x12ListEventsResponse\x12I\n" +
-	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\xec\x01\n" +
+	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\x8f\x02\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11PROGRAM_SUBMITTED\x10\x01\x12\x15\n" +
@@ -369,7 +429,11 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\x0fBINDING_INVOKED\x10\x06\x12\x14\n" +
 	"\x10PROGRAM_ACCEPTED\x10\a\x12\x13\n" +
 	"\x0fPROGRAM_RUNNING\x10\b\x12\x15\n" +
-	"\x11PROGRAM_CANCELLED\x10\t2\x91\x01\n" +
+	"\x11PROGRAM_CANCELLED\x10\t\x12\x0e\n" +
+	"\n" +
+	"NOMINATION\x10\n" +
+	"\x12\x11\n" +
+	"\rCOVERAGE_MISS\x10\v2\x91\x01\n" +
 	"\x10TelemetryService\x12}\n" +
 	"\n" +
 	"ListEvents\x126.vrooli.program_runtime.v1.telemetry.ListEventsRequest\x1a7.vrooli.program_runtime.v1.telemetry.ListEventsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry;telemetry_v1b\x06proto3"

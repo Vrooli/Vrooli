@@ -3,6 +3,18 @@
   "app": {
     "title": "Compute Manager"
   },
+  "data-display": {
+    "data-table": {
+      "access-is-limited": "الوصول محدود",
+      "all": "الكل",
+      "data-table-content": "محتوى جدول البيانات",
+      "dense": "كثيف",
+      "next": "التالي",
+      "previous": "السابق",
+      "roomy": "واسع",
+      "row-density": "كثافة الصفوف"
+    }
+  },
   "layout": {
     "navigationLabel": "التنقل الرئيسي",
     "mobileNavigationLabel": "التنقل على الهاتف",
@@ -11,6 +23,8 @@
     "closeNavigation": "أغلق التنقل",
     "nav": {
       "dashboard": "الرئيسية",
+      "findings": "الملاحظات",
+      "request": "طلب",
       "settings": "الإعدادات"
     }
   },
@@ -26,9 +40,12 @@
     "dashboard": {
       "title": "الرئيسية",
       "description": "أول ما يراه المشغّل. قرر ما ينتمي إلى هنا قبل الإصدار.",
-      "placeholderTitle": "جرد الحوسبة",
-      "placeholderDescription": "لا توجد مثيلات مرتبطة بمزوّد قيد التشغيل. ستظهر طلبات السعة ونتائج المصالحة هنا."
+      "inventoryTitle": "جرد الحوسبة", "inventoryDescription": "المثيلات المباشرة والعمر المتبقي والمشكلات المفتوحة.", "loading": "جار تحميل الجرد…", "error": "تعذر تحميل الجرد.", "empty": "لا توجد مثيلات قيد التشغيل.", "openFindings": "المشكلات المفتوحة", "noFindings": "لا توجد مشكلات مصالحة مفتوحة.", "state": "الحالة", "region": "المنطقة", "size": "الحجم", "remaining": "المتبقي"
     },
+    "findings": { "title": "المشكلات المفتوحة", "description": "مشكلات المصالحة التي تتطلب انتباه المشغل.", "kind": "النوع", "providerInstance": "مثيل الموفر", "detail": "التفاصيل", "error": "تعذر تحميل المشكلات.", "empty": "لا توجد مشكلات مصالحة مفتوحة." },
+    "instance": { "title": "تفاصيل المثيل", "description": "حالة الموفر والحجز والتسجيل لمثيل واحد.", "error": "تعذر تحميل المثيل.", "loading": "جار تحميل المثيل…", "state": "الحالة", "address": "العنوان", "provider": "الموفر"
+    },
+    "request": { "title": "طلب سعة", "description": "اختر مدة محددة لعمر الآلة قبل إنشاء السعة.", "provider": "الموفر", "region": "المنطقة", "size": "الحجم", "lifetime": "العمر (بالثواني)", "estimate": "يستخدم التقدير الحد الأدنى لوحدة الفوترة لدى الموفر.", "submit": "طلب السعة", "submitting": "جار طلب السعة…", "success": "تم قبول طلب السعة.", "error": "فشل طلب السعة. لم يتم إنشاء آلة.", "validation": "اختر عمراً موجباً." },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",

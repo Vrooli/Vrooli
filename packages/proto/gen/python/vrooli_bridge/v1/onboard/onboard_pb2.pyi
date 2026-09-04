@@ -350,3 +350,17 @@ class RemoveFailedOnboardingRequest(_message.Message):
 class RemoveFailedOnboardingResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class GetOnboardingPublicKeyRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetOnboardingPublicKeyResponse(_message.Message):
+    __slots__ = ("public_key", "fingerprint", "key_type")
+    PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    public_key: str
+    fingerprint: str
+    key_type: str
+    def __init__(self, public_key: _Optional[str] = ..., fingerprint: _Optional[str] = ..., key_type: _Optional[str] = ...) -> None: ...

@@ -2,8 +2,8 @@
 // @generated from file landing-page-business-suite/v1/metrics.proto (package landing_page_business_suite.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/metrics.proto.
  */
 export const file_landing_page_business_suite_v1_metrics: GenFile = /*@__PURE__*/
-  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvbWV0cmljcy5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIrgBChFUcmFja0V2ZW50UmVxdWVzdBISCgpldmVudF90eXBlGAEgASgJEhIKCnZhcmlhbnRfaWQYAiABKAMSKwoKZXZlbnRfZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEgoKc2Vzc2lvbl9pZBgEIAEoCRISCgp2aXNpdG9yX2lkGAUgASgJEhAKCGV2ZW50X2lkGAYgASgJEhQKDHZhcmlhbnRfc2x1ZxgHIAEoCSI2ChJUcmFja0V2ZW50UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJIoQCCgxWYXJpYW50U3RhdHMSEgoKdmFyaWFudF9pZBgBIAEoAxIUCgx2YXJpYW50X3NsdWcYAiABKAkSFAoMdmFyaWFudF9uYW1lGAMgASgJEg0KBXZpZXdzGAQgASgDEhIKCmN0YV9jbGlja3MYBSABKAMSEwoLY29udmVyc2lvbnMYBiABKAMSEQoJZG93bmxvYWRzGAcgASgDEhcKD2NvbnZlcnNpb25fcmF0ZRgIIAEoARISCgV0cmVuZBgJIAEoAUgAiAEBEh0KEGF2Z19zY3JvbGxfZGVwdGgYCiABKAFIAYgBAUIICgZfdHJlbmRCEwoRX2F2Z19zY3JvbGxfZGVwdGgihQIKEEFuYWx5dGljc1N1bW1hcnkSFgoOdG90YWxfdmlzaXRvcnMYASABKAMSFwoPdG90YWxfZG93bmxvYWRzGAIgASgDEkMKDXZhcmlhbnRfc3RhdHMYAyADKAsyLC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFN0YXRzEhQKB3RvcF9jdGEYBCABKAlIAIgBARIYCgt0b3BfY3RhX2N0chgFIAEoAUgBiAEBEi8KC29ic2VydmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIKCghfdG9wX2N0YUIOCgxfdG9wX2N0YV9jdHIiQgoaR2V0QW5hbHl0aWNzU3VtbWFyeVJlcXVlc3QSEgoKc3RhcnRfZGF0ZRgBIAEoCRIQCghlbmRfZGF0ZRgCIAEoCSJPChZHZXRWYXJpYW50U3RhdHNSZXF1ZXN0EhIKCnN0YXJ0X2RhdGUYASABKAkSEAoIZW5kX2RhdGUYAiABKAkSDwoHdmFyaWFudBgDIAEoCSJ8ChdHZXRWYXJpYW50U3RhdHNSZXNwb25zZRISCgpzdGFydF9kYXRlGAEgASgJEhAKCGVuZF9kYXRlGAIgASgJEjsKBXN0YXRzGAMgAygLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRTdGF0czKQAwoOTWV0cmljc1NlcnZpY2UScwoKVHJhY2tFdmVudBIxLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5UcmFja0V2ZW50UmVxdWVzdBoyLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5UcmFja0V2ZW50UmVzcG9uc2USgwEKE0dldEFuYWx5dGljc1N1bW1hcnkSOi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0QW5hbHl0aWNzU3VtbWFyeVJlcXVlc3QaMC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQW5hbHl0aWNzU3VtbWFyeRKCAQoPR2V0VmFyaWFudFN0YXRzEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFZhcmlhbnRTdGF0c1JlcXVlc3QaNy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0VmFyaWFudFN0YXRzUmVzcG9uc2VCblpsZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjE7bGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvbWV0cmljcy5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIp4CChFUcmFja0V2ZW50UmVxdWVzdBISCgpldmVudF90eXBlGAEgASgJEhIKCnZhcmlhbnRfaWQYAiABKAMSKwoKZXZlbnRfZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEgoKc2Vzc2lvbl9pZBgEIAEoCRISCgp2aXNpdG9yX2lkGAUgASgJEhAKCGV2ZW50X2lkGAYgASgJEhQKDHZhcmlhbnRfc2x1ZxgHIAEoCRISCgp1dG1fc291cmNlGAggASgJEhIKCnV0bV9tZWRpdW0YCSABKAkSFAoMdXRtX2NhbXBhaWduGAogASgJEhQKDGxhbmRpbmdfcGF0aBgLIAEoCRIQCghyZWZlcnJlchgMIAEoCSJ+ChNUcmFmZmljQnJlYWtkb3duUm93EgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCRIQCghzZXNzaW9ucxgDIAEoAxITCgtjb252ZXJzaW9ucxgEIAEoAxIVCg1yZXZlbnVlX21pbm9yGAUgASgDEg0KBXNoYXJlGAYgASgBIpYBChpHZXRUcmFmZmljQnJlYWtkb3duUmVxdWVzdBJDCglkaW1lbnNpb24YASABKA4yMC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVHJhZmZpY0RpbWVuc2lvbhISCgpzdGFydF9kYXRlGAIgASgJEhAKCGVuZF9kYXRlGAMgASgJEg0KBWxpbWl0GAQgASgFIs8BChtHZXRUcmFmZmljQnJlYWtkb3duUmVzcG9uc2USQQoEcm93cxgBIAMoCzIzLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5UcmFmZmljQnJlYWtkb3duUm93EhYKDnRvdGFsX3Nlc3Npb25zGAIgASgDEhIKCmV4aGF1c3RpdmUYAyABKAgSEAoIY3VycmVuY3kYBCABKAkSLwoLb2JzZXJ2ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKElRyYWZmaWNTZXJpZXNQb2ludBIUCgxidWNrZXRfc3RhcnQYASABKAkSDQoFdmFsdWUYAiABKAEiXwoXR2V0VHJhZmZpY1Nlcmllc1JlcXVlc3QSDgoGbWV0cmljGAEgASgJEhIKCnN0YXJ0X2RhdGUYAiABKAkSEAoIZW5kX2RhdGUYAyABKAkSDgoGYnVja2V0GAQgASgJIp0BChhHZXRUcmFmZmljU2VyaWVzUmVzcG9uc2USQgoGcG9pbnRzGAEgAygLMjIubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlRyYWZmaWNTZXJpZXNQb2ludBIMCgR1bml0GAIgASgJEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI2ChJUcmFja0V2ZW50UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJIpcCCgxWYXJpYW50U3RhdHMSEgoKdmFyaWFudF9pZBgBIAEoAxIUCgx2YXJpYW50X3NsdWcYAiABKAkSFAoMdmFyaWFudF9uYW1lGAMgASgJEg0KBXZpZXdzGAQgASgDEhIKCmN0YV9jbGlja3MYBSABKAMSEwoLY29udmVyc2lvbnMYBiABKAMSEQoJZG93bmxvYWRzGAcgASgDEhcKD2NvbnZlcnNpb25fcmF0ZRgIIAEoARISCgV0cmVuZBgJIAEoAUgAiAEBEh0KEGF2Z19zY3JvbGxfZGVwdGgYCiABKAFIAYgBARIRCglleHBvc3VyZXMYCyABKANCCAoGX3RyZW5kQhMKEV9hdmdfc2Nyb2xsX2RlcHRoIoUCChBBbmFseXRpY3NTdW1tYXJ5EhYKDnRvdGFsX3Zpc2l0b3JzGAEgASgDEhcKD3RvdGFsX2Rvd25sb2FkcxgCIAEoAxJDCg12YXJpYW50X3N0YXRzGAMgAygLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRTdGF0cxIUCgd0b3BfY3RhGAQgASgJSACIAQESGAoLdG9wX2N0YV9jdHIYBSABKAFIAYgBARIvCgtvYnNlcnZlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCgoIX3RvcF9jdGFCDgoMX3RvcF9jdGFfY3RyIqgBCgxBZG1pblJldmVudWUSCwoDbXJyGAEgASgBEhAKCG1ycl91bml0GAIgASgJEg0KBXRvZGF5GAMgASgBEhIKCnRvZGF5X3VuaXQYBCABKAkSEAoIY3VycmVuY3kYBSABKAkSEwoLc2FtcGxlX3NpemUYBiABKAMSLwoLb2JzZXJ2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpgECg5SZXZlbnVlU3VtbWFyeRIvCgtvYnNlcnZlZF9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIY3VycmVuY3kYAiABKAkSEQoJbXJyX21pbm9yGAMgASgDEhsKE3JldmVudWVfdG9kYXlfbWlub3IYBCABKAMSHAoUcmV2ZW51ZV93aW5kb3dfbWlub3IYBSABKAMSHAoUYWN0aXZlX3N1YnNjcmlwdGlvbnMYBiABKAMSJAocc3Vic2NyaXB0aW9uc19jaHVybmVkX3dpbmRvdxgHIAEoAxIaChJjaHVybl9yYXRlX3BlcmNlbnQYCCABKAESHAoUY3JlZGl0X2JhbGFuY2VfdG90YWwYCSABKAMSHAoUY3JlZGl0X2J1cm5lZF93aW5kb3cYCiABKAMSHAoUdXNhZ2VfcmVjb3Jkc193aW5kb3cYCyABKAMSEwoLc2FtcGxlX3NpemUYDCABKAMSJQoddHJpYWxzX3dpdGhvdXRfcGF5bWVudF9tZXRob2QYDSABKAMSEAoIbXJyX3VuaXQYDiABKAkSGgoScmV2ZW51ZV90b2RheV91bml0GA8gASgJEhsKE3JldmVudWVfd2luZG93X3VuaXQYECABKAkSEwoLY3JlZGl0X3VuaXQYESABKAkSHwoXY3VycmVuY3lfZXhjbHVkZWRfY291bnQYEiABKAMiQgoaR2V0QW5hbHl0aWNzU3VtbWFyeVJlcXVlc3QSEgoKc3RhcnRfZGF0ZRgBIAEoCRIQCghlbmRfZGF0ZRgCIAEoCSJPChZHZXRWYXJpYW50U3RhdHNSZXF1ZXN0EhIKCnN0YXJ0X2RhdGUYASABKAkSEAoIZW5kX2RhdGUYAiABKAkSDwoHdmFyaWFudBgDIAEoCSJ8ChdHZXRWYXJpYW50U3RhdHNSZXNwb25zZRISCgpzdGFydF9kYXRlGAEgASgJEhAKCGVuZF9kYXRlGAIgASgJEjsKBXN0YXRzGAMgAygLMiwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRTdGF0cyIYChZHZXRBZG1pblJldmVudWVSZXF1ZXN0IhoKGEdldFJldmVudWVTdW1tYXJ5UmVxdWVzdCqoAQoQVHJhZmZpY0RpbWVuc2lvbhIhCh1UUkFGRklDX0RJTUVOU0lPTl9VTlNQRUNJRklFRBAAEgsKB0NPVU5UUlkQARIRCg1SRUZFUlJFUl9LSU5EEAISDgoKVVRNX1NPVVJDRRADEhAKDFVUTV9DQU1QQUlHThAEEhAKDERFVklDRV9DTEFTUxAFEhAKDExBTkRJTkdfUEFUSBAGEgsKB1ZBUklBTlQQBzKpBQoOTWV0cmljc1NlcnZpY2UScwoKVHJhY2tFdmVudBIxLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5UcmFja0V2ZW50UmVxdWVzdBoyLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5UcmFja0V2ZW50UmVzcG9uc2USgwEKE0dldEFuYWx5dGljc1N1bW1hcnkSOi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0QW5hbHl0aWNzU3VtbWFyeVJlcXVlc3QaMC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQW5hbHl0aWNzU3VtbWFyeRKCAQoPR2V0VmFyaWFudFN0YXRzEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFZhcmlhbnRTdGF0c1JlcXVlc3QaNy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0VmFyaWFudFN0YXRzUmVzcG9uc2USjgEKE0dldFRyYWZmaWNCcmVha2Rvd24SOi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0VHJhZmZpY0JyZWFrZG93blJlcXVlc3QaOy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0VHJhZmZpY0JyZWFrZG93blJlc3BvbnNlEoUBChBHZXRUcmFmZmljU2VyaWVzEjcubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFRyYWZmaWNTZXJpZXNSZXF1ZXN0GjgubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFRyYWZmaWNTZXJpZXNSZXNwb25zZTKIAgoTQWRtaW5SZXZlbnVlU2VydmljZRJyCgpHZXRSZXZlbnVlEjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldEFkbWluUmV2ZW51ZVJlcXVlc3QaLC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQWRtaW5SZXZlbnVlEn0KEUdldFJldmVudWVTdW1tYXJ5EjgubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFJldmVudWVTdW1tYXJ5UmVxdWVzdBouLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5SZXZlbnVlU3VtbWFyeUJuWmxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MTtsYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGVfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * TrackEventRequest records a single analytics event. Ingestion is idempotent
@@ -72,6 +72,31 @@ export type TrackEventRequest = Message<"landing_page_business_suite.v1.TrackEve
    * @generated from field: string variant_slug = 7;
    */
   variantSlug: string;
+
+  /**
+   * @generated from field: string utm_source = 8;
+   */
+  utmSource: string;
+
+  /**
+   * @generated from field: string utm_medium = 9;
+   */
+  utmMedium: string;
+
+  /**
+   * @generated from field: string utm_campaign = 10;
+   */
+  utmCampaign: string;
+
+  /**
+   * @generated from field: string landing_path = 11;
+   */
+  landingPath: string;
+
+  /**
+   * @generated from field: string referrer = 12;
+   */
+  referrer: string;
 };
 
 /**
@@ -80,6 +105,198 @@ export type TrackEventRequest = Message<"landing_page_business_suite.v1.TrackEve
  */
 export const TrackEventRequestSchema: GenMessage<TrackEventRequest> = /*@__PURE__*/
   messageDesc(file_landing_page_business_suite_v1_metrics, 0);
+
+/**
+ * @generated from message landing_page_business_suite.v1.TrafficBreakdownRow
+ */
+export type TrafficBreakdownRow = Message<"landing_page_business_suite.v1.TrafficBreakdownRow"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: int64 sessions = 3;
+   */
+  sessions: bigint;
+
+  /**
+   * @generated from field: int64 conversions = 4;
+   */
+  conversions: bigint;
+
+  /**
+   * @generated from field: int64 revenue_minor = 5;
+   */
+  revenueMinor: bigint;
+
+  /**
+   * @generated from field: double share = 6;
+   */
+  share: number;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.TrafficBreakdownRow.
+ * Use `create(TrafficBreakdownRowSchema)` to create a new message.
+ */
+export const TrafficBreakdownRowSchema: GenMessage<TrafficBreakdownRow> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 1);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetTrafficBreakdownRequest
+ */
+export type GetTrafficBreakdownRequest = Message<"landing_page_business_suite.v1.GetTrafficBreakdownRequest"> & {
+  /**
+   * @generated from field: landing_page_business_suite.v1.TrafficDimension dimension = 1;
+   */
+  dimension: TrafficDimension;
+
+  /**
+   * @generated from field: string start_date = 2;
+   */
+  startDate: string;
+
+  /**
+   * @generated from field: string end_date = 3;
+   */
+  endDate: string;
+
+  /**
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetTrafficBreakdownRequest.
+ * Use `create(GetTrafficBreakdownRequestSchema)` to create a new message.
+ */
+export const GetTrafficBreakdownRequestSchema: GenMessage<GetTrafficBreakdownRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 2);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetTrafficBreakdownResponse
+ */
+export type GetTrafficBreakdownResponse = Message<"landing_page_business_suite.v1.GetTrafficBreakdownResponse"> & {
+  /**
+   * @generated from field: repeated landing_page_business_suite.v1.TrafficBreakdownRow rows = 1;
+   */
+  rows: TrafficBreakdownRow[];
+
+  /**
+   * @generated from field: int64 total_sessions = 2;
+   */
+  totalSessions: bigint;
+
+  /**
+   * @generated from field: bool exhaustive = 3;
+   */
+  exhaustive: boolean;
+
+  /**
+   * @generated from field: string currency = 4;
+   */
+  currency: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 5;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetTrafficBreakdownResponse.
+ * Use `create(GetTrafficBreakdownResponseSchema)` to create a new message.
+ */
+export const GetTrafficBreakdownResponseSchema: GenMessage<GetTrafficBreakdownResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 3);
+
+/**
+ * @generated from message landing_page_business_suite.v1.TrafficSeriesPoint
+ */
+export type TrafficSeriesPoint = Message<"landing_page_business_suite.v1.TrafficSeriesPoint"> & {
+  /**
+   * @generated from field: string bucket_start = 1;
+   */
+  bucketStart: string;
+
+  /**
+   * @generated from field: double value = 2;
+   */
+  value: number;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.TrafficSeriesPoint.
+ * Use `create(TrafficSeriesPointSchema)` to create a new message.
+ */
+export const TrafficSeriesPointSchema: GenMessage<TrafficSeriesPoint> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 4);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetTrafficSeriesRequest
+ */
+export type GetTrafficSeriesRequest = Message<"landing_page_business_suite.v1.GetTrafficSeriesRequest"> & {
+  /**
+   * @generated from field: string metric = 1;
+   */
+  metric: string;
+
+  /**
+   * @generated from field: string start_date = 2;
+   */
+  startDate: string;
+
+  /**
+   * @generated from field: string end_date = 3;
+   */
+  endDate: string;
+
+  /**
+   * @generated from field: string bucket = 4;
+   */
+  bucket: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetTrafficSeriesRequest.
+ * Use `create(GetTrafficSeriesRequestSchema)` to create a new message.
+ */
+export const GetTrafficSeriesRequestSchema: GenMessage<GetTrafficSeriesRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 5);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetTrafficSeriesResponse
+ */
+export type GetTrafficSeriesResponse = Message<"landing_page_business_suite.v1.GetTrafficSeriesResponse"> & {
+  /**
+   * @generated from field: repeated landing_page_business_suite.v1.TrafficSeriesPoint points = 1;
+   */
+  points: TrafficSeriesPoint[];
+
+  /**
+   * @generated from field: string unit = 2;
+   */
+  unit: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 3;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetTrafficSeriesResponse.
+ * Use `create(GetTrafficSeriesResponseSchema)` to create a new message.
+ */
+export const GetTrafficSeriesResponseSchema: GenMessage<GetTrafficSeriesResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 6);
 
 /**
  * TrackEventResponse acknowledges ingestion.
@@ -103,7 +320,7 @@ export type TrackEventResponse = Message<"landing_page_business_suite.v1.TrackEv
  * Use `create(TrackEventResponseSchema)` to create a new message.
  */
 export const TrackEventResponseSchema: GenMessage<TrackEventResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 1);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 7);
 
 /**
  * VariantStats is the funnel rollup for one variant over a date window.
@@ -147,7 +364,7 @@ export type VariantStats = Message<"landing_page_business_suite.v1.VariantStats"
   downloads: bigint;
 
   /**
-   * conversions / views * 100 (0 when views == 0).
+   * conversions / exposures * 100 (0 when exposures == 0).
    *
    * @generated from field: double conversion_rate = 8;
    */
@@ -166,6 +383,13 @@ export type VariantStats = Message<"landing_page_business_suite.v1.VariantStats"
    * @generated from field: optional double avg_scroll_depth = 10;
    */
   avgScrollDepth?: number | undefined;
+
+  /**
+   * Number of first exposures used as the conversion-rate denominator.
+   *
+   * @generated from field: int64 exposures = 11;
+   */
+  exposures: bigint;
 };
 
 /**
@@ -173,7 +397,7 @@ export type VariantStats = Message<"landing_page_business_suite.v1.VariantStats"
  * Use `create(VariantStatsSchema)` to create a new message.
  */
 export const VariantStatsSchema: GenMessage<VariantStats> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 2);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 8);
 
 /**
  * AnalyticsSummary is the aggregate rollup across all variants for a window.
@@ -223,7 +447,199 @@ export type AnalyticsSummary = Message<"landing_page_business_suite.v1.Analytics
  * Use `create(AnalyticsSummarySchema)` to create a new message.
  */
 export const AnalyticsSummarySchema: GenMessage<AnalyticsSummary> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 3);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 9);
+
+/**
+ * AdminRevenue is the producer-owned financial rollup. Monetary values are
+ * expressed in the declared currency and unit, with sample_size counting the
+ * active subscriptions included in MRR.
+ *
+ * @generated from message landing_page_business_suite.v1.AdminRevenue
+ */
+export type AdminRevenue = Message<"landing_page_business_suite.v1.AdminRevenue"> & {
+  /**
+   * @generated from field: double mrr = 1;
+   */
+  mrr: number;
+
+  /**
+   * @generated from field: string mrr_unit = 2;
+   */
+  mrrUnit: string;
+
+  /**
+   * @generated from field: double today = 3;
+   */
+  today: number;
+
+  /**
+   * @generated from field: string today_unit = 4;
+   */
+  todayUnit: string;
+
+  /**
+   * @generated from field: string currency = 5;
+   */
+  currency: string;
+
+  /**
+   * @generated from field: int64 sample_size = 6;
+   */
+  sampleSize: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 7;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.AdminRevenue.
+ * Use `create(AdminRevenueSchema)` to create a new message.
+ */
+export const AdminRevenueSchema: GenMessage<AdminRevenue> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 10);
+
+/**
+ * RevenueSummary is the complete finance-owned aggregate used by admin
+ * consumers. Monetary values are minor units in currency; rates are percent.
+ *
+ * @generated from message landing_page_business_suite.v1.RevenueSummary
+ */
+export type RevenueSummary = Message<"landing_page_business_suite.v1.RevenueSummary"> & {
+  /**
+   * Producer completion timestamp for this aggregate.
+   *
+   * @generated from field: google.protobuf.Timestamp observed_at = 1;
+   */
+  observedAt?: Timestamp | undefined;
+
+  /**
+   * ISO settlement currency for monetary fields.
+   *
+   * @generated from field: string currency = 2;
+   */
+  currency: string;
+
+  /**
+   * MRR in minor currency units.
+   *
+   * @generated from field: int64 mrr_minor = 3;
+   */
+  mrrMinor: bigint;
+
+  /**
+   * Successful checkout revenue today in minor currency units.
+   *
+   * @generated from field: int64 revenue_today_minor = 4;
+   */
+  revenueTodayMinor: bigint;
+
+  /**
+   * Successful checkout revenue in the trailing 30-day window, in minor currency units.
+   *
+   * @generated from field: int64 revenue_window_minor = 5;
+   */
+  revenueWindowMinor: bigint;
+
+  /**
+   * Count of active, eligible trialing, and past-due subscriptions.
+   *
+   * @generated from field: int64 active_subscriptions = 6;
+   */
+  activeSubscriptions: bigint;
+
+  /**
+   * Count of subscriptions canceled in the trailing 30-day window.
+   *
+   * @generated from field: int64 subscriptions_churned_window = 7;
+   */
+  subscriptionsChurnedWindow: bigint;
+
+  /**
+   * Churn rate as a percentage from 0 to 100.
+   *
+   * @generated from field: double churn_rate_percent = 8;
+   */
+  churnRatePercent: number;
+
+  /**
+   * Current wallet balance in credit units.
+   *
+   * @generated from field: int64 credit_balance_total = 9;
+   */
+  creditBalanceTotal: bigint;
+
+  /**
+   * Credits consumed in the trailing 30-day window.
+   *
+   * @generated from field: int64 credit_burned_window = 10;
+   */
+  creditBurnedWindow: bigint;
+
+  /**
+   * Usage records in the trailing 30-day window.
+   *
+   * @generated from field: int64 usage_records_window = 11;
+   */
+  usageRecordsWindow: bigint;
+
+  /**
+   * Number of subscriptions included in the MRR sample.
+   *
+   * @generated from field: int64 sample_size = 12;
+   */
+  sampleSize: bigint;
+
+  /**
+   * Trial subscriptions without a linked payment identity.
+   *
+   * @generated from field: int64 trials_without_payment_method = 13;
+   */
+  trialsWithoutPaymentMethod: bigint;
+
+  /**
+   * Unit label for mrr_minor; currently minor_currency.
+   *
+   * @generated from field: string mrr_unit = 14;
+   */
+  mrrUnit: string;
+
+  /**
+   * Unit label for revenue_today_minor; currently minor_currency.
+   *
+   * @generated from field: string revenue_today_unit = 15;
+   */
+  revenueTodayUnit: string;
+
+  /**
+   * Unit label for revenue_window_minor; currently minor_currency.
+   *
+   * @generated from field: string revenue_window_unit = 16;
+   */
+  revenueWindowUnit: string;
+
+  /**
+   * Unit label for credit fields; currently credits.
+   *
+   * @generated from field: string credit_unit = 17;
+   */
+  creditUnit: string;
+
+  /**
+   * Number of additional currencies excluded from the dominant-currency rollup.
+   *
+   * @generated from field: int64 currency_excluded_count = 18;
+   */
+  currencyExcludedCount: bigint;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.RevenueSummary.
+ * Use `create(RevenueSummarySchema)` to create a new message.
+ */
+export const RevenueSummarySchema: GenMessage<RevenueSummary> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 11);
 
 /**
  * GetAnalyticsSummaryRequest requests the aggregate summary for a date window.
@@ -248,7 +664,7 @@ export type GetAnalyticsSummaryRequest = Message<"landing_page_business_suite.v1
  * Use `create(GetAnalyticsSummaryRequestSchema)` to create a new message.
  */
 export const GetAnalyticsSummaryRequestSchema: GenMessage<GetAnalyticsSummaryRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 4);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 12);
 
 /**
  * GetVariantStatsRequest requests per-variant funnel stats for a date window,
@@ -280,7 +696,7 @@ export type GetVariantStatsRequest = Message<"landing_page_business_suite.v1.Get
  * Use `create(GetVariantStatsRequestSchema)` to create a new message.
  */
 export const GetVariantStatsRequestSchema: GenMessage<GetVariantStatsRequest> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 5);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 13);
 
 /**
  * GetVariantStatsResponse returns the resolved window and per-variant stats.
@@ -309,7 +725,84 @@ export type GetVariantStatsResponse = Message<"landing_page_business_suite.v1.Ge
  * Use `create(GetVariantStatsResponseSchema)` to create a new message.
  */
 export const GetVariantStatsResponseSchema: GenMessage<GetVariantStatsResponse> = /*@__PURE__*/
-  messageDesc(file_landing_page_business_suite_v1_metrics, 6);
+  messageDesc(file_landing_page_business_suite_v1_metrics, 14);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetAdminRevenueRequest
+ */
+export type GetAdminRevenueRequest = Message<"landing_page_business_suite.v1.GetAdminRevenueRequest"> & {
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetAdminRevenueRequest.
+ * Use `create(GetAdminRevenueRequestSchema)` to create a new message.
+ */
+export const GetAdminRevenueRequestSchema: GenMessage<GetAdminRevenueRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 15);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetRevenueSummaryRequest
+ */
+export type GetRevenueSummaryRequest = Message<"landing_page_business_suite.v1.GetRevenueSummaryRequest"> & {
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetRevenueSummaryRequest.
+ * Use `create(GetRevenueSummaryRequestSchema)` to create a new message.
+ */
+export const GetRevenueSummaryRequestSchema: GenMessage<GetRevenueSummaryRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_metrics, 16);
+
+/**
+ * @generated from enum landing_page_business_suite.v1.TrafficDimension
+ */
+export enum TrafficDimension {
+  /**
+   * @generated from enum value: TRAFFIC_DIMENSION_UNSPECIFIED = 0;
+   */
+  TRAFFIC_DIMENSION_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: COUNTRY = 1;
+   */
+  COUNTRY = 1,
+
+  /**
+   * @generated from enum value: REFERRER_KIND = 2;
+   */
+  REFERRER_KIND = 2,
+
+  /**
+   * @generated from enum value: UTM_SOURCE = 3;
+   */
+  UTM_SOURCE = 3,
+
+  /**
+   * @generated from enum value: UTM_CAMPAIGN = 4;
+   */
+  UTM_CAMPAIGN = 4,
+
+  /**
+   * @generated from enum value: DEVICE_CLASS = 5;
+   */
+  DEVICE_CLASS = 5,
+
+  /**
+   * @generated from enum value: LANDING_PATH = 6;
+   */
+  LANDING_PATH = 6,
+
+  /**
+   * @generated from enum value: VARIANT = 7;
+   */
+  VARIANT = 7,
+}
+
+/**
+ * Describes the enum landing_page_business_suite.v1.TrafficDimension.
+ */
+export const TrafficDimensionSchema: GenEnum<TrafficDimension> = /*@__PURE__*/
+  enumDesc(file_landing_page_business_suite_v1_metrics, 0);
 
 /**
  * MetricsService ingests analytics events and serves admin rollups.
@@ -347,6 +840,48 @@ export const MetricsService: GenService<{
     input: typeof GetVariantStatsRequestSchema;
     output: typeof GetVariantStatsResponseSchema;
   },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.MetricsService.GetTrafficBreakdown
+   */
+  getTrafficBreakdown: {
+    methodKind: "unary";
+    input: typeof GetTrafficBreakdownRequestSchema;
+    output: typeof GetTrafficBreakdownResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.MetricsService.GetTrafficSeries
+   */
+  getTrafficSeries: {
+    methodKind: "unary";
+    input: typeof GetTrafficSeriesRequestSchema;
+    output: typeof GetTrafficSeriesResponseSchema;
+  },
 }> = /*@__PURE__*/
   serviceDesc(file_landing_page_business_suite_v1_metrics, 0);
+
+/**
+ * AdminRevenueService serves finance-owned aggregate readings to trusted
+ * server-side consumers and the LPBS admin surface.
+ *
+ * @generated from service landing_page_business_suite.v1.AdminRevenueService
+ */
+export const AdminRevenueService: GenService<{
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminRevenueService.GetRevenue
+   */
+  getRevenue: {
+    methodKind: "unary";
+    input: typeof GetAdminRevenueRequestSchema;
+    output: typeof AdminRevenueSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.AdminRevenueService.GetRevenueSummary
+   */
+  getRevenueSummary: {
+    methodKind: "unary";
+    input: typeof GetRevenueSummaryRequestSchema;
+    output: typeof RevenueSummarySchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_landing_page_business_suite_v1_metrics, 1);
 

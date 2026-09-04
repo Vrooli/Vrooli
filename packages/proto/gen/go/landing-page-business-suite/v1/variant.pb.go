@@ -312,6 +312,7 @@ func (x *VariantSnapshot) GetSections() []*shared.ContentSection {
 
 type SelectVariantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	VisitorId     string                 `protobuf:"bytes,1,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -344,6 +345,13 @@ func (x *SelectVariantRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SelectVariantRequest.ProtoReflect.Descriptor instead.
 func (*SelectVariantRequest) Descriptor() ([]byte, []int) {
 	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SelectVariantRequest) GetVisitorId() string {
+	if x != nil {
+		return x.VisitorId
+	}
+	return ""
 }
 
 type GetPublicVariantRequest struct {
@@ -1596,8 +1604,10 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\tAxesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
-	"\v_seo_config\"\x16\n" +
-	"\x14SelectVariantRequest\"-\n" +
+	"\v_seo_config\"5\n" +
+	"\x14SelectVariantRequest\x12\x1d\n" +
+	"\n" +
+	"visitor_id\x18\x01 \x01(\tR\tvisitorId\"-\n" +
 	"\x17GetPublicVariantRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"'\n" +
 	"\x11GetVariantRequest\x12\x12\n" +

@@ -90,8 +90,10 @@ class VariantSnapshot(_message.Message):
     def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., weight: _Optional[int] = ..., status: _Optional[str] = ..., axes: _Optional[_Mapping[str, str]] = ..., header_config: _Optional[_Union[_presentation_pb2.LandingHeaderConfig, _Mapping]] = ..., seo_config: _Optional[_Union[_presentation_pb2.VariantSEOConfig, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[_content_pb2.ContentSection, _Mapping]]] = ...) -> None: ...
 
 class SelectVariantRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("visitor_id",)
+    VISITOR_ID_FIELD_NUMBER: _ClassVar[int]
+    visitor_id: str
+    def __init__(self, visitor_id: _Optional[str] = ...) -> None: ...
 
 class GetPublicVariantRequest(_message.Message):
     __slots__ = ("slug",)

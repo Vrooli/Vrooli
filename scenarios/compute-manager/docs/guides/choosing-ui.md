@@ -4,7 +4,7 @@
 
 Walk a scenario author through the one path from a generated scaffold to a
 product-shaped UI: decide, configure, adopt, build. Gate 5 in
-`path:../START-HERE.md` is the checklist; this guide is the reasoning and the
+`path:docs/START-HERE.md` is the checklist; this guide is the reasoning and the
 reference for what the shell and the library can do.
 
 ## Why the order matters
@@ -63,7 +63,7 @@ If the shell cannot do what your primary surface needs, do not fork it. Record
 the gap in `docs/reference/component-library-gaps.md` and eject with a reason:
 
 ```bash
-react-component-library adoptions eject navigation.app-shell compute-manager --reason "..."
+react-component-library adoptions obligations compute-manager --json
 ```
 
 An ejection is a declared debt the library can pay back; a silent fork is not.
@@ -76,9 +76,9 @@ and leaves no file behind; the version follows the library through
 `adoptions reconverge`.
 
 ```bash
-react-component-library adoptions suggest compute-manager --json
-react-component-library adoptions link <component-id> compute-manager
-react-component-library adoptions preflight <component-id> compute-manager
+react-component-library adoptions list --scenario compute-manager --json
+react-component-library adoptions link "<component-id>" compute-manager
+react-component-library adoptions preflight "<component-id>" compute-manager
 react-component-library adoptions obligations compute-manager --json
 ```
 
@@ -122,13 +122,13 @@ selectors, strings and tests. When a local component turns out to be generic,
 hand it back:
 
 ```bash
-react-component-library components ingest compute-manager ui/src/features/<name>/<Component>.tsx <Component>
+react-component-library components ingest compute-manager "ui/src/features/<name>/<Component>.tsx" "<Component>"
 ```
 
 ## Cross-references
 
-- `path:../START-HERE.md` — Gate 5, the checklist this guide explains
-- `path:../concepts/UI-ARCHITECTURE.md` — where files go and why
-- `path:../concepts/EXPERIENCE.md` — where the decision is written
-- `path:../../DESIGN.md` — the token contract the kit provides
-- `path:../../experience/README.md` — turning the decision into typed claims
+- `path:docs/START-HERE.md` — Gate 5, the checklist this guide explains
+- `path:docs/concepts/UI-ARCHITECTURE.md` — where files go and why
+- `path:docs/concepts/EXPERIENCE.md` — where the decision is written
+- `path:DESIGN.md` — the token contract the kit provides
+- `path:experience/README.md` — turning the decision into typed claims

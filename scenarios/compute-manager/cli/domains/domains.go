@@ -2,6 +2,9 @@ package domains
 
 import (
 	instanceDomain "compute-manager/cli/domains/instance"
+	intentDomain "compute-manager/cli/domains/intent"
+	meterDomain "compute-manager/cli/domains/meter"
+	reconcileDomain "compute-manager/cli/domains/reconcile"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -39,6 +42,18 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	groups := []cliapp.SubcommandGroup{group}
+	intentGroup, err := intentDomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	meterGroup, err := meterDomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	reconcileGroup, err := reconcileDomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups := []cliapp.SubcommandGroup{group, intentGroup, meterGroup, reconcileGroup}
 	return groups, nil
 }

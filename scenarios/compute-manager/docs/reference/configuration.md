@@ -39,7 +39,7 @@ because mixing them is how a provider token ends up in a log line.
 | Category | Home | Examples | Status |
 |---|---|---|---|
 | Lifecycle process settings | process environment set by the lifecycle | `API_PORT`, `UI_PORT` | Exists today |
-| Product runtime state | scenario-owned SQLite | instance intents, instances, provider receipts, reconciliation findings | Declared: `storage.entries.data` in the manifest. No domain table exists |
+| Product runtime state | scenario-owned SQLite | instance intents, instances, provider receipts, reservations, usage, reconciliation findings and enrollment queue | Declared: `storage.entries.data` in the manifest; schema is loaded from `api/internal/store/schema.sql` |
 | Operator secrets | Vrooli credential authority | provider API tokens | Declared: one descriptor in the manifest. Nothing resolves it yet |
 | Operator preferences | per-user CLI config file | `api_base`, `token` | Exists today |
 
@@ -63,7 +63,7 @@ scenario starts a separate listener process.
 
 The canonical bands all sit below 32768 so Linux never hands out the
 ports as outbound source ports. See the project-level port allocation
-reference (`path:docs/reference/port-allocation.md`) for the full policy.
+reference (`path:../../docs/reference/port-allocation.md`) for the full policy.
 
 ### Optional overrides (exists today)
 
@@ -273,7 +273,7 @@ Set values through the CLI rather than editing the file directly:
 
 ```bash
 compute-manager configure api_base http://localhost:15001/api/v1
-compute-manager configure token <token>
+compute-manager configure token "<token>"
 ```
 
 The `token` field is the CLI to API bearer token for this scenario's own

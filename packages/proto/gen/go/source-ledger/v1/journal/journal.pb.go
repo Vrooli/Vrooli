@@ -7,6 +7,7 @@
 package journal_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -22,6 +23,102 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CountEntriesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountEntriesRequest) Reset() {
+	*x = CountEntriesRequest{}
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountEntriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountEntriesRequest) ProtoMessage() {}
+
+func (x *CountEntriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountEntriesRequest.ProtoReflect.Descriptor instead.
+func (*CountEntriesRequest) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CountEntriesRequest) GetWindow() *v1.TimeWindow {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *CountEntriesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type CountEntriesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int64                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountEntriesResponse) Reset() {
+	*x = CountEntriesResponse{}
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountEntriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountEntriesResponse) ProtoMessage() {}
+
+func (x *CountEntriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountEntriesResponse.ProtoReflect.Descriptor instead.
+func (*CountEntriesResponse) Descriptor() ([]byte, []int) {
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CountEntriesResponse) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type FacetText struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -33,7 +130,7 @@ type FacetText struct {
 
 func (x *FacetText) Reset() {
 	*x = FacetText{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[0]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +142,7 @@ func (x *FacetText) String() string {
 func (*FacetText) ProtoMessage() {}
 
 func (x *FacetText) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[0]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +155,7 @@ func (x *FacetText) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FacetText.ProtoReflect.Descriptor instead.
 func (*FacetText) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{0}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *FacetText) GetKind() string {
@@ -96,7 +193,7 @@ type Attribution struct {
 
 func (x *Attribution) Reset() {
 	*x = Attribution{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[1]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -108,7 +205,7 @@ func (x *Attribution) String() string {
 func (*Attribution) ProtoMessage() {}
 
 func (x *Attribution) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[1]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -121,7 +218,7 @@ func (x *Attribution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attribution.ProtoReflect.Descriptor instead.
 func (*Attribution) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{1}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Attribution) GetActorId() string {
@@ -177,7 +274,7 @@ type Correlation struct {
 
 func (x *Correlation) Reset() {
 	*x = Correlation{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[2]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -189,7 +286,7 @@ func (x *Correlation) String() string {
 func (*Correlation) ProtoMessage() {}
 
 func (x *Correlation) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[2]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -202,7 +299,7 @@ func (x *Correlation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Correlation.ProtoReflect.Descriptor instead.
 func (*Correlation) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{2}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Correlation) GetRunId() string {
@@ -237,7 +334,7 @@ type ImportProvenance struct {
 
 func (x *ImportProvenance) Reset() {
 	*x = ImportProvenance{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[3]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +346,7 @@ func (x *ImportProvenance) String() string {
 func (*ImportProvenance) ProtoMessage() {}
 
 func (x *ImportProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[3]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +359,7 @@ func (x *ImportProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportProvenance.ProtoReflect.Descriptor instead.
 func (*ImportProvenance) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{3}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ImportProvenance) GetRuntime() string {
@@ -304,7 +401,7 @@ type Entry struct {
 
 func (x *Entry) Reset() {
 	*x = Entry{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[4]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +413,7 @@ func (x *Entry) String() string {
 func (*Entry) ProtoMessage() {}
 
 func (x *Entry) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[4]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +426,7 @@ func (x *Entry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Entry.ProtoReflect.Descriptor instead.
 func (*Entry) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{4}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Entry) GetId() string {
@@ -421,7 +518,7 @@ type AppendEntryRequest struct {
 
 func (x *AppendEntryRequest) Reset() {
 	*x = AppendEntryRequest{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -433,7 +530,7 @@ func (x *AppendEntryRequest) String() string {
 func (*AppendEntryRequest) ProtoMessage() {}
 
 func (x *AppendEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[5]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -446,7 +543,7 @@ func (x *AppendEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AppendEntryRequest.ProtoReflect.Descriptor instead.
 func (*AppendEntryRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{5}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AppendEntryRequest) GetBody() string {
@@ -536,7 +633,7 @@ type AppendEntryResponse struct {
 
 func (x *AppendEntryResponse) Reset() {
 	*x = AppendEntryResponse{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +645,7 @@ func (x *AppendEntryResponse) String() string {
 func (*AppendEntryResponse) ProtoMessage() {}
 
 func (x *AppendEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[6]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +658,7 @@ func (x *AppendEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AppendEntryResponse.ProtoReflect.Descriptor instead.
 func (*AppendEntryResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{6}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AppendEntryResponse) GetEntry() *Entry {
@@ -588,7 +685,7 @@ type GetEntryRequest struct {
 
 func (x *GetEntryRequest) Reset() {
 	*x = GetEntryRequest{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +697,7 @@ func (x *GetEntryRequest) String() string {
 func (*GetEntryRequest) ProtoMessage() {}
 
 func (x *GetEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[7]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +710,7 @@ func (x *GetEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEntryRequest.ProtoReflect.Descriptor instead.
 func (*GetEntryRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{7}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetEntryRequest) GetId() string {
@@ -639,7 +736,7 @@ type GetEntryResponse struct {
 
 func (x *GetEntryResponse) Reset() {
 	*x = GetEntryResponse{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +748,7 @@ func (x *GetEntryResponse) String() string {
 func (*GetEntryResponse) ProtoMessage() {}
 
 func (x *GetEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[8]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +761,7 @@ func (x *GetEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEntryResponse.ProtoReflect.Descriptor instead.
 func (*GetEntryResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{8}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetEntryResponse) GetEntry() *Entry {
@@ -686,7 +783,7 @@ type ListEntriesRequest struct {
 
 func (x *ListEntriesRequest) Reset() {
 	*x = ListEntriesRequest{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -698,7 +795,7 @@ func (x *ListEntriesRequest) String() string {
 func (*ListEntriesRequest) ProtoMessage() {}
 
 func (x *ListEntriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[9]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -711,7 +808,7 @@ func (x *ListEntriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEntriesRequest.ProtoReflect.Descriptor instead.
 func (*ListEntriesRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{9}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListEntriesRequest) GetFacetId() string {
@@ -752,7 +849,7 @@ type ListEntriesResponse struct {
 
 func (x *ListEntriesResponse) Reset() {
 	*x = ListEntriesResponse{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -764,7 +861,7 @@ func (x *ListEntriesResponse) String() string {
 func (*ListEntriesResponse) ProtoMessage() {}
 
 func (x *ListEntriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[10]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -777,7 +874,7 @@ func (x *ListEntriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEntriesResponse.ProtoReflect.Descriptor instead.
 func (*ListEntriesResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{10}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListEntriesResponse) GetEntries() []*Entry {
@@ -804,7 +901,7 @@ type ProcessClassificationRetriesRequest struct {
 
 func (x *ProcessClassificationRetriesRequest) Reset() {
 	*x = ProcessClassificationRetriesRequest{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -816,7 +913,7 @@ func (x *ProcessClassificationRetriesRequest) String() string {
 func (*ProcessClassificationRetriesRequest) ProtoMessage() {}
 
 func (x *ProcessClassificationRetriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[11]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +926,7 @@ func (x *ProcessClassificationRetriesRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ProcessClassificationRetriesRequest.ProtoReflect.Descriptor instead.
 func (*ProcessClassificationRetriesRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{11}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ProcessClassificationRetriesRequest) GetLimit() int32 {
@@ -857,7 +954,7 @@ type ProcessClassificationRetriesResponse struct {
 
 func (x *ProcessClassificationRetriesResponse) Reset() {
 	*x = ProcessClassificationRetriesResponse{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +966,7 @@ func (x *ProcessClassificationRetriesResponse) String() string {
 func (*ProcessClassificationRetriesResponse) ProtoMessage() {}
 
 func (x *ProcessClassificationRetriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[12]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +979,7 @@ func (x *ProcessClassificationRetriesResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ProcessClassificationRetriesResponse.ProtoReflect.Descriptor instead.
 func (*ProcessClassificationRetriesResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{12}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProcessClassificationRetriesResponse) GetProcessed() int32 {
@@ -916,7 +1013,7 @@ type ProcessEmbeddingRetriesRequest struct {
 
 func (x *ProcessEmbeddingRetriesRequest) Reset() {
 	*x = ProcessEmbeddingRetriesRequest{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1025,7 @@ func (x *ProcessEmbeddingRetriesRequest) String() string {
 func (*ProcessEmbeddingRetriesRequest) ProtoMessage() {}
 
 func (x *ProcessEmbeddingRetriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[13]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1038,7 @@ func (x *ProcessEmbeddingRetriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessEmbeddingRetriesRequest.ProtoReflect.Descriptor instead.
 func (*ProcessEmbeddingRetriesRequest) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{13}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProcessEmbeddingRetriesRequest) GetLimit() int32 {
@@ -969,7 +1066,7 @@ type ProcessEmbeddingRetriesResponse struct {
 
 func (x *ProcessEmbeddingRetriesResponse) Reset() {
 	*x = ProcessEmbeddingRetriesResponse{}
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -981,7 +1078,7 @@ func (x *ProcessEmbeddingRetriesResponse) String() string {
 func (*ProcessEmbeddingRetriesResponse) ProtoMessage() {}
 
 func (x *ProcessEmbeddingRetriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[14]
+	mi := &file_source_ledger_v1_journal_journal_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -994,7 +1091,7 @@ func (x *ProcessEmbeddingRetriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessEmbeddingRetriesResponse.ProtoReflect.Descriptor instead.
 func (*ProcessEmbeddingRetriesResponse) Descriptor() ([]byte, []int) {
-	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{14}
+	return file_source_ledger_v1_journal_journal_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProcessEmbeddingRetriesResponse) GetProcessed() int32 {
@@ -1022,7 +1119,12 @@ var File_source_ledger_v1_journal_journal_proto protoreflect.FileDescriptor
 
 const file_source_ledger_v1_journal_journal_proto_rawDesc = "" +
 	"\n" +
-	"&source-ledger/v1/journal/journal.proto\x12\x1fvrooli.source_ledger.v1.journal\x1a\x1fgoogle/protobuf/timestamp.proto\"X\n" +
+	"&source-ledger/v1/journal/journal.proto\x12\x1fvrooli.source_ledger.v1.journal\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1ameasures/v1/measures.proto\"c\n" +
+	"\x13CountEntriesRequest\x126\n" +
+	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\",\n" +
+	"\x14CountEntriesResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count\"X\n" +
 	"\tFacetText\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12#\n" +
@@ -1101,13 +1203,14 @@ const file_source_ledger_v1_journal_journal_proto_rawDesc = "" +
 	"\x1fProcessEmbeddingRetriesResponse\x12\x1c\n" +
 	"\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n" +
 	"\bdeferred\x18\x02 \x01(\x05R\bdeferred\x12)\n" +
-	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved2\xc2\x05\n" +
+	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved2\xbf\x06\n" +
 	"\x0eJournalService\x12x\n" +
 	"\vAppendEntry\x123.vrooli.source_ledger.v1.journal.AppendEntryRequest\x1a4.vrooli.source_ledger.v1.journal.AppendEntryResponse\x12o\n" +
 	"\bGetEntry\x120.vrooli.source_ledger.v1.journal.GetEntryRequest\x1a1.vrooli.source_ledger.v1.journal.GetEntryResponse\x12x\n" +
 	"\vListEntries\x123.vrooli.source_ledger.v1.journal.ListEntriesRequest\x1a4.vrooli.source_ledger.v1.journal.ListEntriesResponse\x12\xab\x01\n" +
 	"\x1cProcessClassificationRetries\x12D.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest\x1aE.vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse\x12\x9c\x01\n" +
-	"\x17ProcessEmbeddingRetries\x12?.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest\x1a@.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1b\x06proto3"
+	"\x17ProcessEmbeddingRetries\x12?.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest\x1a@.vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse\x12{\n" +
+	"\fCountEntries\x124.vrooli.source_ledger.v1.journal.CountEntriesRequest\x1a5.vrooli.source_ledger.v1.journal.CountEntriesResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal;journal_v1b\x06proto3"
 
 var (
 	file_source_ledger_v1_journal_journal_proto_rawDescOnce sync.Once
@@ -1121,53 +1224,59 @@ func file_source_ledger_v1_journal_journal_proto_rawDescGZIP() []byte {
 	return file_source_ledger_v1_journal_journal_proto_rawDescData
 }
 
-var file_source_ledger_v1_journal_journal_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_source_ledger_v1_journal_journal_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_source_ledger_v1_journal_journal_proto_goTypes = []any{
-	(*FacetText)(nil),                            // 0: vrooli.source_ledger.v1.journal.FacetText
-	(*Attribution)(nil),                          // 1: vrooli.source_ledger.v1.journal.Attribution
-	(*Correlation)(nil),                          // 2: vrooli.source_ledger.v1.journal.Correlation
-	(*ImportProvenance)(nil),                     // 3: vrooli.source_ledger.v1.journal.ImportProvenance
-	(*Entry)(nil),                                // 4: vrooli.source_ledger.v1.journal.Entry
-	(*AppendEntryRequest)(nil),                   // 5: vrooli.source_ledger.v1.journal.AppendEntryRequest
-	(*AppendEntryResponse)(nil),                  // 6: vrooli.source_ledger.v1.journal.AppendEntryResponse
-	(*GetEntryRequest)(nil),                      // 7: vrooli.source_ledger.v1.journal.GetEntryRequest
-	(*GetEntryResponse)(nil),                     // 8: vrooli.source_ledger.v1.journal.GetEntryResponse
-	(*ListEntriesRequest)(nil),                   // 9: vrooli.source_ledger.v1.journal.ListEntriesRequest
-	(*ListEntriesResponse)(nil),                  // 10: vrooli.source_ledger.v1.journal.ListEntriesResponse
-	(*ProcessClassificationRetriesRequest)(nil),  // 11: vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
-	(*ProcessClassificationRetriesResponse)(nil), // 12: vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
-	(*ProcessEmbeddingRetriesRequest)(nil),       // 13: vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
-	(*ProcessEmbeddingRetriesResponse)(nil),      // 14: vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
-	(*timestamppb.Timestamp)(nil),                // 15: google.protobuf.Timestamp
+	(*CountEntriesRequest)(nil),                  // 0: vrooli.source_ledger.v1.journal.CountEntriesRequest
+	(*CountEntriesResponse)(nil),                 // 1: vrooli.source_ledger.v1.journal.CountEntriesResponse
+	(*FacetText)(nil),                            // 2: vrooli.source_ledger.v1.journal.FacetText
+	(*Attribution)(nil),                          // 3: vrooli.source_ledger.v1.journal.Attribution
+	(*Correlation)(nil),                          // 4: vrooli.source_ledger.v1.journal.Correlation
+	(*ImportProvenance)(nil),                     // 5: vrooli.source_ledger.v1.journal.ImportProvenance
+	(*Entry)(nil),                                // 6: vrooli.source_ledger.v1.journal.Entry
+	(*AppendEntryRequest)(nil),                   // 7: vrooli.source_ledger.v1.journal.AppendEntryRequest
+	(*AppendEntryResponse)(nil),                  // 8: vrooli.source_ledger.v1.journal.AppendEntryResponse
+	(*GetEntryRequest)(nil),                      // 9: vrooli.source_ledger.v1.journal.GetEntryRequest
+	(*GetEntryResponse)(nil),                     // 10: vrooli.source_ledger.v1.journal.GetEntryResponse
+	(*ListEntriesRequest)(nil),                   // 11: vrooli.source_ledger.v1.journal.ListEntriesRequest
+	(*ListEntriesResponse)(nil),                  // 12: vrooli.source_ledger.v1.journal.ListEntriesResponse
+	(*ProcessClassificationRetriesRequest)(nil),  // 13: vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
+	(*ProcessClassificationRetriesResponse)(nil), // 14: vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
+	(*ProcessEmbeddingRetriesRequest)(nil),       // 15: vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
+	(*ProcessEmbeddingRetriesResponse)(nil),      // 16: vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
+	(*v1.TimeWindow)(nil),                        // 17: vrooli.measures.v1.TimeWindow
+	(*timestamppb.Timestamp)(nil),                // 18: google.protobuf.Timestamp
 }
 var file_source_ledger_v1_journal_journal_proto_depIdxs = []int32{
-	1,  // 0: vrooli.source_ledger.v1.journal.Entry.attribution:type_name -> vrooli.source_ledger.v1.journal.Attribution
-	2,  // 1: vrooli.source_ledger.v1.journal.Entry.correlation:type_name -> vrooli.source_ledger.v1.journal.Correlation
-	3,  // 2: vrooli.source_ledger.v1.journal.Entry.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
-	0,  // 3: vrooli.source_ledger.v1.journal.Entry.facet_texts:type_name -> vrooli.source_ledger.v1.journal.FacetText
-	15, // 4: vrooli.source_ledger.v1.journal.Entry.created_at:type_name -> google.protobuf.Timestamp
-	15, // 5: vrooli.source_ledger.v1.journal.Entry.superseded_at:type_name -> google.protobuf.Timestamp
-	1,  // 6: vrooli.source_ledger.v1.journal.AppendEntryRequest.attribution:type_name -> vrooli.source_ledger.v1.journal.Attribution
-	2,  // 7: vrooli.source_ledger.v1.journal.AppendEntryRequest.correlation:type_name -> vrooli.source_ledger.v1.journal.Correlation
-	3,  // 8: vrooli.source_ledger.v1.journal.AppendEntryRequest.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
-	4,  // 9: vrooli.source_ledger.v1.journal.AppendEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
-	4,  // 10: vrooli.source_ledger.v1.journal.GetEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
-	4,  // 11: vrooli.source_ledger.v1.journal.ListEntriesResponse.entries:type_name -> vrooli.source_ledger.v1.journal.Entry
-	5,  // 12: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:input_type -> vrooli.source_ledger.v1.journal.AppendEntryRequest
-	7,  // 13: vrooli.source_ledger.v1.journal.JournalService.GetEntry:input_type -> vrooli.source_ledger.v1.journal.GetEntryRequest
-	9,  // 14: vrooli.source_ledger.v1.journal.JournalService.ListEntries:input_type -> vrooli.source_ledger.v1.journal.ListEntriesRequest
-	11, // 15: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
-	13, // 16: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
-	6,  // 17: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:output_type -> vrooli.source_ledger.v1.journal.AppendEntryResponse
-	8,  // 18: vrooli.source_ledger.v1.journal.JournalService.GetEntry:output_type -> vrooli.source_ledger.v1.journal.GetEntryResponse
-	10, // 19: vrooli.source_ledger.v1.journal.JournalService.ListEntries:output_type -> vrooli.source_ledger.v1.journal.ListEntriesResponse
-	12, // 20: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
-	14, // 21: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	17, // 0: vrooli.source_ledger.v1.journal.CountEntriesRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	3,  // 1: vrooli.source_ledger.v1.journal.Entry.attribution:type_name -> vrooli.source_ledger.v1.journal.Attribution
+	4,  // 2: vrooli.source_ledger.v1.journal.Entry.correlation:type_name -> vrooli.source_ledger.v1.journal.Correlation
+	5,  // 3: vrooli.source_ledger.v1.journal.Entry.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
+	2,  // 4: vrooli.source_ledger.v1.journal.Entry.facet_texts:type_name -> vrooli.source_ledger.v1.journal.FacetText
+	18, // 5: vrooli.source_ledger.v1.journal.Entry.created_at:type_name -> google.protobuf.Timestamp
+	18, // 6: vrooli.source_ledger.v1.journal.Entry.superseded_at:type_name -> google.protobuf.Timestamp
+	3,  // 7: vrooli.source_ledger.v1.journal.AppendEntryRequest.attribution:type_name -> vrooli.source_ledger.v1.journal.Attribution
+	4,  // 8: vrooli.source_ledger.v1.journal.AppendEntryRequest.correlation:type_name -> vrooli.source_ledger.v1.journal.Correlation
+	5,  // 9: vrooli.source_ledger.v1.journal.AppendEntryRequest.import_provenance:type_name -> vrooli.source_ledger.v1.journal.ImportProvenance
+	6,  // 10: vrooli.source_ledger.v1.journal.AppendEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
+	6,  // 11: vrooli.source_ledger.v1.journal.GetEntryResponse.entry:type_name -> vrooli.source_ledger.v1.journal.Entry
+	6,  // 12: vrooli.source_ledger.v1.journal.ListEntriesResponse.entries:type_name -> vrooli.source_ledger.v1.journal.Entry
+	7,  // 13: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:input_type -> vrooli.source_ledger.v1.journal.AppendEntryRequest
+	9,  // 14: vrooli.source_ledger.v1.journal.JournalService.GetEntry:input_type -> vrooli.source_ledger.v1.journal.GetEntryRequest
+	11, // 15: vrooli.source_ledger.v1.journal.JournalService.ListEntries:input_type -> vrooli.source_ledger.v1.journal.ListEntriesRequest
+	13, // 16: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesRequest
+	15, // 17: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:input_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesRequest
+	0,  // 18: vrooli.source_ledger.v1.journal.JournalService.CountEntries:input_type -> vrooli.source_ledger.v1.journal.CountEntriesRequest
+	8,  // 19: vrooli.source_ledger.v1.journal.JournalService.AppendEntry:output_type -> vrooli.source_ledger.v1.journal.AppendEntryResponse
+	10, // 20: vrooli.source_ledger.v1.journal.JournalService.GetEntry:output_type -> vrooli.source_ledger.v1.journal.GetEntryResponse
+	12, // 21: vrooli.source_ledger.v1.journal.JournalService.ListEntries:output_type -> vrooli.source_ledger.v1.journal.ListEntriesResponse
+	14, // 22: vrooli.source_ledger.v1.journal.JournalService.ProcessClassificationRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessClassificationRetriesResponse
+	16, // 23: vrooli.source_ledger.v1.journal.JournalService.ProcessEmbeddingRetries:output_type -> vrooli.source_ledger.v1.journal.ProcessEmbeddingRetriesResponse
+	1,  // 24: vrooli.source_ledger.v1.journal.JournalService.CountEntries:output_type -> vrooli.source_ledger.v1.journal.CountEntriesResponse
+	19, // [19:25] is the sub-list for method output_type
+	13, // [13:19] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_source_ledger_v1_journal_journal_proto_init() }
@@ -1181,7 +1290,7 @@ func file_source_ledger_v1_journal_journal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_source_ledger_v1_journal_journal_proto_rawDesc), len(file_source_ledger_v1_journal_journal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

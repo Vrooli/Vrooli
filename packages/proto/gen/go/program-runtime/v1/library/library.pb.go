@@ -24,6 +24,9 @@ const (
 
 type ListLibraryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -56,6 +59,27 @@ func (x *ListLibraryRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListLibraryRequest.ProtoReflect.Descriptor instead.
 func (*ListLibraryRequest) Descriptor() ([]byte, []int) {
 	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ListLibraryRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListLibraryRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListLibraryRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
 }
 
 type ListLibraryResponse struct {
@@ -534,8 +558,11 @@ var File_program_runtime_v1_library_library_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_library_library_proto_rawDesc = "" +
 	"\n" +
-	"(program-runtime/v1/library/library.proto\x12!vrooli.program_runtime.v1.library\x1a'program-runtime/v1/shared/library.proto\"\x14\n" +
-	"\x12ListLibraryRequest\"c\n" +
+	"(program-runtime/v1/library/library.proto\x12!vrooli.program_runtime.v1.library\x1a'program-runtime/v1/shared/library.proto\"X\n" +
+	"\x12ListLibraryRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"c\n" +
 	"\x13ListLibraryResponse\x12L\n" +
 	"\bprograms\x18\x01 \x03(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\bprograms\"A\n" +
 	"\x11GetLibraryRequest\x12\x12\n" +

@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"reflect"
 	"testing"
 
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/shared"
@@ -120,4 +121,7 @@ func TestNewHealthResponse_OptOrderIndependent(t *testing.T) {
 func TestHealthResponse_TypeAlias(t *testing.T) {
 	var _ HealthResponse = healthv1.Response{}
 	var _ DependencyStatus = healthv1.DependencyStatus{}
+	if reflect.TypeOf((*HealthResponse)(nil)) != reflect.TypeOf((*healthv1.Response)(nil)) {
+		t.Fatal("HealthResponse must remain an alias of the generated response")
+	}
 }

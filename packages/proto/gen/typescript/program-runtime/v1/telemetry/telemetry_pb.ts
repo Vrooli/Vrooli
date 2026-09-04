@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/telemetry/telemetry.proto.
  */
 export const file_program_runtime_v1_telemetry_telemetry: GenFile = /*@__PURE__*/
-  fileDesc("Cixwcm9ncmFtLXJ1bnRpbWUvdjEvdGVsZW1ldHJ5L3RlbGVtZXRyeS5wcm90bxIjdnJvb2xpLnByb2dyYW1fcnVudGltZS52MS50ZWxlbWV0cnkivQIKDFByb2dyYW1FdmVudBIQCghldmVudF9pZBgBIAEoCRITCgtvY2N1cnJlZF9hdBgCIAEoCRI8CgRraW5kGAMgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS50ZWxlbWV0cnkuRXZlbnRLaW5kEhIKCnByb2dyYW1faWQYBCABKAkSEgoKc2Vzc2lvbl9pZBgFIAEoCRISCgpiaW5kaW5nX2lkGAYgASgJEg4KBmVmZmVjdBgHIAEoCRISCgpwcm92ZW5hbmNlGAggASgJEhUKDWZhaWx1cmVfc2hhcGUYCSABKAkSFQoNY29udGV4dF9ieXRlcxgKIAEoAxIOCgZyZWFzb24YCyABKAkSGAoQZmFpbHVyZV9sb2NhdGlvbhgMIAEoCRIQCghzZXF1ZW5jZRgNIAEoAyJlChFMaXN0RXZlbnRzUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEjwKBGtpbmQYAiABKA4yLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnRlbGVtZXRyeS5FdmVudEtpbmQiVwoSTGlzdEV2ZW50c1Jlc3BvbnNlEkEKBmV2ZW50cxgBIAMoCzIxLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEudGVsZW1ldHJ5LlByb2dyYW1FdmVudCrsAQoJRXZlbnRLaW5kEhoKFkVWRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIVChFQUk9HUkFNX1NVQk1JVFRFRBABEhUKEVBST0dSQU1fU1VDQ0VFREVEEAISEgoOUFJPR1JBTV9GQUlMRUQQAxITCg9CSU5ESU5HX1JFRlVTRUQQBBIVChFTRVNTSU9OX1JFQ0xBSU1FRBAFEhMKD0JJTkRJTkdfSU5WT0tFRBAGEhQKEFBST0dSQU1fQUNDRVBURUQQBxITCg9QUk9HUkFNX1JVTk5JTkcQCBIVChFQUk9HUkFNX0NBTkNFTExFRBAJMpEBChBUZWxlbWV0cnlTZXJ2aWNlEn0KCkxpc3RFdmVudHMSNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnRlbGVtZXRyeS5MaXN0RXZlbnRzUmVxdWVzdBo3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEudGVsZW1ldHJ5Lkxpc3RFdmVudHNSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS90ZWxlbWV0cnk7dGVsZW1ldHJ5X3YxYgZwcm90bzM");
+  fileDesc("Cixwcm9ncmFtLXJ1bnRpbWUvdjEvdGVsZW1ldHJ5L3RlbGVtZXRyeS5wcm90bxIjdnJvb2xpLnByb2dyYW1fcnVudGltZS52MS50ZWxlbWV0cnki1wMKDFByb2dyYW1FdmVudBIQCghldmVudF9pZBgBIAEoCRITCgtvY2N1cnJlZF9hdBgCIAEoCRI8CgRraW5kGAMgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS50ZWxlbWV0cnkuRXZlbnRLaW5kEhIKCnByb2dyYW1faWQYBCABKAkSEgoKc2Vzc2lvbl9pZBgFIAEoCRISCgpiaW5kaW5nX2lkGAYgASgJEg4KBmVmZmVjdBgHIAEoCRISCgpwcm92ZW5hbmNlGAggASgJEhUKDWZhaWx1cmVfc2hhcGUYCSABKAkSFQoNY29udGV4dF9ieXRlcxgKIAEoAxIOCgZyZWFzb24YCyABKAkSGAoQZmFpbHVyZV9sb2NhdGlvbhgMIAEoCRIQCghzZXF1ZW5jZRgNIAEoAxIRCglzaGFwZV9rZXkYDiABKAkSGQoRc2hhcGVfYmluZGluZ19pZHMYDyADKAkSGQoRc2hhcGVfb2NjdXJyZW5jZXMYECABKAMSFgoOc2hhcGVfc2Vzc2lvbnMYESABKAMSGQoRZG9taW5hbnRfc2NlbmFyaW8YEiABKAkSHAoUY292ZXJpbmdfY29udHJhY3RfaWQYEyABKAkiZQoRTGlzdEV2ZW50c1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRI8CgRraW5kGAIgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS50ZWxlbWV0cnkuRXZlbnRLaW5kIlcKEkxpc3RFdmVudHNSZXNwb25zZRJBCgZldmVudHMYASADKAsyMS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnRlbGVtZXRyeS5Qcm9ncmFtRXZlbnQqjwIKCUV2ZW50S2luZBIaChZFVkVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASFQoRUFJPR1JBTV9TVUJNSVRURUQQARIVChFQUk9HUkFNX1NVQ0NFRURFRBACEhIKDlBST0dSQU1fRkFJTEVEEAMSEwoPQklORElOR19SRUZVU0VEEAQSFQoRU0VTU0lPTl9SRUNMQUlNRUQQBRITCg9CSU5ESU5HX0lOVk9LRUQQBhIUChBQUk9HUkFNX0FDQ0VQVEVEEAcSEwoPUFJPR1JBTV9SVU5OSU5HEAgSFQoRUFJPR1JBTV9DQU5DRUxMRUQQCRIOCgpOT01JTkFUSU9OEAoSEQoNQ09WRVJBR0VfTUlTUxALMpEBChBUZWxlbWV0cnlTZXJ2aWNlEn0KCkxpc3RFdmVudHMSNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnRlbGVtZXRyeS5MaXN0RXZlbnRzUmVxdWVzdBo3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEudGVsZW1ldHJ5Lkxpc3RFdmVudHNSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS90ZWxlbWV0cnk7dGVsZW1ldHJ5X3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.program_runtime.v1.telemetry.ProgramEvent
@@ -80,6 +80,36 @@ export type ProgramEvent = Message<"vrooli.program_runtime.v1.telemetry.ProgramE
    * @generated from field: int64 sequence = 13;
    */
   sequence: bigint;
+
+  /**
+   * @generated from field: string shape_key = 14;
+   */
+  shapeKey: string;
+
+  /**
+   * @generated from field: repeated string shape_binding_ids = 15;
+   */
+  shapeBindingIds: string[];
+
+  /**
+   * @generated from field: int64 shape_occurrences = 16;
+   */
+  shapeOccurrences: bigint;
+
+  /**
+   * @generated from field: int64 shape_sessions = 17;
+   */
+  shapeSessions: bigint;
+
+  /**
+   * @generated from field: string dominant_scenario = 18;
+   */
+  dominantScenario: string;
+
+  /**
+   * @generated from field: string covering_contract_id = 19;
+   */
+  coveringContractId: string;
 };
 
 /**
@@ -181,6 +211,16 @@ export enum EventKind {
    * @generated from enum value: PROGRAM_CANCELLED = 9;
    */
   PROGRAM_CANCELLED = 9,
+
+  /**
+   * @generated from enum value: NOMINATION = 10;
+   */
+  NOMINATION = 10,
+
+  /**
+   * @generated from enum value: COVERAGE_MISS = 11;
+   */
+  COVERAGE_MISS = 11,
 }
 
 /**

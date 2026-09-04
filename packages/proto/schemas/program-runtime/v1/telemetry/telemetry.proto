@@ -15,6 +15,8 @@ enum EventKind {
   PROGRAM_ACCEPTED = 7;
   PROGRAM_RUNNING = 8;
   PROGRAM_CANCELLED = 9;
+  NOMINATION = 10;
+  COVERAGE_MISS = 11;
 }
 
 message ProgramEvent {
@@ -31,6 +33,12 @@ message ProgramEvent {
   string reason = 11;
   string failure_location = 12;
   int64 sequence = 13;
+  string shape_key = 14;
+  repeated string shape_binding_ids = 15;
+  int64 shape_occurrences = 16;
+  int64 shape_sessions = 17;
+  string dominant_scenario = 18;
+  string covering_contract_id = 19;
 }
 
 message ListEventsRequest {

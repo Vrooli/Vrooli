@@ -8,6 +8,8 @@ import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTra
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const isThemeChoice = (value: string): value is ThemeChoice => THEME_CHOICES.some((choice) => choice === value);
+const isLocale = (value: string): value is Locale => SUPPORTED_LOCALES.some((locale) => locale === value);
 // Literal references so the strings lint can see every catalog key in use.
 const THEME_LABEL_KEY: Record<ThemeChoice, (typeof strings.theme.choice)[ThemeChoice]> = {
   light: strings.theme.choice.light,
@@ -35,7 +37,9 @@ export function SettingsPage() {
               aria-label={t(strings.theme.switcherLabel)}
               data-testid={selectors.settingsPage.themeSelect}
               value={choice}
-              onChange={(event) => setTheme(event.target.value as ThemeChoice)}
+              onChange={(event) => {
+                if (isThemeChoice(event.target.value)) void setTheme(event.target.value);
+              }}
               options={THEME_CHOICES.map((c) => ({ value: c, label: t(THEME_LABEL_KEY[c]) }))}
             />
           </SettingsList.Row>
@@ -44,7 +48,9 @@ export function SettingsPage() {
               aria-label={t(strings.locale.switcherLabel)}
               data-testid={selectors.settingsPage.localeSelect}
               value={currentLocale}
-              onChange={(event) => void setLocale(event.target.value as Locale)}
+              onChange={(event) => {
+                if (isLocale(event.target.value)) void setLocale(event.target.value);
+              }}
               options={SUPPORTED_LOCALES.map((lng) => ({ value: lng, label: getLocaleConfig(lng).nativeLabel }))}
             />
           </SettingsList.Row>

@@ -20,19 +20,22 @@
       "title": "Provider-agnostic instance lifecycle",
       "validation": [
         {
-          "notes": "Intended: api/internal/provider/provider_test.go [REQ tag required]. The fake provider satisfies Create, Describe, List and Destroy, and a request for a size the provider does not offer is refused before any call is made.",
+          "notes": "The fake provider satisfies Create, Describe, List and Destroy; provider boundary coverage is in the focused provider tests.",
+          "ref": "api/internal/provider/provider_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/instance/lifecycle_integration_test.go [REQ tag required]. A full request-to-destroyed cycle runs against the fake provider and every state transition is persisted in order.",
+          "notes": "A real handler-level request-to-destroyed integration uses the fake provider, durable intent store seam, and credit seam; it verifies running state, provider create/destroy, and final lifecycle state.",
+          "ref": "api/handlers/instance/retry_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/provider/interface_surface_test.go [REQ tag required]. An AST assertion that the Provider interface declares exactly four methods, and that no caller package imports a concrete provider implementation.",
+          "notes": "The provider surface test asserts the six-method public interface and no pause operation; caller-independence is guarded by an AST test that excludes only the composition boundary.",
+          "ref": "api/internal/provider/provider_test.go",
           "phase": "structure",
           "status": "not_implemented",
           "type": "test"
@@ -53,13 +56,15 @@
       "title": "Intent recorded before the provider is called",
       "validation": [
         {
-          "notes": "Intended: api/internal/intent/intent_test.go [REQ tag required]. An intent row carrying its idempotency key is committed before the provider client is reachable; replaying the same key returns the original intent rather than creating a second.",
+          "notes": "SQL intent round-trip and idempotency-key lookup are covered by the intent service tests.",
+          "ref": "api/internal/intent/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/intent/lost_response_integration_test.go [REQ tag required]. A provider call that succeeds while its response is lost leaves a recoverable intent that the reconciler can match to the created instance.",
+          "notes": "The lost-create fake, provider intent tag and recovery worker prove that an open intent can be matched and fulfilled after a lost create response without creating or destroying a resource.",
+          "ref": "api/internal/intent/service_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -80,19 +85,21 @@
       "title": "Bidirectional reconciliation",
       "validation": [
         {
-          "notes": "Intended: api/internal/reconcile/reconcile_test.go [REQ tag required]. Present at the provider and absent locally is reported as an orphan; present locally and absent at the provider closes the usage window instead of continuing to meter.",
+          "notes": "Provider-only and local-only divergence reporting is covered without provider destruction; the SQLite SweepRunner integration persists both findings and invokes local-only settlement.",
+          "ref": "api/internal/reconcile/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/reconcile/sweep_integration_test.go [REQ tag required]. A full sweep against the fake provider emits findings in both directions and mutates no instance, proving the reconciler reports rather than resolves.",
+          "notes": "The focused reconciliation service test emits both directions and confirms no provider destruction; the SQLite SweepRunner integration persists findings and the guarded quarantine action destroys only provider orphans.",
+          "ref": "api/internal/reconcile/service_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "An operator can quarantine a reported orphan, inspect it, and then destroy it.",
+          "notes": "The reconcile CLI exposes finding inspection and a confirmation-gated quarantine command; the API quarantines and then destroys only provider-only orphans.",
           "phase": "business",
           "ref": "docs/operations/RUNBOOK.md#quarantine-an-unaccounted-instance",
           "status": "not_implemented",
@@ -114,13 +121,15 @@
       "title": "Expiry enforced twice",
       "validation": [
         {
-          "notes": "Intended: api/internal/expiry/sweeper_test.go [REQ tag required]. The sweeper destroys instances past expiry, honours an extension granted before expiry, and refuses to extend one already destroyed.",
+          "notes": "The expiry sweeper destroys expired instances and settles their reservation; extension state-machine coverage remains open.",
+          "ref": "api/internal/expiry/sweeper_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/expiry/firstboot_timer_test.go [REQ tag required]. The rendered first-boot configuration contains a timer that powers the instance off at its expiry without contacting the control plane.",
+          "notes": "The first-boot renderer and timer tests cover the exact deadline; the enrollment renderer now installs a shutdown service behind the timer.",
+          "ref": "api/internal/enroll/service_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -148,13 +157,15 @@
       "title": "Unattended enrollment",
       "validation": [
         {
-          "notes": "Intended: api/internal/enroll/firstboot_test.go [REQ tag required]. The rendered first-boot configuration carries the bridge onboarding public key and no password, token or private key of any kind.",
+          "notes": "The first-boot renderer carries only the public key and expiry configuration, and rejects private-key material.",
+          "ref": "api/internal/enroll/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/enroll/bridge_integration_test.go [REQ tag required]. Against a bridge fake, the scenario creates the machine record with its locators and starts onboarding; no credential value appears in any request field or log line.",
+          "notes": "Durable enrollment queue retry and adoption behavior are covered by the handler tests; a live bridge integration remains open.",
+          "ref": "api/handlers/instance/retry_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
@@ -182,19 +193,21 @@
       "title": "Credit reserved before boot",
       "validation": [
         {
-          "notes": "Intended: api/internal/meter/reserve_test.go [REQ tag required]. A reservation is obtained before the provider client is reachable, and a refused reservation short-circuits with no provider call and a distinguishable out-of-credit outcome.",
+          "notes": "Typed insufficient-credit refusal is covered by the meter test, and provisioning order is covered by the provision tests.",
+          "ref": "api/internal/meter/service_test.go",
           "phase": "unit",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/meter/settle_integration_test.go [REQ tag required]. Teardown settles measured usage against the reservation, and a provision that fails after reserving releases the reservation rather than burning it.",
+          "notes": "Provision failure releases the hold; reservation persistence, renewal ordering and expiry settlement are covered by focused tests.",
+          "ref": "api/internal/provision/service_test.go",
           "phase": "integration",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: api/internal/meter/enforcement_boundary_test.go [REQ tag required]. A client asserting a higher tier than its subscription is still refused, because the tier is resolved server-side and never read from the request.",
+          "notes": "Server-side tier and tenant ceiling enforcement is exercised before provider creation; atomic tenant ceiling holds prevent concurrent over-admission, with live deployment evidence remaining open.",
           "phase": "business",
           "status": "not_implemented",
           "type": "test"
@@ -215,13 +228,14 @@
       "title": "Destroy is the only stop",
       "validation": [
         {
-          "notes": "Intended: api/internal/provider/no_pause_test.go [REQ tag required]. An AST assertion that no exported method, handler or domain function named pause, stop, suspend, halt or shutdown exists anywhere in the scenario.",
+          "notes": "The provider surface and scenario production-surface guardrail tests reject named power-state verbs across production files, and the CLI manifest test rejects forbidden lifecycle command names.",
+          "ref": "cli/domains/domains_test.go",
           "phase": "structure",
           "status": "not_implemented",
           "type": "test"
         },
         {
-          "notes": "Intended: cli/domains/instance/verbs_test.go [REQ tag required]. The CLI manifest declares no pause, stop or suspend verb, and the destroy verb is the only lifecycle terminator.",
+          "notes": "The CLI manifest test in cli/domains/domains_test.go is tagged for this requirement. The manifest declares no pause, stop or suspend verb, and the destroy verb is the only lifecycle terminator.",
           "phase": "cli",
           "status": "not_implemented",
           "type": "test"

@@ -40,6 +40,7 @@ class FailureCause(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FAILURE_CAUSE_KERNEL_RUNTIME: _ClassVar[FailureCause]
     FAILURE_CAUSE_BRIDGE_TRANSPORT: _ClassVar[FailureCause]
     FAILURE_CAUSE_UNCLASSIFIED: _ClassVar[FailureCause]
+    FAILURE_CAUSE_PROTECTED_NAME_MISUSE: _ClassVar[FailureCause]
 PROVENANCE_UNSPECIFIED: Provenance
 PROVENANCE_AGENT: Provenance
 PROVENANCE_OPERATOR: Provenance
@@ -65,6 +66,7 @@ FAILURE_CAUSE_KERNEL_SYNTAX: FailureCause
 FAILURE_CAUSE_KERNEL_RUNTIME: FailureCause
 FAILURE_CAUSE_BRIDGE_TRANSPORT: FailureCause
 FAILURE_CAUSE_UNCLASSIFIED: FailureCause
+FAILURE_CAUSE_PROTECTED_NAME_MISUSE: FailureCause
 
 class Program(_message.Message):
     __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes", "agent_bytes", "completed_at", "wall_time_millis", "cpu_time_millis", "library_version", "failure_cause")
@@ -172,12 +174,20 @@ class WaitForProgramResponse(_message.Message):
     def __init__(self, program: _Optional[_Union[Program, _Mapping]] = ..., terminal: _Optional[bool] = ..., waited_millis: _Optional[int] = ...) -> None: ...
 
 class ListProgramsRequest(_message.Message):
-    __slots__ = ("session_id", "include_operator")
+    __slots__ = ("session_id", "include_operator", "provenance", "since_seconds", "until", "limit")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    SINCE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    UNTIL_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     include_operator: bool
-    def __init__(self, session_id: _Optional[str] = ..., include_operator: _Optional[bool] = ...) -> None: ...
+    provenance: str
+    since_seconds: int
+    until: str
+    limit: int
+    def __init__(self, session_id: _Optional[str] = ..., include_operator: _Optional[bool] = ..., provenance: _Optional[str] = ..., since_seconds: _Optional[int] = ..., until: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class ListProgramsResponse(_message.Message):
     __slots__ = ("programs",)
@@ -300,12 +310,14 @@ class GovernanceShareResponse(_message.Message):
     def __init__(self, governed_calls: _Optional[int] = ..., observed_calls: _Optional[int] = ..., governed_share: _Optional[float] = ..., window_seconds: _Optional[int] = ..., window_start: _Optional[str] = ..., window_end: _Optional[str] = ..., observed_commands: _Optional[_Iterable[_Union[ObservedCommand, _Mapping]]] = ...) -> None: ...
 
 class RunAuthoringEvalRequest(_message.Message):
-    __slots__ = ("suite", "max_cases")
+    __slots__ = ("suite", "max_cases", "no_gate")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     MAX_CASES_FIELD_NUMBER: _ClassVar[int]
+    NO_GATE_FIELD_NUMBER: _ClassVar[int]
     suite: str
     max_cases: int
-    def __init__(self, suite: _Optional[str] = ..., max_cases: _Optional[int] = ...) -> None: ...
+    no_gate: bool
+    def __init__(self, suite: _Optional[str] = ..., max_cases: _Optional[int] = ..., no_gate: _Optional[bool] = ...) -> None: ...
 
 class AuthoringCaseResult(_message.Message):
     __slots__ = ("case_id", "authored", "first_attempt_ok", "cause", "agent_bytes", "model", "rule_id", "failure_detail")
@@ -336,7 +348,7 @@ class AuthoringRuleMiss(_message.Message):
     def __init__(self, rule_id: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class RunAuthoringEvalResponse(_message.Message):
-    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp", "rule_misses")
+    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp", "rule_misses", "floor_met")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -350,6 +362,7 @@ class RunAuthoringEvalResponse(_message.Message):
     NOT_ATTEMPTED_FIELD_NUMBER: _ClassVar[int]
     HARNESS_STAMP_FIELD_NUMBER: _ClassVar[int]
     RULE_MISSES_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_MET_FIELD_NUMBER: _ClassVar[int]
     suite: str
     status: str
     reason: str
@@ -363,4 +376,65 @@ class RunAuthoringEvalResponse(_message.Message):
     not_attempted: int
     harness_stamp: str
     rule_misses: _containers.RepeatedCompositeFieldContainer[AuthoringRuleMiss]
-    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ..., rule_misses: _Optional[_Iterable[_Union[AuthoringRuleMiss, _Mapping]]] = ...) -> None: ...
+    floor_met: bool
+    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ..., rule_misses: _Optional[_Iterable[_Union[AuthoringRuleMiss, _Mapping]]] = ..., floor_met: _Optional[bool] = ...) -> None: ...
+
+class RunDiscoveryEvalRequest(_message.Message):
+    __slots__ = ("suite", "mode", "max_cases", "no_gate")
+    SUITE_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    MAX_CASES_FIELD_NUMBER: _ClassVar[int]
+    NO_GATE_FIELD_NUMBER: _ClassVar[int]
+    suite: str
+    mode: str
+    max_cases: int
+    no_gate: bool
+    def __init__(self, suite: _Optional[str] = ..., mode: _Optional[str] = ..., max_cases: _Optional[int] = ..., no_gate: _Optional[bool] = ...) -> None: ...
+
+class DiscoveryCaseResult(_message.Message):
+    __slots__ = ("case_id", "intent", "expected_binding_id", "selected_binding_id", "met", "null_verdict", "wrong_selection", "reason")
+    CASE_ID_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_BINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    MET_FIELD_NUMBER: _ClassVar[int]
+    NULL_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    WRONG_SELECTION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    case_id: str
+    intent: str
+    expected_binding_id: str
+    selected_binding_id: str
+    met: bool
+    null_verdict: bool
+    wrong_selection: bool
+    reason: str
+    def __init__(self, case_id: _Optional[str] = ..., intent: _Optional[str] = ..., expected_binding_id: _Optional[str] = ..., selected_binding_id: _Optional[str] = ..., met: _Optional[bool] = ..., null_verdict: _Optional[bool] = ..., wrong_selection: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class RunDiscoveryEvalResponse(_message.Message):
+    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_selection", "null_verdict", "floor", "floor_reason", "results", "floor_met")
+    SUITE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CASES_FIELD_NUMBER: _ClassVar[int]
+    MET_FIELD_NUMBER: _ClassVar[int]
+    MISSED_FIELD_NUMBER: _ClassVar[int]
+    WRONG_SELECTION_FIELD_NUMBER: _ClassVar[int]
+    NULL_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_REASON_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    FLOOR_MET_FIELD_NUMBER: _ClassVar[int]
+    suite: str
+    status: str
+    reason: str
+    cases: int
+    met: int
+    missed: int
+    wrong_selection: int
+    null_verdict: int
+    floor: int
+    floor_reason: str
+    results: _containers.RepeatedCompositeFieldContainer[DiscoveryCaseResult]
+    floor_met: bool
+    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_selection: _Optional[int] = ..., null_verdict: _Optional[int] = ..., floor: _Optional[int] = ..., floor_reason: _Optional[str] = ..., results: _Optional[_Iterable[_Union[DiscoveryCaseResult, _Mapping]]] = ..., floor_met: _Optional[bool] = ...) -> None: ...

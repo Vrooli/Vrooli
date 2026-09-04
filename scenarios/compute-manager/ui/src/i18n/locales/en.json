@@ -3,82 +3,101 @@
   "app": {
     "title": "Compute Manager"
   },
-  "layout": {
-    "navigationLabel": "Primary navigation",
-    "mobileNavigationLabel": "Mobile navigation",
-    "skipToContent": "Skip to content",
-    "openNavigation": "Open navigation",
-    "closeNavigation": "Close navigation",
-    "nav": {
-      "dashboard": "Home",
-      "settings": "Settings"
+  "data-display": {
+    "data-table": {
+      "access-is-limited": "Access is limited",
+      "all": "All",
+      "data-table-content": "Data table content",
+      "dense": "Dense",
+      "next": "Next",
+      "previous": "Previous",
+      "roomy": "Roomy",
+      "row-density": "Row density"
     }
   },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
   },
-  "pages": {
-    "dashboard": {
-      "title": "Home",
-      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
-      "placeholderTitle": "Compute inventory",
-      "placeholderDescription": "No provider-backed instances are running. Requested capacity and reconciliation findings will appear here."
-    },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language",
-      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
-      "preferences": "Preferences",
-      "themeHint": "Light, dark, or follow the system.",
-      "localeHint": "Applies to this console only."
-    }
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
   },
   "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
+    "description": "Polls this scenario's API and reports what it says.",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:",
-    "description": "Polls this scenario's API and reports what it says."
+    "title": "API Health"
   },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
+  "layout": {
+    "closeNavigation": "Close navigation",
+    "mobileNavigationLabel": "Mobile navigation",
+    "nav": {
+      "dashboard": "Home",
+      "findings": "Findings",
+      "request": "Request",
+      "settings": "Settings"
+    },
+    "navigationLabel": "Primary navigation",
+    "openNavigation": "Open navigation",
+    "skipToContent": "Skip to content"
   },
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
+      "title": "Home",
+      "inventoryTitle": "Compute inventory",
+      "inventoryDescription": "Live instances, remaining lifetime, and open findings.",
+      "loading": "Loading inventory…", "error": "Unable to load inventory.", "empty": "No instances are running.", "openFindings": "Open findings", "noFindings": "No open reconciliation findings.", "state": "State", "region": "Region", "size": "Size", "remaining": "Remaining"
+    },
+    "findings": { "title": "Open findings", "description": "Reconciliation findings requiring operator attention.", "kind": "Kind", "providerInstance": "Provider instance", "detail": "Detail", "error": "Unable to load findings.", "empty": "No open reconciliation findings." },
+    "instance": { "title": "Instance details", "description": "Provider, reservation, and enrollment state for one instance.", "error": "Unable to load instance.", "loading": "Loading instance…", "state": "State", "address": "Address", "provider": "Provider"
+    },
+    "request": { "title": "Request capacity", "description": "Choose a bounded machine lifetime before creating capacity.", "provider": "Provider", "region": "Region", "size": "Size", "lifetime": "Lifetime (seconds)", "estimate": "The estimate uses the provider minimum billable unit.", "submit": "Request capacity", "submitting": "Requesting capacity…", "success": "Capacity request accepted.", "error": "Capacity request failed. No machine was created.", "validation": "Choose a positive lifetime." },
+    "settings": {
+      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "localeHeading": "Language",
+      "localeHint": "Applies to this console only.",
+      "preferences": "Preferences",
+      "themeHeading": "Appearance",
+      "themeHint": "Light, dark, or follow the system.",
+      "title": "Settings"
+    }
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
   }
 }

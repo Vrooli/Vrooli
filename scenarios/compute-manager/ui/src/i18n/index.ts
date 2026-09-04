@@ -55,7 +55,7 @@ export const SUPPORTED_LOCALES = LOCALE_CODES;
 const STORAGE_KEY = "vrooli.locale";
 
 const isSupported = (lng: string | null | undefined): lng is Locale =>
-  Boolean(lng && (SUPPORTED_LOCALES as readonly string[]).includes(lng));
+  Boolean(lng && SUPPORTED_LOCALES.some((locale) => locale === lng));
 
 const detectInitialLocale = (): Locale => {
   if (typeof window === "undefined") return "en";

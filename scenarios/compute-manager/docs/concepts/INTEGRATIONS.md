@@ -9,8 +9,9 @@ A dependency named here and absent there is intent that never reached the
 lifecycle, and a dependency declared there and unexplained here is a coupling
 nobody chose.
 
-> **Status: designed, not implemented.** No integration code exists yet. The
-> declarations below are decisions recorded ahead of the build.
+> **Status: partially implemented.** Provider, business-suite metering and
+> bridge integration seams are implemented behind interfaces. Live provider
+> proof and some upstream operational contracts remain open.
 
 ## Dependency Inventory
 
@@ -85,10 +86,9 @@ schedule, and visibly flagged as not yet enrolled.
 it works without a password because the instance's first-boot configuration
 already carries bridge's onboarding public key.
 
-That last point depends on an upstream addition that does not exist yet: bridge
-can read its own onboarding public key internally but exposes it on no endpoint.
-Publishing it is the single new wire contract this scenario needs, and until it
-lands, unattended enrollment (`OT-P0-005`) cannot be completed.
+Bridge now publishes its onboarding public key through an owner-gated wire
+contract. The remaining gap for unattended enrollment (`OT-P0-005`) is
+provider-live proof that a real host reaches the online state.
 
 ### treasury — conditional
 

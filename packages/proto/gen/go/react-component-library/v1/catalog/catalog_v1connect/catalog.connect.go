@@ -68,6 +68,15 @@ const (
 	// CatalogServiceCaptureEvidenceProcedure is the fully-qualified name of the CatalogService's
 	// CaptureEvidence RPC.
 	CatalogServiceCaptureEvidenceProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence"
+	// CatalogServiceSearchAssetsProcedure is the fully-qualified name of the CatalogService's
+	// SearchAssets RPC.
+	CatalogServiceSearchAssetsProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/SearchAssets"
+	// CatalogServiceSearchStatusProcedure is the fully-qualified name of the CatalogService's
+	// SearchStatus RPC.
+	CatalogServiceSearchStatusProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/SearchStatus"
+	// CatalogServiceReindexSearchProcedure is the fully-qualified name of the CatalogService's
+	// ReindexSearch RPC.
+	CatalogServiceReindexSearchProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/ReindexSearch"
 )
 
 // CatalogServiceClient is a client for the vrooli.react_component_library.v1.catalog.CatalogService
@@ -85,6 +94,9 @@ type CatalogServiceClient interface {
 	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
 	GetReadiness(context.Context, *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error)
 	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
+	SearchAssets(context.Context, *connect.Request[catalog.SearchAssetsRequest]) (*connect.Response[catalog.SearchAssetsResponse], error)
+	SearchStatus(context.Context, *connect.Request[catalog.SearchStatusRequest]) (*connect.Response[catalog.SearchStatusResponse], error)
+	ReindexSearch(context.Context, *connect.Request[catalog.ReindexSearchRequest]) (*connect.Response[catalog.ReindexSearchResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the
@@ -171,6 +183,24 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("CaptureEvidence")),
 			connect.WithClientOptions(opts...),
 		),
+		searchAssets: connect.NewClient[catalog.SearchAssetsRequest, catalog.SearchAssetsResponse](
+			httpClient,
+			baseURL+CatalogServiceSearchAssetsProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("SearchAssets")),
+			connect.WithClientOptions(opts...),
+		),
+		searchStatus: connect.NewClient[catalog.SearchStatusRequest, catalog.SearchStatusResponse](
+			httpClient,
+			baseURL+CatalogServiceSearchStatusProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("SearchStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		reindexSearch: connect.NewClient[catalog.ReindexSearchRequest, catalog.ReindexSearchResponse](
+			httpClient,
+			baseURL+CatalogServiceReindexSearchProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ReindexSearch")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -188,6 +218,9 @@ type catalogServiceClient struct {
 	getHealthOverview     *connect.Client[catalog.GetHealthOverviewRequest, catalog.GetHealthOverviewResponse]
 	getReadiness          *connect.Client[catalog.GetReadinessRequest, catalog.GetReadinessResponse]
 	captureEvidence       *connect.Client[catalog.CaptureEvidenceRequest, catalog.CaptureEvidenceResponse]
+	searchAssets          *connect.Client[catalog.SearchAssetsRequest, catalog.SearchAssetsResponse]
+	searchStatus          *connect.Client[catalog.SearchStatusRequest, catalog.SearchStatusResponse]
+	reindexSearch         *connect.Client[catalog.ReindexSearchRequest, catalog.ReindexSearchResponse]
 }
 
 // GetCoverage calls vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage.
@@ -254,6 +287,21 @@ func (c *catalogServiceClient) CaptureEvidence(ctx context.Context, req *connect
 	return c.captureEvidence.CallUnary(ctx, req)
 }
 
+// SearchAssets calls vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets.
+func (c *catalogServiceClient) SearchAssets(ctx context.Context, req *connect.Request[catalog.SearchAssetsRequest]) (*connect.Response[catalog.SearchAssetsResponse], error) {
+	return c.searchAssets.CallUnary(ctx, req)
+}
+
+// SearchStatus calls vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus.
+func (c *catalogServiceClient) SearchStatus(ctx context.Context, req *connect.Request[catalog.SearchStatusRequest]) (*connect.Response[catalog.SearchStatusResponse], error) {
+	return c.searchStatus.CallUnary(ctx, req)
+}
+
+// ReindexSearch calls vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch.
+func (c *catalogServiceClient) ReindexSearch(ctx context.Context, req *connect.Request[catalog.ReindexSearchRequest]) (*connect.Response[catalog.ReindexSearchResponse], error) {
+	return c.reindexSearch.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.catalog.CatalogService service.
 type CatalogServiceHandler interface {
@@ -269,6 +317,9 @@ type CatalogServiceHandler interface {
 	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
 	GetReadiness(context.Context, *connect.Request[catalog.GetReadinessRequest]) (*connect.Response[catalog.GetReadinessResponse], error)
 	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
+	SearchAssets(context.Context, *connect.Request[catalog.SearchAssetsRequest]) (*connect.Response[catalog.SearchAssetsResponse], error)
+	SearchStatus(context.Context, *connect.Request[catalog.SearchStatusRequest]) (*connect.Response[catalog.SearchStatusResponse], error)
+	ReindexSearch(context.Context, *connect.Request[catalog.ReindexSearchRequest]) (*connect.Response[catalog.ReindexSearchResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -350,6 +401,24 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("CaptureEvidence")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceSearchAssetsHandler := connect.NewUnaryHandler(
+		CatalogServiceSearchAssetsProcedure,
+		svc.SearchAssets,
+		connect.WithSchema(catalogServiceMethods.ByName("SearchAssets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceSearchStatusHandler := connect.NewUnaryHandler(
+		CatalogServiceSearchStatusProcedure,
+		svc.SearchStatus,
+		connect.WithSchema(catalogServiceMethods.ByName("SearchStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceReindexSearchHandler := connect.NewUnaryHandler(
+		CatalogServiceReindexSearchProcedure,
+		svc.ReindexSearch,
+		connect.WithSchema(catalogServiceMethods.ByName("ReindexSearch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.catalog.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceGetCoverageProcedure:
@@ -376,6 +445,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceGetReadinessHandler.ServeHTTP(w, r)
 		case CatalogServiceCaptureEvidenceProcedure:
 			catalogServiceCaptureEvidenceHandler.ServeHTTP(w, r)
+		case CatalogServiceSearchAssetsProcedure:
+			catalogServiceSearchAssetsHandler.ServeHTTP(w, r)
+		case CatalogServiceSearchStatusProcedure:
+			catalogServiceSearchStatusHandler.ServeHTTP(w, r)
+		case CatalogServiceReindexSearchProcedure:
+			catalogServiceReindexSearchHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -431,4 +506,16 @@ func (UnimplementedCatalogServiceHandler) GetReadiness(context.Context, *connect
 
 func (UnimplementedCatalogServiceHandler) CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) SearchAssets(context.Context, *connect.Request[catalog.SearchAssetsRequest]) (*connect.Response[catalog.SearchAssetsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) SearchStatus(context.Context, *connect.Request[catalog.SearchStatusRequest]) (*connect.Response[catalog.SearchStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) ReindexSearch(context.Context, *connect.Request[catalog.ReindexSearchRequest]) (*connect.Response[catalog.ReindexSearchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch is not implemented"))
 }

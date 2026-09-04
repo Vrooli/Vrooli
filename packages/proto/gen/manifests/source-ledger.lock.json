@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "source-ledger",
-  "input_digest": "sha256:8c62db3cb81888163acc174c0ed587548a70152fe7e792a2694d35a80ec7e4f6",
+  "input_digest": "sha256:d1ad9e8b178aac54fa0f07cad117d5bf363750d0d1472e84e7af3b47c06d8c5b",
   "input_files": [
+    "schemas/measures/v1/measures.proto",
     "schemas/source-ledger/v1/facets/facets.proto",
     "schemas/source-ledger/v1/forest/forest.proto",
     "schemas/source-ledger/v1/journal/journal.proto",
@@ -10,7 +11,8 @@
     "schemas/source-ledger/v1/rules/rules.proto",
     "schemas/source-ledger/v1/scopes/scopes.proto",
     "schemas/source-ledger/v1/shared/errors.proto",
-    "schemas/source-ledger/v1/shared/health.proto"
+    "schemas/source-ledger/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",
@@ -27,8 +29,8 @@
     "gen/go/source-ledger/v1/facets/facets_v1connect/facets.connect.go": "sha256:81f11796851de42fed4a2e05ecc3f041a6d31bf9d288b786dcbd2f7a16ff0505",
     "gen/go/source-ledger/v1/forest/forest.pb.go": "sha256:b87d00951ad5e52d53f62936f0ff495092b72292efaf20d2e213fccd09ccc80f",
     "gen/go/source-ledger/v1/forest/forest_v1connect/forest.connect.go": "sha256:01698934cd3eba02ac79d2be88a86d686668a44f6289c6658ae4c288fa487c48",
-    "gen/go/source-ledger/v1/journal/journal.pb.go": "sha256:4638edb7c39778dcf72a5357fbe5a68570b81e7b918fb8abcf3ac549101a5586",
-    "gen/go/source-ledger/v1/journal/journal_v1connect/journal.connect.go": "sha256:d56104c238844a5426164a6277f70e92b7e232be93f6d3b311d95e309d7a3234",
+    "gen/go/source-ledger/v1/journal/journal.pb.go": "sha256:d49071d192c85e39a96347176a7e049263eb8c1e93a60f4ff540615543f670d2",
+    "gen/go/source-ledger/v1/journal/journal_v1connect/journal.connect.go": "sha256:3a2ac99d0983f4c969f5a9cfc7ca366e4090610cd94bf7285cd5ee2375f645f5",
     "gen/go/source-ledger/v1/recall/recall.pb.go": "sha256:908e6336456132d2af03819da1de500fa940da1d3d33728b2cfee0735cb6fb78",
     "gen/go/source-ledger/v1/recall/recall_v1connect/recall.connect.go": "sha256:85d2807dfe41bc963d9b8197178984d5750613bb31e196afb92478d7a47dd716",
     "gen/go/source-ledger/v1/rules/rules.pb.go": "sha256:f4fe4ab49bf200d6deef1e8e66573d23d9879653bf276bceb4b814c71a14a4aa",
@@ -44,8 +46,8 @@
     "gen/python/source_ledger/v1/forest/forest_pb2.py": "sha256:53b682f3b3d39da7279714eb92284c7d7df44cd185f63dfe003206b68ca5d8f1",
     "gen/python/source_ledger/v1/forest/forest_pb2.pyi": "sha256:b68b4f9ca26b8eeb0db5e2500ef5d70883f7732f9243e7e8b4ee81ca5ee19b0f",
     "gen/python/source_ledger/v1/forest/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/source_ledger/v1/journal/journal_pb2.py": "sha256:05ee9a3c0641c9eec813005a38d018836dff9a6df24190a8a020893826591f6f",
-    "gen/python/source_ledger/v1/journal/journal_pb2.pyi": "sha256:329d543d684f4c7a489f83ec84d9b968d6e8615ce7b4e45a82fb21d9fb64ebe7",
+    "gen/python/source_ledger/v1/journal/journal_pb2.py": "sha256:13bccd915919ceb4b8b345e594883074f00b09efe7be402efe62ddc6235ec9f3",
+    "gen/python/source_ledger/v1/journal/journal_pb2.pyi": "sha256:3df91806d298bf578557149e9cf62fbe56730b66b125d01a700626688998c9b6",
     "gen/python/source_ledger/v1/journal/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/source_ledger/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/source_ledger/v1/recall/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -64,7 +66,7 @@
     "gen/python/source_ledger/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/source-ledger/v1/facets/facets_pb.ts": "sha256:ee7e8227f05ac84099c8d7f44622eab5f73ca13d18131d31fda40f9a70787e37",
     "gen/typescript/source-ledger/v1/forest/forest_pb.ts": "sha256:9e35dfe669d1a8ce9f06f695eb09f1619679dbb7655b9a53a5e5c8ac883a2e72",
-    "gen/typescript/source-ledger/v1/journal/journal_pb.ts": "sha256:fbd49183913f27d18fc6674af2d431cf1999e1e3ea3e7fc5bed610a7f5192868",
+    "gen/typescript/source-ledger/v1/journal/journal_pb.ts": "sha256:06490978b50a262d1b8f26c0a07431b83a4f77ef703affdf81ead4cce174c2de",
     "gen/typescript/source-ledger/v1/recall/recall_pb.ts": "sha256:11f332e9e601513f042509fcf1fedccb970f01c560f7bc934c33c23651c319a0",
     "gen/typescript/source-ledger/v1/rules/rules_pb.ts": "sha256:dd330711eb6124deeced9d8bd8d6167b9c1607797f5b16569a78798eae660b74",
     "gen/typescript/source-ledger/v1/scopes/scopes_pb.ts": "sha256:e57e89bee971e8de9a8e7f4dbb909fdf758b4b3d7e8f3f6d8bf6fe5217559909",

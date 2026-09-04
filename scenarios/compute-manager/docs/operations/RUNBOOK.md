@@ -3,16 +3,10 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-> **Status: nothing in this runbook has been built or exercised.**
-> Compute Manager was generated from the `react-vite` template on
-> 2026-09-03 and contains template code only. There is no provider
-> adapter, no instance record, no reconciler, no expiry sweeper and no
-> enrollment path. Every procedure below is the procedure that *will*
-> apply once the matching requirement is implemented. Each one names the
-> requirement that owns it. Treat every command shown as an intended
-> command surface, not an available one. Do not treat a green result
-> from any step here as evidence until the requirement it belongs to is
-> implemented and its automated validations pass.
+> **Status: partially exercised.** The provider, instance, metering,
+> reconciliation, expiry and enrollment command surfaces exist and have fake
+> boundary coverage. Provider-live procedures remain pending because the
+> optional Hetzner credential and a target environment are not available.
 
 ## Purpose Of This Document
 
@@ -171,26 +165,22 @@ way.
 ### First Unattended Enrollment
 
 **Owns:** `COMPUTEM-P0-005` (unattended enrollment).
-**Status: not implemented, and blocked upstream.**
+**Status: implemented against the bridge delegation contract; live proof remains pending.**
 
 Enrollment delegates entirely to `vrooli-bridge`. This scenario contains
 no SSH implementation and never holds a node credential. The instance
 boots already trusting the bridge onboarding public key, so there is no
 interactive step and no secret crosses any wire.
 
-**Blocker:** the bridge does not publish its onboarding public key on any
-endpoint. It can read the key internally, but exposes it nowhere.
-Publishing it is the single new wire contract this scenario needs, and it
-is an upstream prerequisite rather than integration work. This procedure
-cannot be performed until that endpoint exists.
+The bridge now publishes the owner-gated onboarding public key through its
+`GetOnboardingPublicKey` procedure. A live provider proof is still required
+before this procedure can be called complete operationally.
 
 Perform these steps:
 
 1. Run `compute-manager status --json`.
-2. Confirm the bridge dependency reports healthy and reports the
-   onboarding public key as retrievable. There is no separate key
-   command; onboarding-key retrievability is a dependency fact and
-   belongs to `status`.
+2. Confirm the bridge dependency reports healthy and retrieve its onboarding
+   public key through the bridge onboarding-key procedure.
 3. Run `compute-manager instance request --lifetime 2h --enroll true`.
 4. Do not open a terminal to the instance. Do not type a password.
 5. Wait for the instance state to become `running`.
@@ -469,7 +459,7 @@ behaviour that would produce the symptom does not exist yet.
 | CLI talks to old API | `compute-manager status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
 | Provisioning refuses with an out-of-credit result | Business suite reachability, tenant credit balance | Add credit, then retry the request | This is a correct refusal, not an incident. Escalate only if credit is present. |
 | Provisioning refuses and the business suite is unreachable | Business suite `/health`, network reachability | Restore the business suite, then retry | Fail closed is deliberate. Do not add a bypass. A machine that boots unmetered is cost that grows hourly and cannot be recovered afterwards. |
-| Instances are created but stay un-enrolled | `compute-manager enroll status`, bridge `/health` | Restore the bridge; the enrollment queue drains on its own | Expected while the bridge onboarding key endpoint is unpublished. |
+| Instances are created but stay un-enrolled | `compute-manager enroll status`, bridge `/health` | Restore the bridge; the enrollment queue drains on its own | Expected during a bridge outage; sustained failure after key retrieval is a defect. |
 | Reconciler reports a `provider-only` finding | `compute-manager reconcile findings` | Follow [Quarantine An Unaccounted Instance](#quarantine-an-unaccounted-instance) | Escalate if findings recur for the same provider identifier after resolution. |
 | Reconciler reports a `local-only` finding | `compute-manager reconcile findings`, provider console | Close the usage window on the local record rather than continuing to meter | Escalate if metered usage continued past the provider's last-seen timestamp. |
 | A provider call succeeded but the response was lost | `compute-manager intent list --state creating` | Run `compute-manager reconcile run` and let the sweep match the intent to the created instance | This is the failure mode intent-before-action exists for. Escalate only if the sweep cannot match. |

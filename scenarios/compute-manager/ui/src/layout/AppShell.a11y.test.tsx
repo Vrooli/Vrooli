@@ -23,6 +23,7 @@ describe("AppShell accessibility", () => {
 
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+    expect(container.querySelector("main")).toBeTruthy();
     await expectNoA11yViolations(container);
   });
 

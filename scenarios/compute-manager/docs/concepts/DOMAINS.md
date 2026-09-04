@@ -7,10 +7,10 @@ each one is responsible for, and which data it is the authority over. Read it
 before adding a package, a table, or an API surface, so new work lands in the
 domain that already owns the concept instead of creating a second owner for it.
 
-> **Status: designed, not implemented.** The scenario was generated from the
-> `react-vite` template and currently contains only template code. Every domain
-> below is a decision recorded ahead of the build. The `Source Paths` column
-> names where each domain will live, not where it is.
+> **Status: partially implemented.** Provider, intent, instance, meter,
+> reconcile, expiry, enrollment and provisioning domains have executable
+> slices. Ceiling, daily cost and future purchase domains remain roadmap work.
+> The `Source Paths` column names the owning implementation locations.
 
 The load-bearing rule for this scenario: **it owns capacity and cost, and
 nothing else.** Node trust, public exposure, deployment, subscriptions and
@@ -113,12 +113,11 @@ schedule. Present at the provider and absent locally is recorded as
 `unaccounted_at_provider`. Present locally and absent at the provider is
 recorded as `destroyed_out_of_band`.
 
-It **reports and never resolves.** A finding is a row that something else acts
-on, not an action the sweep takes. This is what stops a reconciler bug from
-destroying a running node, and by the same rule it never settles, releases or
-adjusts a reservation. A `destroyed_out_of_band` finding is drained by the
-meter domain, which closes the usage window, so exactly one domain writes
-money. Marking precedes sweeping for the same reason.
+It **reports and never destroys.** A finding is a row that something else acts
+on, not a provider action the sweep takes. This is what stops a reconciler bug
+from destroying a running node. A `destroyed_out_of_band` observation may invoke
+the meter-owned settlement callback to close the usage window, so exactly one
+domain writes money. Marking precedes any destructive action for the same reason.
 
 Owns `OT-P0-003` and `OT-P1-003`.
 

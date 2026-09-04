@@ -27,6 +27,76 @@ FINDING_SEVERITY_BLOCKING: FindingSeverity
 FINDING_SEVERITY_WARNING: FindingSeverity
 FINDING_SEVERITY_INFO: FindingSeverity
 
+class SearchAssetsRequest(_message.Message):
+    __slots__ = ("query", "limit", "kind", "domain", "accepts")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTS_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    limit: int
+    kind: str
+    domain: str
+    accepts: str
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., kind: _Optional[str] = ..., domain: _Optional[str] = ..., accepts: _Optional[str] = ...) -> None: ...
+
+class SearchAssetResult(_message.Message):
+    __slots__ = ("catalog_id", "name", "description", "declaration_path", "score", "layer", "implemented", "kind", "domain")
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    DECLARATION_PATH_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    LAYER_FIELD_NUMBER: _ClassVar[int]
+    IMPLEMENTED_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    catalog_id: str
+    name: str
+    description: str
+    declaration_path: str
+    score: float
+    layer: int
+    implemented: bool
+    kind: str
+    domain: str
+    def __init__(self, catalog_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., declaration_path: _Optional[str] = ..., score: _Optional[float] = ..., layer: _Optional[int] = ..., implemented: _Optional[bool] = ..., kind: _Optional[str] = ..., domain: _Optional[str] = ...) -> None: ...
+
+class SearchAssetsResponse(_message.Message):
+    __slots__ = ("results", "total")
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[SearchAssetResult]
+    total: int
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchAssetResult, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+
+class SearchStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SearchStatusResponse(_message.Message):
+    __slots__ = ("indexed_count", "indexed_at", "available")
+    INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    indexed_count: int
+    indexed_at: str
+    available: bool
+    def __init__(self, indexed_count: _Optional[int] = ..., indexed_at: _Optional[str] = ..., available: _Optional[bool] = ...) -> None: ...
+
+class ReindexSearchRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReindexSearchResponse(_message.Message):
+    __slots__ = ("indexed_count", "indexed_at")
+    INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
+    indexed_count: int
+    indexed_at: str
+    def __init__(self, indexed_count: _Optional[int] = ..., indexed_at: _Optional[str] = ...) -> None: ...
+
 class AssetNode(_message.Message):
     __slots__ = ("asset_id", "name", "kind", "rung", "rung_name", "domain", "domain_order")
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]

@@ -307,6 +307,24 @@ class ListEffectivenessRequest(_message.Message):
     include_disputed: bool
     def __init__(self, limit: _Optional[int] = ..., include_disputed: _Optional[bool] = ...) -> None: ...
 
+class UsageMeasureRequest(_message.Message):
+    __slots__ = ("window",)
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ...) -> None: ...
+
+class UsageRateResponse(_message.Message):
+    __slots__ = ("rate",)
+    RATE_FIELD_NUMBER: _ClassVar[int]
+    rate: float
+    def __init__(self, rate: _Optional[float] = ...) -> None: ...
+
+class UsageCountResponse(_message.Message):
+    __slots__ = ("count",)
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    count: int
+    def __init__(self, count: _Optional[int] = ...) -> None: ...
+
 class ListEffectivenessResponse(_message.Message):
     __slots__ = ("items",)
     ITEMS_FIELD_NUMBER: _ClassVar[int]

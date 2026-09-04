@@ -13,7 +13,7 @@ class GetPortfolioStatsRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class PortfolioStats(_message.Message):
-    __slots__ = ("observed_at", "swarm_throughput", "throughput_stats", "swarm_active_agents", "agent_stats", "timing_stats", "blocking_stats", "dashboard_stats", "composite_throughput", "review_stats", "scope_stats")
+    __slots__ = ("observed_at", "swarm_throughput", "throughput_stats", "swarm_active_agents", "agent_stats", "timing_stats", "blocking_stats", "dashboard_stats", "composite_throughput", "review_stats", "scope_stats", "agent_stats_sample_size")
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     SWARM_THROUGHPUT_FIELD_NUMBER: _ClassVar[int]
     THROUGHPUT_STATS_FIELD_NUMBER: _ClassVar[int]
@@ -25,6 +25,7 @@ class PortfolioStats(_message.Message):
     COMPOSITE_THROUGHPUT_FIELD_NUMBER: _ClassVar[int]
     REVIEW_STATS_FIELD_NUMBER: _ClassVar[int]
     SCOPE_STATS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_STATS_SAMPLE_SIZE_FIELD_NUMBER: _ClassVar[int]
     observed_at: _timestamp_pb2.Timestamp
     swarm_throughput: int
     throughput_stats: int
@@ -36,4 +37,5 @@ class PortfolioStats(_message.Message):
     composite_throughput: int
     review_stats: int
     scope_stats: int
-    def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., swarm_throughput: _Optional[int] = ..., throughput_stats: _Optional[int] = ..., swarm_active_agents: _Optional[int] = ..., agent_stats: _Optional[float] = ..., timing_stats: _Optional[float] = ..., blocking_stats: _Optional[int] = ..., dashboard_stats: _Optional[int] = ..., composite_throughput: _Optional[int] = ..., review_stats: _Optional[int] = ..., scope_stats: _Optional[int] = ...) -> None: ...
+    agent_stats_sample_size: int
+    def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., swarm_throughput: _Optional[int] = ..., throughput_stats: _Optional[int] = ..., swarm_active_agents: _Optional[int] = ..., agent_stats: _Optional[float] = ..., timing_stats: _Optional[float] = ..., blocking_stats: _Optional[int] = ..., dashboard_stats: _Optional[int] = ..., composite_throughput: _Optional[int] = ..., review_stats: _Optional[int] = ..., scope_stats: _Optional[int] = ..., agent_stats_sample_size: _Optional[int] = ...) -> None: ...

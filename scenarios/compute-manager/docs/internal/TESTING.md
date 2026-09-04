@@ -67,8 +67,8 @@ the right shape to copy for mechanics:
   `clitest.NewAPIServer` and `clitest.CaptureStdout` from
   `cli/internal/testutil/`.
 
-**What does not exist yet** are the six tests this scenario is actually
-for. Each is described in its own section below, each is named in a
+**What remains open** are the provider-live and post-launch tests this scenario
+is actually for. Each is described in its own section below, each is named in a
 requirement's validation notes, and each must carry its requirement tag
 so the traceability matrix can link it:
 
@@ -1349,9 +1349,8 @@ lower the gate.
 - **The error taxonomy the failure-path tests assert on**: [`ERROR-HANDLING.md`](ERROR-HANDLING.md).
 - **What wave one of measurement can capture against the fake alone**: [`PERFORMANCE.md`](PERFORMANCE.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
-  ```bash
-  prompt-manager skill read seam-discovery-and-enforcement test unit-testing-architecture-steer
-  ```
+  use the prompt-manager skill reader for `seam-discovery-and-enforcement` and
+  `unit-testing-architecture-steer`.
 - **Test runner used by CI and `vrooli scenario test`**: see
   `.github/workflows/test.yml` and `packages/cli-core/cmd/scenario_test.go`.
 - **Why no inline mocks in `*_test.go` files**: the testutil package

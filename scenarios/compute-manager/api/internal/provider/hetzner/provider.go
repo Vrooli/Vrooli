@@ -22,6 +22,7 @@ type Provider struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	Token      TokenSource
+	Now        func() time.Time
 }
 
 func (p *Provider) Name() string { return "hetzner" }
@@ -56,6 +57,7 @@ type server struct {
 	Image struct {
 		Name string `json:"name"`
 	} `json:"image"`
+	Labels map[string]string `json:"labels"`
 }
 
 func (p *Provider) Create(ctx context.Context, spec provider.Spec) (provider.Instance, error) {
@@ -67,7 +69,11 @@ func (p *Provider) Create(ctx context.Context, spec provider.Spec) (provider.Ins
 		UserData   string            `json:"user_data,omitempty"`
 		Labels     map[string]string `json:"labels,omitempty"`
 	}
-	body.Name = "vrooli-compute-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	now := time.Now
+	if p.Now != nil {
+		now = p.Now
+	}
+	body.Name = "vrooli-compute-" + strconv.FormatInt(now().UnixNano(), 10)
 	body.ServerType, body.Image, body.Location, body.UserData, body.Labels = spec.Size, spec.Image, spec.Region, spec.UserData, spec.Tags
 	var out serverResponse
 	if err := p.do(ctx, http.MethodPost, "/servers", body, &out); err != nil {
@@ -101,7 +107,7 @@ func (p *Provider) Destroy(ctx context.Context, id string) error {
 }
 
 func (p *Provider) mapServer(s server) provider.Instance {
-	return provider.Instance{ID: strconv.Itoa(s.ID), Region: s.Datacenter.Location.Name, Size: s.ServerType.Name, Image: s.Image.Name, Address: s.PublicNet.IPv4.IP, CreatedAt: s.Created.UTC()}
+	return provider.Instance{ID: strconv.Itoa(s.ID), Region: s.Datacenter.Location.Name, Size: s.ServerType.Name, Image: s.Image.Name, Address: s.PublicNet.IPv4.IP, CreatedAt: s.Created.UTC(), Tags: s.Labels}
 }
 
 func (p *Provider) do(ctx context.Context, method, path string, payload, out any) error {

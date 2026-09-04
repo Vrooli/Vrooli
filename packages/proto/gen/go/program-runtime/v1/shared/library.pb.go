@@ -38,13 +38,22 @@ type LibraryProgram struct {
 	PromotionReason  string                 `protobuf:"bytes,10,opt,name=promotion_reason,json=promotionReason,proto3" json:"promotion_reason,omitempty"`
 	Current          bool                   `protobuf:"varint,11,opt,name=current,proto3" json:"current,omitempty"`
 	CalledBindingIds []string               `protobuf:"bytes,12,rep,name=called_binding_ids,json=calledBindingIds,proto3" json:"called_binding_ids,omitempty"`
-	Tier             string                 `protobuf:"bytes,13,opt,name=tier,proto3" json:"tier,omitempty"`
-	DeclaredInputs   []string               `protobuf:"bytes,14,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
-	DeclaredOutputs  []string               `protobuf:"bytes,15,rep,name=declared_outputs,json=declaredOutputs,proto3" json:"declared_outputs,omitempty"`
-	Coverage         string                 `protobuf:"bytes,16,opt,name=coverage,proto3" json:"coverage,omitempty"`
-	ValidatedAt      string                 `protobuf:"bytes,17,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// promoted is the only legal library tier. The former candidate tier is retired.
+	Tier            string   `protobuf:"bytes,13,opt,name=tier,proto3" json:"tier,omitempty"`
+	DeclaredInputs  []string `protobuf:"bytes,14,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
+	DeclaredOutputs []string `protobuf:"bytes,15,rep,name=declared_outputs,json=declaredOutputs,proto3" json:"declared_outputs,omitempty"`
+	Coverage        string   `protobuf:"bytes,16,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	ValidatedAt     string   `protobuf:"bytes,17,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
+	Kind            string   `protobuf:"bytes,18,opt,name=kind,proto3" json:"kind,omitempty"`
+	Scenario        string   `protobuf:"bytes,19,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Purpose         string   `protobuf:"bytes,20,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Rung            string   `protobuf:"bytes,21,opt,name=rung,proto3" json:"rung,omitempty"`
+	OwnerSkill      string   `protobuf:"bytes,22,opt,name=owner_skill,json=ownerSkill,proto3" json:"owner_skill,omitempty"`
+	ValidationError string   `protobuf:"bytes,23,opt,name=validation_error,json=validationError,proto3" json:"validation_error,omitempty"`
+	Path            string   `protobuf:"bytes,24,opt,name=path,proto3" json:"path,omitempty"`
+	Score           float64  `protobuf:"fixed64,25,opt,name=score,proto3" json:"score,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LibraryProgram) Reset() {
@@ -196,11 +205,67 @@ func (x *LibraryProgram) GetValidatedAt() string {
 	return ""
 }
 
+func (x *LibraryProgram) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetRung() string {
+	if x != nil {
+		return x.Rung
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetOwnerSkill() string {
+	if x != nil {
+		return x.OwnerSkill
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetValidationError() string {
+	if x != nil {
+		return x.ValidationError
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
 var File_program_runtime_v1_shared_library_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\n" +
-	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xa6\x04\n" +
+	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xfa\x05\n" +
 	"\x0eLibraryProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -221,7 +286,16 @@ const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\x0fdeclared_inputs\x18\x0e \x03(\tR\x0edeclaredInputs\x12)\n" +
 	"\x10declared_outputs\x18\x0f \x03(\tR\x0fdeclaredOutputs\x12\x1a\n" +
 	"\bcoverage\x18\x10 \x01(\tR\bcoverage\x12!\n" +
-	"\fvalidated_at\x18\x11 \x01(\tR\vvalidatedAtBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
+	"\fvalidated_at\x18\x11 \x01(\tR\vvalidatedAt\x12\x12\n" +
+	"\x04kind\x18\x12 \x01(\tR\x04kind\x12\x1a\n" +
+	"\bscenario\x18\x13 \x01(\tR\bscenario\x12\x18\n" +
+	"\apurpose\x18\x14 \x01(\tR\apurpose\x12\x12\n" +
+	"\x04rung\x18\x15 \x01(\tR\x04rung\x12\x1f\n" +
+	"\vowner_skill\x18\x16 \x01(\tR\n" +
+	"ownerSkill\x12)\n" +
+	"\x10validation_error\x18\x17 \x01(\tR\x0fvalidationError\x12\x12\n" +
+	"\x04path\x18\x18 \x01(\tR\x04path\x12\x14\n" +
+	"\x05score\x18\x19 \x01(\x01R\x05scoreBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_shared_library_proto_rawDescOnce sync.Once

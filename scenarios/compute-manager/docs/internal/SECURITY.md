@@ -4,12 +4,10 @@ This document records the security and privacy posture of this scenario:
 what it holds, who may act on it, what can go wrong, and what is not yet
 handled.
 
-> **Status: nothing described here is implemented.** Compute Manager was
-> generated from the `react-vite` template on 2026-09-03 and contains
-> template code only. There is no provider adapter, no credential
-> resolution, no enrollment path and no metering call. Everything below
-> is the intended posture. No control has been built, tested or reviewed,
-> and no threat model review has taken place.
+> **Status: partially implemented.** Provider credential resolution,
+> enrollment delegation, metering boundaries, reservation persistence and
+> destructive-operation guards have focused coverage. Provider-live proof and
+> the remaining threat-model review are still open.
 
 One thing about this scenario's shape is worth stating before the tables,
 because it explains most of the decisions. Compute Manager can create
@@ -137,7 +135,7 @@ Every gap here is OPEN. Nothing in this section has been closed.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| **The bridge onboarding-key endpoint does not exist.** `vrooli-bridge` can read its onboarding public key internally but exposes it nowhere. Unattended enrollment cannot be built, so any interim enrollment path would involve an interactive step or a credential on a wire, which is exactly what `COMPUTEM-P0-005` forbids. | high | Blocks `COMPUTEM-P0-005`. This is an upstream prerequisite, not integration work. Do not build a stopgap enrollment path around it. |
+| **Provider-live unattended enrollment is not yet proven.** Bridge now publishes the onboarding public key through an owner-gated contract, and compute-manager delegates machine creation and onboarding without carrying SSH code or passwords. | high | Blocks final live evidence for `COMPUTEM-P0-005` until a real provisioned host reaches the online state. Keep the fake-boundary tests and do not add a private SSH path. |
 | **Provider credential handling is unimplemented and unproven.** The rule is that credentials resolve through the credential authority and never touch the environment, argv, the database or a log line. Nothing enforces that today, and the template offers an environment variable as the path of least resistance. | high | Before the first real provider credential is configured. Add an automated check that the credential value appears in no log, no response, no argv and no column, rather than relying on review. |
 | **The metering enforcement boundary is upstream and has known defects.** Four are known and are prerequisites rather than integration work: the reservation window is hard-coded to ten minutes, which is shorter than an hour of compute; refunds silently do nothing for app-scoped charges, because the adjustment query filters to rows with no app key; the convenience charge helper creates no reservation, takes no idempotency key, has no release path and does not refund on provider failure; and the reference metered client discards the response body on a non-2xx, so out-of-credit is indistinguishable from a server error and counts toward its circuit breaker. | high | Before `COMPUTEM-P0-006` can be claimed. Use the reservation path and not the convenience helper. Parameterise the window or prove heartbeat re-reservation. Fix response-body handling at this scenario's client boundary rather than waiting for upstream. |
 | **No threat model has been reviewed.** The table above is a first enumeration written during design. No adversarial review, no second reader, no red-team pass. | high | Before the first real provider credential is configured, and again before any hosted or multi-tenant tier. |

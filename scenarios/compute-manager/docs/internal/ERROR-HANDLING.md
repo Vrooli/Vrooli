@@ -1,13 +1,9 @@
 # Error Handling
 
-> **Status: specified, not built.** The scenario was generated from the
-> `react-vite` template on 2026-09-03 and contains template code only.
-> No domain package exists, so none of the sentinels, codes or branch
-> orders below exists in the tree. This document is the taxonomy the
-> implementation must produce, written before the code so the first
-> slice has a target rather than a habit. The only error handling that
-> runs today is the template's health handler and its Connect error
-> envelope.
+> **Status: partially implemented.** The provider, intent, provisioning,
+> enrollment, reconciliation, expiry and transport packages now implement
+> typed errors and bounded failure paths. The taxonomy below still includes
+> post-launch branches that are not implemented.
 
 Most scenarios treat error handling as a presentation problem: turn a
 failure into a message a caller can act on. Here it is a cost problem

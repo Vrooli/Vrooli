@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/stats/stats.proto.
  */
 export const file_swarm_manager_v1_stats_stats: GenFile = /*@__PURE__*/
-  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL3N0YXRzL3N0YXRzLnByb3RvEh12cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zdGF0cyIaChhHZXRQb3J0Zm9saW9TdGF0c1JlcXVlc3QitwIKDlBvcnRmb2xpb1N0YXRzEi8KC29ic2VydmVkX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzd2FybV90aHJvdWdocHV0GAIgASgDEhgKEHRocm91Z2hwdXRfc3RhdHMYAyABKAMSGwoTc3dhcm1fYWN0aXZlX2FnZW50cxgEIAEoAxITCgthZ2VudF9zdGF0cxgFIAEoARIUCgx0aW1pbmdfc3RhdHMYBiABKAESFgoOYmxvY2tpbmdfc3RhdHMYByABKAMSFwoPZGFzaGJvYXJkX3N0YXRzGAggASgDEhwKFGNvbXBvc2l0ZV90aHJvdWdocHV0GAkgASgDEhQKDHJldmlld19zdGF0cxgKIAEoAxITCgtzY29wZV9zdGF0cxgLIAEoAzKLAQoMU3RhdHNTZXJ2aWNlEnsKEUdldFBvcnRmb2xpb1N0YXRzEjcudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc3RhdHMuR2V0UG9ydGZvbGlvU3RhdHNSZXF1ZXN0Gi0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc3RhdHMuUG9ydGZvbGlvU3RhdHNCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL3N0YXRzO3N0YXRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL3N0YXRzL3N0YXRzLnByb3RvEh12cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zdGF0cyIaChhHZXRQb3J0Zm9saW9TdGF0c1JlcXVlc3Qi2AIKDlBvcnRmb2xpb1N0YXRzEi8KC29ic2VydmVkX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzd2FybV90aHJvdWdocHV0GAIgASgDEhgKEHRocm91Z2hwdXRfc3RhdHMYAyABKAMSGwoTc3dhcm1fYWN0aXZlX2FnZW50cxgEIAEoAxITCgthZ2VudF9zdGF0cxgFIAEoARIUCgx0aW1pbmdfc3RhdHMYBiABKAESFgoOYmxvY2tpbmdfc3RhdHMYByABKAMSFwoPZGFzaGJvYXJkX3N0YXRzGAggASgDEhwKFGNvbXBvc2l0ZV90aHJvdWdocHV0GAkgASgDEhQKDHJldmlld19zdGF0cxgKIAEoAxITCgtzY29wZV9zdGF0cxgLIAEoAxIfChdhZ2VudF9zdGF0c19zYW1wbGVfc2l6ZRgMIAEoAzKLAQoMU3RhdHNTZXJ2aWNlEnsKEUdldFBvcnRmb2xpb1N0YXRzEjcudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc3RhdHMuR2V0UG9ydGZvbGlvU3RhdHNSZXF1ZXN0Gi0udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc3RhdHMuUG9ydGZvbGlvU3RhdHNCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL3N0YXRzO3N0YXRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.swarm_manager.v1.stats.GetPortfolioStatsRequest
@@ -54,6 +54,8 @@ export type PortfolioStats = Message<"vrooli.swarm_manager.v1.stats.PortfolioSta
   swarmActiveAgents: bigint;
 
   /**
+   * Success rate as a percent in the range 0 to 100, not a 0 to 1 ratio.
+   *
    * @generated from field: double agent_stats = 5;
    */
   agentStats: number;
@@ -87,6 +89,13 @@ export type PortfolioStats = Message<"vrooli.swarm_manager.v1.stats.PortfolioSta
    * @generated from field: int64 scope_stats = 11;
    */
   scopeStats: bigint;
+
+  /**
+   * Number of finished executions used to calculate agent_stats.
+   *
+   * @generated from field: int64 agent_stats_sample_size = 12;
+   */
+  agentStatsSampleSize: bigint;
 };
 
 /**

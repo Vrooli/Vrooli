@@ -104,10 +104,12 @@ class IntroOffer(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., amount_off: _Optional[int] = ..., percent_off: _Optional[float] = ..., currency: _Optional[str] = ..., duration: _Optional[str] = ..., duration_in_months: _Optional[int] = ..., max_redemptions: _Optional[int] = ..., redeem_by: _Optional[int] = ..., times_redeemed: _Optional[int] = ..., valid: _Optional[bool] = ..., created: _Optional[int] = ..., is_intro_coupon: _Optional[bool] = ..., intro_tier: _Optional[str] = ...) -> None: ...
 
 class GetLandingConfigRequest(_message.Message):
-    __slots__ = ("variant_slug",)
+    __slots__ = ("variant_slug", "visitor_id")
     VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
+    VISITOR_ID_FIELD_NUMBER: _ClassVar[int]
     variant_slug: str
-    def __init__(self, variant_slug: _Optional[str] = ...) -> None: ...
+    visitor_id: str
+    def __init__(self, variant_slug: _Optional[str] = ..., visitor_id: _Optional[str] = ...) -> None: ...
 
 class LandingConfigResponse(_message.Message):
     __slots__ = ("variant", "sections", "pricing", "downloads", "header", "branding", "fallback", "coupon_mappings", "intro_offers")

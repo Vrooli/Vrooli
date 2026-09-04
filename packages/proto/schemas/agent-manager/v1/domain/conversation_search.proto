@@ -1,0 +1,324 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// ConversationSearchService exposes attributable, privacy-aware retrieval over
+// Agent Manager's canonical imported conversations.
+service ConversationSearchService {
+  rpc SearchConversations(SearchConversationsRequest) returns (SearchConversationsResponse);
+  rpc GetConversationContext(GetConversationContextRequest) returns (GetConversationContextResponse);
+  rpc GetConversationIndexStatus(GetConversationIndexStatusRequest) returns (GetConversationIndexStatusResponse);
+}
+
+// ConversationSearchControlService owns bounded, token-gated index and search
+// configuration operations used by operators and Search Hub.
+service ConversationSearchControlService {
+  rpc PlanConversationReindex(PlanConversationReindexRequest) returns (ConversationReindexResponse);
+  rpc ReindexConversations(ReindexConversationsRequest) returns (ConversationReindexResponse);
+  rpc CancelConversationReindex(CancelConversationReindexRequest) returns (ConversationReindexResponse);
+  rpc WriteConversationSearchConfig(WriteConversationSearchConfigRequest) returns (WriteConversationSearchConfigResponse);
+  rpc WriteConversationSearchCorpus(WriteConversationSearchCorpusRequest) returns (WriteConversationSearchCorpusResponse);
+}
+
+enum ConversationSearchMode {
+  CONVERSATION_SEARCH_MODE_UNSPECIFIED = 0;
+  CONVERSATION_SEARCH_MODE_HYBRID = 1;
+  CONVERSATION_SEARCH_MODE_TEXT = 2;
+  CONVERSATION_SEARCH_MODE_REGEX = 3;
+  CONVERSATION_SEARCH_MODE_SEMANTIC = 4;
+}
+
+enum ConversationSearchSort {
+  CONVERSATION_SEARCH_SORT_UNSPECIFIED = 0;
+  CONVERSATION_SEARCH_SORT_RELEVANCE = 1;
+  CONVERSATION_SEARCH_SORT_NEWEST = 2;
+  CONVERSATION_SEARCH_SORT_OLDEST = 3;
+}
+
+enum ConversationContentClass {
+  CONVERSATION_CONTENT_CLASS_UNSPECIFIED = 0;
+  CONVERSATION_CONTENT_CLASS_PROSE = 1;
+  CONVERSATION_CONTENT_CLASS_QUOTED_PROSE = 2;
+  CONVERSATION_CONTENT_CLASS_TOOL_CALL = 3;
+  CONVERSATION_CONTENT_CLASS_TOOL_RESULT = 4;
+  CONVERSATION_CONTENT_CLASS_INJECTED_CONTEXT = 5;
+  CONVERSATION_CONTENT_CLASS_EVIDENCE_ONLY_DUPLICATE = 6;
+}
+
+enum ConversationSearchLeg {
+  CONVERSATION_SEARCH_LEG_UNSPECIFIED = 0;
+  CONVERSATION_SEARCH_LEG_LEXICAL = 1;
+  CONVERSATION_SEARCH_LEG_REGEX = 2;
+  CONVERSATION_SEARCH_LEG_DENSE = 3;
+  CONVERSATION_SEARCH_LEG_SPARSE = 4;
+  CONVERSATION_SEARCH_LEG_RERANK = 5;
+}
+
+enum ConversationSearchDegradationReason {
+  CONVERSATION_SEARCH_DEGRADATION_REASON_UNSPECIFIED = 0;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_SEMANTIC_UNAVAILABLE = 1;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_EMBEDDING_UNAVAILABLE = 2;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_VECTOR_STORE_UNAVAILABLE = 3;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_INDEX_STALE = 4;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_INDEX_LAYOUT_MISMATCH = 5;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_CANDIDATE_LIMIT = 6;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_DEADLINE = 7;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_AUTHORIZATION_FILTERED = 8;
+  CONVERSATION_SEARCH_DEGRADATION_REASON_RERANK_UNAVAILABLE = 9;
+}
+
+enum ConversationIndexState {
+  CONVERSATION_INDEX_STATE_UNSPECIFIED = 0;
+  CONVERSATION_INDEX_STATE_READY = 1;
+  CONVERSATION_INDEX_STATE_BUILDING = 2;
+  CONVERSATION_INDEX_STATE_DEGRADED = 3;
+  CONVERSATION_INDEX_STATE_STALE = 4;
+  CONVERSATION_INDEX_STATE_LAYOUT_MISMATCH = 5;
+  CONVERSATION_INDEX_STATE_UNAVAILABLE = 6;
+}
+
+enum ConversationReindexState {
+  CONVERSATION_REINDEX_STATE_UNSPECIFIED = 0;
+  CONVERSATION_REINDEX_STATE_PLANNED = 1;
+  CONVERSATION_REINDEX_STATE_QUEUED = 2;
+  CONVERSATION_REINDEX_STATE_RUNNING = 3;
+  CONVERSATION_REINDEX_STATE_CANCELLED = 4;
+  CONVERSATION_REINDEX_STATE_FAILED = 5;
+  CONVERSATION_REINDEX_STATE_COMPLETE = 6;
+}
+
+// ConversationSearchFilters restrict candidates before retrieval. Repeated
+// values within one field are ORed; distinct fields are ANDed.
+message ConversationSearchFilters {
+  repeated string roles = 1;
+  repeated string harnesses = 2;
+  repeated string provider_origins = 3;
+  repeated string project_scopes = 4;
+  repeated string cwd_scopes = 5;
+  repeated string runners = 6;
+  repeated string models = 7;
+  repeated string profiles = 8;
+  repeated string run_statuses = 9;
+  repeated string tags = 10;
+  repeated string workloads = 11;
+  google.protobuf.Timestamp occurred_after = 12;
+  google.protobuf.Timestamp occurred_before = 13;
+  repeated ConversationContentClass content_classes = 14;
+  bool include_tool_events = 15;
+}
+
+message SearchConversationsRequest {
+  // Query may be empty only for newest/oldest browsing with at least one
+  // structured filter. REGEX and SEMANTIC always require a query.
+  string query = 1 [(buf.validate.field).string.max_len = 4096];
+  ConversationSearchMode mode = 2 [(buf.validate.field).enum.defined_only = true];
+  ConversationSearchFilters filters = 3;
+  ConversationSearchSort sort = 4 [(buf.validate.field).enum.defined_only = true];
+  // Zero selects the server default; non-zero values are bounded to 1..100.
+  int32 page_size = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  // Opaque, versioned, integrity-protected cursor bound to the normalized
+  // request fingerprint and sort tuple.
+  string page_cursor = 6 [(buf.validate.field).string.max_len = 8192];
+}
+
+// ConversationSearchCursor documents the server payload carried inside an
+// opaque page_cursor. Clients must not construct or modify it.
+message ConversationSearchCursor {
+  uint32 version = 1;
+  string request_fingerprint = 2;
+  ConversationSearchSort sort = 3;
+  double relevance_score = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string stable_hit_id = 6;
+}
+
+message ConversationRunSummary {
+  string run_id = 1;
+  string label = 2;
+  string status = 3;
+  string runner = 4;
+  string model = 5;
+  string profile = 6;
+  repeated string tags = 7;
+  repeated string workloads = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp ended_at = 10;
+}
+
+message ConversationSourceProvenance {
+  string harness = 1;
+  string source_session_id = 2;
+  string provider_origin = 3;
+  string importer = 4;
+  string project_scope = 5;
+  string cwd_scope = 6;
+  string evidence_ref = 7;
+}
+
+message ConversationHighlight {
+  uint32 start_grapheme = 1;
+  uint32 end_grapheme = 2;
+  string field = 3;
+}
+
+message ConversationRankEvidence {
+  ConversationSearchLeg leg = 1;
+  uint32 rank = 2;
+  double score = 3;
+  string explanation = 4;
+}
+
+message ConversationSearchHit {
+  string stable_hit_id = 1;
+  string run_id = 2;
+  string event_id = 3;
+  string message_id = 4;
+  string chunk_id = 5;
+  uint32 chunk_index = 6;
+  int64 event_sequence = 7;
+  string role = 8;
+  google.protobuf.Timestamp occurred_at = 9;
+  string snippet = 10;
+  repeated ConversationHighlight highlights = 11;
+  ConversationContentClass content_class = 12;
+  ConversationSourceProvenance provenance = 13;
+  repeated ConversationRankEvidence rank_evidence = 14;
+  ConversationRunSummary run = 15;
+  string deep_link = 16;
+  bool weak = 17;
+}
+
+message ConversationSearchCoverage {
+  uint64 canonical_visible_messages = 1;
+  uint64 catalog_documents = 2;
+  uint64 lexical_documents = 3;
+  uint64 semantic_documents = 4;
+  uint64 pending_documents = 5;
+  uint64 deleted_documents = 6;
+  double lexical_ratio = 7;
+  double semantic_ratio = 8;
+  google.protobuf.Timestamp last_reconciled_at = 9;
+  string source_checkpoint = 10;
+}
+
+message ConversationSearchDegradation {
+  ConversationSearchDegradationReason reason = 1;
+  ConversationSearchLeg leg = 2;
+  string detail = 3;
+  bool retryable = 4;
+}
+
+message SearchConversationsResponse {
+  repeated ConversationSearchHit hits = 1;
+  string next_page_cursor = 2;
+  ConversationSearchMode mode_used = 3;
+  ConversationSearchSort sort_used = 4;
+  ConversationSearchCoverage coverage = 5;
+  repeated ConversationSearchDegradation degradations = 6;
+  uint64 took_ms = 7;
+}
+
+message GetConversationContextRequest {
+  string stable_hit_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 512
+  }];
+  uint32 before_events = 2 [(buf.validate.field).uint32.lte = 20];
+  uint32 after_events = 3 [(buf.validate.field).uint32.lte = 20];
+}
+
+message ConversationContextEvent {
+  string event_id = 1;
+  int64 event_sequence = 2;
+  string role = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  string bounded_content = 5;
+  ConversationContentClass content_class = 6;
+  bool matched = 7;
+}
+
+message GetConversationContextResponse {
+  ConversationSearchHit hit = 1;
+  repeated ConversationContextEvent events = 2;
+  repeated ConversationSearchDegradation degradations = 3;
+  bool truncated = 4;
+}
+
+message GetConversationIndexStatusRequest {}
+
+message GetConversationIndexStatusResponse {
+  ConversationIndexState state = 1;
+  ConversationSearchCoverage coverage = 2;
+  repeated ConversationSearchDegradation degradations = 3;
+  string collection_name = 4;
+  string active_generation = 5;
+  string recipe_version = 6;
+  string embedding_model = 7;
+  google.protobuf.Timestamp last_indexed_at = 8;
+  google.protobuf.Timestamp last_success_at = 9;
+  string last_error_code = 10;
+}
+
+message PlanConversationReindexRequest {
+  bool full = 1;
+  uint64 max_documents = 2;
+}
+
+message ReindexConversationsRequest {
+  bool full = 1;
+  uint64 max_documents = 2;
+  string idempotency_key = 3 [(buf.validate.field).string.max_len = 255];
+}
+
+message CancelConversationReindexRequest {
+  string operation_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+}
+
+message ConversationReindexResponse {
+  string operation_id = 1;
+  ConversationReindexState state = 2;
+  bool dry_run = 3;
+  uint64 planned_documents = 4;
+  uint64 processed_documents = 5;
+  uint64 upserted_documents = 6;
+  uint64 deleted_documents = 7;
+  uint64 failed_documents = 8;
+  string source_checkpoint = 9;
+  string shadow_generation = 10;
+  string active_generation = 11;
+  google.protobuf.Timestamp started_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  repeated ConversationSearchDegradation degradations = 14;
+}
+
+message WriteConversationSearchConfigRequest {
+  google.protobuf.Struct tuning = 1 [(buf.validate.field).required = true];
+  string expected_digest = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+message WriteConversationSearchConfigResponse {
+  string digest = 1;
+  bool reindex_required = 2;
+}
+
+message WriteConversationSearchCorpusRequest {
+  google.protobuf.Struct tests = 1 [(buf.validate.field).required = true];
+  string expected_digest = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+message WriteConversationSearchCorpusResponse {
+  string digest = 1;
+  uint32 reviewed_cases = 2;
+}

@@ -11,7 +11,7 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { makeHealthResponse } from "../../test-utils/factories";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
-import { HealthCard } from "./HealthCard";
+import { HealthCard } from "../../components/HealthCard";
 
 vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();

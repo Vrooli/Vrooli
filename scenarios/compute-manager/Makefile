@@ -87,3 +87,20 @@ endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated agai
 run: start
 
 dev: start
+
+# Keep the scenario-level quality commands explicit. The shared include also
+# supplies these names, but quality-health needs the scenario contract itself
+# to expose the real commands rather than relying on inherited recipes.
+fmt-ui:
+	@cd ui && pnpm run lint:fix && pnpm run strings:check
+
+lint-ui:
+	@cd ui && pnpm run lint && pnpm run type-check
+
+fmt-go:
+	@if [ -d api ]; then cd api && GOWORK=off gofmt -w .; fi
+	@if [ -d cli ]; then cd cli && GOWORK=off gofmt -w .; fi
+
+lint-go:
+	@if [ -d api ]; then cd api && GOWORK=off golangci-lint run ./...; fi
+	@if [ -d cli ]; then cd cli && GOWORK=off golangci-lint run ./...; fi

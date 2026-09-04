@@ -66,6 +66,12 @@ const (
 	// FindingsServiceCountFindingsProcedure is the fully-qualified name of the FindingsService's
 	// CountFindings RPC.
 	FindingsServiceCountFindingsProcedure = "/vrooli.web_search.v1.findings.FindingsService/CountFindings"
+	// FindingsServiceUsedRateProcedure is the fully-qualified name of the FindingsService's UsedRate
+	// RPC.
+	FindingsServiceUsedRateProcedure = "/vrooli.web_search.v1.findings.FindingsService/UsedRate"
+	// FindingsServiceNeverSurfacedProcedure is the fully-qualified name of the FindingsService's
+	// NeverSurfaced RPC.
+	FindingsServiceNeverSurfacedProcedure = "/vrooli.web_search.v1.findings.FindingsService/NeverSurfaced"
 	// FindingsServiceListEffectivenessProcedure is the fully-qualified name of the FindingsService's
 	// ListEffectiveness RPC.
 	FindingsServiceListEffectivenessProcedure = "/vrooli.web_search.v1.findings.FindingsService/ListEffectiveness"
@@ -98,6 +104,8 @@ type FindingsServiceClient interface {
 	// CountFindings is the canonical measure: how many findings were captured in
 	// a time window.
 	CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error)
+	UsedRate(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageRateResponse], error)
+	NeverSurfaced(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageCountResponse], error)
 	// ListEffectiveness returns findings joined to their usage telemetry
 	// (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
 	// blended effective score (age-decayed confidence × usage factor). It is the
@@ -193,6 +201,18 @@ func NewFindingsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(findingsServiceMethods.ByName("CountFindings")),
 			connect.WithClientOptions(opts...),
 		),
+		usedRate: connect.NewClient[findings.UsageMeasureRequest, findings.UsageRateResponse](
+			httpClient,
+			baseURL+FindingsServiceUsedRateProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("UsedRate")),
+			connect.WithClientOptions(opts...),
+		),
+		neverSurfaced: connect.NewClient[findings.UsageMeasureRequest, findings.UsageCountResponse](
+			httpClient,
+			baseURL+FindingsServiceNeverSurfacedProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("NeverSurfaced")),
+			connect.WithClientOptions(opts...),
+		),
 		listEffectiveness: connect.NewClient[findings.ListEffectivenessRequest, findings.ListEffectivenessResponse](
 			httpClient,
 			baseURL+FindingsServiceListEffectivenessProcedure,
@@ -227,6 +247,8 @@ type findingsServiceClient struct {
 	pruneFindings     *connect.Client[findings.PruneFindingsRequest, findings.PruneFindingsResponse]
 	searchFindings    *connect.Client[findings.SearchFindingsRequest, findings.SearchFindingsResponse]
 	countFindings     *connect.Client[findings.CountFindingsRequest, findings.CountFindingsResponse]
+	usedRate          *connect.Client[findings.UsageMeasureRequest, findings.UsageRateResponse]
+	neverSurfaced     *connect.Client[findings.UsageMeasureRequest, findings.UsageCountResponse]
 	listEffectiveness *connect.Client[findings.ListEffectivenessRequest, findings.ListEffectivenessResponse]
 	recordUsage       *connect.Client[findings.RecordUsageRequest, findings.RecordUsageResponse]
 	runGC             *connect.Client[findings.RunGCRequest, findings.RunGCResponse]
@@ -287,6 +309,16 @@ func (c *findingsServiceClient) CountFindings(ctx context.Context, req *connect.
 	return c.countFindings.CallUnary(ctx, req)
 }
 
+// UsedRate calls vrooli.web_search.v1.findings.FindingsService.UsedRate.
+func (c *findingsServiceClient) UsedRate(ctx context.Context, req *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageRateResponse], error) {
+	return c.usedRate.CallUnary(ctx, req)
+}
+
+// NeverSurfaced calls vrooli.web_search.v1.findings.FindingsService.NeverSurfaced.
+func (c *findingsServiceClient) NeverSurfaced(ctx context.Context, req *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageCountResponse], error) {
+	return c.neverSurfaced.CallUnary(ctx, req)
+}
+
 // ListEffectiveness calls vrooli.web_search.v1.findings.FindingsService.ListEffectiveness.
 func (c *findingsServiceClient) ListEffectiveness(ctx context.Context, req *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error) {
 	return c.listEffectiveness.CallUnary(ctx, req)
@@ -325,6 +357,8 @@ type FindingsServiceHandler interface {
 	// CountFindings is the canonical measure: how many findings were captured in
 	// a time window.
 	CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error)
+	UsedRate(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageRateResponse], error)
+	NeverSurfaced(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageCountResponse], error)
 	// ListEffectiveness returns findings joined to their usage telemetry
 	// (OT-P2-001): how often each was surfaced/used, when last surfaced, and the
 	// blended effective score (age-decayed confidence × usage factor). It is the
@@ -415,6 +449,18 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(findingsServiceMethods.ByName("CountFindings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	findingsServiceUsedRateHandler := connect.NewUnaryHandler(
+		FindingsServiceUsedRateProcedure,
+		svc.UsedRate,
+		connect.WithSchema(findingsServiceMethods.ByName("UsedRate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	findingsServiceNeverSurfacedHandler := connect.NewUnaryHandler(
+		FindingsServiceNeverSurfacedProcedure,
+		svc.NeverSurfaced,
+		connect.WithSchema(findingsServiceMethods.ByName("NeverSurfaced")),
+		connect.WithHandlerOptions(opts...),
+	)
 	findingsServiceListEffectivenessHandler := connect.NewUnaryHandler(
 		FindingsServiceListEffectivenessProcedure,
 		svc.ListEffectiveness,
@@ -457,6 +503,10 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 			findingsServiceSearchFindingsHandler.ServeHTTP(w, r)
 		case FindingsServiceCountFindingsProcedure:
 			findingsServiceCountFindingsHandler.ServeHTTP(w, r)
+		case FindingsServiceUsedRateProcedure:
+			findingsServiceUsedRateHandler.ServeHTTP(w, r)
+		case FindingsServiceNeverSurfacedProcedure:
+			findingsServiceNeverSurfacedHandler.ServeHTTP(w, r)
 		case FindingsServiceListEffectivenessProcedure:
 			findingsServiceListEffectivenessHandler.ServeHTTP(w, r)
 		case FindingsServiceRecordUsageProcedure:
@@ -514,6 +564,14 @@ func (UnimplementedFindingsServiceHandler) SearchFindings(context.Context, *conn
 
 func (UnimplementedFindingsServiceHandler) CountFindings(context.Context, *connect.Request[findings.CountFindingsRequest]) (*connect.Response[findings.CountFindingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.CountFindings is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) UsedRate(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageRateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.UsedRate is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) NeverSurfaced(context.Context, *connect.Request[findings.UsageMeasureRequest]) (*connect.Response[findings.UsageCountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.NeverSurfaced is not implemented"))
 }
 
 func (UnimplementedFindingsServiceHandler) ListEffectiveness(context.Context, *connect.Request[findings.ListEffectivenessRequest]) (*connect.Response[findings.ListEffectivenessResponse], error) {

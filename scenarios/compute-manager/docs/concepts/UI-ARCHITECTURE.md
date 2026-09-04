@@ -9,13 +9,10 @@ without asking the user for a path.
 
 ## Compute Manager UI
 
-> **Status: designed, not built.** The `ui/` tree is still the generated
-> template. `ui/src/pages/` holds `DashboardPage.tsx` and `SettingsPage.tsx`,
-> and `ui/src/features/` holds one folder, `health/`. None of the five surfaces
-> described below exists as code, no feature folder named here has been
-> created, and no library component named here has been linked
-> (`docs/reference/component-library-gaps.md` records no ejections and no
-> gaps because nothing has been attempted yet). Everything in this section is
+> **Status: partially built.** The inventory, findings and instance-detail
+> routes now exist with feature-owned components and stable selectors. Browser
+> health evidence and remaining visual findings are still open. The remaining
+> layout guidance below is the contract for the next UI slices.
 > the intended shape, matching the experience contract in `experience/`, which
 > is itself status `draft` with every claim tier `aspirational`.
 
@@ -67,7 +64,7 @@ None of these is linked yet. Run the suggestion pass before writing any of
 them by hand:
 
 ```bash
-react-component-library adoptions suggest compute-manager --json
+react-component-library adoptions list --scenario compute-manager --json
 ```
 
 ## Source Layout
@@ -138,8 +135,8 @@ Before writing any shared UI, ask the library what it has for your routes and
 link it:
 
 ```bash
-react-component-library adoptions suggest compute-manager --json
-react-component-library adoptions link <component-id> compute-manager
+react-component-library adoptions list --scenario compute-manager --json
+react-component-library adoptions link "<component-id>" compute-manager
 react-component-library adoptions obligations compute-manager --json
 ```
 
