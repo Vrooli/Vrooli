@@ -109,6 +109,33 @@ func withTransaction(ctx context.Context, db StripeStore, fn func(*sql.Tx) error
 	return err
 }
 
+// copyTrafficAttribution copies the first-touch tuple from the originating
+// checkout metadata. The capability is optional for compatibility with old
+// installations whose subscription table predates the attribution columns.
+func copyTrafficAttribution(tx *sql.Tx, subscriptionID string, metadata map[string]interface{}) error {
+	if subscriptionID == "" || len(metadata) == 0 {
+		return nil
+	}
+	visitorID, _ := metadata["visitor_id"].(string)
+	source, _ := metadata["utm_source"].(string)
+	medium, _ := metadata["utm_medium"].(string)
+	campaign, _ := metadata["utm_campaign"].(string)
+	referrer, _ := metadata["referrer_kind"].(string)
+	country, _ := metadata["country_code"].(string)
+	if visitorID == "" && source == "" && medium == "" && campaign == "" && referrer == "" && country == "" {
+		return nil
+	}
+	var available int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'visitor_id'`).Scan(&available); err != nil || available == 0 {
+		return nil
+	}
+	_, err := tx.Exec(`UPDATE subscriptions SET visitor_id = NULLIF($1, ''), utm_source = NULLIF($2, ''), utm_medium = NULLIF($3, ''), utm_campaign = NULLIF($4, ''), referrer_kind = NULLIF($5, ''), country_code = NULLIF($6, '') WHERE subscription_id = $7`, visitorID, source, medium, campaign, referrer, country, subscriptionID)
+	if err != nil {
+		return fmt.Errorf("copy subscription traffic attribution: %w", err)
+	}
+	return nil
+}
+
 func (s *StripeWebhookService) config() StripeWebhookConfig {
 	if s.getConfig != nil {
 		return s.getConfig()
@@ -283,17 +310,16 @@ func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) erro
 	return nil
 }
 
-// HandleCustomerUpdatedForComposition exposes the domain operation to the API
-// composition adapter without exposing the service's internal dispatch shape.
-func (s *StripeWebhookService) HandleCustomerUpdatedForComposition(obj map[string]interface{}) error {
+// HandleCustomerUpdated exposes the customer update operation to the API adapter.
+func (s *StripeWebhookService) HandleCustomerUpdated(obj map[string]interface{}) error {
 	return s.handleCustomerUpdated(obj)
 }
 
-func (s *StripeWebhookService) PersistInvoiceStatusForComposition(subscriptionID, customerID, customerEmail, priceID, status string) error {
+func (s *StripeWebhookService) PersistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
 	return s.persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status)
 }
 
-func (s *StripeWebhookService) BillingIntervalDurationForComposition(interval shared.BillingInterval) time.Duration {
+func (s *StripeWebhookService) BillingIntervalDuration(interval shared.BillingInterval) time.Duration {
 	return s.billingIntervalDuration(interval)
 }
 
@@ -417,6 +443,11 @@ func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscrip
 	`, subscriptionID, customerID, customerEmail, "active", plan.PlanTier, plan.StripePriceId, plan.BundleKey, now, now)
 	if err != nil {
 		return err
+	}
+	if session != nil {
+		if err := copyTrafficAttribution(tx, subscriptionID, session.Metadata); err != nil {
+			return err
+		}
 	}
 
 	if plan.IntroEnabled && plan.BillingInterval == shared.BillingInterval_BILLING_INTERVAL_MONTH {

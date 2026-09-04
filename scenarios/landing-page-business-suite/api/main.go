@@ -9,7 +9,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -75,6 +74,8 @@ type Server struct {
 	assetsService        *content.AssetsService
 	seoService           *content.SEOService
 	feedbackService      *domainmetrics.FeedbackService
+	backdropResolver     func(context.Context) (string, error)
+	backdropHTTPClient   *http.Client
 	adminAuthService     *administration.AdminAuthService
 	emailService         *EmailService
 	waitlistService      *domainmetrics.WaitlistService
@@ -147,11 +148,11 @@ func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	logStructured("server_initialization_started", nil)
+	logx.Info("server_initialization_started", nil)
 	if err := validateProductionCredentials(); err != nil {
 		return nil, err
 	}
-	logStructured("server_credentials_validated", nil)
+	logx.Info("server_credentials_validated", nil)
 
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
@@ -162,7 +163,7 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	logStructured("server_database_connected", nil)
+	logx.Info("server_database_connected", nil)
 	db := routedDB.Primary()
 	routedDB.SetTestPoolInitializer(func(ctx context.Context, testDB *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, testDB, database.SchemaProviderFunc(runtimeSchema)); err != nil {
@@ -174,7 +175,7 @@ func NewServer() (*Server, error) {
 	if err := seedDefaultData(db); err != nil {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
-	logStructured("server_database_seeded", nil)
+	logx.Info("server_database_seeded", nil)
 	administration.SetCredentialWitness(administration.NewCredentialWitness(routedDB))
 	for _, generated := range []struct {
 		key  string
@@ -210,7 +211,7 @@ func NewServer() (*Server, error) {
 	if err := configStore.LoadAll(); err != nil {
 		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
 	}
-	logStructured("server_configuration_loaded", nil)
+	logx.Info("server_configuration_loaded", nil)
 
 	planService := NewPlanService(db)
 	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
@@ -225,7 +226,7 @@ func NewServer() (*Server, error) {
 		}
 		return authority.Require(identity, field)
 	}})
-	limitsService := commerce.NewLimitsService(routedDB, "postgres", logStructured)
+	limitsService := commerce.NewLimitsService(routedDB, "postgres", logx.Info)
 	accountService := newAccountService(routedDB, planService, limitsService)
 	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	readStripeCredential := func(ctx context.Context, field string) (string, error) {
@@ -256,8 +257,8 @@ func NewServer() (*Server, error) {
 	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,
-		Log:            logStructured,
-		LogError:       logStructuredError,
+		Log:            logx.Info,
+		LogError:       logx.Error,
 	})
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	stripeService.SetPaymentAnomaly(paymentAnomaly)
@@ -277,20 +278,20 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
 	}
-	logStructured("server_api_key_service_initialized", nil)
+	logx.Info("server_api_key_service_initialized", nil)
 	remoteProfileService, err := administration.NewRemoteProfileServiceWithCredentialResolver(
 		routedDB,
 		nil,
 		resolveSecret,
 		resolveAuthorityCredential,
 		isProductionEnvironment,
-		logStructured,
-		logStructuredError,
+		logx.Info,
+		logx.Error,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize remote profile service: %w", err)
 	}
-	logStructured("server_remote_profile_service_initialized", nil)
+	logx.Info("server_remote_profile_service_initialized", nil)
 	usageService := newRuntimeUsageService(routedDB, limitsService, "postgres")
 
 	// Initialize user authentication services
@@ -319,8 +320,8 @@ func NewServer() (*Server, error) {
 		ConsumerClockSkew:     30 * time.Second,
 		BaseURL:               resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
-		Log:                   logStructured,
-		LogError:              logStructuredError,
+		Log:                   logx.Info,
+		LogError:              logx.Error,
 	})
 	if userAuthService == nil {
 		return nil, fmt.Errorf("failed to initialize consumer signing key")
@@ -337,7 +338,7 @@ func NewServer() (*Server, error) {
 		APIKeyService:  apiKeyService,
 		UsageService:   newCommerceUsageServicer(usageService),
 		AccountService: accountService,
-		Logger:         logStructured,
+		Logger:         logx.Info,
 		ClientFactory: func(apiKey string, logger func(string, map[string]interface{})) intelligence.OpenRouterClient {
 			return intelligence.NewOpenRouterClient(intelligence.OpenRouterClientOptions{
 				APIKey:  apiKey,
@@ -396,13 +397,14 @@ func NewServer() (*Server, error) {
 		// Session management
 		sessionManager: initSessionManager(),
 	}
+	srv.landingConfigService.UseExposureRecorder(srv.metricsService)
 
 	srv.setupRoutes()
 	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {
 		_ = routedDB.Close()
 		return nil, fmt.Errorf("register development routing: %w", err)
 	}
-	logStructured("server_initialization_completed", nil)
+	logx.Info("server_initialization_completed", nil)
 	return srv, nil
 }
 
@@ -451,7 +453,7 @@ func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsSer
 		DB:                  db,
 		LimitsService:       limitsSvc,
 		Dialect:             dialect,
-		Log:                 logStructured,
+		Log:                 logx.Info,
 		InsufficientCredits: intelligence.ErrInsufficientCredits,
 	})
 }
@@ -579,31 +581,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			"path":     r.RequestURI,
 			"duration": time.Since(start).String(),
 		}
-		logStructured("request_completed", fields)
+		logx.Info("request_completed", fields)
 	})
-}
-
-//nolint:unused // reserved for future structured logging hooks
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	logStructured(msg, fields)
-}
-
-func logStructured(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		logx.Printf(`{"level":"info","message":"%s","timestamp":"%s"}`, msg, time.Now().UTC().Format(time.RFC3339))
-		return
-	}
-	fieldsJSON, _ := json.Marshal(fields)
-	logx.Printf(`{"level":"info","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
-}
-
-func logStructuredError(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		logx.Printf(`{"level":"error","message":"%s","timestamp":"%s"}`, msg, time.Now().UTC().Format(time.RFC3339))
-		return
-	}
-	fieldsJSON, _ := json.Marshal(fields)
-	logx.Printf(`{"level":"error","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
 }
 
 func resolveDatabaseURL() (string, error) {

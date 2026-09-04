@@ -39,6 +39,17 @@ function getVariantSlugFromUrl(): string | null {
   return params.get('variant') || params.get('variant_slug');
 }
 
+function getVisitorId(): string {
+  const key = 'metrics_visitor_id';
+  try {
+    const existing = window.localStorage.getItem(key);
+    if (existing) return existing;
+    const value = `visitor_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    window.localStorage.setItem(key, value);
+    return value;
+  } catch { return ''; }
+}
+
 export function LandingVariantProvider({ children }: { children: ReactNode }) {
   const [variant, setVariant] = useState<LandingVariant | null>(null);
   const [config, setConfig] = useState<LandingConfigResponse | null>(null);
@@ -81,7 +92,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       const slugToUse = urlSlug || undefined;
 
       await waitForLandingWorkflowLoadingState();
-      const landingConfig = await getLandingConfig(slugToUse);
+      const landingConfig = await getLandingConfig(slugToUse, getVisitorId());
       if (!landingConfig.variant.slug) {
         throw new Error('Landing config missing variant');
       }

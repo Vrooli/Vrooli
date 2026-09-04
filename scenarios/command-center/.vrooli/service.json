@@ -120,12 +120,24 @@
         "startup_policy": "try_start",
         "description": "Source for subscription, revenue, and web analytics metrics (Ledger, Broadcast)"
       },
-      "prompt-manager": {
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Typed objective and team-instrument transmitter"
-      }
+    "prompt-manager": {
+      "enabled": true,
+      "required": false,
+      "startup_policy": "try_start",
+      "description": "Typed objective and team-instrument transmitter"
+    },
+    "offer-desk": {
+      "enabled": true,
+      "required": false,
+      "startup_policy": "try_start",
+      "description": "Source for the release ladder panel"
+    },
+    "deployment-manager": {
+      "enabled": true,
+      "required": false,
+      "startup_policy": "try_start",
+      "description": "Source for deployment readiness state"
+    }
     }
   },
   "components": {

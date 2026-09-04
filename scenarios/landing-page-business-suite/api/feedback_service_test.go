@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
@@ -239,7 +240,7 @@ func TestFeedbackService_GetByID_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}
 }
@@ -279,7 +280,7 @@ func TestFeedbackService_UpdateStatus_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}
 }
@@ -304,7 +305,7 @@ func TestFeedbackService_Delete_Success(t *testing.T) {
 
 	// Verify deletion
 	_, err = service.GetByID(feedbackTestContext, created.ID)
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows after delete, got %v", err)
 	}
 }
@@ -319,7 +320,7 @@ func TestFeedbackService_Delete_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}
 }

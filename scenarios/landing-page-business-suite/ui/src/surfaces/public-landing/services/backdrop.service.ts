@@ -7,9 +7,6 @@ export interface BackdropReference {
   reserved_regions?: Array<{ x: number; y: number; width: number; height: number; kind?: string }>;
 }
 
-const configuredBackdropStudioURL = getInjectedConfig()?.BACKDROP_STUDIO_URL;
-const backdropStudioURL = typeof configuredBackdropStudioURL === "string" ? configuredBackdropStudioURL.replace(/\/$/, "") : undefined;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -19,17 +16,21 @@ export async function resolveBackdropReference(
   reference: Pick<BackdropReference, "id">,
   fetcher: typeof fetch = fetch,
 ): Promise<BackdropReference | null> {
-  if (!reference.id || !backdropStudioURL) return null;
-  const response = await fetcher(`${backdropStudioURL}/vrooli.backdrop_studio.v1.release.ReleaseService/GetReference`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: reference.id }),
-  });
-  if (!response.ok) return null;
-  const rawBody: unknown = await response.json();
+  if (!reference.id) return null;
+  let rawBody: unknown;
+  try {
+    const response = await fetcher(`/api/v1/backdrops/${encodeURIComponent(reference.id)}`, {
+      method: "GET",
+    });
+    if (!response.ok) return null;
+    rawBody = await response.json();
+  } catch {
+    return null;
+  }
   if (!isRecord(rawBody) || typeof rawBody.id !== "string" || typeof rawBody.uri !== "string") return null;
   const bodyID = rawBody.id;
   const bodyURI = rawBody.uri;
+  const bodyURL = typeof rawBody.url === "string" && rawBody.url !== "" ? rawBody.url : bodyURI;
   const rawRegions = rawBody.reservedRegions;
   const regions = Array.isArray(rawRegions)
     ? rawRegions.filter((region): region is { x: number; y: number; width: number; height: number; kind?: string } =>
@@ -38,10 +39,9 @@ export async function resolveBackdropReference(
   return {
     id: bodyID,
     uri: bodyURI,
-    url: bodyURI.startsWith("http") ? bodyURI : `${backdropStudioURL}${bodyURI}`,
+    url: bodyURL,
     placement: typeof rawBody.placement === "string" ? rawBody.placement : undefined,
     alt_text: typeof rawBody.altText === "string" ? rawBody.altText : undefined,
     reserved_regions: regions,
   };
 }
-import { getInjectedConfig } from "@vrooli/api-base";

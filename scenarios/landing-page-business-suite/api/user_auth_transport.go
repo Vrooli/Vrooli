@@ -6,6 +6,7 @@ import (
 	"time"
 
 	userauthhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // userAuthHandlerDependencies is the root composition boundary for browser
@@ -21,8 +22,8 @@ func userAuthHandlerDependencies(service userauthhttp.UserAuthService, limiter u
 		SecureCookies: func() bool { return strings.HasPrefix(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"), "https://") },
 		Now:           time.Now,
 		WriteError:    writeJSONError,
-		Log:           logStructured,
-		LogError:      logStructuredError,
+		Log:           logx.Info,
+		LogError:      logx.Error,
 	}
 }
 

@@ -40,7 +40,7 @@
     },
     {
       "id": "supporting",
-      "purpose": "The category's remaining readings, each with its own ink and qualifier. Never a list of labels; every entry carries a figure.",
+      "purpose": "The category's remaining readings, each with its own ink and qualifier. Never a list of labels; scalar entries carry a figure and panel entries carry a ranked-row figure.",
       "required": true,
       "component": {
         "library": {
@@ -264,6 +264,12 @@
       "role": "region",
       "name": "Cycle rail",
       "description": "Cycle progress and pause state."
+    },
+    {
+      "id": "beat-state",
+      "role": "region",
+      "name": "Beat state",
+      "description": "The active authored reading, its dwell progress, and the segmented rail state. Panorama has no beat state."
     }
   ],
   "priorities": [
@@ -297,8 +303,8 @@
       "id": "every-reading-has-a-figure",
       "type": "element-presence",
       "tier": "aspirational",
-      "statement": "In ready, partial and all-sample states, every reading in the hero and supporting regions renders a numeric figure — none renders as a label alone.",
-      "rationale": "The requested capability is that the board always shows a number. A reading that renders only its label is the defect this design exists to remove.",
+      "statement": "In ready, partial and all-sample states, every reading in the hero and supporting regions renders a figure — scalar entries render a numeric figure and panel entries render ranked rows; none renders as a label alone.",
+      "rationale": "The requested capability is that the board always shows a truthful figure. A reading that renders only its label is the defect this design exists to remove; a panel's ranked rows are its figure.",
       "states": [
         "ready",
         "partial",

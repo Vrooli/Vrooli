@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // resetAnomalyTestData clears payment_anomaly_log and payment_settings between
@@ -375,8 +376,8 @@ func TestWaitForDispatch_Timeout(t *testing.T) {
 	svc := commerce.NewPaymentAnomalyServiceWithDispatcher(context.Background(), db, context.Background(), commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,
-		Log:            logStructured,
-		LogError:       logStructuredError,
+		Log:            logx.Info,
+		LogError:       logx.Error,
 	}, dispatcher)
 	configureAnomalyWebhook(t, svc, db, stub.URL, "")
 

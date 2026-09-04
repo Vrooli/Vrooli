@@ -84,7 +84,7 @@ func (s *AccountLinkService) MigrateCustomerEmail(ctx context.Context, oldEmail,
 	err = tx.QueryRowContext(ctx, `
 		SELECT COALESCE(has_used_intro, FALSE), stripe_customer_id FROM users WHERE email = $1
 	`, normalizedOld).Scan(&oldHasUsedIntro, &oldStripeCustomerID)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("check old email intro status: %w", err)
 	}
 

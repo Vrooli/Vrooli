@@ -533,7 +533,7 @@ declare module '@vrooli/proto-types/landing-page-business-suite/v1/seo_pb' {
 declare module '@vrooli/proto-types/landing-page-business-suite/v1/config_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  export interface GetLandingConfigRequest extends Message<'landing_page_business_suite.v1.GetLandingConfigRequest'> { variantSlug: string; }
+  export interface GetLandingConfigRequest extends Message<'landing_page_business_suite.v1.GetLandingConfigRequest'> { variantSlug: string; visitorId: string; }
   export type LandingConfigResponse = Message<'landing_page_business_suite.v1.LandingConfigResponse'>;
   export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest>;
   export const LandingConfigResponseSchema: GenMessage<LandingConfigResponse>;

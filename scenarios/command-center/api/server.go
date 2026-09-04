@@ -28,9 +28,17 @@ type Server struct {
 	objectiveProvider   ObjectiveProvider
 	promptManager       *promptManagerInstrumentProvider
 
-	swarm  upstream.Client
-	vrooli upstream.Client
-	lpbs   upstream.Client
+	swarm     upstream.Client
+	vrooli    upstream.Client
+	lpbs      upstream.Client
+	offer     upstream.Client
+	deploy    upstream.Client
+	providers map[UpstreamSource]upstreamProvider
+}
+
+type upstreamProvider struct {
+	client      func() upstream.Client
+	defaultPath string
 }
 
 // NewServer wires the router, cache, upstream clients, and registry.
@@ -44,6 +52,15 @@ func NewServer(reg *Registry) *Server {
 		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
 		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
 		lpbs:   upstream.NewLPBSTypedResolved(resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT"), resolveLPBSServiceToken(), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
+		offer:  upstream.NewJSONConnectResolved("offer-desk", resolveScenarioBaseURL("offer-desk", "OFFER_DESK_BASE_URL", "OFFER_DESK_API_PORT"), "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", declaredFeatureSet(reg, "offer-desk", "")),
+		deploy: upstream.NewRESTResolved("deployment-manager", resolveScenarioBaseURL("deployment-manager", "DEPLOYMENT_MANAGER_BASE_URL", "DEPLOYMENT_MANAGER_API_PORT"), ""),
+	}
+	s.providers = map[UpstreamSource]upstreamProvider{
+		SourceSwarm:  {client: func() upstream.Client { return s.swarm }, defaultPath: "/api/v1/stats"},
+		SourceVrooli: {client: func() upstream.Client { return s.vrooli }, defaultPath: "/scenarios"},
+		SourceLPBS:   {client: func() upstream.Client { return s.lpbs }, defaultPath: "/api/v1/admin/dashboard/summary"},
+		SourceOffer:  {client: func() upstream.Client { return s.offer }, defaultPath: "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder"},
+		SourceDeploy: {client: func() upstream.Client { return s.deploy }, defaultPath: "/api/v1/readiness/state"},
 	}
 	transmitter := newPromptManagerInstrumentProvider(resolveScenarioBaseURL("prompt-manager", "PROMPT_MANAGER_BASE_URL", "PROMPT_MANAGER_API_PORT"))
 	s.instrumentProvider = transmitter

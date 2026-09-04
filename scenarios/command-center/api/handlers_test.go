@@ -321,3 +321,17 @@ func TestHealth_Endpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestPlausiblePanelRowsRequiresHonestShares(t *testing.T) {
+	valid := []PanelRow{{Key: "us", Label: "United States", Value: 70, Share: .7}, {Key: "de", Label: "Germany", Value: 30, Share: .3}}
+	if !plausiblePanelRows(valid, 6, true) {
+		t.Fatal("valid exhaustive panel rejected")
+	}
+	invalid := []PanelRow{{Key: "us", Label: "United States", Value: 70, Share: .9}, {Key: "de", Label: "Germany", Value: 30, Share: .3}}
+	if plausiblePanelRows(invalid, 6, true) {
+		t.Fatal("non-exhaustive shares accepted as exhaustive")
+	}
+	if plausiblePanelRows(nil, 6, false) {
+		t.Fatal("empty panel accepted")
+	}
+}

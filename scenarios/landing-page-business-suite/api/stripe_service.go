@@ -15,6 +15,7 @@ import (
 
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // StripeService handles Stripe payment integration
@@ -182,7 +183,7 @@ func NewStripeServiceWithSettings(db StripeServiceStore, planService *commerce.P
 	service.configLoader = service.loadStripeConfig
 
 	if err := service.RefreshConfig(context.Background()); err != nil {
-		logStructured("failed to initialize Stripe config", map[string]interface{}{
+		logx.Info("failed to initialize Stripe config", map[string]interface{}{
 			"level": "warn",
 			"error": err.Error(),
 		})
@@ -190,7 +191,7 @@ func NewStripeServiceWithSettings(db StripeServiceStore, planService *commerce.P
 
 	// Log intro coupon config status
 	if service.introCouponConfig.Enabled {
-		logStructured("intro_coupon_config_loaded", map[string]interface{}{
+		logx.Info("intro_coupon_config_loaded", map[string]interface{}{
 			"level":        "info",
 			"enabled":      true,
 			"coupon_count": len(service.introCouponConfig.CouponMap),
@@ -280,19 +281,19 @@ func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConf
 	}
 
 	if !cfg.hasPublishable {
-		logStructured("Stripe publishable key missing", map[string]interface{}{
+		logx.Info("Stripe publishable key missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "stripe-publishable-key is not configured in the credential authority",
 		})
 	}
 	if !cfg.hasSecret {
-		logStructured("Stripe restricted key missing", map[string]interface{}{
+		logx.Info("Stripe restricted key missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "stripe-secret-key is not configured in the credential authority",
 		})
 	}
 	if !cfg.hasWebhook {
-		logStructured("Stripe webhook secret missing", map[string]interface{}{
+		logx.Info("Stripe webhook secret missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "stripe-webhook-secret is not configured in the credential authority",
 		})

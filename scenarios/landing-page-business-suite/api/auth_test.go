@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -725,7 +726,7 @@ func TestMockSessionManager_SaveError(t *testing.T) {
 	session := sessions.NewSession(nil, "test")
 	err := mock.SaveSession(nil, nil, session)
 
-	if err != sql.ErrConnDone {
+	if !errors.Is(err, sql.ErrConnDone) {
 		t.Errorf("Expected SaveError to be returned, got %v", err)
 	}
 }

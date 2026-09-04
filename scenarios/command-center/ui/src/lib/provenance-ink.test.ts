@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "../lib/api";
-import { COVERAGES, TRUSTS, figureValue, qualify, resolveInk, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { COVERAGES, TRUSTS, figureValue, qualify, resolveInk, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { authoredSample, makeReading } from "../test-utils/readings";
 
 const base: Reading = makeReading({ id: "m", value: 12, observedAt: new Date().toISOString(), ttlSeconds: 30 });
@@ -48,7 +48,7 @@ describe("qualify — no figure without its qualifier", () => {
 
 describe("formatAge and sourceName", () => {
   it("scales the age unit", async () => {
-    const { formatAge, sourceName } = await import("@vrooli/react-component-library/ProvenanceInk/0.1.1");
+    const { formatAge, sourceName } = await import("@vrooli/react-component-library/ProvenanceInk/0.1.2");
     const now = Date.parse("2026-09-01T12:00:00Z");
     expect(formatAge("2026-09-01T11:59:30Z", now)).toBe("30s ago");
     expect(formatAge("2026-09-01T11:20:00Z", now)).toBe("40m ago");

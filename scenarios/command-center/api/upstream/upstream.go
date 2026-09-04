@@ -3,6 +3,7 @@
 package upstream
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,6 +32,79 @@ type Client interface {
 	Name() string
 	// Fetch performs a GET against the upstream and returns the raw body.
 	Fetch(ctx context.Context, path string) (json.RawMessage, error)
+}
+
+// NewRESTResolved creates a lifecycle-aware JSON client for a producer whose
+// read surface is REST. It is intentionally small: the dashboard owns
+// interpretation and validation of the returned contract.
+func NewRESTResolved(name string, resolve func() string, bearerToken string) Client {
+	c := newResolved(name, resolve)
+	if bearerToken != "" {
+		c.authFn = func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+bearerToken) }
+	}
+	return c
+}
+
+type jsonConnectClient struct {
+	name     string
+	resolve  func() string
+	path     string
+	http     *http.Client
+	features map[string]string
+}
+
+func NewJSONConnectResolved(name string, resolve func() string, path string, features ...map[string]string) Client {
+	return &jsonConnectClient{name: name, resolve: resolve, path: path, http: &http.Client{Timeout: 5 * time.Second}, features: optionalFeatureSet(features)}
+}
+
+func (c *jsonConnectClient) Name() string { return c.name }
+
+func (c *jsonConnectClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
+	if path == "/health" {
+		return newResolved(c.name, c.resolve).Fetch(ctx, path)
+	}
+	if path != c.path {
+		return nil, fmt.Errorf("%s JSON Connect client does not expose path %q", c.name, path)
+	}
+	base := c.resolve()
+	if base == "" {
+		return nil, ErrNotAvailable
+	}
+	body, err := json.Marshal(map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, base+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	response, err := c.http.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", c.name, err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode >= 400 {
+		return nil, fmt.Errorf("%s http %d", c.name, response.StatusCode)
+	}
+	result, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%s read body: %w", c.name, err)
+	}
+	return json.RawMessage(result), nil
+}
+
+func (c *jsonConnectClient) ProbeFeatures(ctx context.Context) (map[string]string, map[string]string) {
+	if _, err := c.Fetch(ctx, c.path); err != nil {
+		return nil, nil
+	}
+	statuses, reasons := map[string]string{}, map[string]string{}
+	for feature := range c.features {
+		statuses[feature] = "compatible"
+		reasons[feature] = "JSON Connect producer projection returned successfully"
+	}
+	return statuses, reasons
 }
 
 // FeatureProbe is implemented by typed producer clients that can prove a
@@ -252,6 +326,9 @@ func swarmProbe(ctx context.Context, c *typedClient) (map[string]string, map[str
 }
 
 func swarmFetch(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
+	if path == "/api/v1/goals" {
+		return newResolved("swarm", c.resolve).Fetch(ctx, path)
+	}
 	if path != "/api/v1/stats" {
 		return nil, fmt.Errorf("swarm typed client does not expose path %q", path)
 	}

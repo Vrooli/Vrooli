@@ -47,6 +47,8 @@ export interface Reading {
   trustReason?: string;
   empirical: Empirical;
   value: number | null;
+  kind?: "scalar" | "panel";
+  rows?: PanelRow[];
   observedAt: string | null;
   ttlSeconds: number;
   target: { direction: string; bar: number | null; barRef?: string } | null;
@@ -60,6 +62,8 @@ export interface Reading {
   origin_env: "local" | "production" | string;
   origin_display: string;
 }
+
+export interface PanelRow { key: string; label: string; value: number; share: number; detail?: string; ink?: "solid" | "reduced" | "hollow" | "dotted"; }
 
 export interface SourceMetadata {
   from_cache: boolean;
@@ -80,6 +84,7 @@ export interface BoardRoom {
   theme?: string;
   composition?: string;
   metricIds?: string[];
+  beats?: { hero: string; composition?: string; dwellSeconds?: number }[];
 }
 
 export interface BoardSource {

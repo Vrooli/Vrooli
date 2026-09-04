@@ -1,8 +1,8 @@
 import type { Reading } from "../lib/api";
-import { figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.2";
-import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.1";
-import { SampleSeries } from "@vrooli/react-component-library/SampleSeries/0.1.1";
+import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.2";
+import { SampleSeries } from "@vrooli/react-component-library/SampleSeries/0.1.2";
 
 /** A supporting reading: label, figure in its ink, the rule or series beneath it, and its qualifier. */
 export function ReadingTile({ reading }: { reading: Reading }) {

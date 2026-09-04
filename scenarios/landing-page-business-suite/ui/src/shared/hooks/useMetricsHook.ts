@@ -5,6 +5,7 @@ import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
 
 const SESSION_STORAGE_KEY = 'metrics_session_id';
 const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
+const CAMPAIGN_STORAGE_KEY = 'metrics_campaign';
 
 let fallbackSessionId: string | null = null;
 let fallbackVisitorId: string | null = null;
@@ -103,6 +104,22 @@ function getPageMetricKey(variantSlug: string) {
   return `${variantSlug}:${path}`;
 }
 
+type CampaignAttribution = { utm_source: string; utm_medium: string; utm_campaign: string; landing_path: string; referrer: string };
+
+function getCampaignAttribution(): CampaignAttribution {
+  const empty = { utm_source: '', utm_medium: '', utm_campaign: '', landing_path: typeof window === 'undefined' ? '/' : window.location.pathname, referrer: '' };
+  const storage = getStorage('session');
+  if (!storage) return empty;
+  try {
+    const existing = storage.getItem(CAMPAIGN_STORAGE_KEY);
+    if (existing) return JSON.parse(existing) as CampaignAttribution;
+    const params = new URLSearchParams(window.location.search);
+    const value = { utm_source: params.get('utm_source') ?? '', utm_medium: params.get('utm_medium') ?? '', utm_campaign: params.get('utm_campaign') ?? '', landing_path: window.location.pathname, referrer: document.referrer };
+    storage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(value));
+    return value;
+  } catch { return empty; }
+}
+
 type MetricEventPayload = APIMetricEvent & {
   event_id?: string;
 };
@@ -132,12 +149,15 @@ export function useMetrics() {
       return;
     }
 
+    const attribution = getCampaignAttribution();
     const event: MetricEventPayload = {
       event_type: eventType,
       variant_slug: variant.slug,
       session_id: sessionID.current,
       visitor_id: visitorID.current,
       event_data: eventData,
+      ...attribution,
+      referrer: eventType === 'page_view' ? attribution.referrer : '',
     };
 
     try {

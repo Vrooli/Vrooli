@@ -117,28 +117,8 @@ func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 func TestCreateCheckoutSession(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create tables
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS checkout_sessions CASCADE;
-		CREATE TABLE checkout_sessions (
-			id SERIAL PRIMARY KEY,
-			session_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_email VARCHAR(255),
-			customer_id VARCHAR(255),
-			price_id VARCHAR(255),
-			subscription_id VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			session_type VARCHAR(50) DEFAULT 'subscription',
-			amount_cents INTEGER,
-			schedule_id VARCHAR(255),
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create checkout_sessions table: %v", err)
-	}
+	// setupTestDB applies the embedded checkout_sessions schema.
+	var err error
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
@@ -251,43 +231,8 @@ func TestVerifyWebhookSignature(t *testing.T) {
 func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create tables (drop first to ensure clean state)
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS subscriptions CASCADE;
-		DROP TABLE IF EXISTS checkout_sessions CASCADE;
-		CREATE TABLE checkout_sessions (
-			id SERIAL PRIMARY KEY,
-			session_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_email VARCHAR(255),
-			customer_id VARCHAR(255),
-			price_id VARCHAR(255),
-			subscription_id VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			session_type VARCHAR(50) DEFAULT 'subscription',
-			amount_cents INTEGER,
-			schedule_id VARCHAR(255),
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			plan_tier VARCHAR(50),
-			price_id VARCHAR(255),
-			bundle_key VARCHAR(100),
-			billing_cycle_start INTEGER DEFAULT 0,
-			canceled_at TIMESTAMP,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create tables: %v", err)
-	}
+	// setupTestDB applies the embedded checkout_sessions and subscriptions schemas.
+	var err error
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
@@ -364,22 +309,8 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 func TestVerifySubscription(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create subscriptions table
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			canceled_at TIMESTAMP,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create subscriptions table: %v", err)
-	}
+	// setupTestDB applies the embedded subscriptions schema.
+	var err error
 
 	// Insert test subscription
 	_, err = db.Exec(`
@@ -436,22 +367,8 @@ func TestVerifySubscription(t *testing.T) {
 func TestCancelSubscription(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create subscriptions table
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			canceled_at TIMESTAMP,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create subscriptions table: %v", err)
-	}
+	// setupTestDB applies the embedded subscriptions schema.
+	var err error
 
 	// Insert active subscription
 	_, err = db.Exec(`
@@ -517,22 +434,8 @@ func TestCancelSubscription(t *testing.T) {
 func TestVerifySubscription_CacheWarning(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create subscriptions table
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			canceled_at TIMESTAMP,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create subscriptions table: %v", err)
-	}
+	// setupTestDB applies the embedded subscriptions schema.
+	var err error
 
 	// Insert stale subscription (updated_at > 60s ago)
 	staleTime := time.Now().Add(-120 * time.Second)
@@ -1442,80 +1345,9 @@ func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 
-	// Create all required tables
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
-		DROP TABLE IF EXISTS credit_transactions CASCADE;
-		DROP TABLE IF EXISTS credit_wallets CASCADE;
-		DROP TABLE IF EXISTS checkout_sessions CASCADE;
-		DROP TABLE IF EXISTS subscriptions CASCADE;
-		DROP TABLE IF EXISTS users CASCADE;
- 
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			email VARCHAR(255) UNIQUE NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			has_used_intro BOOLEAN DEFAULT FALSE,
-			email_verified BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			last_login_at TIMESTAMP
-		);
-		CREATE TABLE subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			plan_tier VARCHAR(50),
-			price_id VARCHAR(255),
-			bundle_key VARCHAR(100),
-			canceled_at TIMESTAMP,
-			billing_cycle_start INTEGER,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE checkout_sessions (
-			id SERIAL PRIMARY KEY,
-			session_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_email VARCHAR(255),
-			customer_id VARCHAR(255),
-			price_id VARCHAR(255),
-			subscription_id VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			session_type VARCHAR(50) DEFAULT 'subscription',
-			amount_cents INTEGER,
-			schedule_id VARCHAR(255),
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE credit_wallets (
-			id SERIAL PRIMARY KEY,
-			customer_email VARCHAR(255) UNIQUE NOT NULL,
-			balance_credits BIGINT DEFAULT 0,
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE credit_transactions (
-			id SERIAL PRIMARY KEY,
-			customer_email VARCHAR(255) NOT NULL,
-			amount_credits BIGINT NOT NULL,
-			transaction_type VARCHAR(50) NOT NULL,
-			stripe_event_id VARCHAR(255) UNIQUE,
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE intro_coupon_usage (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			plan_tier VARCHAR(50),
-			subscription_id VARCHAR(255),
-			used_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	require.NoError(t, err)
+	// setupTestDB applies the embedded operations and financial schemas. Keep
+	// this migration assertion on the same production tables as the runtime.
+	var err error
 
 	oldEmail := "old@example.com"
 	newEmail := "new@example.com"
@@ -1605,29 +1437,8 @@ func TestCreditTopup_TransactionRecorded(t *testing.T) {
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 
-	// Create required tables
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS credit_transactions CASCADE;
-		DROP TABLE IF EXISTS credit_wallets CASCADE;
-		CREATE TABLE credit_wallets (
-			id SERIAL PRIMARY KEY,
-			customer_email VARCHAR(255) UNIQUE NOT NULL,
-			balance_credits BIGINT DEFAULT 0,
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE credit_transactions (
-			id SERIAL PRIMARY KEY,
-			customer_email VARCHAR(255) NOT NULL,
-			amount_credits BIGINT NOT NULL,
-			transaction_type VARCHAR(50) NOT NULL,
-			stripe_event_id VARCHAR(255) UNIQUE,
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
-		ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL
-	`)
-	require.NoError(t, err)
+	// setupTestDB applies the embedded credit schema.
+	var err error
 
 	service := NewStripeService(db)
 
@@ -1669,25 +1480,8 @@ func TestHandleCustomerUpdated_NoOldEmail(t *testing.T) {
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 
-	// Create subscriptions table
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS subscriptions CASCADE;
-		CREATE TABLE subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			plan_tier VARCHAR(50),
-			price_id VARCHAR(255),
-			bundle_key VARCHAR(100),
-			canceled_at TIMESTAMP,
-			billing_cycle_start INTEGER,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	require.NoError(t, err)
+	// setupTestDB applies the embedded subscriptions schema.
+	var err error
 
 	oldEmail := "lookup@example.com"
 	newEmail := "updated@example.com"
@@ -1720,25 +1514,8 @@ func TestHandleCustomerUpdated_NoOldEmail(t *testing.T) {
 func TestHandleCustomerUpdated_SameEmail(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Create subscriptions table
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS subscriptions CASCADE;
-		CREATE TABLE subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			plan_tier VARCHAR(50),
-			price_id VARCHAR(255),
-			bundle_key VARCHAR(100),
-			canceled_at TIMESTAMP,
-			billing_cycle_start INTEGER,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	require.NoError(t, err)
+	// setupTestDB applies the embedded subscriptions schema.
+	var err error
 
 	email := "same@example.com"
 	customerID := "cus_same_123"

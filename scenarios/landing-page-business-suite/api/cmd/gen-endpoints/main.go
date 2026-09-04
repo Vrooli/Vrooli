@@ -1,8 +1,8 @@
 // gen-endpoints derives .vrooli/endpoints.json from the API route registry.
 //
-// The scenario still has legacy REST routes while its Connect cutover is in
-// progress. The mux registry is therefore the authoritative inventory for
-// those routes; this command parses the registration calls rather than asking
+// Transport ownership and deliberate REST exceptions are recorded in
+// docs/reference/transport-canon.md. The mux registry remains the authoritative
+// endpoint inventory; this command parses registration calls rather than asking
 // contributors to keep a second endpoint list in sync by hand.
 package main
 

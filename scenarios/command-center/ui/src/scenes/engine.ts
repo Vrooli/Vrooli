@@ -1,5 +1,5 @@
 import type { Reading } from "../lib/api";
-import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 
 export type SceneTier = "full" | "reduced";
 
@@ -22,8 +22,9 @@ export interface Palette {
 
 /** One reading, reduced to what a scene needs: a number and its honesty. */
 export interface SceneReading {
-  value: number | null;
-  ink: Ink;
+	value: number | null;
+	ink: Ink;
+	rows?: Array<{ share: number; value: number }>;
 }
 
 export interface SceneData {
@@ -31,6 +32,8 @@ export interface SceneData {
   readings: Record<string, SceneReading>;
   /** Room metric ids in registry order. */
   order: string[];
+  /** Metric currently featured by the room beat, when one is authored. */
+  focus?: string;
 }
 
 export interface Frame {
@@ -54,14 +57,15 @@ export interface Scene {
   draw(frame: Frame): void;
 }
 
-export const sceneData = (readings: Reading[]): SceneData => ({
+export const sceneData = (readings: Reading[], focus?: string): SceneData => ({
   readings: Object.fromEntries(
     readings.map((reading) => {
       const resolution = resolveReading(reading);
-      return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink }];
+		return [reading.id, { value: figureValue(reading, resolution), ink: resolution.ink, rows: reading.rows?.map((row) => ({ share: row.share, value: row.value })) }];
     }),
   ),
   order: readings.map((reading) => reading.id),
+  focus,
 });
 
 export const read = (data: SceneData, id: string, fallback: number): number => {

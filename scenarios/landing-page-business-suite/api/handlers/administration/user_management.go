@@ -3,6 +3,7 @@ package administration
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -44,7 +45,7 @@ func GetUser(d UserManagementDependencies) http.HandlerFunc {
 			return
 		}
 		value, err := d.Service.Get(r.Context(), id)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			d.WriteError(w, http.StatusNotFound, "User not found")
 			return
 		}

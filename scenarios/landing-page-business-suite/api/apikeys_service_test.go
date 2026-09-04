@@ -14,11 +14,13 @@ import (
 	"testing"
 	"time"
 
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/securevalue"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -35,7 +37,7 @@ func apiKeyHandlerDependencies(service *administration.APIKeyService) adminhttp.
 	return adminhttp.APIKeyDependencies{
 		Service:    service,
 		WriteError: writeJSONError,
-		LogError:   logStructuredError,
+		LogError:   logx.Error,
 	}
 }
 

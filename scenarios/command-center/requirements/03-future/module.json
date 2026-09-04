@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P2 operational targets: prediction binding, reading history, and the two upstream instrument dependencies this board cannot satisfy on its own.",
-    "last_validated_at": "2026-09-03T15:58:52-04:00",
+    "last_validated_at": "2026-09-03T20:44:22-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CC-P2-001",
       "title": "Metrics show their live prediction",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "A metric named by an unscored prediction block renders its target, direction and remaining horizon beside the value. A prediction whose horizon has passed and whose metric is not measurable resolves to unmeasurable and names the missing sensor, matching prediction-ledger rule 4.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/predictions_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Prediction join and the unmeasurable resolution path [REQ:CC-P2-001]."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "CC-P2-002",
       "title": "Reading history with recomputed verdicts",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Persist readings and their trust verdicts but never band verdicts, so in-band status is recomputed against the current setpoint at query time and tightening a target re-grades its own history. Retention floor derives from the longest declared window.",
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/cache_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verdicts recompute at query time; no band verdict is stored [REQ:CC-P2-002]."
         }
       ]

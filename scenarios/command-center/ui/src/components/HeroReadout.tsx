@@ -1,8 +1,8 @@
 import { forwardRef } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
-import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.2";
-import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.1";
+import { InkMark, figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.3";
+import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.2";
 
 interface HeroReadoutProps {
   reading: Reading | null;

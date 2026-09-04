@@ -569,8 +569,6 @@ func init() {
 }
 
 // LandingConfigService aggregates variant, section, pricing, and download data.
-// NOTE: Variants and branding are now stored in JSON files and accessed via ConfigStore.
-// The deprecated DB-backed services have been removed.
 type LandingConfigService struct {
 	planService      *commerce.PlanService
 	downloadService  *delivery.CatalogService
@@ -578,6 +576,16 @@ type LandingConfigService struct {
 	introOfferLookup IntroOfferLookup
 	fallbackProvider fallbackProvider
 	eventLogger      EventLogger
+	exposureRecorder interface {
+		RecordExposure(string, string, string) error
+	}
+}
+
+func (s *LandingConfigService) UseExposureRecorder(recorder interface {
+	RecordExposure(string, string, string) error
+},
+) {
+	s.exposureRecorder = recorder
 }
 
 // LandingConfigResponse is returned by LandingConfigService.GetLandingConfig.
@@ -687,13 +695,17 @@ func (s *LandingConfigService) UseEventLogger(logger EventLogger) {
 	s.eventLogger = logger
 }
 
-func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug string) (*LandingConfigResponse, error) {
+func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug string, visitorID ...string) (*LandingConfigResponse, error) {
 	// Use ConfigStore (JSON files as source of truth)
-	return s.getLandingConfigFromConfigStore(ctx, variantSlug)
+	identity := ""
+	if len(visitorID) > 0 {
+		identity = visitorID[0]
+	}
+	return s.getLandingConfigFromConfigStore(ctx, variantSlug, identity)
 }
 
 // getLandingConfigFromConfigStore uses ConfigStore to fetch landing config
-func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Context, variantSlug string) (*LandingConfigResponse, error) {
+func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Context, variantSlug string, visitorID string) (*LandingConfigResponse, error) {
 	pricing, err := s.planService.GetPricingOverview()
 	if err != nil {
 		return s.fallbackWithReason("pricing_fetch_failed", err, nil)
@@ -711,7 +723,12 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 		// Use weighted random selection for A/B testing
 		variants := s.configStore.ListVariants()
 		if len(variants) > 0 {
-			variantSnapshot = experimentation.SelectWeightedRandomVariant(variants)
+			variantSnapshot = experimentation.SelectVariantForVisitor(variants, visitorID)
+			if s.exposureRecorder != nil && visitorID != "" && variantSnapshot != nil {
+				if err := s.exposureRecorder.RecordExposure(visitorID, variantSnapshot.Variant.Slug, experimentation.WeightFingerprint(variants)); err != nil {
+					return s.fallbackWithReason("exposure_record_failed", err, map[string]interface{}{"variant_slug": variantSnapshot.Variant.Slug})
+				}
+			}
 		} else {
 			err = fmt.Errorf("no variants available")
 		}

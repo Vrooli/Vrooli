@@ -43,11 +43,21 @@ type CheckoutServiceOptions struct {
 	Log         func(string, map[string]interface{})
 }
 
+type Attribution struct{ VisitorID, UTMSource, UTMMedium, UTMCampaign, ReferrerKind, CountryCode string }
+
 func NewCheckoutService(options CheckoutServiceOptions) *CheckoutService {
 	return &CheckoutService{store: options.Store, plans: options.Plans, requester: options.Requester, introOffers: options.IntroOffers, introCoupon: options.IntroCoupon, publicKey: options.PublicKey, logf: options.Log}
 }
 
 func (s *CheckoutService) Create(ctx context.Context, priceID, successURL, cancelURL, customerEmail string) (*lpbsv1.CheckoutSession, error) {
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, Attribution{})
+}
+
+func (s *CheckoutService) CreateWithAttribution(ctx context.Context, priceID, successURL, cancelURL, customerEmail string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
+	return s.create(ctx, priceID, successURL, cancelURL, customerEmail, attribution)
+}
+
+func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cancelURL, customerEmail string, attribution Attribution) (*lpbsv1.CheckoutSession, error) {
 	if s.plans == nil || s.store == nil || s.requester == nil {
 		return nil, fmt.Errorf("checkout dependencies unavailable")
 	}
@@ -89,7 +99,7 @@ func (s *CheckoutService) Create(ctx context.Context, priceID, successURL, cance
 	if amount == 0 {
 		amount = plan.AmountCents
 	}
-	if err := s.record(response, priceID, sessionType, amount, plan, appliedCoupon); err != nil {
+	if err := s.record(response, priceID, sessionType, amount, plan, appliedCoupon, attribution); err != nil {
 		return nil, err
 	}
 	publicKey := ""
@@ -188,13 +198,31 @@ func (s *CheckoutService) ResolvePriceID(ctx context.Context, key string) (strin
 	return response.Data[0].ID, nil
 }
 
-func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessionType string, amount int64, plan *PlanOption, couponID string) error {
+func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessionType string, amount int64, plan *PlanOption, couponID string, attribution Attribution) error {
 	metadata := map[string]interface{}{"bundle_key": plan.BundleKey, "plan_tier": plan.PlanTier, "kind": plan.Kind.String()}
+	if attribution.VisitorID != "" {
+		metadata["visitor_id"] = attribution.VisitorID
+	}
+	if attribution.UTMSource != "" {
+		metadata["utm_source"] = attribution.UTMSource
+	}
+	if attribution.UTMMedium != "" {
+		metadata["utm_medium"] = attribution.UTMMedium
+	}
+	if attribution.UTMCampaign != "" {
+		metadata["utm_campaign"] = attribution.UTMCampaign
+	}
+	if attribution.ReferrerKind != "" {
+		metadata["referrer_kind"] = attribution.ReferrerKind
+	}
+	if attribution.CountryCode != "" {
+		metadata["country_code"] = attribution.CountryCode
+	}
 	if couponID != "" {
 		metadata["intro_coupon_applied"] = couponID
 	}
 	encoded, _ := json.Marshal(metadata)
-	_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, updated_at = NOW()`, response.ID, response.CustomerEmail, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded))
+	_, err := s.store.Exec(`INSERT INTO checkout_sessions (session_id, customer_email, customer_id, price_id, subscription_id, status, session_type, amount_cents, metadata, visitor_id, utm_source, utm_medium, utm_campaign, referrer_kind, country_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()) ON CONFLICT (session_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, customer_id = EXCLUDED.customer_id, price_id = EXCLUDED.price_id, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status, session_type = EXCLUDED.session_type, amount_cents = EXCLUDED.amount_cents, metadata = EXCLUDED.metadata, visitor_id = EXCLUDED.visitor_id, utm_source = EXCLUDED.utm_source, utm_medium = EXCLUDED.utm_medium, utm_campaign = EXCLUDED.utm_campaign, referrer_kind = EXCLUDED.referrer_kind, country_code = EXCLUDED.country_code, updated_at = NOW()`, response.ID, response.CustomerEmail, response.Customer, priceID, response.Subscription, response.Status, sessionType, amount, string(encoded), attribution.VisitorID, attribution.UTMSource, attribution.UTMMedium, attribution.UTMCampaign, attribution.ReferrerKind, attribution.CountryCode)
 	return err
 }
 

@@ -6,6 +6,7 @@ import (
 
 	docshandler "landing-page-business-suite-api/handlers/docs"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // getDocsRoot returns the absolute path to the docs directory
@@ -32,5 +33,5 @@ func getDocsRoot() string {
 }
 
 func docsConnectDependencies() docshandler.ConnectDependencies {
-	return docshandler.ConnectDependencies{DocsRoot: getDocsRoot, Log: logStructured}
+	return docshandler.ConnectDependencies{DocsRoot: getDocsRoot, Log: logx.Info}
 }

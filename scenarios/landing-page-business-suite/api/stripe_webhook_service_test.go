@@ -14,74 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupCheckoutAtomicitySchema provisions a clean schema containing the tables
-// touched by handleCheckoutCompleted's subscription branch. Intentionally
-// recreated per test so that added CHECK constraints do not leak across cases.
+// setupCheckoutAtomicitySchema restores the production schema before a test
+// adds its temporary failure constraint. The fixture must not recreate a
+// partial Stripe schema: setupTestDB already applies the embedded domain
+// schemas, which keeps these tests aligned with runtime columns and indexes.
 func setupCheckoutAtomicitySchema(t *testing.T, db *sql.DB) {
 	t.Helper()
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS subscription_schedules CASCADE;
-		DROP TABLE IF EXISTS subscriptions CASCADE;
-		DROP TABLE IF EXISTS checkout_sessions CASCADE;
-		DROP TABLE IF EXISTS users CASCADE;
-
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			email VARCHAR(255) UNIQUE NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			has_used_intro BOOLEAN DEFAULT FALSE,
-			email_verified BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			last_login_at TIMESTAMP
-		);
-		CREATE TABLE checkout_sessions (
-			id SERIAL PRIMARY KEY,
-			session_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_email VARCHAR(255),
-			customer_id VARCHAR(255),
-			price_id VARCHAR(255),
-			subscription_id VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			session_type VARCHAR(50) DEFAULT 'subscription',
-			amount_cents INTEGER,
-			schedule_id VARCHAR(255),
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE subscriptions (
-			id SERIAL PRIMARY KEY,
-			subscription_id VARCHAR(255) UNIQUE NOT NULL,
-			customer_id VARCHAR(255),
-			customer_email VARCHAR(255),
-			status VARCHAR(50) NOT NULL,
-			plan_tier VARCHAR(50),
-			price_id VARCHAR(255),
-			bundle_key VARCHAR(100),
-			canceled_at TIMESTAMP,
-			billing_cycle_start INTEGER DEFAULT 0,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE subscription_schedules (
-			id SERIAL PRIMARY KEY,
-			schedule_id VARCHAR(255) UNIQUE NOT NULL,
-			subscription_id VARCHAR(255),
-			price_id VARCHAR(255),
-			billing_interval VARCHAR(50),
-			intro_enabled BOOLEAN DEFAULT FALSE,
-			intro_amount_cents INTEGER DEFAULT 0,
-			intro_periods INTEGER DEFAULT 0,
-			normal_amount_cents INTEGER DEFAULT 0,
-			next_billing_at TIMESTAMP,
-			status VARCHAR(50) DEFAULT 'active',
-			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	require.NoError(t, err)
+	if err := applyRuntimeSchema(db); err != nil {
+		require.NoError(t, err)
+	}
 }
 
 // buildCheckoutCompletedWebhook returns a signed checkout.session.completed

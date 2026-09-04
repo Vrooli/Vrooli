@@ -8,5 +8,5 @@ import (
 // metricsConnectDependencies wires the metrics domain to its generated
 // transport. Request parsing and serialization are owned by Connect.
 func metricsConnectDependencies(service *domainmetrics.Service) metricshttp.ConnectDependencies {
-	return metricshttp.ConnectDependencies{Tracker: service, Reader: service, Revenue: service}
+	return metricshttp.ConnectDependencies{Tracker: service, Reader: service, Traffic: service, Revenue: service}
 }

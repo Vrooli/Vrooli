@@ -5,6 +5,7 @@ import (
 
 	seohttp "landing-page-business-suite-api/handlers/seo"
 	"landing-page-business-suite-api/internal/content"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // seoHTTPDependencies injects API conventions into the SEO transport.
@@ -14,7 +15,7 @@ func seoHTTPDependencies(service *content.SEOService) seohttp.Dependencies {
 		DecodeJSON: decodeJSONBody,
 		WriteJSON:  writeJSONSuccessData,
 		WriteError: writeJSONError,
-		Log:        logStructuredError,
+		Log:        logx.Error,
 		Now:        time.Now,
 	}
 	if service != nil {

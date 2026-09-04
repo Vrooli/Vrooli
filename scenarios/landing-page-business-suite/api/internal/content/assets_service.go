@@ -164,7 +164,7 @@ func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadReque
 	// #nosec G304 -- fullPath is rooted at trusted configured storage and storagePath uses a fixed category plus a generated filename.
 	dst, err := os.Create(location.fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrUploadFailed, err)
 	}
 	defer dst.Close()
 
@@ -174,7 +174,7 @@ func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadReque
 		if removeErr := os.Remove(location.fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			s.logAssetError("asset_upload_cleanup_failed", map[string]interface{}{"path": location.fullPath, "error": removeErr.Error()})
 		}
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrUploadFailed, err)
 	}
 	if s.fileRoots != nil {
 		s.fileRoots.RecordWrite(ctx)
@@ -288,7 +288,7 @@ func (s *AssetsService) prepareUploadLocation(ctx context.Context, req *AssetUpl
 	}
 	fullPath := filepath.Join(uploadRoot, storagePath)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
-		return assetUploadLocation{}, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+		return assetUploadLocation{}, fmt.Errorf("%w: %w", ErrUploadFailed, err)
 	}
 	return assetUploadLocation{mimeType: mimeType, category: category, uniqueName: filepath.Base(storagePath), storagePath: storagePath, uploadRoot: uploadRoot, fullPath: fullPath}, nil
 }

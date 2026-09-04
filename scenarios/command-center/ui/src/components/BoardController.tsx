@@ -30,6 +30,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: board } = useQuery({ queryKey: ["board-shape"], queryFn: fetchBoard, staleTime: 30_000 });
   const rooms = useMemo(() => board?.rooms ?? [], [board]);
+  const currentRoom = useMemo(() => rooms.find((room) => location.pathname === `/${room.id}`), [location.pathname, rooms]);
   const [controlsVisible, setControlsVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [acknowledgement, setAcknowledgement] = useState("Ready");
@@ -37,6 +38,10 @@ export function BoardController({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const cycleSeconds = Math.max(5, Number(searchParams.get("cycle") ?? 60) || 60);
+  const roomDwellSeconds = useMemo(() => {
+    const authored = currentRoom?.beats?.reduce((sum, beat) => sum + Math.max(1, beat.dwellSeconds ?? 0), 0) ?? 0;
+    return authored > 0 ? authored * (cycleSeconds / 60) : cycleSeconds;
+  }, [currentRoom, cycleSeconds]);
   const samples = parseSamples(searchParams.get("samples"));
   const touchStart = useRef<{ x: number; y: number; at: number } | null>(null);
   const lastInputAt = useRef(Date.now());
@@ -206,14 +211,14 @@ export function BoardController({ children }: { children: ReactNode }) {
       const now = Date.now();
       setControlsVisible((visible) => visible && now - lastInputAt.current < CONTROLS_HIDE_MS);
       const paused = pausedUntil > now;
-      setProgress(paused ? Math.min(1, (now - cycleStartedAt.current) / (cycleSeconds * 1000)) : Math.min(1, (now - cycleStartedAt.current) / (cycleSeconds * 1000)));
-      if (!paused && now - cycleStartedAt.current >= cycleSeconds * 1000 && rooms.length && !document.hidden) {
+      setProgress(Math.min(1, (now - cycleStartedAt.current) / (roomDwellSeconds * 1000)));
+      if (!paused && now - cycleStartedAt.current >= roomDwellSeconds * 1000 && rooms.length && !document.hidden) {
         cycleStartedAt.current = now;
         navigateRoom(1);
       }
     }, 250);
     return () => window.clearInterval(timer);
-  }, [cycleSeconds, navigateRoom, pausedUntil, rooms.length]);
+  }, [navigateRoom, pausedUntil, roomDwellSeconds, rooms.length]);
 
   const paused = pausedUntil > Date.now();
   const value = useMemo<BoardControllerValue>(() => ({ rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, transitioning, dispatch, setSamples, goTo }), [rooms, board, samples, paused, controlsVisible, helpVisible, acknowledgement, progress, cycleSeconds, transitioning, dispatch, setSamples, goTo]);

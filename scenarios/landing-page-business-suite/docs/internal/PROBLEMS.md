@@ -285,6 +285,13 @@ classes. The remaining work is therefore to remove genuine configuration
 defaults selectively and improve the provider's classification upstream; it is
 not evidence that all 82 locations are operationally misconfigured.
 
+## Work ladder
+
+- Rung: W3
+- Evidence: the active Traffic Instrument plan requires dimensioned analytics, sticky visitor assignment, and commerce attribution; focused implementation tests pass while the scenario-owned suite failed on remaining governance/debt findings and the implementation is incomplete.
+- Blocker: none; continue implementation and targeted validation.
+- Measured: 2026-09-03
+
 ---
 
 ## Proto Health Evidence Gap

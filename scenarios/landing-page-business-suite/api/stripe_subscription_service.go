@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
+
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- StripeSubscriptionService Interface Implementation ---
@@ -56,7 +58,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 		return nil, err
 	} else if time.Since(updatedAt) > s.checkoutCacheTTL {
 		needRefresh = true
-		logStructured("Subscription cache stale", map[string]interface{}{
+		logx.Info("Subscription cache stale", map[string]interface{}{
 			"level":         "warn",
 			"user_identity": user,
 			"cache_age_ms":  time.Since(updatedAt).Milliseconds(),
@@ -67,7 +69,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 		if refreshed, err := s.refreshSubscriptionFromStripe(user, subscriptionID.String); err == nil && refreshed != nil {
 			return refreshed, nil
 		} else if err != nil {
-			logStructured("Stripe verification fallback to cache", map[string]interface{}{
+			logx.Info("Stripe verification fallback to cache", map[string]interface{}{
 				"level": "warn",
 				"user":  user,
 				"error": err.Error(),
@@ -103,7 +105,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 		}
 		if planTier.String != "" {
 			if _, err := commerce.NormalizePlanTier(planTier.String); err != nil {
-				logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
+				logx.Info("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 					"level":        "warn",
 					"plan_tier":    planTier.String,
 					"price_id":     priceID.String,
@@ -152,5 +154,5 @@ func (s *StripeService) refreshSubscriptionFromStripe(userIdentity string, curre
 
 // persistSubscriptionFromStripe saves subscription data from Stripe to local database.
 func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *commerce.StripeSubscription) (*shared.SubscriptionStatus, error) {
-	return commerce.NewSubscriptionPersistenceService(s.db, s.planService, logStructured).Persist(userHint, sub)
+	return commerce.NewSubscriptionPersistenceService(s.db, s.planService, logx.Info).Persist(userHint, sub)
 }

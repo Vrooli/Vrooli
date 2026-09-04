@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
@@ -77,13 +78,13 @@ func NewEmailService() *EmailService {
 			FromEmail: fromEmail,
 			FromName:  fromName,
 		}
-		logStructured("sendgrid_configured", map[string]interface{}{
+		logx.Info("sendgrid_configured", map[string]interface{}{
 			"level":      "info",
 			"from_email": fromEmail,
 			"from_name":  fromName,
 		})
 	} else {
-		logStructured("sendgrid_not_configured", map[string]interface{}{
+		logx.Info("sendgrid_not_configured", map[string]interface{}{
 			"level":   "warn",
 			"message": "SENDGRID_API_KEY not set; magic link emails will be logged only",
 		})
@@ -127,7 +128,7 @@ func (s *EmailService) SendFeedbackNotification(branding *experimentation.SiteBr
 	config := s.extractSMTPConfig(branding)
 
 	if !config.IsConfigured() {
-		logStructured("email_skipped", map[string]interface{}{
+		logx.Info("email_skipped", map[string]interface{}{
 			"reason": "smtp not configured in branding settings",
 		})
 		return nil
@@ -205,14 +206,14 @@ func (s *EmailService) Send(config *SMTPConfig, to, subject, body string) error 
 
 	err := sender(addr, auth, config.From, []string{to}, []byte(msg))
 	if err != nil {
-		logStructuredError("email_send_failed", map[string]interface{}{
+		logx.Error("email_send_failed", map[string]interface{}{
 			"to":    to,
 			"error": err.Error(),
 		})
 		return err
 	}
 
-	logStructured("email_sent", map[string]interface{}{
+	logx.Info("email_sent", map[string]interface{}{
 		"to":      to,
 		"subject": subject,
 	})
@@ -246,7 +247,7 @@ func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 
 	// If SendGrid is not configured, log the link for development
 	if !s.IsSendGridConfigured() {
-		logStructured("magic_link_dev_mode", map[string]interface{}{
+		logx.Info("magic_link_dev_mode", map[string]interface{}{
 			"level":      "info",
 			"to":         to,
 			"magic_link": magicLink,
@@ -299,7 +300,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		logStructuredError("sendgrid_request_failed", map[string]interface{}{
+		logx.Error("sendgrid_request_failed", map[string]interface{}{
 			"error": err.Error(),
 			"to":    to,
 		})
@@ -313,7 +314,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		if len(bodyStr) > 500 {
 			bodyStr = bodyStr[:500] + "..."
 		}
-		logStructuredError("sendgrid_api_error", map[string]interface{}{
+		logx.Error("sendgrid_api_error", map[string]interface{}{
 			"status": resp.StatusCode,
 			"body":   bodyStr,
 			"to":     to,
@@ -321,7 +322,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		return fmt.Errorf("SendGrid API error: %d - %s", resp.StatusCode, bodyStr)
 	}
 
-	logStructured("magic_link_sent", map[string]interface{}{
+	logx.Info("magic_link_sent", map[string]interface{}{
 		"level": "info",
 		"to":    to,
 	})

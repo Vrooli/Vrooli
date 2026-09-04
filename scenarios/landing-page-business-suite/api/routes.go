@@ -1,16 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/health"
-	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	accounthttp "landing-page-business-suite-api/handlers/account"
-	remoteprofilehttp "landing-page-business-suite-api/handlers/administration"
-	userauthhttp "landing-page-business-suite-api/handlers/administration"
+	adminhttp "landing-page-business-suite-api/handlers/administration"
 	assethttp "landing-page-business-suite-api/handlers/assets"
 	bundlehttp "landing-page-business-suite-api/handlers/bundles"
 	billinghttp "landing-page-business-suite-api/handlers/commerce"
@@ -28,7 +28,13 @@ import (
 	pricinghandler "landing-page-business-suite-api/handlers/pricing"
 	seohttp "landing-page-business-suite-api/handlers/seo"
 	variantspacehttp "landing-page-business-suite-api/handlers/variant_space"
+	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/monetization"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 func (s *Server) setupRoutes() {
@@ -38,6 +44,7 @@ func (s *Server) setupRoutes() {
 	registerHealthRoutes(s)
 	registerMonetizationJourneyRoute(s)
 	registerLandingRoutes(s)
+	registerBackdropRoutes(s)
 	registerAuthRoutes(s)
 	registerFixtureRoutes(s)
 	registerAccountRoutes(s)
@@ -59,6 +66,76 @@ func (s *Server) setupRoutes() {
 	registerUpdateRoutes(s)
 	registerMeasuresRoutes(s)
 	registerDeployReadinessRoute(s)
+}
+
+// registerBackdropRoutes keeps the dynamic Backdrop Studio address on the
+// server side. The UI calls this same-origin endpoint; api-core discovery
+// resolves the current lifecycle-managed port for every request.
+func registerBackdropRoutes(s *Server) {
+	s.router.HandleFunc("/api/v1/backdrops/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(mux.Vars(r)["id"])
+		if id == "" {
+			http.Error(w, "backdrop id is required", http.StatusBadRequest)
+			return
+		}
+		resolve := s.backdropResolver
+		if resolve == nil {
+			resolve = func(ctx context.Context) (string, error) {
+				return discovery.ResolveScenarioURLDefault(ctx, "backdrop-studio")
+			}
+		}
+		baseURL, err := resolve(r.Context())
+		if err != nil || strings.TrimSpace(baseURL) == "" {
+			http.Error(w, "backdrop studio is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		body, err := json.Marshal(map[string]string{"id": id})
+		if err != nil {
+			http.Error(w, "failed to encode backdrop request", http.StatusInternalServerError)
+			return
+		}
+		request, err := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(baseURL, "/")+"/vrooli.backdrop_studio.v1.release.ReleaseService/GetReference", bytes.NewReader(body))
+		if err != nil {
+			http.Error(w, "failed to create backdrop request", http.StatusInternalServerError)
+			return
+		}
+		request.Header.Set("Content-Type", "application/json")
+		client := s.backdropHTTPClient
+		if client == nil {
+			client = http.DefaultClient
+		}
+		response, err := client.Do(request)
+		if err != nil {
+			http.Error(w, "backdrop studio request failed", http.StatusBadGateway)
+			return
+		}
+		defer response.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(response.StatusCode)
+		if response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
+			payload, readErr := io.ReadAll(response.Body)
+			if readErr == nil {
+				var metadata map[string]any
+				if json.Unmarshal(payload, &metadata) == nil {
+					if uri, ok := metadata["uri"].(string); ok && uri != "" {
+						if assetURL, ok := metadata["url"].(string); !ok || assetURL == "" || !strings.HasPrefix(assetURL, "http://") && !strings.HasPrefix(assetURL, "https://") {
+							metadata["url"] = uri
+							if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
+								metadata["url"] = strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(uri, "/")
+							}
+						}
+					}
+					if encoded, encodeErr := json.Marshal(metadata); encodeErr == nil {
+						_, _ = w.Write(encoded)
+						return
+					}
+				}
+				_, _ = w.Write(payload)
+				return
+			}
+		}
+		_, _ = io.Copy(w, response.Body)
+	}).Methods(http.MethodGet)
 }
 
 func registerReceiptRoutes(s *Server) {
@@ -139,14 +216,14 @@ func registerAuthRoutes(s *Server) {
 	// User Authentication endpoints (magic link + JWT)
 	// Public auth endpoints (no auth required)
 	deps := userAuthHandlerDependencies(s.userAuthService, s.magicLinkLimiter)
-	s.router.HandleFunc("/api/v1/auth/magic-link", userauthhttp.RequestMagicLink(deps)).Methods("POST")
-	s.router.HandleFunc("/api/v1/auth/verify", userauthhttp.VerifyMagicLink(deps)).Methods("GET")
-	s.router.HandleFunc("/api/v1/auth/authorize", userauthhttp.AuthorizeWithPKCE(deps, s.authorizationCodes)).Methods("GET")
-	s.router.HandleFunc("/api/v1/auth/token", userauthhttp.ExchangeAuthorizationCode(deps, s.authorizationCodes)).Methods("POST")
-	s.router.HandleFunc("/api/v1/auth/refresh", userauthhttp.RefreshTokens(deps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/magic-link", adminhttp.RequestMagicLink(deps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/verify", adminhttp.VerifyMagicLink(deps)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/authorize", adminhttp.AuthorizeWithPKCE(deps, s.authorizationCodes)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/token", adminhttp.ExchangeAuthorizationCode(deps, s.authorizationCodes)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/refresh", adminhttp.RefreshTokens(deps)).Methods("POST")
 	// Protected auth endpoints (require user auth)
-	s.router.HandleFunc("/api/v1/auth/logout", s.requireUserAuth(userauthhttp.LogoutUser(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/auth/me", s.requireUserAuth(userauthhttp.Me(deps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/logout", s.requireUserAuth(adminhttp.LogoutUser(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/me", s.requireUserAuth(adminhttp.Me(deps))).Methods("GET")
 }
 
 func registerAccountRoutes(s *Server) {
@@ -205,30 +282,30 @@ func registerBillingRoutes(s *Server) {
 func registerAdminCoreRoutes(s *Server) {
 	// Admin authentication/reset are generated Connect services. Session cookies
 	// remain response headers and never enter protobuf payloads.
-	remoteprofilehttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), remoteprofilehttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logStructuredError}, s.requireAdmin)
+	adminhttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logx.Error}, s.requireAdmin)
 	profileDeps := s.adminProfileDependencies()
-	remoteprofilehttp.RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdmin)
+	adminhttp.RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdmin)
 	billinghttp.RegisterStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdmin)
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(bundlehttp.VerifyStripePrice(bundleStripeHandlerDependencies(s.stripeService)))).Methods("GET")
-	userauthhttp.RegisterAPIKeyConnectRoutes(s.router, s.apiKeyService, s.requireAdmin)
+	adminhttp.RegisterAPIKeyConnectRoutes(s.router, s.apiKeyService, s.requireAdmin)
 }
 
 func registerRemoteProfileRoutes(s *Server) {
 	// List and test/proxy use requireAdminOrService so inter-scenario clients (e.g. s2d) can call them with a service bearer token.
 	deps := remoteProfileHandlerDependencies(s.remoteProfileService, s.sessionAdminEmail)
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(remoteprofilehttp.ListRemoteProfiles(deps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(remoteprofilehttp.CreateRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(remoteprofilehttp.UpdateRemoteProfile(deps))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(remoteprofilehttp.DeleteRemoteProfile(deps))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(remoteprofilehttp.LoginRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdmin(remoteprofilehttp.LogoutRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdminOrService(remoteprofilehttp.TestRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/session-links", s.requireAdmin(remoteprofilehttp.RemoteProfileSessionLinks(deps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/remote-revoke", s.requireAdmin(remoteprofilehttp.RevokeRemoteProfileSessions(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(remoteprofilehttp.ProxyRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(adminhttp.ListRemoteProfiles(deps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdmin(adminhttp.CreateRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(adminhttp.UpdateRemoteProfile(deps))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdmin(adminhttp.DeleteRemoteProfile(deps))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdmin(adminhttp.LoginRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdmin(adminhttp.LogoutRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdminOrService(adminhttp.TestRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/session-links", s.requireAdmin(adminhttp.RemoteProfileSessionLinks(deps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/remote-revoke", s.requireAdmin(adminhttp.RevokeRemoteProfileSessions(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(adminhttp.ProxyRemoteProfile(deps))).Methods("POST")
 	sessionDeps := remoteProfileSessionDependencies(s.routedDB)
-	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdmin(remoteprofilehttp.ListIncomingRemoteProfileSessions(sessionDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdmin(remoteprofilehttp.RevokeIncomingRemoteProfileSession(sessionDeps))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdmin(adminhttp.ListIncomingRemoteProfileSessions(sessionDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdmin(adminhttp.RevokeIncomingRemoteProfileSession(sessionDeps))).Methods("DELETE")
 }
 
 func registerCommerceAdminRoutes(s *Server) {
@@ -261,12 +338,12 @@ func registerCommerceAdminRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/stripe/import-preview", s.requireAdmin(bundlehttp.PreviewStripeImport(bundleImportHandlerDependencies(s.stripeService, s.planService)))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/stripe/import", s.requireAdmin(bundlehttp.ImportStripePrices(bundleStripeImportDependencies(s.stripeService, s.planService)))).Methods("POST")
 
-	couponhttp.RegisterConnectRoutes(s.router, s.stripeService, s.planService, s.routedDB, s.requireAdmin, couponProviderError, logStructured)
+	couponhttp.RegisterConnectRoutes(s.router, s.stripeService, s.planService, s.routedDB, s.requireAdmin, couponProviderError, logx.Info)
 }
 
 func registerVariantRoutes(s *Server) {
 	varianthttp.RegisterConnectRoutes(s.router, s.configStore, s.requireAdmin)
-	writeDependencies := varianthttp.WriteDependencies{Store: s.configStore, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructured, LogError: logStructuredError}
+	writeDependencies := varianthttp.WriteDependencies{Store: s.configStore, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)
@@ -346,7 +423,7 @@ func usageHTTPDependencies() billinghttp.UsageDependencies {
 	return billinghttp.UsageDependencies{
 		UserEmail:  getUserEmail,
 		WriteError: writeJSONError,
-		LogError:   logStructuredError,
+		LogError:   logx.Error,
 	}
 }
 
@@ -373,9 +450,9 @@ func registerDocsRoutes(s *Server) {
 func registerAdminUserRoutes(s *Server) {
 	// User Management endpoints (Admin)
 	userDeps := userManagementDependencies(s.userManagementService)
-	s.router.HandleFunc("/api/v1/admin/users", s.requireAdmin(userauthhttp.ListUsers(userDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}", s.requireAdmin(userauthhttp.GetUser(userDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(userauthhttp.ListUserSessions(userDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(userauthhttp.RevokeUserSession(userDeps))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(userauthhttp.RevokeAllUserSessions(userDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/users", s.requireAdmin(adminhttp.ListUsers(userDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}", s.requireAdmin(adminhttp.GetUser(userDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(adminhttp.ListUserSessions(userDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(adminhttp.RevokeUserSession(userDeps))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(adminhttp.RevokeAllUserSessions(userDeps))).Methods("POST")
 }

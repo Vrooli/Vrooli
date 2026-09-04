@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // isSecureCookiesEnabled returns whether secure cookies should be enabled.
@@ -56,7 +58,7 @@ func resolveAuthorityCredential(key string) (string, error) {
 // Security-critical generated/operator credentials use resolveAuthorityCredential
 // directly so provider failures cannot become an empty-string fallback.
 func resolveSecret(key string) string {
-	return administration.ResolveSecret(key, logStructured)
+	return administration.ResolveSecret(key, logx.Info)
 }
 
 func resolveGeneratedSecret(key string, mint func() (string, error)) (string, error) {
@@ -97,7 +99,7 @@ func getAdminDefaults() (email string, passwordHash string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("hash ephemeral admin password: %w", err)
 	}
-	logStructured("admin_password_missing", map[string]interface{}{
+	logx.Info("admin_password_missing", map[string]interface{}{
 		"level": "warn", "message": "ADMIN_DEFAULT_PASSWORD is not configured; generated an ephemeral development credential",
 	})
 	return email, string(passwordHashBytes), nil
@@ -119,7 +121,7 @@ func initSessionManager() SessionManager {
 		if _, err := rand.Read(ephemeral); err != nil {
 			panic(fmt.Sprintf("generate ephemeral session key: %v", err))
 		}
-		logStructured("session_secret_missing", map[string]interface{}{
+		logx.Info("session_secret_missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "SESSION_SECRET not set; generated an ephemeral key; sessions will not survive restart",
 			"action":  "provision SESSION_SECRET with `vrooli credentials provision`",
@@ -206,8 +208,8 @@ func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
 		ClientIP:      getClientIP,
 		SecureCookies: isSecureCookiesEnabled,
 		WriteError:    writeJSONError,
-		Log:           logStructured,
-		LogError:      logStructuredError,
+		Log:           logx.Info,
+		LogError:      logx.Error,
 	}
 }
 
@@ -217,7 +219,7 @@ func (s *Server) adminProfileDependencies() adminhttp.ProfileDependencies {
 		DefaultEmail:    func() string { email, _, _ := getAdminDefaults(); return email },
 		DefaultPassword: func() string { return resolveSecret("ADMIN_DEFAULT_PASSWORD") },
 		ValidateEmail:   func(email string) error { _, err := ValidateEmail(email); return err },
-		Log:             logStructured, LogError: logStructuredError,
+		Log:             logx.Info, LogError: logx.Error,
 	}
 }
 
@@ -276,18 +278,18 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		if serverSessionID != "" {
 			expiresAt, err := s.adminAuth().SessionExpiry(r.Context(), serverSessionID, email)
 
-			if err == sql.ErrNoRows || (err == nil && time.Now().After(expiresAt)) {
+			if errors.Is(err, sql.ErrNoRows) || (err == nil && time.Now().After(expiresAt)) {
 				// Session not found or expired
 				session.Options.MaxAge = -1
 				if saveErr := s.sessionManager.SaveSession(r, w, session); saveErr != nil {
-					logStructuredError("middleware_session_save_failed", map[string]interface{}{
+					logx.Error("middleware_session_save_failed", map[string]interface{}{
 						"error": saveErr.Error(),
 					})
 				}
 				writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 				return
 			} else if err != nil {
-				logStructuredError("middleware_session_lookup_failed", map[string]interface{}{
+				logx.Error("middleware_session_lookup_failed", map[string]interface{}{
 					"error": err.Error(),
 				})
 				// Fall through on DB error (graceful degradation)

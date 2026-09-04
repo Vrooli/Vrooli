@@ -14,9 +14,6 @@ func buildElectronManifest(a *delivery.Artifact, notes string) []byte {
 	return downloadhttp.BuildElectronManifest(a, notes)
 }
 
-// The legacy root tests characterize the public update-feed behavior while the
-// production transport lives in handlers/delivery. These adapters are test-only
-// so root package tests can keep their narrow mocks during the migration.
 type updateAppLookup interface {
 	GetApp(bundleKey, appKey string) (*delivery.App, error)
 }

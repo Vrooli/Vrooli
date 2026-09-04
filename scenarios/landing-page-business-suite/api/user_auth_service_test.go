@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -179,7 +180,7 @@ func TestJWTExpiry(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for expired token")
 	}
-	if err != administration.ErrTokenExpired {
+	if !errors.Is(err, administration.ErrTokenExpired) {
 		t.Errorf("Expected administration.ErrTokenExpired, got %v", err)
 	}
 }
@@ -375,7 +376,7 @@ func TestVerifyMagicLink_ExpiredToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for expired token")
 	}
-	if err != administration.ErrTokenExpired {
+	if !errors.Is(err, administration.ErrTokenExpired) {
 		t.Errorf("Expected administration.ErrTokenExpired, got %v", err)
 	}
 }
@@ -416,7 +417,7 @@ func TestVerifyMagicLink_UsedToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for used token")
 	}
-	if err != administration.ErrTokenUsed {
+	if !errors.Is(err, administration.ErrTokenUsed) {
 		t.Errorf("Expected administration.ErrTokenUsed, got %v", err)
 	}
 }
@@ -442,7 +443,7 @@ func TestVerifyMagicLink_InvalidToken(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected error for invalid token %q", token)
 		}
-		if err != administration.ErrTokenInvalid {
+		if !errors.Is(err, administration.ErrTokenInvalid) {
 			t.Errorf("Expected administration.ErrTokenInvalid for token %q, got %v", token, err)
 		}
 	}
@@ -504,7 +505,7 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	if err == nil {
 		t.Error("Session 2 should be revoked")
 	}
-	if err != administration.ErrSessionRevoked {
+	if !errors.Is(err, administration.ErrSessionRevoked) {
 		t.Errorf("Expected administration.ErrSessionRevoked for session 2, got %v", err)
 	}
 
@@ -513,7 +514,7 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	if err == nil {
 		t.Error("Session 3 should be revoked")
 	}
-	if err != administration.ErrSessionRevoked {
+	if !errors.Is(err, administration.ErrSessionRevoked) {
 		t.Errorf("Expected administration.ErrSessionRevoked for session 3, got %v", err)
 	}
 }

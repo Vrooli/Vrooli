@@ -4,6 +4,7 @@ package administration
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -77,7 +78,7 @@ func response(email string, authenticated bool, sessionID string) SessionRespons
 // the supplied response writer for the generated Connect transport.
 func LoginSession(r *http.Request, w http.ResponseWriter, request LoginRequest, deps Dependencies) (SessionResponse, *SessionError) {
 	hash, err := deps.Auth.PasswordHash(r.Context(), request.Email)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		deps.Log("login_invalid_email", map[string]any{"level": "warn", "email": request.Email})
 		return SessionResponse{}, &SessionError{Status: http.StatusUnauthorized, Message: "Invalid credentials", Kind: "unauthorized"}
 	}
@@ -147,7 +148,7 @@ func ReadSession(r *http.Request, w http.ResponseWriter, deps Dependencies) (Ses
 	id, _ := session.Values["session_id"].(string)
 	if id != "" {
 		expiry, err := deps.Auth.SessionExpiry(r.Context(), id, email)
-		if err == sql.ErrNoRows || (err == nil && deps.Now().After(expiry)) {
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && deps.Now().After(expiry)) {
 			session.Options.MaxAge = -1
 			if saveErr := deps.Sessions.SaveSession(r, w, session); saveErr != nil {
 				deps.LogError("session_save_failed_on_expiry", map[string]any{"error": saveErr.Error()})

@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { AmbientDisplayShell } from "@vrooli/react-component-library/AmbientDisplayShell/0.1.2";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
-import { formatClock } from "../lib/format";
-import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { useBoardController, type SamplesMode } from "../lib/boardContext";
 
 interface AmbientShellProps {
@@ -14,6 +14,10 @@ interface AmbientShellProps {
   status?: ReactNode;
   /** Shown bottom-right whenever illustrative readings are on screen in mark mode. */
   legend?: boolean;
+  /** Beat state for rooms that rotate several complete pages during a dwell. */
+  beatIndex?: number;
+  beatCount?: number;
+  beatProgress?: number;
   children: ReactNode;
 }
 
@@ -21,46 +25,20 @@ interface AmbientShellProps {
  * Full-bleed, zero idle chrome. The only persistent elements are the cycle
  * rail at the top edge and the eyebrow; controls reveal on input and fade.
  */
-export function AmbientShell({ theme, title, position, status, legend = false, children }: AmbientShellProps) {
+export function AmbientShell({ theme, title, position, status, legend = false, beatIndex = 0, beatCount = 0, beatProgress = 0, children }: AmbientShellProps) {
   const board = useBoardController();
-  const [clock, setClock] = useState(() => formatClock(new Date()));
-  useEffect(() => {
-    const timer = window.setInterval(() => setClock(formatClock(new Date())), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute("data-theme", theme);
-    return () => root.removeAttribute("data-theme");
-  }, [theme]);
+  const legendContent = legend && board.samples === "mark" ? (
+    <ExperienceSurface surfaceId="legend" as="div" data-testid="room-legend" className="cc-legend" state="static" aria-label="Provenance legend">
+      {(["solid", "dimmed", "hollow", "dotted"] as const).map((ink) => <span key={ink} className="cc-legend-item"><InkSwatch ink={ink} />{INK_LABELS[ink]}</span>)}
+    </ExperienceSurface>
+  ) : null;
   return (
-    <div className="cc-shell" data-theme={theme} data-testid="ambient-shell">
-      <div className="cc-cycle-rail" data-testid="cycle-rail" data-experience-surface="cycle-rail" data-experience-state="static" role="progressbar" aria-label={board.paused ? "Cycle paused" : "Cycle running"} aria-valuenow={Math.round(board.progress * 100)} aria-valuemin={0} aria-valuemax={100} data-paused={board.paused || undefined}>
-        <span data-testid="room-cycle-rail" style={{ transform: `scaleX(${board.progress.toFixed(3)})` }} />
-      </div>
-      <header className="cc-eyebrow">
-        <div className="cc-eyebrow-identity">
-          <h1 className="cc-room-title">{title}</h1>
-          <span className="cc-eyebrow-line">{position}{board.paused ? " · PAUSED" : ` · CYCLE ${board.cycleSeconds}S`}</span>
-        </div>
-        <div className="cc-eyebrow-status">
-          {status}
-          <time className="cc-clock" dateTime={new Date().toISOString()}>{clock}</time>
-        </div>
-      </header>
+    <AmbientDisplayShell theme={theme} title={title} position={position} status={status} legend={legendContent} samples={board.samples} paused={board.paused} progress={board.progress} cycleSeconds={board.cycleSeconds} beatIndex={beatIndex} beatCount={beatCount} beatProgress={beatProgress}>
       {children}
-      {legend && board.samples === "mark" ? (
-        <ExperienceSurface surfaceId="legend" as="div" data-testid="room-legend" className="cc-legend" state="static" aria-label="Provenance legend">
-          {(["solid", "dimmed", "hollow", "dotted"] as const).map((ink) => (
-            <span key={ink} className="cc-legend-item"><InkSwatch ink={ink} />{INK_LABELS[ink]}</span>
-          ))}
-        </ExperienceSurface>
-      ) : null}
-      {board.samples !== "mark" ? <span className="cc-mode-stamp" data-testid="samples-mode-stamp">samples {board.samples}</span> : null}
       <ControlBar />
       {board.helpVisible ? <HelpOverlay /> : null}
       <div className={board.transitioning ? "cc-veil cc-veil-on" : "cc-veil"} aria-hidden="true" />
-    </div>
+    </AmbientDisplayShell>
   );
 }
 

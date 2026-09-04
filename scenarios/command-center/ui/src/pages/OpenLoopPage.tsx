@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { AmbientShell } from "../components/AmbientShell";
 import { useBoardController } from "../lib/boardContext";
-import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.2";
 import { fetchOpenLoop, type Reading } from "../lib/api";
 

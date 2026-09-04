@@ -10,6 +10,7 @@ import (
 
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // trustedProxyCIDRs holds the parsed CIDR ranges for trusted proxies.
@@ -30,7 +31,7 @@ func initTrustedProxies() {
 		cidrsEnv := strings.TrimSpace(envx.Get("TRUSTED_PROXY_CIDRS"))
 		if cidrsEnv == "" {
 			// No trusted proxies configured - this is the secure default
-			logStructured("trusted_proxies_not_configured", map[string]interface{}{
+			logx.Info("trusted_proxies_not_configured", map[string]interface{}{
 				"level":   "info",
 				"message": "TRUSTED_PROXY_CIDRS not set; X-Forwarded-For headers will be ignored",
 			})
@@ -45,7 +46,7 @@ func initTrustedProxies() {
 			}
 			_, network, err := net.ParseCIDR(cidr)
 			if err != nil {
-				logStructuredError("trusted_proxy_cidr_parse_error", map[string]interface{}{
+				logx.Error("trusted_proxy_cidr_parse_error", map[string]interface{}{
 					"cidr":  cidr,
 					"error": err.Error(),
 				})
@@ -55,7 +56,7 @@ func initTrustedProxies() {
 		}
 
 		if len(trustedProxyCIDRs) > 0 {
-			logStructured("trusted_proxies_configured", map[string]interface{}{
+			logx.Info("trusted_proxies_configured", map[string]interface{}{
 				"level": "info",
 				"count": len(trustedProxyCIDRs),
 			})
@@ -247,7 +248,7 @@ func getClientIP(r *http.Request) string {
 				return clientIP
 			}
 			// Invalid IP format in X-Forwarded-For, log and fall through
-			logStructured("xff_invalid_ip_format", map[string]interface{}{
+			logx.Info("xff_invalid_ip_format", map[string]interface{}{
 				"level":        "warn",
 				"xff_header":   xff,
 				"extracted_ip": clientIP,
@@ -263,7 +264,7 @@ func getClientIP(r *http.Request) string {
 				return xri
 			}
 			// Invalid IP format in X-Real-IP, log and fall through
-			logStructured("xrealip_invalid_ip_format", map[string]interface{}{
+			logx.Info("xrealip_invalid_ip_format", map[string]interface{}{
 				"level":     "warn",
 				"xrealip":   xri,
 				"direct_ip": directIP,
@@ -273,7 +274,7 @@ func getClientIP(r *http.Request) string {
 	} else {
 		// Direct connection is NOT from a trusted proxy - log if they're trying to spoof
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			logStructured("xff_untrusted_proxy_ignored", map[string]interface{}{
+			logx.Info("xff_untrusted_proxy_ignored", map[string]interface{}{
 				"level":      "warn",
 				"xff_header": xff,
 				"direct_ip":  directIP,
@@ -282,7 +283,7 @@ func getClientIP(r *http.Request) string {
 			})
 		}
 		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			logStructured("xrealip_untrusted_proxy_ignored", map[string]interface{}{
+			logx.Info("xrealip_untrusted_proxy_ignored", map[string]interface{}{
 				"level":     "warn",
 				"xrealip":   xri,
 				"direct_ip": directIP,

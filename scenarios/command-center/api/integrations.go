@@ -104,9 +104,13 @@ func commandCenterIntegrationRegistry(s *Server) *capreg.Registry {
 	coreFeatures := featuresFor("vrooli-core")
 	swarmFeatures := featuresFor("swarm-manager")
 	lpbsFeatures := featuresFor("landing-page-business-suite")
+	offerFeatures := featuresFor("offer-desk")
+	deployFeatures := featuresFor("deployment-manager")
 	overlays := map[string]capreg.Overlay{
 		"swarm-manager":               {ID: "swarm-manager", Name: "Swarm Manager", Features: swarmFeatures, FeatureRequirements: featureRequirements(swarmFeatures)},
 		"landing-page-business-suite": {ID: "landing-page-business-suite", Name: "Landing Page Business Suite", Features: lpbsFeatures, FeatureRequirements: featureRequirements(lpbsFeatures)},
+		"offer-desk":                  {ID: "offer-desk", Name: "Offer Desk", Features: offerFeatures, FeatureRequirements: featureRequirements(offerFeatures)},
+		"deployment-manager":          {ID: "deployment-manager", Name: "Deployment Manager", Features: deployFeatures, FeatureRequirements: featureRequirements(deployFeatures)},
 		"prompt-manager":              {ID: "prompt-manager", Name: "Prompt Manager", Features: []string{"team_instrument"}, FeatureRequirements: featureRequirements([]string{"team_instrument"}), ActionKind: capreg.ActionKindOwnerGuidance, ActionLabel: "Review Prompt Manager", OperatorCommand: "vrooli scenario status prompt-manager --json"},
 	}
 	defs, err := capreg.ProjectManifest(path, overlays)
@@ -121,6 +125,8 @@ func commandCenterIntegrationRegistry(s *Server) *capreg.Registry {
 		"vrooli-core":                 integrationChecker{client: s.vrooli, features: coreFeatures, slug: "vrooli", label: "Vrooli Core", failureActionKind: capreg.ActionKindOwnerGuidance, failureActionLabel: "Review control plane", failureOperatorCommand: "vrooli status --json"},
 		"swarm-manager":               integrationChecker{client: s.swarm, features: swarmFeatures, slug: "swarm-manager", label: "Swarm Manager", failureActionKind: capreg.ActionKindScenarioStart},
 		"landing-page-business-suite": integrationChecker{client: s.lpbs, features: lpbsFeatures, slug: "landing-page-business-suite", label: "Landing Page Business Suite", failureActionKind: capreg.ActionKindScenarioStart},
+		"offer-desk":                  integrationChecker{client: s.offer, features: offerFeatures, slug: "offer-desk", label: "Offer Desk", failureActionKind: capreg.ActionKindScenarioStart},
+		"deployment-manager":          integrationChecker{client: s.deploy, features: deployFeatures, slug: "deployment-manager", label: "Deployment Manager", failureActionKind: capreg.ActionKindScenarioStart},
 	}
 	// Prompt Manager is checked through the same typed transmitter used for
 	// objective and team-instrument projections. A missing transmitter remains

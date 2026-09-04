@@ -78,6 +78,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	for i := range out {
 		m := &out[i]
 		m.Value = nil
+		m.Rows = nil
 		m.ObservedAt = nil
 		m.Trust = TrustUnavailable
 		if m.Empirical == "" {
@@ -128,7 +129,8 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		}
 		selectorID := first(m.Source.Selector, m.Source.Select)
 		pick, known := selectors[selectorID]
-		if !known {
+		panelPick, panelKnown := panelSelectors[selectorID]
+		if !known && !panelKnown {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "no selector named " + selectorID
 			continue
@@ -139,12 +141,6 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			m.TrustReason = "source returned a body that is not JSON"
 			continue
 		}
-		value, found := pick(payload)
-		if !found {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "selector " + selectorID + " found no number in the source payload"
-			continue
-		}
 		if version := sourceContractVersion(env.Data); version != "" && m.Source.ContractVersion != "" && version != m.Source.ContractVersion {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "producer contract version " + version + " does not match expected " + m.Source.ContractVersion
@@ -153,6 +149,53 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if unit := sourceUnit(env.Data, selectorID); unit != "" && !sameUnit(unit, m.Source.ExpectedUnit, m.Unit) {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "producer unit " + unit + " does not match expected " + first(m.Source.ExpectedUnit, m.Unit)
+			continue
+		}
+		if strings.EqualFold(m.Kind, "panel") {
+			if !panelKnown {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "no panel selector named " + selectorID
+				continue
+			}
+			rows, found := panelPick(payload)
+			if !found {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "panel selector " + selectorID + " found no rows in the source payload"
+				continue
+			}
+			if !plausiblePanelRows(rows, 6, true) {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "panel selector " + selectorID + " returned implausible rows"
+				continue
+			}
+			m.Rows = rows
+			if env.ObservationAt == nil {
+				m.Trust = TrustUntrusted
+				m.TrustReason = "producer did not supply observation time"
+				continue
+			}
+			observed := env.ObservationAt.UTC()
+			m.ObservedAt = &observed
+			now := time.Now().UTC()
+			age := now.Sub(observed)
+			switch {
+			case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
+				m.Trust = TrustValid
+			case observed.After(now):
+				m.Trust = TrustUntrusted
+				m.TrustReason = "producer observation time is in the future"
+			case age <= time.Duration(m.TTLSeconds*2)*time.Second:
+				m.Trust = TrustCached
+			default:
+				m.Trust = TrustUnavailable
+				m.TrustReason = "producer observation is stale"
+			}
+			continue
+		}
+		value, found := pick(payload)
+		if !found {
+			m.Trust = TrustUntrusted
+			m.TrustReason = "selector " + selectorID + " found no number in the source payload"
 			continue
 		}
 		unit := first(m.Unit, m.Source.ExpectedUnit)
@@ -188,6 +231,20 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	}
 	s.joinPredictions(out)
 	return out, sources
+}
+
+func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {
+	if len(rows) == 0 || len(rows) > limit {
+		return false
+	}
+	total := 0.0
+	for _, row := range rows {
+		if row.Key == "" || row.Label == "" || row.Value < 0 || row.Share < 0 || row.Share > 1 || math.IsNaN(row.Share) {
+			return false
+		}
+		total += row.Share
+	}
+	return !exhaustive || math.Abs(total-1) <= 0.02
 }
 
 func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
@@ -264,6 +321,12 @@ func sourceFromBinding(binding string) UpstreamSource {
 	}
 	if strings.Contains(binding, "lpbs") || strings.Contains(binding, "landing") {
 		return SourceLPBS
+	}
+	if strings.Contains(binding, "offer-desk") {
+		return SourceOffer
+	}
+	if strings.Contains(binding, "deployment-manager") {
+		return SourceDeploy
 	}
 	return SourceNone
 }
@@ -360,29 +423,24 @@ func sameUnit(actual string, expected ...string) bool {
 }
 
 func (s *Server) clientFor(src UpstreamSource) upstream.Client {
-	switch src {
-	case SourceSwarm:
-		return s.swarm
-	case SourceVrooli:
-		return s.vrooli
-	case SourceLPBS:
-		return s.lpbs
-	default:
-		return nil
+	if provider, ok := s.providers[src]; ok {
+		return provider.client()
 	}
+	return nil
 }
 
 func defaultPathFor(src UpstreamSource) string {
-	switch src {
-	case SourceSwarm:
-		return "/api/v1/stats"
-	case SourceVrooli:
-		return "/scenarios"
-	case SourceLPBS:
-		return "/api/v1/admin/dashboard/summary"
-	default:
-		return "/"
+	defaults := map[UpstreamSource]string{
+		SourceSwarm:  "/api/v1/stats",
+		SourceVrooli: "/scenarios",
+		SourceLPBS:   "/api/v1/admin/dashboard/summary",
+		SourceOffer:  "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder",
+		SourceDeploy: "/api/v1/readiness/state",
 	}
+	if path, ok := defaults[src]; ok {
+		return path
+	}
+	return "/"
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }

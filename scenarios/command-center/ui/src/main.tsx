@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 // INTEROP-CRITICAL: proxy-aware routing and iframe bridge setup keep the board
 // addressable both directly and when embedded by the Vrooli control plane.
 import "@fontsource/inter/400.css";
@@ -48,6 +49,7 @@ ReactDOM.createRoot(rootElement).render(
   // vrooli:library-strings-provider start
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the adoption contract pins this translator shape
   <LibraryStringsProvider translate={(key, fallback) => fallback ?? key}>
+    <BaseStyles />
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <App />

@@ -1,9 +1,21 @@
 package main
 
+import "fmt"
+
 // A selector turns one upstream payload into one number. Every metric names
 // its selector in source.select; an unknown selector is a registry defect and
 // resolves to UNAVAILABLE with that reason, never to a guessed key.
 type selector func(payload any) (float64, bool)
+type panelSelector func(payload any) ([]PanelRow, bool)
+
+type PanelRow struct {
+	Key    string  `json:"key"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Share  float64 `json:"share"`
+	Detail string  `json:"detail,omitempty"`
+	Ink    string  `json:"ink,omitempty"`
+}
 
 var selectors = map[string]selector{
 	// vrooli core · GET /scenarios
@@ -44,6 +56,146 @@ var selectors = map[string]selector{
 	"usage_records":      number("usage", "records"),
 	"composite_revenue":  number("revenue", "mrr"),
 	"composite_reach":    number("visitors"),
+}
+
+var panelSelectors = map[string]panelSelector{
+	"traffic_countries":     trafficPanel,
+	"traffic_referrers":     trafficPanel,
+	"traffic_campaigns":     trafficPanel,
+	"traffic_devices":       trafficPanel,
+	"traffic_landing_paths": trafficPanel,
+	"traffic_variants":      trafficPanel,
+	"release_ladder":        releaseLadderPanel,
+	"goal_progress":         goalProgressPanel,
+	"deployment_readiness":  readinessPanel,
+}
+
+func trafficPanel(payload any) ([]PanelRow, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, ok := root["rows"].([]any)
+	if !ok {
+		return nil, false
+	}
+	rows := make([]PanelRow, 0, len(raw))
+	for _, item := range raw {
+		m, ok := item.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		key, keyOK := m["key"].(string)
+		label, labelOK := m["label"].(string)
+		value, valueOK := m["value"].(float64)
+		if !valueOK {
+			value, valueOK = m["sessions"].(float64)
+		}
+		share, shareOK := m["share"].(float64)
+		if !keyOK || !labelOK || !valueOK || !shareOK {
+			return nil, false
+		}
+		rows = append(rows, PanelRow{Key: key, Label: label, Value: value, Share: share})
+	}
+	return rows, true
+}
+
+func releaseLadderPanel(payload any) ([]PanelRow, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	entries, ok := root["entries"].([]any)
+	if !ok {
+		return nil, false
+	}
+	rows := make([]PanelRow, 0, len(entries))
+	share := 1 / float64(len(entries))
+	for _, item := range entries {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		deliverable, ok := entry["deliverable"].(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		id, idOK := deliverable["id"].(string)
+		name, nameOK := deliverable["name"].(string)
+		rank, rankOK := deliverable["releaseRank"].(float64)
+		if !rankOK {
+			rank, rankOK = deliverable["release_rank"].(float64)
+		}
+		status, _ := deliverable["status"].(string)
+		if !idOK || !nameOK || !rankOK {
+			return nil, false
+		}
+		rows = append(rows, PanelRow{Key: id, Label: name, Value: rank, Share: share, Detail: status})
+	}
+	return rows, len(rows) > 0
+}
+
+func goalProgressPanel(payload any) ([]PanelRow, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	items, ok := root["items"].([]any)
+	if !ok {
+		return nil, false
+	}
+	rows := make([]PanelRow, 0, len(items))
+	for _, item := range items {
+		wrapped, ok := item.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		goal, ok := wrapped["goal"].(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		scope, _ := wrapped["scope"].(map[string]any)
+		name, nameOK := goal["name"].(string)
+		title, titleOK := goal["title"].(string)
+		completed, _ := scope["completed_count"].(float64)
+		if completed == 0 {
+			completed, _ = scope["completedCount"].(float64)
+		}
+		total, _ := scope["total"].(float64)
+		if !nameOK || !titleOK || total <= 0 {
+			continue
+		}
+		detail := ""
+		if eta, ok := wrapped["eta"].(map[string]any); ok {
+			if p50, ok := eta["p50_hours"].(float64); ok {
+				if p80, ok := eta["p80_hours"].(float64); ok {
+					detail = fmt.Sprintf("%.1fh–%.1fh ETA", p50, p80)
+				}
+			}
+		}
+		rows = append(rows, PanelRow{Key: name, Label: title, Value: completed, Share: completed / total, Detail: detail})
+	}
+	return rows, len(rows) > 0
+}
+
+func readinessPanel(payload any) ([]PanelRow, bool) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	goal, _ := root["goal_exists"].(bool)
+	if !goal {
+		goal, _ = root["goalExists"].(bool)
+	}
+	value := float64(0)
+	if goal {
+		value = 1
+	}
+	label := "Readiness goal missing"
+	if goal {
+		label = "Readiness goal present"
+	}
+	return []PanelRow{{Key: "readiness", Label: label, Value: value, Share: 1, Detail: fmt.Sprintf("closed=%t", root["goal_closed"])}}, true
 }
 
 type scenarioRow struct {

@@ -25,7 +25,7 @@ func NewLandingConfigConnectHandler(service *landing.LandingConfigService) Landi
 }
 
 func (h LandingConfigConnectHandler) GetLandingConfig(ctx context.Context, request *connect.Request[lpbsv1.GetLandingConfigRequest]) (*connect.Response[lpbsv1.LandingConfigResponse], error) {
-	response, err := h.service.GetLandingConfig(ctx, request.Msg.GetVariantSlug())
+	response, err := h.service.GetLandingConfig(ctx, request.Msg.GetVariantSlug(), request.Msg.GetVisitorId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load landing configuration: %w", err))
 	}

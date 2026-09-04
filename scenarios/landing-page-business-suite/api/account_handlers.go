@@ -6,11 +6,13 @@ import (
 	"errors"
 	"net/http"
 
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	downloadhttp "landing-page-business-suite-api/handlers/delivery"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
+	"landing-page-business-suite-api/internal/logx"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type managedDownloadResolutionError struct {
@@ -75,7 +77,7 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 		},
 		WriteJSON:  writeJSON,
 		WriteError: writeJSONError,
-		Log:        logStructuredError,
+		Log:        logx.Error,
 	}
 }
 
@@ -117,7 +119,7 @@ func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAutho
 			}
 			return url, true, nil
 		},
-		Log: logStructuredError,
+		Log: logx.Error,
 	}
 }
 
@@ -137,7 +139,7 @@ func writeJSON(w http.ResponseWriter, payload interface{}) {
 		// #nosec G705 -- this is an application/json response with nosniff, not an HTML sink;
 		// protojson output is required to preserve the generated API contract.
 		if _, err := w.Write(data); err != nil {
-			logStructuredError("write_json_failed", map[string]interface{}{
+			logx.Error("write_json_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}
@@ -191,7 +193,7 @@ func writeJSONError(w http.ResponseWriter, status int, message string, errorType
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logStructuredError("write_json_error_failed", map[string]interface{}{
+		logx.Error("write_json_error_failed", map[string]interface{}{
 			"error":          err.Error(),
 			"status":         status,
 			"original_error": message,

@@ -394,6 +394,12 @@ export interface MetricEvent {
   session_id: string;
   visitor_id?: string;
   event_data?: Record<string, unknown>;
+  event_id?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  landing_path?: string;
+  referrer?: string;
 }
 
 export interface AnalyticsSummary {
@@ -412,6 +418,7 @@ export interface VariantStats {
   cta_clicks: number;
   conversions: number;
   downloads: number;
+  exposures?: number;
   conversion_rate: number;
   avg_scroll_depth?: number;
   trend?: 'up' | 'down' | 'stable';

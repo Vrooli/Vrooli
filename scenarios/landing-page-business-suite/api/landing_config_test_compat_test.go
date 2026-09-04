@@ -7,8 +7,6 @@ import (
 	"landing-page-business-suite-api/internal/landing"
 )
 
-// Test-only compatibility names keep the existing black-box API tests focused
-// on behavior while production code depends directly on internal/landing.
 type (
 	LandingConfigResponse = landing.LandingConfigResponse
 	LandingVariantSummary = landing.LandingVariantSummary

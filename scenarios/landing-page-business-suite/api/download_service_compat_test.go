@@ -23,11 +23,9 @@ func NewDownloadService(db delivery.CatalogStore) *delivery.CatalogService {
 type downloadAssetLookup interface {
 	GetAsset(bundleKey, appKey, platform string) (*delivery.Asset, error)
 }
-
 type entitlementProvider interface {
 	GetEntitlementsContext(context.Context, string) (*commerce.EntitlementPayload, error)
 }
-
 type legacyEntitlementStatusProvider struct{ provider entitlementProvider }
 
 func (p legacyEntitlementStatusProvider) GetEntitlementStatus(ctx context.Context, userIdentity string) (string, error) {

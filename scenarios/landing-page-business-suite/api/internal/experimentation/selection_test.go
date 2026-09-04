@@ -1,6 +1,7 @@
 package experimentation
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -59,6 +60,31 @@ func TestSelectWeightedRandomVariant(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestSelectVariantForVisitorIsSticky(t *testing.T) {
+	variants := []*VariantSnapshot{
+		{Variant: VariantSnapshotMeta{Slug: "a", Weight: 50, Status: "active"}},
+		{Variant: VariantSnapshotMeta{Slug: "b", Weight: 50, Status: "active"}},
+	}
+	first := SelectVariantForVisitor(variants, "visitor-123")
+	for i := 0; i < 100; i++ {
+		if got := SelectVariantForVisitor(variants, "visitor-123"); got.Variant.Slug != first.Variant.Slug {
+			t.Fatalf("selection changed: first=%s got=%s", first.Variant.Slug, got.Variant.Slug)
+		}
+	}
+}
+
+func TestSelectVariantForVisitorDistributesAcrossVisitors(t *testing.T) {
+	variants := []*VariantSnapshot{{Variant: VariantSnapshotMeta{Slug: "a", Weight: 70, Status: "active"}}, {Variant: VariantSnapshotMeta{Slug: "b", Weight: 30, Status: "active"}}}
+	counts := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		counts[SelectVariantForVisitor(variants, fmt.Sprintf("visitor-%d", i)).Variant.Slug]++
+	}
+	if counts["a"] < 620 || counts["a"] > 780 {
+		t.Fatalf("distribution outside tolerance: %#v", counts)
+	}
+	t.Logf("observed distribution across 1000 visitors: a=%d (%.3f), b=%d (%.3f)", counts["a"], float64(counts["a"])/1000, counts["b"], float64(counts["b"])/1000)
 }
 
 func TestVariantWeight(t *testing.T) {

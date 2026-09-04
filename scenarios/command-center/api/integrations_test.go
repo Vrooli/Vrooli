@@ -36,8 +36,8 @@ func TestIntegrationSnapshotSeparatesLifecycleAndFeatures(t *testing.T) {
 	setUnavailableUpstreams(t)
 	s := NewServer(testRegistry())
 	snap := s.integrationSnapshot(context.Background(), false)
-	if len(snap.States) != 4 {
-		t.Fatalf("states = %d, want 4", len(snap.States))
+	if len(snap.States) != 6 {
+		t.Fatalf("states = %d, want 6", len(snap.States))
 	}
 	for _, state := range snap.States {
 		if state.ID == "prompt-manager" && state.Status != "unavailable" {
@@ -128,8 +128,8 @@ func TestIntegrationsConnectServiceUsesGeneratedContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Msg.GetIntegrations()) != 4 {
-		t.Fatalf("integrations = %d, want 4", len(resp.Msg.GetIntegrations()))
+	if len(resp.Msg.GetIntegrations()) != 6 {
+		t.Fatalf("integrations = %d, want 6", len(resp.Msg.GetIntegrations()))
 	}
 	for _, integration := range resp.Msg.GetIntegrations() {
 		if integration.GetOrigin() == "" {

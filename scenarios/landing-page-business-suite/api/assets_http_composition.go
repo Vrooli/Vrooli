@@ -6,6 +6,7 @@ import (
 
 	assethttp "landing-page-business-suite-api/handlers/assets"
 	"landing-page-business-suite-api/internal/content"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // assetsHTTPDependencies injects API conventions into the assets transport.
@@ -29,7 +30,7 @@ func assetsHTTPDependencies(service *content.AssetsService) assethttp.Dependenci
 		Path:               getPathParam,
 		WriteError:         writeJSONError,
 		WriteJSON:          writeJSON,
-		Log:                logStructuredError,
+		Log:                logx.Error,
 		IsNotFound:         func(err error) bool { return errors.Is(err, content.ErrAssetNotFound) },
 		DetectMimeType:     detectMimeType,
 	}

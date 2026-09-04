@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 )
@@ -198,7 +199,7 @@ func TestWaitlistService_Delete_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}
 }

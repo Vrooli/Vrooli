@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -70,7 +71,7 @@ func TestGooglePlayDeveloperValidatorRejectsUnboundPurchase(t *testing.T) {
 			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"purchaseState":0,"orderId":"GPA.order","productId":"pro","purchaseToken":"purchase-token","obfuscatedExternalAccountId":"account-token","expiryTimeMillis":"4102444800000"}`)), Header: make(http.Header)}, nil
 		})},
 	}
-	if _, err := validator.Validate(context.Background(), Receipt{Source: "google", Token: "purchase-token", UserIdentity: "buyer@example.com"}); err != ErrReceiptBound {
+	if _, err := validator.Validate(context.Background(), Receipt{Source: "google", Token: "purchase-token", UserIdentity: "buyer@example.com"}); !errors.Is(err, ErrReceiptBound) {
 		t.Fatalf("unbound purchase error = %v, want ErrReceiptBound", err)
 	}
 }
@@ -146,14 +147,14 @@ func TestAppleSignedTransactionValidatorRejectsTamperedPayload(t *testing.T) {
 	fixture := newAppleFixture(t, "buyer@example.com")
 	parts := strings.Split(fixture.token, ".")
 	parts[1] = base64.RawURLEncoding.EncodeToString([]byte(`{"transactionId":"tampered"}`))
-	if _, err := fixture.validator.Validate(context.Background(), Receipt{Source: "apple", Token: strings.Join(parts, "."), UserIdentity: "buyer@example.com"}); err != ErrReceiptInvalid {
+	if _, err := fixture.validator.Validate(context.Background(), Receipt{Source: "apple", Token: strings.Join(parts, "."), UserIdentity: "buyer@example.com"}); !errors.Is(err, ErrReceiptInvalid) {
 		t.Fatalf("tampered Apple payload error = %v, want ErrReceiptInvalid", err)
 	}
 }
 
 func TestAppleSignedTransactionValidatorRejectsBoundReceipt(t *testing.T) {
 	fixture := newAppleFixture(t, "different@example.com")
-	if _, err := fixture.validator.Validate(context.Background(), Receipt{Source: "apple", Token: fixture.token, UserIdentity: "buyer@example.com"}); err != ErrReceiptBound {
+	if _, err := fixture.validator.Validate(context.Background(), Receipt{Source: "apple", Token: fixture.token, UserIdentity: "buyer@example.com"}); !errors.Is(err, ErrReceiptBound) {
 		t.Fatalf("bound Apple receipt error = %v, want ErrReceiptBound", err)
 	}
 }

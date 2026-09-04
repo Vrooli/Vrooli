@@ -83,9 +83,10 @@ Both topologies are supported from the first commit: one display cycling, and se
 | Ambient | 0.02–0.2 Hz | Atmosphere. If a viewer perceives it as motion rather than atmosphere, it is too fast. |
 | Freshness | Per source TTL | The board showing its own pulse. Replaces a `STALE` badge. |
 | Value change | 380ms, changed digits only | Legibility. A whole-number crossfade reads as a flicker at distance. |
+| Beat change | Authored dwell, segmented rail | Rotates a room through complete readings without adding persistent chrome. |
 | Room change | 900ms fade-through-black | Lets six colour worlds sit next to each other without a hue slam. |
 
-Two deliberate absences: **no pulsing alerts** — a threshold crossing gets one 1.2s bloom and holds, because a loop trains people to stop seeing it; and **no entrance animation on cycle** beyond the fade.
+Two deliberate absences: **no pulsing alerts** — a threshold crossing gets one 1.2s bloom and holds, because a loop trains people to stop seeing it; and **no entrance animation on cycle** beyond the fade. Beat changes carry information through the segmented rail and complete-page swap, so they do not add an entrance animation.
 
 Under `prefers-reduced-motion` (`CC-P1-013`): scenes hold a composed still rather than blanking, the freshness indicator steps in quarters, digits swap without rolling, room changes crossfade.
 
@@ -93,7 +94,7 @@ Under `prefers-reduced-motion` (`CC-P1-013`): scenes hold a composed still rathe
 
 Six themes as **React Component Library semantic token overrides** — `--color-*`, `--space-*`, `--text-*` — so library components inherit the active room's palette (`CC-P1-014`).
 
-The scenario-private `--cc-*` vocabulary is retired. It and the library's token names do not intersect, so every library component dropped into a room today renders in library defaults and ignores the theme entirely. Rewriting the themes onto library tokens is a prerequisite for using any library component, not a follow-up.
+The scenario-private `--cc-*` vocabulary is retired. The room themes now override the library semantic tokens directly. The former collision between the four shorthand typography tokens (`--text-body`, `--text-label`, `--text-display`, and `--text-title`) and size-only room values was corrected: each has a complete `font` shorthand, with separate `*-size` and `*-line` tokens for size-only declarations. Library components therefore inherit the active room theme without invalidating their typography.
 
 ## Component library
 

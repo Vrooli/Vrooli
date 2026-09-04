@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -132,7 +133,7 @@ func (h *ConnectHandler) DeleteDownloadApp(_ context.Context, request *connect.R
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("app_key is required"))
 	}
 	if err := h.catalog.DeleteApp(h.bundleKey(), key); err != nil {
-		if err == internal.ErrAppNotFound {
+		if errors.Is(err, internal.ErrAppNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete download app: %w", err))

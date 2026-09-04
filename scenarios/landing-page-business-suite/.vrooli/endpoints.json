@@ -1347,6 +1347,22 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-metricsservice-gettrafficbreakdown",
+      "path": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-metricsservice-gettrafficseries",
+      "path": "/landing_page_business_suite.v1.MetricsService/GetTrafficSeries",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MetricsService/GetTrafficSeries",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-metricsservice-getvariantstats",
       "path": "/landing_page_business_suite.v1.MetricsService/GetVariantStats",
       "method": "POST",

@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
+
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	"landing-page-business-suite-api/internal/commerce"
 )
 
 // StripeImportPreview and StripeProductWithPrices are aliases for the
@@ -48,7 +50,7 @@ func (s *StripeService) ConfigSnapshot() *landing_page_business_suite_v1.StripeC
 }
 
 func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planStore *commerce.PlanStore) (*StripeImportPreview, error) {
-	preview, err := commerce.ListStripeProductsWithPrices(ctx, stripeCouponRequester{service: s}, planStore, logStructuredError)
+	preview, err := commerce.ListStripeProductsWithPrices(ctx, stripeCouponRequester{service: s}, planStore, logx.Error)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +58,7 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 }
 
 func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID string) (*commerce.StripePriceImport, error) {
-	return commerce.FetchStripePriceDetails(ctx, stripeCouponRequester{service: s}, priceID, nil, logStructuredError)
+	return commerce.FetchStripePriceDetails(ctx, stripeCouponRequester{service: s}, priceID, nil, logx.Error)
 }
 
 func (s *StripeService) webhookService() *commerce.StripeWebhookService {
@@ -101,8 +103,8 @@ func (s *StripeService) webhookService() *commerce.StripeWebhookService {
 		MarkIntroUsed:         s.markIntroUsed,
 		ExtractIntroCoupon:    s.extractIntroCouponFromInvoice,
 		LogIntroAnomaly:       s.logIntroAnomaly,
-		Log:                   logStructured,
-		LogError:              logStructuredError,
+		Log:                   logx.Info,
+		LogError:              logx.Error,
 	})
 }
 
@@ -115,15 +117,15 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 }
 
 func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error {
-	return s.webhookService().HandleCustomerUpdatedForComposition(obj)
+	return s.webhookService().HandleCustomerUpdated(obj)
 }
 
 func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
-	return s.webhookService().PersistInvoiceStatusForComposition(subscriptionID, customerID, customerEmail, priceID, status)
+	return s.webhookService().PersistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status)
 }
 
 func (s *StripeService) billingIntervalDuration(interval shared.BillingInterval) time.Duration {
-	return s.webhookService().BillingIntervalDurationForComposition(interval)
+	return s.webhookService().BillingIntervalDuration(interval)
 }
 
 // StripeCheckoutService handles checkout session creation and price verification.

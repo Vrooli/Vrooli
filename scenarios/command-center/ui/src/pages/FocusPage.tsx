@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { AmbientShell } from "../components/AmbientShell";
-import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
+import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
 import { useBoardController } from "../lib/boardContext";
 import { fetchFocus, type FocusEntry, type FocusKind } from "../lib/api";
 

@@ -10,6 +10,7 @@ import (
 
 	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
@@ -36,7 +37,7 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructured, LogError: logStructuredError}))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.Code)
@@ -91,7 +92,7 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructured, LogError: logStructuredError}))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
@@ -134,7 +135,7 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructured, LogError: logStructuredError}))(resp, req)
+	server.requireAdmin(varianthttp.Sync(varianthttp.WriteDependencies{Store: cs, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logx.Info, LogError: logx.Error}))(resp, req)
 
 	// ConfigStore.LoadAll returns an error when variantsDir points to a file instead of a directory
 	// So we expect 500 here

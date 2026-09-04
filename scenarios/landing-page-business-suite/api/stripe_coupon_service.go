@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // stripeCouponRequester is the root composition adapter for authenticated
@@ -20,11 +21,11 @@ func (s *StripeService) couponProvider() *commerce.StripeCouponProvider {
 }
 
 func (s *StripeService) subscriptionManagementService() *commerce.SubscriptionManagementService {
-	return commerce.NewSubscriptionManagementService(s.db, stripeCouponRequester{service: s}, logStructuredError)
+	return commerce.NewSubscriptionManagementService(s.db, stripeCouponRequester{service: s}, logx.Error)
 }
 
 func (s *StripeService) subscriptionRefresher() *commerce.SubscriptionRefresher {
-	return commerce.NewSubscriptionRefresher(s.db, s.planService, stripeCouponRequester{service: s}, logStructured)
+	return commerce.NewSubscriptionRefresher(s.db, s.planService, stripeCouponRequester{service: s}, logx.Info)
 }
 
 func (s *StripeService) ListCoupons(ctx context.Context) ([]commerce.Coupon, error) {

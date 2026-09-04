@@ -11,6 +11,8 @@ import type { AnalyticsSummary, VariantStats } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/useLandingVariant";
 import { useAdminAnalytics } from "../hooks/useAdminAnalytics";
 import { RESOLUTION_LABELS } from "../config/variant.constants";
+import { TrafficAttributionSection } from "../components/TrafficAttributionSection";
+import { buildDateRange } from "../controllers/analyticsController";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
@@ -159,6 +161,10 @@ export function AdminAnalytics() {
           />
         </ErrorBoundary>
 
+        <ErrorBoundary level="section" name="TrafficAttributionSection">
+          <TrafficAttributionSection range={buildDateRange(parseInt(timeRange, 10))} />
+        </ErrorBoundary>
+
         {/* Summary cards - OT-P0-023 */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className={LAYOUT.card.base} data-testid="analytics-total-visitors">
@@ -244,8 +250,9 @@ export function AdminAnalytics() {
                         <th className="text-right py-3 px-4">Views</th>
                         <th className="text-right py-3 px-4">CTA Clicks</th>
                         <th className="text-right py-3 px-4">Conversions</th>
+                        <th className="text-right py-3 px-4">Exposures</th>
                         <th className="text-right py-3 px-4">Downloads</th>
-                        <th className="text-right py-3 px-4">Conv. Rate</th>
+                        <th className="text-right py-3 px-4">Conv. Rate / exposure</th>
                         <th className="text-right py-3 px-4">Trend</th>
                         <th className="text-right py-3 px-4"></th>
                       </tr>
@@ -264,6 +271,7 @@ export function AdminAnalytics() {
                           <td className="text-right py-4 px-4">{variant.views.toLocaleString()}</td>
                           <td className="text-right py-4 px-4">{variant.cta_clicks.toLocaleString()}</td>
                           <td className="text-right py-4 px-4">{variant.conversions.toLocaleString()}</td>
+                          <td className="text-right py-4 px-4">{(variant.exposures ?? 0).toLocaleString()}</td>
                           <td
                             className="text-right py-4 px-4"
                             data-testid={`analytics-downloads-${String(variant.variant_id)}`}
@@ -355,7 +363,7 @@ export function AdminAnalytics() {
                     <div className="text-2xl font-bold">{(variantDetails[0]?.conversions ?? 0).toLocaleString()}</div>
                   </div>
                   <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <div className="text-sm text-slate-400 mb-1">Conversion Rate</div>
+                      <div className="text-sm text-slate-400 mb-1">Conversion Rate / exposure</div>
                     <div className="text-2xl font-bold">{(variantDetails[0]?.conversion_rate ?? 0).toFixed(2)}%</div>
                   </div>
                   <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">

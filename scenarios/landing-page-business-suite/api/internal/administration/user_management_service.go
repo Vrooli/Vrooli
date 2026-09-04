@@ -3,6 +3,7 @@ package administration
 import (
 	"context"
 	"database/sql"
+	"log"
 	"strings"
 	"time"
 )
@@ -194,8 +195,11 @@ func (s *UserManagementService) enrich(ctx context.Context, user *UserAccountRes
 		user.Credits = &CreditInfo{Balance: balance, Bonus: bonus}
 	}
 
-	_ = s.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM user_sessions WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()`, user.ID).Scan(&user.SessionCount)
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM user_sessions WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()`, user.ID).Scan(&user.SessionCount); err != nil {
+		log.Printf("user session count lookup failed for user %s: %v", user.ID, err)
+		user.SessionCount = 0
+	}
 }
 
 type userAccountScanner interface{ Scan(...any) error }

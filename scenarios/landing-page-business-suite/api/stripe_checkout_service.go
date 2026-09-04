@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 
-	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
+
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
 
 // StripePriceInfo is the legacy API projection for typed price verification.
@@ -19,7 +21,7 @@ type StripePriceInfo struct {
 }
 
 func (s *StripeService) checkoutService() *commerce.CheckoutService {
-	return commerce.NewCheckoutService(commerce.CheckoutServiceOptions{Store: s.db, Plans: s.planService, Requester: stripeCouponRequester{service: s}, IntroOffers: s.introOfferService(), IntroCoupon: s.introCouponForTier, PublicKey: s.publishableKey, Log: logStructured})
+	return commerce.NewCheckoutService(commerce.CheckoutServiceOptions{Store: s.db, Plans: s.planService, Requester: stripeCouponRequester{service: s}, IntroOffers: s.introOfferService(), IntroCoupon: s.introCouponForTier, PublicKey: s.publishableKey, Log: logx.Info})
 }
 
 func (s *StripeService) introCouponForTier(tier string) string {
@@ -59,4 +61,8 @@ func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, e
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
 func (s *StripeService) CreateCheckoutSession(priceID, successURL, cancelURL, customerEmail string) (*lpbsv1.CheckoutSession, error) {
 	return s.checkoutService().Create(context.Background(), priceID, successURL, cancelURL, customerEmail)
+}
+
+func (s *StripeService) CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, customerEmail string, attribution commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
+	return s.checkoutService().CreateWithAttribution(context.Background(), priceID, successURL, cancelURL, customerEmail, attribution)
 }

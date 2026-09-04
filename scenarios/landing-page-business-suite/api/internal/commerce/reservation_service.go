@@ -130,7 +130,7 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 	}
 
 	err = tx.QueryRowContext(ctx, query, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("get current usage: %w", err)
 	}
 
@@ -252,7 +252,7 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 			FROM usage_records
 			WHERE user_identity = ? AND billing_period = ? AND limit_key = ?
 		`, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("get current usage: %w", err)
 		}
 
@@ -262,7 +262,7 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 			FROM credit_reservations
 			WHERE user_identity = ? AND billing_period = ? AND limit_key = ? AND status = 'pending'
 		`, userIdentity, billingPeriod, limitKey).Scan(&pendingReservations)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("get pending reservations: %w", err)
 		}
 	} else {
@@ -276,7 +276,7 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 				FOR UPDATE
 			) AS locked_usage
 		`, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("get current usage: %w", err)
 		}
 
@@ -290,7 +290,7 @@ func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, t
 				FOR UPDATE
 			) AS locked_reservations
 		`, userIdentity, billingPeriod, limitKey).Scan(&pendingReservations)
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("get pending reservations: %w", err)
 		}
 	}
@@ -399,7 +399,7 @@ func (s *ReservationService) FinalizeReservation(ctx context.Context, reservatio
 
 	err = tx.QueryRowContext(ctx, getQuery, reservationID).Scan(&userIdentity, &billingPeriod, &limitKey, &reservedAmount, &status)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("reservation not found: %s", reservationID)
 		}
 		return fmt.Errorf("get reservation: %w", err)

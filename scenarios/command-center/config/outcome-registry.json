@@ -27,10 +27,18 @@
       "metricIds": [
         "active_scenarios",
         "scenario_health",
+        "scenario_health_detail",
         "swarm_throughput",
         "swarm_active_agents",
+        "timing_stats",
         "revenue_mrr",
         "revenue_today"
+      ],
+      "beats": [
+        {"hero": "active_scenarios", "dwellSeconds": 12},
+        {"hero": "swarm_active_agents", "dwellSeconds": 12},
+        {"hero": "scenario_health_detail", "dwellSeconds": 12},
+        {"hero": "timing_stats", "dwellSeconds": 12}
       ]
     },
     {
@@ -48,7 +56,16 @@
         "scenario_completeness",
         "scenario_health_detail",
         "scenario_ports",
-        "scenario_usage_frequency"
+        "scenario_usage_frequency",
+        "goal_progress",
+        "release_ladder"
+      ],
+      "beats": [
+        {"hero": "total_scenarios", "dwellSeconds": 12},
+        {"hero": "scenario_completeness", "dwellSeconds": 12},
+        {"hero": "scenario_usage_frequency", "dwellSeconds": 12},
+        {"hero": "scenario_health_detail", "dwellSeconds": 12},
+        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 16}
       ]
     },
     {
@@ -68,7 +85,18 @@
         "blocking_stats",
         "agent_stats",
         "dashboard_stats",
-        "review_stats"
+        "review_stats",
+        "goal_progress",
+        "release_ladder",
+        "deployment_readiness"
+      ],
+      "beats": [
+        {"hero": "throughput_stats", "dwellSeconds": 10},
+        {"hero": "timing_stats", "dwellSeconds": 10},
+        {"hero": "review_stats", "dwellSeconds": 10},
+        {"hero": "goal_progress", "dwellSeconds": 16},
+        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 10},
+        {"hero": "deployment_readiness", "dwellSeconds": 10}
       ]
     },
     {
@@ -88,6 +116,13 @@
         "credit_balances",
         "credit_consumption",
         "usage_records"
+      ],
+      "beats": [
+        {"hero": "subscriber_counts", "dwellSeconds": 12},
+        {"hero": "revenue_rollup", "dwellSeconds": 12},
+        {"hero": "churn", "dwellSeconds": 12},
+        {"hero": "credit_balances", "dwellSeconds": 12},
+        {"hero": "credit_consumption", "dwellSeconds": 12}
       ]
     },
     {
@@ -106,9 +141,23 @@
         "cta_clicks",
         "scroll_depth",
         "variant_ab",
+        "traffic_countries",
+        "traffic_referrers",
+        "traffic_campaigns",
+        "traffic_devices",
+        "traffic_landing_paths",
+        "traffic_variants",
         "social_reach",
         "seo_rankings",
         "campaign_metrics"
+      ],
+      "beats": [
+        {"hero": "traffic_countries", "composition": "meridian-arc", "dwellSeconds": 10},
+        {"hero": "visitors", "dwellSeconds": 10},
+        {"hero": "traffic_referrers", "composition": "meridian-arc", "dwellSeconds": 16},
+        {"hero": "traffic_campaigns", "composition": "meridian-arc", "dwellSeconds": 16},
+        {"hero": "conversions", "dwellSeconds": 10},
+        {"hero": "variant_ab", "dwellSeconds": 10}
       ]
     },
     {
@@ -792,6 +841,173 @@
           48200
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "traffic_countries",
+      "label": "Traffic by country",
+      "description": "Ranked country breakdown of measured landing-page visitors.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=country&limit=6",
+        "select": "traffic_countries",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "traffic_countries",
+        "contractVersion": "legacy.v1",
+        "selector": "traffic_countries",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "trust": "UNAVAILABLE",
+      "empirical": "NONE",
+      "sample": {
+        "value": 840,
+        "series": [840],
+        "rows": [
+          {"key": "US", "label": "United States", "value": 420, "share": 0.50},
+          {"key": "GB", "label": "United Kingdom", "value": 210, "share": 0.25},
+          {"key": "DE", "label": "Germany", "value": 126, "share": 0.15},
+          {"key": "CA", "label": "Canada", "value": 84, "share": 0.10}
+        ],
+        "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "traffic_referrers",
+      "label": "Traffic by referrer",
+      "description": "Ranked referrer-kind breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=referrer_kind&limit=6", "select": "traffic_referrers", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_referrers", "contractVersion": "legacy.v1", "selector": "traffic_referrers", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "search", "label": "Search", "value": 45, "share": 0.45}, {"key": "referral", "label": "Referral", "value": 30, "share": 0.30}, {"key": "direct", "label": "Direct", "value": 25, "share": 0.25}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_campaigns",
+      "label": "Traffic by campaign",
+      "description": "Ranked UTM campaign breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=utm_campaign&limit=6", "select": "traffic_campaigns", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_campaigns", "contractVersion": "legacy.v1", "selector": "traffic_campaigns", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "spring", "label": "Spring launch", "value": 55, "share": 0.55}, {"key": "founder", "label": "Founder note", "value": 30, "share": 0.30}, {"key": "none", "label": "Unattributed", "value": 15, "share": 0.15}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_devices",
+      "label": "Traffic by device",
+      "description": "Ranked device-class breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=device_class&limit=6", "select": "traffic_devices", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_devices", "contractVersion": "legacy.v1", "selector": "traffic_devices", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "desktop", "label": "Desktop", "value": 60, "share": 0.60}, {"key": "mobile", "label": "Mobile", "value": 35, "share": 0.35}, {"key": "tablet", "label": "Tablet", "value": 5, "share": 0.05}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_landing_paths",
+      "label": "Traffic by landing path",
+      "description": "Ranked landing-path breakdown of visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=landing_path&limit=6", "select": "traffic_landing_paths", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_landing_paths", "contractVersion": "legacy.v1", "selector": "traffic_landing_paths", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "/", "label": "Home", "value": 70, "share": 0.70}, {"key": "/pricing", "label": "Pricing", "value": 20, "share": 0.20}, {"key": "/docs", "label": "Docs", "value": 10, "share": 0.10}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_variants",
+      "label": "Traffic by variant",
+      "description": "Ranked experiment-variant breakdown of visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=variant_slug&limit=6", "select": "traffic_variants", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_variants", "contractVersion": "legacy.v1", "selector": "traffic_variants", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "control", "label": "Control", "value": 52, "share": 0.52}, {"key": "variant-a", "label": "Variant A", "value": 48, "share": 0.48}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "release_ladder",
+      "label": "Release ladder",
+      "description": "Ranked deliverables reported by Offer Desk.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:offer-desk",
+        "read": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder",
+        "select": "release_ladder",
+        "ttlSeconds": 300,
+        "integrationId": "offer-desk",
+        "featureId": "release_ladder",
+        "contractVersion": "legacy.v1",
+        "selector": "release_ladder",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 3,
+        "series": [3],
+        "rows": [
+          {"key": "release-1", "label": "Foundation", "value": 1, "share": 0.3333, "detail": "ready"},
+          {"key": "release-2", "label": "Capability", "value": 2, "share": 0.3333, "detail": "active"},
+          {"key": "release-3", "label": "Polish", "value": 3, "share": 0.3334, "detail": "planned"}
+        ],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "goal_progress",
+      "label": "Goal progress",
+      "description": "Progress rows and ETA bands reported by Swarm Manager.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/goals",
+        "select": "goal_progress",
+        "ttlSeconds": 300,
+        "integrationId": "swarm-manager",
+        "featureId": "goal_progress",
+        "contractVersion": "legacy.v1",
+        "selector": "goal_progress",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 6,
+        "series": [6],
+        "rows": [
+          {"key": "scenario-readiness", "label": "Scenario readiness", "value": 6, "share": 0.6, "detail": "4.0h–9.0h ETA"},
+          {"key": "traffic-instrument", "label": "Traffic instrument", "value": 3, "share": 0.3, "detail": "8.0h–16.0h ETA"},
+          {"key": "release-proof", "label": "Release proof", "value": 1, "share": 0.1, "detail": "2.0h–4.0h ETA"}
+        ],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "deployment_readiness",
+      "label": "Deployment readiness",
+      "description": "Whether Deployment Manager has opened and anchored the readiness goal.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:deployment-manager",
+        "read": "/api/v1/readiness/state",
+        "select": "deployment_readiness",
+        "ttlSeconds": 300,
+        "integrationId": "deployment-manager",
+        "featureId": "deployment_readiness",
+        "contractVersion": "legacy.v1",
+        "selector": "deployment_readiness",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 1,
+        "series": [1],
+        "rows": [{"key": "readiness", "label": "Readiness goal present", "value": 1, "share": 1, "detail": "closed=false"}],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
       }
     },
     {

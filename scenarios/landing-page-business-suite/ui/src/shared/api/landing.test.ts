@@ -133,14 +133,14 @@ describe('landing API', () => {
       expect(result.intro_offers?.[0]).toMatchObject({ amount_off: 10, redeem_by: 10, duration_in_months: 2 });
     });
 
-    it('calls endpoint without variant param when not provided', async () => {
+    it('calls endpoint with an empty variant and no visitor when neither is provided', async () => {
       await getLandingConfig();
-      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith({ variantSlug: undefined });
+      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith(expect.objectContaining({ variantSlug: '', visitorId: '' }));
     });
 
     it('includes variant param when provided', async () => {
       await getLandingConfig('dark-theme');
-      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith({ variantSlug: 'dark-theme' });
+      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith(expect.objectContaining({ variantSlug: 'dark-theme', visitorId: '' }));
     });
 
     it('throws on server error', async () => {

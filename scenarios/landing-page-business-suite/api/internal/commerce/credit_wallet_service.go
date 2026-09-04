@@ -164,7 +164,7 @@ func (s *CreditWalletService) ConsumeCreditsIdempotent(ctx context.Context, emai
 	err = tx.QueryRowContext(ctx, `
 		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1 FOR UPDATE
 	`, normalizeEmail(email)).Scan(&balance)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return errors.New("no credit wallet found for user")
 	}
 	if err != nil {

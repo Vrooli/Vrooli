@@ -34,7 +34,7 @@ func (s *UserAuthService) RefreshTokens(ctx context.Context, refreshToken string
 		WHERE refresh_token_hash = $1
 	`, tokenHash).Scan(&sessionID, &userID, &familyID, &expiresAt, &revoked)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		var historyFamily string
 		if historyErr := s.db.QueryRowContext(ctx, `SELECT family_id FROM refresh_token_history WHERE refresh_token_hash = $1`, tokenHash).Scan(&historyFamily); historyErr == nil {
 			_, _ = s.db.ExecContext(ctx, `UPDATE user_sessions SET revoked = TRUE WHERE refresh_token_family_id = $1`, historyFamily)

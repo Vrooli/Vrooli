@@ -2533,6 +2533,16 @@
       "service": "AdminRevenueService",
       "method": "GetRevenueSummary",
       "reason": "The finance rollup is an admin dashboard endpoint; the CLI exposes no credential-bearing revenue command."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetTrafficBreakdown",
+      "reason": "Traffic breakdowns are consumed by the Command Center dashboard and intentionally have no standalone CLI command."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetTrafficSeries",
+      "reason": "Traffic series are consumed by the Command Center dashboard and intentionally have no standalone CLI command."
     }
   ]
 }

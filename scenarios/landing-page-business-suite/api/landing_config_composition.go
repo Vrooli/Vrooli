@@ -7,11 +7,12 @@ import (
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/landing"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func newLandingConfigService(configStore *experimentation.ConfigStore, planService *commerce.PlanService, downloadService *delivery.CatalogService, stripe *StripeService) *landing.LandingConfigService {
 	service := landing.NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, landingIntroOfferLookup(stripe))
-	service.UseEventLogger(logStructured)
+	service.UseEventLogger(logx.Info)
 	return service
 }
 

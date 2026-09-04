@@ -17,9 +17,9 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | Team | Instrument | Status | Archetype | What the board can read |
 |---|---|---|---|---|
 | `meta-optimization` | `meta-optimization-manager` | `live` | coverage-board | The reference case. One address, named projections, denominator-confidence, the two attestation axes. Readable cleanly, with confidence attached to every ratio. |
-| `monetization` | `offer-desk` | `live` | production-ledger | Live but ledger-shaped, covering `offer-desk` and `money-ledger`. Readable; the revenue and subscription surface the Ledger room needs is not yet exposed. |
+| `monetization` | `offer-desk` | `live` | production-ledger | Live but ledger-shaped. The release ladder is readable; revenue and subscription attribution remain LPBS-owned projections. |
 | `infra-health` | `infrastructure-manager` | `partial` | coverage-board | Wired, with a long stated gap marker: setpoint confidence `SKETCH`, most peer sources untyped, capability availability history unavailable, and the team loop paused since 2026-07-24. Readable with confidence attached. |
-| `marketing-crew` | *none named* | `partial` | production-ledger | Covers `content-desk` and `asset-studio` but names no aggregator, and the social-scheduling capability "has no scenario at all — that capability is unowned, not merely unaggregated." Not readable as one surface. |
+| `marketing-crew` | `landing-page-business-suite` | `partial` | production-ledger | LPBS provides dimensioned visitor, referrer, campaign, device, path, and variant projections. Social reach and SEO remain declared gaps. |
 | `director-swarm` | *two addresses* | `partial` | production-ledger | The team this board serves. `swarm-manager` holds portfolio state and is read as a source; this scenario becomes the address. |
 | `scenario-qa` | *none* | `none` | coverage-board | "test-genie, scenario-auditor, scenario-completeness-scoring and tidiness-manager each hold part of the answer and no denominator is authored." No control loop, no room today. |
 
@@ -31,7 +31,7 @@ Read live from each team's `instrument` block. Observed 2026-09-01.
 | The Hive | Vrooli control plane, `meta-optimization-manager` | Mostly `NOW`. Usage frequency is `MISSING` — nothing anywhere collects invocation counts. |
 | The Forge | `swarm-manager` | Fully `NOW`-capable. The only room whose sources are all live today. |
 | Ledger | `offer-desk`, `money-ledger`, `landing-page-business-suite` | The monetization instrument is `live` but exposes no revenue surface, so readings are `IN-REACH`, not `MISSING`. A pipeline, not a control loop, is what is absent. |
-| Broadcast | *none available* | `marketing-crew` has no aggregator, and one capability is unowned. Readings are `MISSING` with the team named — **one finding, not six.** |
+| Broadcast | `landing-page-business-suite` | LPBS provides the traffic projections; unimplemented social and SEO capabilities remain explicit gaps. |
 | Panorama | Composed from the five above | Inherits the worst state of its inputs, per input. Cannot be more honest than what feeds it. |
 
 ## Reading a source

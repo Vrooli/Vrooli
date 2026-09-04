@@ -5,6 +5,8 @@ import { ledgerRiver } from "./ledgerRiver";
 import { orbitalField } from "./orbitalField";
 import { panoramaConstellation } from "./panoramaConstellation";
 import { signalConstellation } from "./signalConstellation";
+import { meridianArc } from "./meridianArc";
+import { funnelCascade } from "./funnelCascade";
 
 /** Compositions are bound by name from the registry; an unknown name gets the orbital field. */
 export const compositions: Record<string, () => Scene> = {
@@ -14,6 +16,8 @@ export const compositions: Record<string, () => Scene> = {
   "ledger-river": ledgerRiver,
   "signal-constellation": signalConstellation,
   "panorama-constellation": panoramaConstellation,
+  "meridian-arc": meridianArc,
+  "funnel-cascade": funnelCascade,
 };
 
 export const createScene = (composition: string): Scene => (compositions[composition] ?? orbitalField)();

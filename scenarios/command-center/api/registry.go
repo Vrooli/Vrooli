@@ -42,6 +42,8 @@ const (
 	SourceSwarm  UpstreamSource = "swarm"
 	SourceVrooli UpstreamSource = "vrooli"
 	SourceLPBS   UpstreamSource = "lpbs"
+	SourceOffer  UpstreamSource = "offer-desk"
+	SourceDeploy UpstreamSource = "deployment-manager"
 	SourceNone   UpstreamSource = "none"
 )
 
@@ -54,9 +56,10 @@ const (
 )
 
 type Sample struct {
-	Value  any    `json:"value"`
-	Series []any  `json:"series"`
-	Basis  string `json:"basis"`
+	Value  any        `json:"value"`
+	Series []any      `json:"series"`
+	Rows   []PanelRow `json:"rows,omitempty"`
+	Basis  string     `json:"basis"`
 }
 type SourceBinding struct {
 	Team                string `json:"team"`
@@ -93,6 +96,7 @@ type Prediction struct {
 type MetricEntry struct {
 	ID                   string           `json:"id"`
 	Label                string           `json:"label"`
+	Kind                 string           `json:"kind,omitempty"`
 	Description          string           `json:"description,omitempty"`
 	Unit                 string           `json:"unit,omitempty"`
 	Format               string           `json:"format,omitempty"`
@@ -103,6 +107,7 @@ type MetricEntry struct {
 	TrustReason          string           `json:"trustReason,omitempty"`
 	Empirical            Empirical        `json:"empirical"`
 	Value                any              `json:"value"`
+	Rows                 []PanelRow       `json:"rows,omitempty"`
 	ObservedAt           *time.Time       `json:"observedAt"`
 	TTLSeconds           int              `json:"ttlSeconds"`
 	Target               *Target          `json:"target"`
@@ -127,6 +132,13 @@ type Room struct {
 	Composition   string              `json:"composition,omitempty"`
 	Theme         string              `json:"theme,omitempty"`
 	MetricIDs     []string            `json:"metricIds,omitempty"`
+	Beats         []Beat              `json:"beats,omitempty"`
+}
+
+type Beat struct {
+	Hero         string  `json:"hero"`
+	Composition  string  `json:"composition,omitempty"`
+	DwellSeconds float64 `json:"dwellSeconds,omitempty"`
 }
 type Tombstone struct {
 	ID           string `json:"id"`

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -790,7 +791,9 @@ func (s *RemoteProfileService) Test(ctx context.Context, id int64) (*RemoteProfi
 
 	authenticated, err := s.remoteSessionCheck(ctx, rec.APIBase, sessionValue)
 	if err != nil {
-		_ = s.updateStatus(ctx, id, remoteProfileStatusError)
+		if statusErr := s.updateStatus(ctx, id, remoteProfileStatusError); statusErr != nil {
+			log.Printf("remote profile status update failed after session check error: %v", statusErr)
+		}
 		return nil, err
 	}
 

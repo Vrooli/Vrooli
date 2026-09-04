@@ -210,15 +210,6 @@ const FEATURE_CONFIGS: FeatureConfig[] = [
     gradient: 'from-green-500/20 to-emerald-500/20',
     accentColor: 'green',
   },
-  // TODO: Re-enable when AI workflow generation ships
-  // {
-  //   id: 'ai-powered',
-  //   title: 'AI-Powered',
-  //   label: 'AI generates your workflow (Coming Soon)',
-  //   icon: <Sparkles size={16} />,
-  //   gradient: 'from-purple-500/20 to-pink-500/20',
-  //   accentColor: 'purple',
-  // },
 ];
 
 const CYCLE_DURATION = 6000;
@@ -711,8 +702,6 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
     <RecordModePreview key="record" isActive={activeIndex === 0 && !isTransitioning} />,
     <VisualBuilderPreview key="visual" isActive={activeIndex === 1 && !isTransitioning} />,
     <TestMonitorPreview key="test" isActive={activeIndex === 2 && !isTransitioning} />,
-    // TODO: Re-enable when AI workflow generation ships
-    // <AIPreview key="ai" isActive={activeIndex === 3 && !isTransitioning} />,
   ];
 
   return (

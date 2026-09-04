@@ -13,6 +13,7 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // Payments is the billing-domain capability exposed through the generated
@@ -22,6 +23,10 @@ type Payments interface {
 	VerifySubscription(string) (*shared.SubscriptionStatus, error)
 	CancelSubscription(string) (*lpbsv1.CancelSubscriptionResponse, error)
 	CreateBillingPortalSession(context.Context, string, string) (*lpbsv1.BillingPortalResponse, error)
+}
+
+type AttributedPayments interface {
+	CreateCheckoutSessionWithAttribution(string, string, string, string, commerce.Attribution) (*lpbsv1.CheckoutSession, error)
 }
 
 type ConnectDependencies struct {
@@ -69,7 +74,12 @@ func (h *ConnectHandler) CreateCheckoutSession(_ context.Context, request *conne
 	if err != nil {
 		return nil, invalidArgument("invalid cancel_url: %v", err)
 	}
-	session, err := h.deps.Payments.CreateCheckoutSession(priceID, successURL, cancelURL, email)
+	var session *lpbsv1.CheckoutSession
+	if attributed, ok := h.deps.Payments.(AttributedPayments); ok {
+		session, err = attributed.CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, email, commerce.Attribution{VisitorID: input.GetVisitorId(), UTMSource: input.GetUtmSource(), UTMMedium: input.GetUtmMedium(), UTMCampaign: input.GetUtmCampaign(), ReferrerKind: input.GetReferrerKind(), CountryCode: input.GetCountryCode()})
+	} else {
+		session, err = h.deps.Payments.CreateCheckoutSession(priceID, successURL, cancelURL, email)
+	}
 	if err != nil {
 		return nil, internal("create checkout session", err)
 	}

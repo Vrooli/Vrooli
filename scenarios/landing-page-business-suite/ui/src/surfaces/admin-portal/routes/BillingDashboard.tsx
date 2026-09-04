@@ -17,6 +17,8 @@ import { LAYOUT } from '../config/layout.constants';
 import { useAdminHome } from '../hooks/useAdminHome';
 import { isStripeFullyConfigured, isStripePartiallyConfigured } from '../services/billing.service';
 import { useAdminRevenue } from '../hooks/useAdminRevenue';
+import { RevenueByCampaign } from '../components/TrafficAttributionSection';
+import { buildDateRange } from '../controllers/analyticsController';
 
 /**
  * Billing Dashboard - Entry point for payment and monetization management
@@ -77,7 +79,11 @@ export function BillingDashboard() {
             <p className="mt-2 text-3xl font-semibold text-sky-200">{displayRevenue ? displayRevenue.credit_balance_total.toLocaleString() : '—'}</p>
             <p className="mt-1 text-xs text-slate-500">{displayRevenue?.credit_burned_window ?? 'No sample'} burned in 30 days</p>
           </div>
-          {revenue?.observed_at && <p className="md:col-span-2 xl:col-span-4 text-xs text-slate-500">Observed {new Date(revenue.observed_at).toLocaleString()} · {revenue.usage_records_window} usage records in 30 days{revenue.currency_excluded_count > 0 ? ` · ${revenue.currency_excluded_count} currency excluded` : ''}</p>}
+          {revenue?.observed_at && <p className="md:col-span-2 xl:col-span-4 text-xs text-slate-500">Observed {new Date(revenue.observed_at).toLocaleString()} · {String(revenue.usage_records_window)} usage records in 30 days{revenue.currency_excluded_count > 0 ? ` · ${String(revenue.currency_excluded_count)} currency excluded` : ''}</p>}
+        </div>
+
+        <div className="mb-8">
+          <RevenueByCampaign range={buildDateRange(30)} />
         </div>
 
         {/* Quick Flows */}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"landing-page-business-suite-api/internal/logx"
+
 	"github.com/vrooli/api-core/health"
 )
 
@@ -180,17 +182,23 @@ func TestLogStructured(t *testing.T) {
 		log.SetFlags(previousFlags)
 	})
 
-	logStructured("test_event", map[string]interface{}{
+	logx.Info(`test "event"`, map[string]interface{}{
 		"key":   "value",
 		"count": 42,
 	})
 
-	logStructured("test_event_no_fields", nil)
+	logx.Info("test_event_no_fields", nil)
 	logged := output.String()
-	if !strings.Contains(logged, `"message":"test_event"`) || !strings.Contains(logged, `"count":42`) {
+	if !strings.Contains(logged, `"msg":"test \"event\""`) || !strings.Contains(logged, `"count":42`) {
 		t.Fatalf("structured event log missing expected fields: %s", logged)
 	}
-	if !strings.Contains(logged, `"message":"test_event_no_fields"`) {
+	if !strings.Contains(logged, `"msg":"test_event_no_fields"`) {
 		t.Fatalf("structured event without fields missing: %s", logged)
+	}
+	for _, line := range strings.Split(strings.TrimSpace(logged), "\n") {
+		var record map[string]any
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("structured log is not valid JSON: %v (%s)", err, line)
+		}
 	}
 }

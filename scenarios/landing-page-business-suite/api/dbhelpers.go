@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 )
@@ -231,15 +232,17 @@ func WithTransaction(ctx context.Context, db TransactionStarter, opts *sql.TxOpt
 	// Ensure rollback is called if commit doesn't happen
 	defer func() {
 		if p := recover(); p != nil {
-			_ = tx.Rollback() // Ignore error on panic recovery path
-			panic(p)          // Re-throw panic after rollback
+			if err := tx.Rollback(); err != nil {
+				log.Printf("transaction rollback failed during panic recovery: %v", err)
+			}
+			panic(p) // Re-throw panic after rollback
 		}
 	}()
 
 	if err := fn(tx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil {
-			return fmt.Errorf("rollback failed after error (%v): %w", err, rbErr)
+			return fmt.Errorf("rollback failed after error: %w (original: %w)", rbErr, err)
 		}
 		return err
 	}

@@ -12,7 +12,7 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(reg.Metrics) != 37 {
+	if len(reg.Metrics) != 46 {
 		t.Fatalf("metrics = %d, want current authored set", len(reg.Metrics))
 	}
 	for _, metric := range reg.Metrics {
@@ -55,6 +55,9 @@ func TestOutcomeRegistrySelectorsAreDeclared(t *testing.T) {
 			continue
 		}
 		if _, ok := selectors[metric.Source.Selector]; !ok {
+			if _, panelOK := panelSelectors[metric.Source.Selector]; panelOK {
+				continue
+			}
 			t.Errorf("metric %q names undeclared selector %q", metric.ID, metric.Source.Selector)
 		}
 	}
@@ -141,7 +144,7 @@ func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 37 {
+	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 46 {
 		t.Fatalf("schema=%s metrics=%d", reg.SchemaVersion, len(reg.Metrics))
 	}
 	for _, m := range reg.Metrics {

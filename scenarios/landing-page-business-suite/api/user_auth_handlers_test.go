@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -358,7 +359,7 @@ func TestLogoutHandler(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when using refresh token after logout")
 	}
-	if err != administration.ErrSessionRevoked {
+	if !errors.Is(err, administration.ErrSessionRevoked) {
 		t.Errorf("Expected administration.ErrSessionRevoked, got %v", err)
 	}
 }

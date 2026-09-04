@@ -8,6 +8,7 @@ import (
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/intelligence"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // newMeteredInferenceHandler is the API composition point for the AI HTTP boundary.
@@ -42,7 +43,7 @@ func newMeteredInferenceDependencies(service intelligence.MeteredInferenceProvid
 		WriteJSONError: func(w http.ResponseWriter, status int, message, errorType string) {
 			writeJSONError(w, status, message, errorType)
 		},
-		Log:      logStructured,
-		LogError: logStructuredError,
+		Log:      logx.Info,
+		LogError: logx.Error,
 	}
 }

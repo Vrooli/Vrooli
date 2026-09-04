@@ -99,7 +99,10 @@ func VerifyMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 func RefreshTokens(deps UserAuthDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request TokenRefreshRequest
-		_ = json.NewDecoder(r.Body).Decode(&request)
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			deps.WriteError(w, http.StatusBadRequest, "Malformed request body", "validation")
+			return
+		}
 		refreshToken := request.RefreshToken
 		if refreshToken == "" {
 			if cookie, err := r.Cookie("refresh_token"); err == nil {

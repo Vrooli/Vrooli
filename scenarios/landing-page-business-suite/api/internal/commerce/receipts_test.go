@@ -67,7 +67,7 @@ func TestReceiptValidatorsRejectWrongSourceAndUnknownRail(t *testing.T) {
 	validator := AppleReceiptValidator{Verify: func(context.Context, Receipt) (NormalizedSubscription, error) {
 		return NormalizedSubscription{}, nil
 	}}
-	if _, err := validator.Validate(context.Background(), Receipt{Source: "google", Token: "x"}); err != ErrReceiptInvalid {
+	if _, err := validator.Validate(context.Background(), Receipt{Source: "google", Token: "x"}); !errors.Is(err, ErrReceiptInvalid) {
 		t.Fatalf("wrong source error = %v", err)
 	}
 	if _, err := (ReceiptValidators{"apple": validator}).Validate(context.Background(), Receipt{Source: "play", Token: "x"}); err == nil {

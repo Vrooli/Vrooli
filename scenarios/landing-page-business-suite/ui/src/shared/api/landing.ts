@@ -1,11 +1,12 @@
 import { createClient } from '@connectrpc/connect';
-import { toJson, type JsonValue } from '@bufbuild/protobuf';
+import { create, toJson, type JsonValue } from '@bufbuild/protobuf';
 import {
   PricingService,
   type GetPricingResponse,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/pricing_pb';
 import {
   LandingConfigResponseSchema as LandingConfigMessageSchema,
+  GetLandingConfigRequestSchema,
   LandingConfigService,
   type LandingConfigResponse as LandingConfigMessage,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/config_pb';
@@ -296,8 +297,8 @@ function normalizeLandingConfig(value: JsonValue): LandingConfigResponse {
   );
 }
 
-export function getLandingConfig(variantSlug?: string) {
-  return landingConfigClient.getLandingConfig({ variantSlug }).then((response: LandingConfigMessage) => {
+export function getLandingConfig(variantSlug?: string, visitorId?: string) {
+  return landingConfigClient.getLandingConfig(create(GetLandingConfigRequestSchema, { variantSlug: variantSlug ?? '', visitorId: visitorId ?? '' })).then((response: LandingConfigMessage) => {
     const raw = toJson(LandingConfigMessageSchema, response, { useProtoFieldName: true });
     return normalizeLandingConfig(raw);
   });

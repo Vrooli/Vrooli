@@ -88,7 +88,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(getLandingConfigMock).toHaveBeenCalledWith('test-variant');
+    expect(getLandingConfigMock).toHaveBeenCalledWith('test-variant', expect.any(String));
 
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.config?.variant.slug).toEqual('test-variant');
@@ -106,7 +106,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(getLandingConfigMock).toHaveBeenCalledWith(undefined);
+    expect(getLandingConfigMock).toHaveBeenCalledWith(undefined, expect.any(String));
 
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
@@ -125,7 +125,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(getLandingConfigMock).toHaveBeenCalledWith('url-variant');
+    expect(getLandingConfigMock).toHaveBeenCalledWith('url-variant', expect.any(String));
 
     expect(result.current.variant?.slug).toEqual('url-variant');
   });
@@ -176,7 +176,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(getLandingConfigMock).toHaveBeenCalledWith('test-variant');
+    expect(getLandingConfigMock).toHaveBeenCalledWith('test-variant', expect.any(String));
     expect(result.current.variant?.slug).toEqual('test-variant');
   });
   it('supports manual refresh to re-sync landing config', async () => {

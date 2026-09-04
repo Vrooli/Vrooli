@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func (s *StripeService) introOfferService() *commerce.IntroOfferService {
-	return commerce.NewIntroOfferService(s.db, stripeCouponRequester{service: s}, logStructuredError)
+	return commerce.NewIntroOfferService(s.db, stripeCouponRequester{service: s}, logx.Error)
 }
 
 // checkIntroEligibility delegates durable offer policy to commerce.
@@ -91,7 +92,7 @@ func (s *StripeService) logIntroAnomaly(email, customerID, couponID, anomalyType
 		return
 	}
 	if s.paymentAnomaly == nil {
-		logStructuredError("intro_anomaly_log_insert_failed", map[string]interface{}{
+		logx.Error("intro_anomaly_log_insert_failed", map[string]interface{}{
 			"email":        email,
 			"customer_id":  customerID,
 			"coupon_id":    couponID,
@@ -109,7 +110,7 @@ func (s *StripeService) logIntroAnomaly(email, customerID, couponID, anomalyType
 		SubjectKind: "intro_coupon",
 		Details:     details,
 	}); err != nil {
-		logStructuredError("intro_anomaly_log_insert_failed", map[string]interface{}{
+		logx.Error("intro_anomaly_log_insert_failed", map[string]interface{}{
 			"email":        email,
 			"customer_id":  customerID,
 			"coupon_id":    couponID,

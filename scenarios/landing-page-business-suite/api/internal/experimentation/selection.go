@@ -2,10 +2,22 @@ package experimentation
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 )
+
+func WeightFingerprint(variants []*VariantSnapshot) string {
+	h := sha256.New()
+	for _, variant := range variants {
+		fmt.Fprintf(h, "%s:%d;", variant.Variant.Slug, VariantWeight(variant))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
 
 // Axis is the assignable vocabulary for one experiment dimension.
 type Axis struct {
@@ -85,6 +97,13 @@ func VariantWeight(snapshot *VariantSnapshot) int {
 // the historic deterministic fallback for zero-weight and entropy failures so
 // landing configuration remains available when selection cannot be randomized.
 func SelectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
+	return SelectVariantForVisitor(variants, "")
+}
+
+// SelectVariantForVisitor deterministically maps a non-empty visitor id into
+// the current weighted range. Empty ids retain entropy-based assignment for
+// callers that have not established an anonymous identity yet.
+func SelectVariantForVisitor(variants []*VariantSnapshot, visitorID string) *VariantSnapshot {
 	if len(variants) == 0 {
 		return nil
 	}
@@ -95,14 +114,21 @@ func SelectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
 	if totalWeight == 0 {
 		return variants[0]
 	}
-	picked, err := rand.Int(rand.Reader, big.NewInt(int64(totalWeight)))
-	if err != nil {
-		return variants[0]
+	var picked int64
+	if strings.TrimSpace(visitorID) != "" {
+		digest := sha256.Sum256([]byte(visitorID))
+		picked = int64(binary.BigEndian.Uint64(digest[:8]) % uint64(totalWeight))
+	} else {
+		value, err := rand.Int(rand.Reader, big.NewInt(int64(totalWeight)))
+		if err != nil {
+			return variants[0]
+		}
+		picked = value.Int64()
 	}
 	cumulative := 0
 	for _, variant := range variants {
 		cumulative += VariantWeight(variant)
-		if picked.Int64() < int64(cumulative) {
+		if picked < int64(cumulative) {
 			return variant
 		}
 	}

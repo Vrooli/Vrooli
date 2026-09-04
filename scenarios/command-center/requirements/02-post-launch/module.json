@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P1 operational targets: the provenance rendering contract, the composed rooms, the ambient shell, one intent vocabulary, audience modes, and the capability ladder.",
-    "last_validated_at": "2026-09-03T15:58:52-04:00",
+    "last_validated_at": "2026-09-03T20:44:22-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CC-P1-001",
       "title": "Provenance is rendered in material, not colour",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Each reading renders in a material determined by its coverage and trust pair: solid for NOW+VALID, dimmed with an age for NOW+CACHED, hollow outline for IN-REACH, dotted outline for MISSING. The material carries the state on its own; colour reinforces but is never the only signal, and a greyscale render remains unambiguous.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each coverage/trust pair maps to its material and survives a colour-stripped render [REQ:CC-P1-001]."
         }
       ]
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Qualifier presence per state and layout stability across state transitions [REQ:CC-P1-002]."
         },
         {
@@ -60,7 +60,7 @@
           "type": "test",
           "ref": "ui/src/scenes/engine.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Nonblank self-check triggers the fallback [REQ:CC-P1-003]."
         },
         {
@@ -109,7 +109,7 @@
     {
       "id": "CC-P1-006",
       "title": "Type composites above postprocessing",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "The figure layer is composited above any scene postprocessing pass. Bloom and similar effects apply to the scene only, never to hairline provenance strokes, whose smearing would destroy the honesty system.",
@@ -118,7 +118,7 @@
           "type": "test",
           "ref": "ui/src/scenes/engine.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Layer order holds with postprocessing enabled [REQ:CC-P1-006]."
         }
       ]
@@ -143,7 +143,7 @@
     {
       "id": "CC-P1-008",
       "title": "Cycle pauses on interaction and resumes on idle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Interaction pauses the auto-cycle and twenty seconds of inactivity resumes it. The cycle rail visibly stops and restarts so a paused board never reads as a frozen one. Cycle duration, starting room and reveal state are settable by URL parameter.",
@@ -152,7 +152,7 @@
           "type": "test",
           "ref": "ui/src/lib/boardContext.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pause, resume, and URL-parameter seeding [REQ:CC-P1-008]."
         }
       ]
@@ -160,7 +160,7 @@
     {
       "id": "CC-P1-009",
       "title": "Four input classes, one intent vocabulary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "Gamepad, keyboard, touch and pointer resolve to a single intent set before anything reacts, built on the shared GamepadAction vocabulary from the spatial navigation package rather than a scenario-local one. Identical intents produce identical behaviour regardless of origin device.",
@@ -169,7 +169,7 @@
           "type": "test",
           "ref": "ui/src/lib/boardContext.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every input class maps onto the shared vocabulary and produces one behaviour [REQ:CC-P1-009]."
         }
       ]
@@ -203,7 +203,7 @@
           "type": "test",
           "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each mode's filtering and legend behaviour [REQ:CC-P1-011]."
         },
         {
@@ -218,7 +218,7 @@
     {
       "id": "CC-P1-012",
       "title": "Capability ladder selects the scene tier",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "A runtime probe selects a scene tier and the board renders correctly at every tier — full scene with postprocessing, reduced scene without it, and a composed still. Tier selection never blocks first paint, and the figure layer is identical across tiers so the reading is never degraded to protect the decoration.",
@@ -227,7 +227,7 @@
           "type": "test",
           "ref": "ui/src/lib/sceneProbe.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tier selection, first-paint independence, and figure-layer parity [REQ:CC-P1-012]."
         }
       ]
@@ -252,7 +252,7 @@
     {
       "id": "CC-P1-014",
       "title": "Themes are library token overrides",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Each room's theme is expressed as React Component Library semantic token overrides so library components inherit the active palette. The scenario-private --cc-* vocabulary is retired and no component reads it.",
@@ -261,7 +261,7 @@
           "type": "test",
           "ref": "ui/src/lib/format.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every theme defines the library token set and no --cc-* variable remains [REQ:CC-P1-014]."
         }
       ]

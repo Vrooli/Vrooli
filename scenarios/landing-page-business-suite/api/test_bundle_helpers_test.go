@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/logx"
 
 	"landing-page-business-suite-api/internal/envx"
 )
@@ -267,8 +268,8 @@ func requireTestStripeService(t *testing.T, db StripeTestStore) *StripeService {
 	anomaly := commerce.NewPaymentAnomalyService(context.Background(), db, context.Background(), commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,
-		Log:            logStructured,
-		LogError:       logStructuredError,
+		Log:            logx.Info,
+		LogError:       logx.Error,
 	})
 	svc.SetPaymentAnomaly(anomaly)
 	return svc

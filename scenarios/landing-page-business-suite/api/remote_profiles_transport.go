@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	remoteprofilehttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // remoteProfileHandlerDependencies is the sole adapter between the root server
@@ -18,6 +19,6 @@ func remoteProfileHandlerDependencies(service remoteprofilehttp.RemoteProfileMan
 		WriteData:     writeJSONSuccessData,
 		WriteSimple:   writeJSONSuccessSimple,
 		WriteError:    writeJSONError,
-		LogError:      logStructuredError,
+		LogError:      logx.Error,
 	}
 }

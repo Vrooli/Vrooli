@@ -86,6 +86,8 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getVariantMetrics).mockResolvedValue({ start_date: '2026-01-01', end_date: '2026-01-07', stats: [mockSummary.variant_stats[0]!] });
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [{ key: 'US', label: 'United States', sessions: 8, conversions: 2, revenue_minor: 1200, share: 1 }], total_sessions: 8, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [{ bucket_start: '2026-01-01T00:00:00Z', value: 8 }], unit: 'count' });
     vi.mocked(api.checkAdminSession).mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
   });
 
@@ -241,6 +243,26 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     fireEvent.click(screen.getByTestId('analytics-time-range'));
     fireEvent.click(await screen.findByRole('option', { name: 'Last 24 hours' }));
     await waitFor(() => { expect(vi.mocked(api.getMetricsSummary).mock.calls.length).toBeGreaterThan(1); });
+  });
+
+  it('renders each supported traffic dimension and a real series', async () => {
+    await renderWithAuth(<AdminAnalytics />);
+    const user = userEvent.setup();
+    expect(await screen.findByTestId('traffic-series')).toBeInTheDocument();
+    const select = screen.getByTestId('traffic-dimension-select');
+    for (const label of ['Referrer kind', 'Campaign source', 'Campaign', 'Device', 'Landing page', 'Variant', 'Country']) {
+      await user.click(select);
+      await user.click(await screen.findByRole('option', { name: label }));
+      expect(screen.getByTestId('traffic-attribution')).toBeInTheDocument();
+    }
+  });
+
+  it('states when the selected traffic window predates enrichment', async () => {
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [], total_sessions: 0, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [], unit: 'count' });
+    await renderWithAuth(<AdminAnalytics />);
+    expect(await screen.findByTestId('traffic-breakdown-empty')).toHaveTextContent(/predate attribution enrichment/i);
+    expect(screen.getByTestId('traffic-series-empty')).toHaveTextContent(/No enriched traffic data/i);
   });
 
   it('shows a recoverable analytics load error and retries without leaving the dashboard unavailable', async () => {

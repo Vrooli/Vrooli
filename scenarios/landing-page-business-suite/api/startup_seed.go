@@ -7,23 +7,40 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vrooli/api-core/database"
+	"landing-page-business-suite-api/internal/analytics"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/landing"
+	"landing-page-business-suite-api/internal/logx"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // applyRuntimeSchema applies the ordered, domain-owned declarative schemas.
-// There are deliberately no migration or data-move statements at application
-// startup; existing deployments are reconciled by an explicit operator step.
+// api-core performs only additive column reconciliation for existing tables;
+// there are no migration or data-move statements at application startup.
 func applyRuntimeSchema(db StartupStore) error {
 	concrete, ok := db.(*sql.DB)
 	if !ok {
 		return fmt.Errorf("schema initialization requires a concrete database connection")
 	}
 	ctx := context.Background()
-	if err := database.EnsureSchemas(ctx, concrete, database.SchemaProviderFunc(runtimeSchema)); err != nil {
+	provider := database.SchemaProviderFunc(runtimeSchema)
+	// Reconcile additive columns before executing the domain DDL. Existing
+	// deployments can contain indexes in CREATE TABLE blobs that reference
+	// columns added after the table was first created; applying those blobs
+	// first would fail before api-core gets a chance to repair the drift.
+	if err := database.ReconcileDeclaredColumns(ctx, concrete, provider); err != nil {
 		return err
+	}
+	if err := database.ApplySchemas(ctx, concrete, provider); err != nil {
+		return err
+	}
+	if err := database.VerifyDeclaredColumns(ctx, concrete, provider); err != nil {
+		return err
+	}
+	if _, err := concrete.ExecContext(ctx, analytics.IndexesSchema()); err != nil {
+		return fmt.Errorf("apply analytics indexes: %w", err)
 	}
 	if _, err := concrete.ExecContext(ctx, commerce.FinancialIndexesSchema()); err != nil {
 		return fmt.Errorf("apply financial indexes: %w", err)
@@ -51,7 +68,7 @@ func seedDefaultData(db StartupStore) error {
 		return fmt.Errorf("synchronize admin user sequence: %w", err)
 	}
 	if adminEmail != defaultAdminEmail {
-		logStructured("admin_user_seeded_custom", map[string]interface{}{"level": "info", "email": adminEmail})
+		logx.Info("admin_user_seeded_custom", map[string]interface{}{"level": "info", "email": adminEmail})
 	}
 	if _, err := db.Exec(seedPaymentSettingsSQL); err != nil {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
@@ -162,7 +179,7 @@ func seedTierLimitsDefaults(db StartupStore) error {
 			return fmt.Errorf("seed tier limit %s/%s: %w", limit.tierID, limit.limitKey, err)
 		}
 	}
-	logStructured("tier_limits_seeded", map[string]interface{}{"level": "info", "count": len(tierLimits), "bundle_key": bundleKey})
+	logx.Info("tier_limits_seeded", map[string]interface{}{"level": "info", "count": len(tierLimits), "bundle_key": bundleKey})
 	return nil
 }
 

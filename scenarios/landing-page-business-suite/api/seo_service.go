@@ -6,6 +6,7 @@ import (
 	"landing-page-business-suite-api/internal/content"
 	"landing-page-business-suite-api/internal/contracts"
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // SEOServicer is the transport-facing SEO contract.
@@ -61,5 +62,5 @@ func (a seoConfigStoreAdapter) UpdateVariantSEO(slug string, config contracts.Va
 
 // NewSEOService constructs content-domain SEO policy over the JSON configuration adapter.
 func NewSEOService(store *experimentation.ConfigStore) *content.SEOService {
-	return content.NewSEOService(seoConfigStoreAdapter{store: store}, logStructuredError)
+	return content.NewSEOService(seoConfigStoreAdapter{store: store}, logx.Error)
 }

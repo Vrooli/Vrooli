@@ -9,6 +9,7 @@ import (
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/intelligence"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func isProductionEnvironment() bool {
@@ -25,11 +26,15 @@ func NewAPIKeyServiceWithHTTPClient(db administration.APIKeyStore, client admini
 }
 
 func NewAPIKeyServiceWithOptions(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string) (*administration.APIKeyService, error) {
-	return administration.NewAPIKeyServiceWithCredentialResolver(db, client, dialect, resolveAuthorityCredential, isProductionEnvironment, logStructured, logStructuredError)
+	return administration.NewAPIKeyServiceWithCredentialResolver(db, client, dialect, resolveAuthorityCredential, isProductionEnvironment, logx.Info, logx.Error)
 }
 
 func newAPIKeyServiceForTest(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string, key []byte) *administration.APIKeyService {
-	return administration.NewAPIKeyServiceForTest(db, client, dialect, key, nil, nil)
+	service, err := administration.NewAPIKeyServiceForTest(db, client, dialect, key, nil, nil)
+	if err != nil {
+		return nil
+	}
+	return service
 }
 
 func GenerateEncryptionKey() string { return administration.GenerateEncryptionKey() }

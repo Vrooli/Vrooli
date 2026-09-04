@@ -27,12 +27,12 @@ func newVariantConnectHandler(store experimentation.ConfigStorer) *variantConnec
 	return &variantConnectHandler{store: store}
 }
 
-func (h *variantConnectHandler) SelectVariant(_ context.Context, _ *connect.Request[lpbsv1.SelectVariantRequest]) (*connect.Response[lpbsv1.VariantResponse], error) {
+func (h *variantConnectHandler) SelectVariant(_ context.Context, request *connect.Request[lpbsv1.SelectVariantRequest]) (*connect.Response[lpbsv1.VariantResponse], error) {
 	active := activeVariantSnapshots(h.store.ListVariants())
 	if len(active) == 0 {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active variants available"))
 	}
-	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: variantProto(experimentation.SelectWeightedRandomVariant(active), false)}), nil
+	return connect.NewResponse(&lpbsv1.VariantResponse{Variant: variantProto(experimentation.SelectVariantForVisitor(active, request.Msg.GetVisitorId()), false)}), nil
 }
 
 func (h *variantConnectHandler) GetPublicVariant(_ context.Context, request *connect.Request[lpbsv1.GetPublicVariantRequest]) (*connect.Response[lpbsv1.VariantResponse], error) {

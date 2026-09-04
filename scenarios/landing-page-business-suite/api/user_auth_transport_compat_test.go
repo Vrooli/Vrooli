@@ -9,8 +9,6 @@ import (
 	"landing-page-business-suite-api/internal/administration"
 )
 
-// These test-only adapters retain the existing characterization suite while
-// production routes use handlers/administration directly.
 type (
 	MagicLinkRequest    = userauthhttp.MagicLinkRequest
 	MagicLinkResponse   = userauthhttp.MagicLinkResponse

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -204,7 +205,7 @@ func TestTrackEvent_MissingVariantSlug(t *testing.T) {
 
 // TestGetVariantStats tests variant statistics retrieval
 func TestGetVariantStats(t *testing.T) {
-	_, service := setupMetricsTestDB(t)
+	db, service := setupMetricsTestDB(t)
 
 	// Insert test events
 	events := []domainmetrics.Event{
@@ -220,6 +221,10 @@ func TestGetVariantStats(t *testing.T) {
 		if err := service.TrackEvent(evt); err != nil {
 			t.Fatalf("failed to track event: %v", err)
 		}
+	}
+	if _, err := db.Exec(`INSERT INTO experiment_exposures (visitor_id, variant_slug, weight_fingerprint) VALUES
+		('visitor-1', 'control', 'weights-v1'), ('visitor-2', 'control', 'weights-v1')`); err != nil {
+		t.Fatalf("failed to seed exposures: %v", err)
 	}
 
 	// Get stats for all variants
@@ -259,8 +264,11 @@ func TestGetVariantStats(t *testing.T) {
 	if controlStats.Downloads != 1 {
 		t.Errorf("Expected 1 download for control, got %d", controlStats.Downloads)
 	}
+	if controlStats.Exposures != 2 {
+		t.Errorf("Expected 2 exposures, got %d", controlStats.Exposures)
+	}
 	if controlStats.ConversionRate != 50.0 {
-		t.Errorf("Expected 50%% conversion rate, got %.2f", controlStats.ConversionRate)
+		t.Errorf("Expected 50%% exposure conversion rate, got %.2f", controlStats.ConversionRate)
 	}
 }
 
@@ -383,6 +391,52 @@ func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
 	}
 	if summary.TopCTA != "" || summary.TopCTACTR != 0 {
 		t.Fatalf("expected no CTA leader when none clicked, got id=%q ctr=%.2f", summary.TopCTA, summary.TopCTACTR)
+	}
+}
+
+func TestGetAnalyticsSummaryCountsStableVisitorsAcrossSessions(t *testing.T) {
+	_, service := setupMetricsTestDB(t)
+	for _, event := range []domainmetrics.Event{
+		{EventType: "page_view", VariantSlug: "control", SessionID: "session-a", VisitorID: "visitor-stable", EventID: "visitor-session-a"},
+		{EventType: "page_view", VariantSlug: "control", SessionID: "session-b", VisitorID: "visitor-stable", EventID: "visitor-session-b"},
+	} {
+		if err := service.TrackEvent(event); err != nil {
+			t.Fatalf("failed to track event: %v", err)
+		}
+	}
+
+	summary, err := service.GetAnalyticsSummary(time.Now().AddDate(0, 0, -1), time.Now().AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatalf("GetAnalyticsSummary failed: %v", err)
+	}
+	if summary.TotalVisitors != 1 {
+		t.Fatalf("expected one stable visitor across two sessions, got %d", summary.TotalVisitors)
+	}
+}
+
+func TestGetTrafficBreakdownKeepsFullShareDenominatorWhenLimited(t *testing.T) {
+	_, service := setupMetricsTestDB(t)
+	for i, campaign := range []string{"alpha", "beta", "gamma"} {
+		if err := service.TrackEvent(domainmetrics.Event{
+			EventType: "page_view", VariantSlug: "control", SessionID: fmt.Sprintf("breakdown-session-%d", i),
+			VisitorID: fmt.Sprintf("breakdown-visitor-%d", i), EventID: fmt.Sprintf("breakdown-event-%d", i), UTMCampaign: campaign,
+		}); err != nil {
+			t.Fatalf("failed to track breakdown event: %v", err)
+		}
+	}
+
+	breakdown, err := service.GetTrafficBreakdown("utm_campaign", time.Now().AddDate(0, 0, -1), time.Now().AddDate(0, 0, 1), 2)
+	if err != nil {
+		t.Fatalf("GetTrafficBreakdown failed: %v", err)
+	}
+	if len(breakdown.Rows) != 2 || breakdown.Exhaustive {
+		t.Fatalf("expected two ranked rows and a truncated result, got rows=%d exhaustive=%v", len(breakdown.Rows), breakdown.Exhaustive)
+	}
+	if breakdown.TotalSessions != 3 {
+		t.Fatalf("expected full session denominator of 3, got %d", breakdown.TotalSessions)
+	}
+	if breakdown.Rows[0].Share != 1.0/3.0 {
+		t.Fatalf("expected top-row share to use full denominator, got %v", breakdown.Rows[0].Share)
 	}
 }
 

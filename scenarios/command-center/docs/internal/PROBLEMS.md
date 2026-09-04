@@ -98,6 +98,13 @@ the other claims retain their declared tiers until their checks are promoted.
 
 ## Component library defects found while designing
 
+## Work ladder
+
+- Rung: W3
+- Evidence: the active Traffic Instrument plan requires beats, panel readings, live scene data, and new compositions; Command Center API and TypeScript checks pass, but browser behavior and crossfade validation remain incomplete.
+- Blocker: none; continue implementation and targeted validation.
+- Measured: 2026-09-03
+
 Reported from source reading on 2026-09-01, not from running the components. File against `react-component-library`.
 
 - **`CartesianCharts` ignores its `kind` prop.** It accepts `line | area | bar | stacked-bar | scatter | histogram` and interpolates the value into the description string only; every kind renders a line chart.

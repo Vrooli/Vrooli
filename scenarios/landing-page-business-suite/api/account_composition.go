@@ -7,6 +7,7 @@ import (
 
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func newAccountService(db commerce.Store, planService *commerce.PlanService, limits ...commerce.LimitsServicer) *commerce.Service {
@@ -15,7 +16,7 @@ func newAccountService(db commerce.Store, planService *commerce.PlanService, lim
 		limitsSvc = limits[0]
 	}
 	return commerce.NewService(db, planService, commerce.Runtime{
-		CacheTTL: accountCacheTTL(), LeaseTTL: entitlementLeaseTTL(), LimitsService: limitsSvc, NormalizeEmail: NormalizeEmail, Log: logStructured,
+		CacheTTL: accountCacheTTL(), LeaseTTL: entitlementLeaseTTL(), LimitsService: limitsSvc, NormalizeEmail: NormalizeEmail, Log: logx.Info,
 	})
 }
 

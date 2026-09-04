@@ -6,8 +6,9 @@ package main
 import (
 	varianthttp "landing-page-business-suite-api/handlers/experimentation"
 	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
 )
 
 func variantReadDependencies(cs experimentation.ConfigStoreReader, pathPrefix string) varianthttp.Dependencies {
-	return varianthttp.NewReadDependencies(cs, pathPrefix, writeJSON, writeJSONError, logStructuredError)
+	return varianthttp.NewReadDependencies(cs, pathPrefix, writeJSON, writeJSONError, logx.Error)
 }

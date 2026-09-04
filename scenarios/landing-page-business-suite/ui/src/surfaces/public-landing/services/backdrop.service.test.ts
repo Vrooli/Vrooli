@@ -1,20 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { BackdropReference } from './backdrop.service';
-
-type ResolveBackdropReference = (
-  reference: Pick<BackdropReference, 'id'>,
-  fetcher?: typeof fetch,
-) => Promise<BackdropReference | null>;
-
-let resolveBackdropReference: ResolveBackdropReference;
-
-beforeAll(async () => {
-  vi.stubEnv('VITE_BACKDROP_STUDIO_URL', 'https://backdrop.example.test/');
-  vi.resetModules();
-  ({ resolveBackdropReference } = await import('./backdrop.service'));
-});
-
-afterAll(() => vi.unstubAllEnvs());
+import { describe, expect, it, vi } from 'vitest';
+import { resolveBackdropReference } from './backdrop.service';
 
 describe('resolveBackdropReference', () => {
   it('rejects missing IDs before making a request', async () => {
@@ -50,14 +35,14 @@ describe('resolveBackdropReference', () => {
     await expect(resolveBackdropReference({ id: 'released-hero' }, fetcher)).resolves.toEqual({
       id: 'released-hero',
       uri: '/assets/hero.png',
-      url: 'https://backdrop.example.test/assets/hero.png',
+      url: '/assets/hero.png',
       placement: 'full_bleed',
       alt_text: 'Founder workspace',
       reserved_regions: [{ x: 0, y: 0, width: 0.5, height: 0.5, kind: 'copy' }],
     });
     expect(fetcher).toHaveBeenCalledWith(
-      'https://backdrop.example.test/vrooli.backdrop_studio.v1.release.ReleaseService/GetReference',
-      expect.objectContaining({ method: 'POST' }),
+      '/api/v1/backdrops/released-hero',
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 

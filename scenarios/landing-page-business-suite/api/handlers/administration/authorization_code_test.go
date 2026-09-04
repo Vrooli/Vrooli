@@ -3,6 +3,7 @@ package administration
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestAuthorizationCodeStorePKCEOneUse(t *testing.T) {
 	if err != nil || got != pair {
 		t.Fatalf("exchange = %v, %v", got, err)
 	}
-	if _, _, err := store.Exchange("code", verifier, "http://127.0.0.1:43210/callback"); err != errAuthorizationCodeUsed {
+	if _, _, err := store.Exchange("code", verifier, "http://127.0.0.1:43210/callback"); !errors.Is(err, errAuthorizationCodeUsed) {
 		t.Fatalf("replay error = %v", err)
 	}
 }
@@ -34,7 +35,7 @@ func TestAuthorizationCodeStoreRejectsWrongVerifierAndNonLoopback(t *testing.T) 
 	if err := store.Issue("code", &admin.TokenPair{AccessToken: "access"}, nil, "challenge", "http://127.0.0.1:1/callback", time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := store.Exchange("code", "wrong", "http://127.0.0.1:1/callback"); err != errInvalidCodeVerifier {
+	if _, _, err := store.Exchange("code", "wrong", "http://127.0.0.1:1/callback"); !errors.Is(err, errInvalidCodeVerifier) {
 		t.Fatalf("wrong verifier error = %v", err)
 	}
 	for _, redirect := range []string{"vrooli://auth/callback", "http://192.168.1.4:1234/callback", "https://127.0.0.1:1234/callback"} {

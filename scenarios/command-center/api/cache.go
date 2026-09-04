@@ -82,6 +82,10 @@ func TTLFor(source UpstreamSource) time.Duration {
 		return 60 * time.Second
 	case SourceLPBS:
 		return 5 * time.Minute
+	case SourceOffer:
+		return 5 * time.Minute
+	case SourceDeploy:
+		return 30 * time.Second
 	default:
 		return 30 * time.Second
 	}

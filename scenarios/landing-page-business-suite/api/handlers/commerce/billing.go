@@ -1,4 +1,3 @@
-// Package billing owns checkout and customer-portal HTTP transport.
 package billing
 
 import (

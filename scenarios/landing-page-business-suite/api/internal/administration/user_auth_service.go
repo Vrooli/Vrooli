@@ -289,7 +289,7 @@ func (s *UserAuthService) VerifyMagicLink(ctx context.Context, token, ipAddress,
 		WHERE token_hash = $1 AND token_type = 'magic_link'
 	`, tokenHash).Scan(&tokenID, &userID, &expiresAt, &usedAt)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrTokenInvalid
 	}
 	if err != nil {

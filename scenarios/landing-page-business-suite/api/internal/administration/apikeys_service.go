@@ -122,20 +122,22 @@ func newAPIKeyServiceWithCredentialResolver(db APIKeyStore, httpClient APIKeyHTT
 	if len(key) != 32 {
 		return nil, fmt.Errorf("encryption key must be 32 bytes (got %d)", len(key))
 	}
-	return NewAPIKeyServiceForTest(db, httpClient, dialect, key, logEvent, logError), nil
+	return NewAPIKeyServiceForTest(db, httpClient, dialect, key, logEvent, logError)
 }
 
 // NewAPIKeyServiceForTest constructs the domain service with an explicit key.
 // It is intentionally exported only within this repository's internal package.
-func NewAPIKeyServiceForTest(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, encryptionKey []byte, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) *APIKeyService {
+func NewAPIKeyServiceForTest(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, encryptionKey []byte, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}
 	if dialect == "" {
 		dialect = "postgres"
 	}
-	_ = ensureAPIKeyEncryptionState(db, dialect)
-	return &APIKeyService{db: db, encryptionKey: encryptionKey, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}
+	if err := ensureAPIKeyEncryptionState(db, dialect); err != nil {
+		return nil, fmt.Errorf("ensure API key encryption state: %w", err)
+	}
+	return &APIKeyService{db: db, encryptionKey: encryptionKey, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}, nil
 }
 
 func ensureAPIKeyEncryptionState(db APIKeyStore, dialect string) error {
