@@ -8,6 +8,7 @@ package pipeline
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -109,9 +110,11 @@ type PipelineConfig struct {
 	// Auto-update configuration embedded in the generated desktop application.
 	// Generic update URLs may use HTTP only for development-local evidence; a
 	// production pipeline requires an HTTPS endpoint.
-	UpdateConfig  *shared.UpdateConfig `protobuf:"bytes,28,opt,name=update_config,json=updateConfig,proto3,oneof" json:"update_config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UpdateConfig *shared.UpdateConfig `protobuf:"bytes,28,opt,name=update_config,json=updateConfig,proto3,oneof" json:"update_config,omitempty"`
+	// Select an owner-provided native extension for generated Electron code.
+	NativeExtension *domain.NativeExtension `protobuf:"bytes,30,opt,name=native_extension,json=nativeExtension,proto3" json:"native_extension,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PipelineConfig) Reset() {
@@ -343,6 +346,13 @@ func (x *PipelineConfig) GetArtifactTrustMode() string {
 func (x *PipelineConfig) GetUpdateConfig() *shared.UpdateConfig {
 	if x != nil {
 		return x.UpdateConfig
+	}
+	return nil
+}
+
+func (x *PipelineConfig) GetNativeExtension() *domain.NativeExtension {
+	if x != nil {
+		return x.NativeExtension
 	}
 	return nil
 }
@@ -3358,7 +3368,7 @@ var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\x88\x11\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xea\x11\n" +
 	"\x0ePipelineConfig\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12L\n" +
 	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
@@ -3393,7 +3403,8 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x17 \x01(\tH\x12R\x0eidempotencyKey\x88\x01\x01\x12G\n" +
 	"\x06stages\x18\x1a \x03(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x06stages\x123\n" +
 	"\x13artifact_trust_mode\x18\x1b \x01(\tH\x13R\x11artifactTrustMode\x88\x01\x01\x12\\\n" +
-	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x14R\fupdateConfig\x88\x01\x01\x1aC\n" +
+	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x14R\fupdateConfig\x88\x01\x01\x12`\n" +
+	"\x10native_extension\x18\x1e \x01(\v25.vrooli.scenario_to_desktop.v1.domain.NativeExtensionR\x0fnativeExtension\x1aC\n" +
 	"\x15PreflightSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x11\n" +
@@ -3815,12 +3826,13 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
 	(shared.TemplateType)(0),                // 51: vrooli.scenario_to_desktop.v1.shared.TemplateType
 	(shared.StageName)(0),                   // 52: vrooli.scenario_to_desktop.v1.shared.StageName
 	(*shared.UpdateConfig)(nil),             // 53: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
-	(shared.StageStatus)(0),                 // 54: vrooli.scenario_to_desktop.v1.shared.StageStatus
-	(*timestamppb.Timestamp)(nil),           // 55: google.protobuf.Timestamp
-	(*shared.PreflightResponse)(nil),        // 56: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
-	(*shared.BuildStatusResponse)(nil),      // 57: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
-	(*shared.SmokeTestStatusResponse)(nil),  // 58: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
-	(*shared.ScenarioMetadata)(nil),         // 59: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	(*domain.NativeExtension)(nil),          // 54: vrooli.scenario_to_desktop.v1.domain.NativeExtension
+	(shared.StageStatus)(0),                 // 55: vrooli.scenario_to_desktop.v1.shared.StageStatus
+	(*timestamppb.Timestamp)(nil),           // 56: google.protobuf.Timestamp
+	(*shared.PreflightResponse)(nil),        // 57: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	(*shared.BuildStatusResponse)(nil),      // 58: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	(*shared.SmokeTestStatusResponse)(nil),  // 59: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	(*shared.ScenarioMetadata)(nil),         // 60: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
 }
 var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
 	48, // 0: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
@@ -3832,90 +3844,91 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
 	52, // 6: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	52, // 7: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stages:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	53, // 8: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.update_config:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
-	52, // 9: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	54, // 10: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	55, // 11: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp
-	55, // 12: vrooli.scenario_to_desktop.v1.pipeline.StageResult.completed_at:type_name -> google.protobuf.Timestamp
-	2,  // 13: vrooli.scenario_to_desktop.v1.pipeline.StageResult.details:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageDetails
-	3,  // 14: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.resolve_deployment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan
-	13, // 15: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.bundle:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails
-	56, // 16: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.preflight:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
-	41, // 17: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.generate:type_name -> vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
-	57, // 18: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.build:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
-	58, // 19: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.smoke_test:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
-	16, // 20: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.deploy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails
-	5,  // 21: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.resources:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem
-	4,  // 22: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.host_requirements:type_name -> vrooli.scenario_to_desktop.v1.pipeline.HostRequirementPlanItem
-	6,  // 23: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.selected_fallback:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentFallback
-	7,  // 24: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
-	8,  // 25: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.service:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService
-	9,  // 26: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.provider_policy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy
-	43, // 27: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.environment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
-	11, // 28: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.ports:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePort
-	12, // 29: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.health_checks:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheck
-	7,  // 30: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
-	10, // 31: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfig
-	44, // 32: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.target_defaults:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
-	45, // 33: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.runtime_binaries:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
-	14, // 34: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.size_warning:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning
-	15, // 35: vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning.large_files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFile
-	17, // 36: vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails.artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult
-	48, // 37: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	54, // 38: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	52, // 39: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	46, // 40: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stages:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
-	52, // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stage_order:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	0,  // 42: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	55, // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
-	55, // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
-	47, // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.final_artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
-	52, // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stopped_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	0,  // 47: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	0,  // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	52, // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	54, // 50: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
-	52, // 51: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	55, // 52: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
-	55, // 53: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
-	55, // 54: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
-	27, // 55: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
-	18, // 56: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	0,  // 57: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	18, // 58: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	18, // 59: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	0,  // 60: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest.config_overrides:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
-	18, // 61: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	59, // 62: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse.detected_metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	1,  // 63: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry.value:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageResult
-	19, // 64: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
-	21, // 65: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
-	21, // 66: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
-	22, // 67: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
-	23, // 68: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
-	24, // 69: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
-	30, // 70: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
-	32, // 71: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
-	29, // 72: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
-	35, // 73: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
-	37, // 74: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
-	39, // 75: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:input_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
-	20, // 76: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
-	18, // 77: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	18, // 78: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
-	26, // 79: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
-	25, // 80: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
-	28, // 81: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
-	31, // 82: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
-	33, // 83: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
-	34, // 84: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
-	36, // 85: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
-	38, // 86: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
-	40, // 87: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:output_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
-	76, // [76:88] is the sub-list for method output_type
-	64, // [64:76] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	54, // 9: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.native_extension:type_name -> vrooli.scenario_to_desktop.v1.domain.NativeExtension
+	52, // 10: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	55, // 11: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	56, // 12: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp
+	56, // 13: vrooli.scenario_to_desktop.v1.pipeline.StageResult.completed_at:type_name -> google.protobuf.Timestamp
+	2,  // 14: vrooli.scenario_to_desktop.v1.pipeline.StageResult.details:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageDetails
+	3,  // 15: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.resolve_deployment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan
+	13, // 16: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.bundle:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails
+	57, // 17: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.preflight:type_name -> vrooli.scenario_to_desktop.v1.shared.PreflightResponse
+	41, // 18: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.generate:type_name -> vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse
+	58, // 19: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.build:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	59, // 20: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.smoke_test:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	16, // 21: vrooli.scenario_to_desktop.v1.pipeline.StageDetails.deploy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails
+	5,  // 22: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.resources:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem
+	4,  // 23: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlan.host_requirements:type_name -> vrooli.scenario_to_desktop.v1.pipeline.HostRequirementPlanItem
+	6,  // 24: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.selected_fallback:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentFallback
+	7,  // 25: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
+	8,  // 26: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentPlanItem.service:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService
+	9,  // 27: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.provider_policy:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy
+	43, // 28: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.environment:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.EnvironmentEntry
+	11, // 29: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.ports:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServicePort
+	12, // 30: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.health_checks:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheck
+	7,  // 31: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifact
+	10, // 32: vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentService.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfig
+	44, // 33: vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.target_defaults:type_name -> vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntry
+	45, // 34: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.runtime_binaries:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.RuntimeBinariesEntry
+	14, // 35: vrooli.scenario_to_desktop.v1.pipeline.BundleStageDetails.size_warning:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning
+	15, // 36: vrooli.scenario_to_desktop.v1.pipeline.BundleSizeWarning.large_files:type_name -> vrooli.scenario_to_desktop.v1.pipeline.BundleLargeFile
+	17, // 37: vrooli.scenario_to_desktop.v1.pipeline.DeployStageDetails.artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult
+	48, // 38: vrooli.scenario_to_desktop.v1.pipeline.DeployArtifactResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	55, // 39: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	52, // 40: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	46, // 41: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stages:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry
+	52, // 42: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stage_order:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	0,  // 43: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	56, // 44: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.started_at:type_name -> google.protobuf.Timestamp
+	56, // 45: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.completed_at:type_name -> google.protobuf.Timestamp
+	47, // 46: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.final_artifacts:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.FinalArtifactsEntry
+	52, // 47: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.stopped_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	0,  // 48: vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	0,  // 49: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	52, // 50: vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	55, // 51: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
+	52, // 52: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.current_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
+	56, // 53: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.created_at:type_name -> google.protobuf.Timestamp
+	56, // 54: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 55: vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem.completed_at:type_name -> google.protobuf.Timestamp
+	27, // 56: vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListItem
+	18, // 57: vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	0,  // 58: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest.config:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	18, // 59: vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	18, // 60: vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse.pipelines:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	0,  // 61: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest.config_overrides:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig
+	18, // 62: vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse.pipeline:type_name -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	60, // 63: vrooli.scenario_to_desktop.v1.pipeline.GenerateResponse.detected_metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	1,  // 64: vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus.StagesEntry.value:type_name -> vrooli.scenario_to_desktop.v1.pipeline.StageResult
+	19, // 65: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunRequest
+	21, // 66: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	21, // 67: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineGetRequest
+	22, // 68: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeRequest
+	23, // 69: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelRequest
+	24, // 70: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListRequest
+	30, // 71: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.GetActivePipelineRequest
+	32, // 72: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineRequest
+	29, // 73: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.ScenarioPipelineRequest
+	35, // 74: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:input_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryRequest
+	37, // 75: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:input_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineRequest
+	39, // 76: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:input_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanRequest
+	20, // 77: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Run:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineRunResponse
+	18, // 78: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Get:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	18, // 79: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetReleaseGate:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineStatus
+	26, // 80: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Resume:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineResumeResponse
+	25, // 81: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.Cancel:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineCancelResponse
+	28, // 82: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.List:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineListResponse
+	31, // 83: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ActivePipelineResponse
+	33, // 84: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CreateActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.CreatePipelineResponse
+	34, // 85: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.ResetActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.ResetPipelineResponse
+	36, // 86: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.GetHistory:output_type -> vrooli.scenario_to_desktop.v1.pipeline.PipelineHistoryResponse
+	38, // 87: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.StartActive:output_type -> vrooli.scenario_to_desktop.v1.pipeline.StartActivePipelineResponse
+	40, // 88: vrooli.scenario_to_desktop.v1.pipeline.PipelineService.CleanBundle:output_type -> vrooli.scenario_to_desktop.v1.pipeline.BundleCleanResponse
+	77, // [77:89] is the sub-list for method output_type
+	65, // [65:77] is the sub-list for method input_type
+	65, // [65:65] is the sub-list for extension type_name
+	65, // [65:65] is the sub-list for extension extendee
+	0,  // [0:65] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_pipeline_types_proto_init() }

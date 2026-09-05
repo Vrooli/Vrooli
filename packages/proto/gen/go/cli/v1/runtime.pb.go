@@ -1951,6 +1951,131 @@ func (x *CliHostInstallStatus) GetOk() bool {
 	return false
 }
 
+// Live logind/X-server peer association. This is not an execution grant.
+type CliDesktopSessionFacts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Uid           uint32                 `protobuf:"varint,2,opt,name=uid,proto3" json:"uid,omitempty"`
+	PeerPid       int64                  `protobuf:"varint,3,opt,name=peer_pid,json=peerPid,proto3" json:"peer_pid,omitempty"`
+	PeerUid       uint32                 `protobuf:"varint,4,opt,name=peer_uid,json=peerUid,proto3" json:"peer_uid,omitempty"`
+	Type          string                 `protobuf:"bytes,5,opt,name=type,proto3" json:"type,omitempty"`
+	Active        bool                   `protobuf:"varint,6,opt,name=active,proto3" json:"active,omitempty"`
+	Locked        bool                   `protobuf:"varint,7,opt,name=locked,proto3" json:"locked,omitempty"`
+	Remote        bool                   `protobuf:"varint,8,opt,name=remote,proto3" json:"remote,omitempty"`
+	Matched       bool                   `protobuf:"varint,9,opt,name=matched,proto3" json:"matched,omitempty"`
+	Reason        string                 `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,11,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CliDesktopSessionFacts) Reset() {
+	*x = CliDesktopSessionFacts{}
+	mi := &file_cli_v1_runtime_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliDesktopSessionFacts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliDesktopSessionFacts) ProtoMessage() {}
+
+func (x *CliDesktopSessionFacts) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_runtime_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliDesktopSessionFacts.ProtoReflect.Descriptor instead.
+func (*CliDesktopSessionFacts) Descriptor() ([]byte, []int) {
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CliDesktopSessionFacts) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *CliDesktopSessionFacts) GetUid() uint32 {
+	if x != nil {
+		return x.Uid
+	}
+	return 0
+}
+
+func (x *CliDesktopSessionFacts) GetPeerPid() int64 {
+	if x != nil {
+		return x.PeerPid
+	}
+	return 0
+}
+
+func (x *CliDesktopSessionFacts) GetPeerUid() uint32 {
+	if x != nil {
+		return x.PeerUid
+	}
+	return 0
+}
+
+func (x *CliDesktopSessionFacts) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *CliDesktopSessionFacts) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *CliDesktopSessionFacts) GetLocked() bool {
+	if x != nil {
+		return x.Locked
+	}
+	return false
+}
+
+func (x *CliDesktopSessionFacts) GetRemote() bool {
+	if x != nil {
+		return x.Remote
+	}
+	return false
+}
+
+func (x *CliDesktopSessionFacts) GetMatched() bool {
+	if x != nil {
+		return x.Matched
+	}
+	return false
+}
+
+func (x *CliDesktopSessionFacts) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *CliDesktopSessionFacts) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
 var File_cli_v1_runtime_proto protoreflect.FileDescriptor
 
 const file_cli_v1_runtime_proto_rawDesc = "" +
@@ -2145,7 +2270,22 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\x0fblocking_reason\x18\x06 \x01(\tR\x0eblockingReason\x12\x18\n" +
 	"\aversion\x18\a \x01(\tR\aversion\x12\x14\n" +
 	"\x05notes\x18\b \x03(\tR\x05notes\x12\x0e\n" +
-	"\x02ok\x18\t \x01(\bR\x02okB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x02ok\x18\t \x01(\bR\x02ok\"\xae\x02\n" +
+	"\x16CliDesktopSessionFacts\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x10\n" +
+	"\x03uid\x18\x02 \x01(\rR\x03uid\x12\x19\n" +
+	"\bpeer_pid\x18\x03 \x01(\x03R\apeerPid\x12\x19\n" +
+	"\bpeer_uid\x18\x04 \x01(\rR\apeerUid\x12\x12\n" +
+	"\x04type\x18\x05 \x01(\tR\x04type\x12\x16\n" +
+	"\x06active\x18\x06 \x01(\bR\x06active\x12\x16\n" +
+	"\x06locked\x18\a \x01(\bR\x06locked\x12\x16\n" +
+	"\x06remote\x18\b \x01(\bR\x06remote\x12\x18\n" +
+	"\amatched\x18\t \x01(\bR\amatched\x12\x16\n" +
+	"\x06reason\x18\n" +
+	" \x01(\tR\x06reason\x12\x1f\n" +
+	"\vobserved_at\x18\v \x01(\tR\n" +
+	"observedAtB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_runtime_proto_rawDescOnce sync.Once
@@ -2159,7 +2299,7 @@ func file_cli_v1_runtime_proto_rawDescGZIP() []byte {
 	return file_cli_v1_runtime_proto_rawDescData
 }
 
-var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_cli_v1_runtime_proto_goTypes = []any{
 	(*CliVersion)(nil),                   // 0: vrooli.cli.v1.CliVersion
 	(*CliSupervisorStatus)(nil),          // 1: vrooli.cli.v1.CliSupervisorStatus
@@ -2180,9 +2320,10 @@ var file_cli_v1_runtime_proto_goTypes = []any{
 	(*CliHostTool)(nil),                  // 16: vrooli.cli.v1.CliHostTool
 	(*CliHostProvenance)(nil),            // 17: vrooli.cli.v1.CliHostProvenance
 	(*CliHostInstallStatus)(nil),         // 18: vrooli.cli.v1.CliHostInstallStatus
-	nil,                                  // 19: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
-	nil,                                  // 20: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	nil,                                  // 21: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	(*CliDesktopSessionFacts)(nil),       // 19: vrooli.cli.v1.CliDesktopSessionFacts
+	nil,                                  // 20: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	nil,                                  // 21: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	nil,                                  // 22: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
 }
 var file_cli_v1_runtime_proto_depIdxs = []int32{
 	2,  // 0: vrooli.cli.v1.CliSupervisorStatus.last_tick:type_name -> vrooli.cli.v1.CliSupervisorTick
@@ -2192,10 +2333,10 @@ var file_cli_v1_runtime_proto_depIdxs = []int32{
 	12, // 4: vrooli.cli.v1.CliHostSnapshot.swap:type_name -> vrooli.cli.v1.CliHostSwap
 	13, // 5: vrooli.cli.v1.CliHostSnapshot.gpus:type_name -> vrooli.cli.v1.CliHostGPU
 	14, // 6: vrooli.cli.v1.CliHostSnapshot.gpu_processes:type_name -> vrooli.cli.v1.CliHostGPUProcess
-	19, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	20, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
 	15, // 8: vrooli.cli.v1.CliHostSnapshot.docker_gpu:type_name -> vrooli.cli.v1.CliHostDockerGPU
-	20, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	21, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	21, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	22, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
 	6,  // 11: vrooli.cli.v1.CliHostSnapshot.remote_desktop:type_name -> vrooli.cli.v1.CliHostRemoteDesktop
 	5,  // 12: vrooli.cli.v1.CliHostSnapshot.devices:type_name -> vrooli.cli.v1.CliHostDevice
 	7,  // 13: vrooli.cli.v1.CliHostRemoteDesktop.providers:type_name -> vrooli.cli.v1.CliHostRemoteDesktopProvider
@@ -2220,7 +2361,7 @@ func file_cli_v1_runtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_runtime_proto_rawDesc), len(file_cli_v1_runtime_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

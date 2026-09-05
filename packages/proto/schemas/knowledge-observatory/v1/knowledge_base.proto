@@ -1,0 +1,85 @@
+syntax = "proto3";
+package knowledge_observatory.v1;
+import "google/protobuf/struct.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1";
+
+// Governed read operations. No method edits documents or retires artifacts.
+service KnowledgeBaseService {
+  rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
+  rpc InspectDocument(InspectDocumentRequest) returns (InspectDocumentResponse);
+  rpc ReviewDocuments(ReviewDocumentsRequest) returns (ReviewDocumentsResponse);
+  rpc KnowledgeStatus(KnowledgeStatusRequest) returns (KnowledgeStatusResponse);
+}
+message SearchDocumentsRequest {
+  string query = 1;
+  string scope = 2;
+  string target = 3;
+  string mode = 4;
+  int32 limit = 5;
+}
+message DocumentHit {
+  string path = 1;
+  string title = 2;
+  string snippet = 3;
+  double score = 4;
+  google.protobuf.Struct metadata = 5;
+}
+message SearchDocumentsResponse {
+  repeated DocumentHit results = 1;
+  string method = 2;
+  string reranker = 3;
+}
+message InspectDocumentRequest {
+  string path = 1;
+  int32 offset = 2;
+  int32 limit = 3;
+  string expected_sha256 = 4;
+}
+message DocumentReference {
+  string target = 1;
+  string path = 2;
+  bool exists = 3;
+  string kind = 4;
+}
+message InspectDocumentResponse {
+  string path = 1;
+  string sha256 = 2;
+  string content = 3;
+  int32 offset = 4;
+  int32 next_offset = 5;
+  bool truncated = 6;
+  int64 size_bytes = 7;
+  google.protobuf.Struct metadata = 8;
+  repeated DocumentReference references = 9;
+  bool references_truncated = 10;
+}
+message ReviewDocumentsRequest {
+  repeated string paths = 1;
+  // Repository-relative directory: bounds the backlink and duplicate scan.
+  string base_path = 2;
+  int32 max_files = 3;
+}
+message DocumentObservation {
+  string path = 1;
+  string kind = 2;
+  string related_path = 3;
+  string detail = 4;
+}
+message ReviewDocumentsResponse {
+  repeated InspectDocumentResponse documents = 1;
+  repeated DocumentObservation observations = 2;
+  int32 files_checked = 3;
+  bool truncated = 4;
+  string base_path = 5;
+  // Enumeration/I/O limits are explicit; absence of observations is not proof
+  // of whole-repository reference closure or semantic agreement.
+  repeated string gaps = 6;
+}
+message KnowledgeStatusRequest {}
+message KnowledgeStatusResponse {
+  bool available = 1;
+  int32 indexed_count = 2;
+  string last_reconcile_at = 3;
+  string last_reconcile_outcome = 4;
+  string reranker = 5;
+}

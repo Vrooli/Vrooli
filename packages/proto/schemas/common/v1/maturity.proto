@@ -88,6 +88,20 @@ message AssessmentFinding {
   // Target-specific attribution for findings emitted while a provider run
   // examines more than its own target. Empty means the run's own target.
   ValidationTarget subject = 10;
+  // Bounded producer evidence that makes the finding independently
+  // diagnosable after the provider response is normalized and persisted.
+  // Payload is optional canonical JSON; summary must remain safe to render.
+  repeated AssessmentEvidence evidence = 11;
+}
+
+// AssessmentEvidence is transport-neutral evidence owned by a finding. It is
+// intentionally defined in common.v1 so the shared maturity contract does not
+// depend on any downstream finding representation.
+message AssessmentEvidence {
+  string kind = 1;
+  string summary = 2;
+  string locator = 3;
+  bytes payload = 4;
 }
 
 // LocalMaturityAssessment explains the provider-local current and next rung.

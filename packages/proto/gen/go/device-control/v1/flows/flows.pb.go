@@ -23,11 +23,14 @@ const (
 )
 
 type ValidateFlowRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Flow          *Flow                  `protobuf:"bytes,1,opt,name=flow,proto3" json:"flow,omitempty"`
-	StrategyId    string                 `protobuf:"bytes,2,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Flow             *Flow                  `protobuf:"bytes,1,opt,name=flow,proto3" json:"flow,omitempty"`
+	StrategyId       string                 `protobuf:"bytes,2,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	BaselineId       string                 `protobuf:"bytes,3,opt,name=baseline_id,json=baselineId,proto3" json:"baseline_id,omitempty"`
+	ExpectedVersion  int32                  `protobuf:"varint,4,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	RequireAssertion bool                   `protobuf:"varint,5,opt,name=require_assertion,json=requireAssertion,proto3" json:"require_assertion,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ValidateFlowRequest) Reset() {
@@ -72,6 +75,27 @@ func (x *ValidateFlowRequest) GetStrategyId() string {
 		return x.StrategyId
 	}
 	return ""
+}
+
+func (x *ValidateFlowRequest) GetBaselineId() string {
+	if x != nil {
+		return x.BaselineId
+	}
+	return ""
+}
+
+func (x *ValidateFlowRequest) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+func (x *ValidateFlowRequest) GetRequireAssertion() bool {
+	if x != nil {
+		return x.RequireAssertion
+	}
+	return false
 }
 
 type RunFlowRequest struct {
@@ -763,15 +787,413 @@ func (x *EvidenceReference) GetDispositionReason() string {
 	return ""
 }
 
+// A saved revision is reusable only for the exact device and comparison context.
+type SavedFlow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,3,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	ContextKey    string                 `protobuf:"bytes,4,opt,name=context_key,json=contextKey,proto3" json:"context_key,omitempty"`
+	SourceRunId   string                 `protobuf:"bytes,5,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	Flow          *Flow                  `protobuf:"bytes,6,opt,name=flow,proto3" json:"flow,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SavedFlow) Reset() {
+	*x = SavedFlow{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SavedFlow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SavedFlow) ProtoMessage() {}
+
+func (x *SavedFlow) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SavedFlow.ProtoReflect.Descriptor instead.
+func (*SavedFlow) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SavedFlow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SavedFlow) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *SavedFlow) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *SavedFlow) GetContextKey() string {
+	if x != nil {
+		return x.ContextKey
+	}
+	return ""
+}
+
+func (x *SavedFlow) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *SavedFlow) GetFlow() *Flow {
+	if x != nil {
+		return x.Flow
+	}
+	return nil
+}
+
+func (x *SavedFlow) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type ListSavedFlowsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	ContextKey    string                 `protobuf:"bytes,2,opt,name=context_key,json=contextKey,proto3" json:"context_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSavedFlowsRequest) Reset() {
+	*x = ListSavedFlowsRequest{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSavedFlowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSavedFlowsRequest) ProtoMessage() {}
+
+func (x *ListSavedFlowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSavedFlowsRequest.ProtoReflect.Descriptor instead.
+func (*ListSavedFlowsRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListSavedFlowsRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *ListSavedFlowsRequest) GetContextKey() string {
+	if x != nil {
+		return x.ContextKey
+	}
+	return ""
+}
+
+type ListSavedFlowsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Flows         []*SavedFlow           `protobuf:"bytes,1,rep,name=flows,proto3" json:"flows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSavedFlowsResponse) Reset() {
+	*x = ListSavedFlowsResponse{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSavedFlowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSavedFlowsResponse) ProtoMessage() {}
+
+func (x *ListSavedFlowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSavedFlowsResponse.ProtoReflect.Descriptor instead.
+func (*ListSavedFlowsResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListSavedFlowsResponse) GetFlows() []*SavedFlow {
+	if x != nil {
+		return x.Flows
+	}
+	return nil
+}
+
+type GetSavedFlowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSavedFlowRequest) Reset() {
+	*x = GetSavedFlowRequest{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSavedFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSavedFlowRequest) ProtoMessage() {}
+
+func (x *GetSavedFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSavedFlowRequest.ProtoReflect.Descriptor instead.
+func (*GetSavedFlowRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetSavedFlowRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *GetSavedFlowRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type SaveValidatedFlowRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	RunId      string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	DeviceId   string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	ContextKey string                 `protobuf:"bytes,3,opt,name=context_key,json=contextKey,proto3" json:"context_key,omitempty"`
+	// Empty creates a new flow. A repair supplies both id and expected_version.
+	Id              string `protobuf:"bytes,4,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion int32  `protobuf:"varint,5,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SaveValidatedFlowRequest) Reset() {
+	*x = SaveValidatedFlowRequest{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveValidatedFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveValidatedFlowRequest) ProtoMessage() {}
+
+func (x *SaveValidatedFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveValidatedFlowRequest.ProtoReflect.Descriptor instead.
+func (*SaveValidatedFlowRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SaveValidatedFlowRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SaveValidatedFlowRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *SaveValidatedFlowRequest) GetContextKey() string {
+	if x != nil {
+		return x.ContextKey
+	}
+	return ""
+}
+
+func (x *SaveValidatedFlowRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SaveValidatedFlowRequest) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type RunSavedFlowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int32                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,3,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	ContextKey    string                 `protobuf:"bytes,4,opt,name=context_key,json=contextKey,proto3" json:"context_key,omitempty"`
+	Actor         string                 `protobuf:"bytes,5,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunSavedFlowRequest) Reset() {
+	*x = RunSavedFlowRequest{}
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunSavedFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunSavedFlowRequest) ProtoMessage() {}
+
+func (x *RunSavedFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_flows_flows_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunSavedFlowRequest.ProtoReflect.Descriptor instead.
+func (*RunSavedFlowRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_flows_flows_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RunSavedFlowRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RunSavedFlowRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *RunSavedFlowRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *RunSavedFlowRequest) GetContextKey() string {
+	if x != nil {
+		return x.ContextKey
+	}
+	return ""
+}
+
+func (x *RunSavedFlowRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
 var File_device_control_v1_flows_flows_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"\n" +
-	"#device-control/v1/flows/flows.proto\x12\x1evrooli.device_control.v1.flows\x1a\x1cgoogle/protobuf/struct.proto\"p\n" +
+	"#device-control/v1/flows/flows.proto\x12\x1evrooli.device_control.v1.flows\x1a\x1cgoogle/protobuf/struct.proto\"\xe9\x01\n" +
 	"\x13ValidateFlowRequest\x128\n" +
 	"\x04flow\x18\x01 \x01(\v2$.vrooli.device_control.v1.flows.FlowR\x04flow\x12\x1f\n" +
 	"\vstrategy_id\x18\x02 \x01(\tR\n" +
-	"strategyId\"\x9e\x01\n" +
+	"strategyId\x12\x1f\n" +
+	"\vbaseline_id\x18\x03 \x01(\tR\n" +
+	"baselineId\x12)\n" +
+	"\x10expected_version\x18\x04 \x01(\x05R\x0fexpectedVersion\x12+\n" +
+	"\x11require_assertion\x18\x05 \x01(\bR\x10requireAssertion\"\x9e\x01\n" +
 	"\x0eRunFlowRequest\x128\n" +
 	"\x04flow\x18\x01 \x01(\v2$.vrooli.device_control.v1.flows.FlowR\x04flow\x12\x1b\n" +
 	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x14\n" +
@@ -840,10 +1262,47 @@ const file_device_control_v1_flows_flows_proto_rawDesc = "" +
 	"claimClass\x12,\n" +
 	"\x12minimum_useful_fps\x18\r \x01(\x01R\x10minimumUsefulFps\x12 \n" +
 	"\vdisposition\x18\x0e \x01(\tR\vdisposition\x12-\n" +
-	"\x12disposition_reason\x18\x0f \x01(\tR\x11dispositionReason2\xed\x01\n" +
+	"\x12disposition_reason\x18\x0f \x01(\tR\x11dispositionReason\"\xf0\x01\n" +
+	"\tSavedFlow\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\x12\x1b\n" +
+	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vcontext_key\x18\x04 \x01(\tR\n" +
+	"contextKey\x12\"\n" +
+	"\rsource_run_id\x18\x05 \x01(\tR\vsourceRunId\x128\n" +
+	"\x04flow\x18\x06 \x01(\v2$.vrooli.device_control.v1.flows.FlowR\x04flow\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\"U\n" +
+	"\x15ListSavedFlowsRequest\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vcontext_key\x18\x02 \x01(\tR\n" +
+	"contextKey\"Y\n" +
+	"\x16ListSavedFlowsResponse\x12?\n" +
+	"\x05flows\x18\x01 \x03(\v2).vrooli.device_control.v1.flows.SavedFlowR\x05flows\"?\n" +
+	"\x13GetSavedFlowRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\"\xaa\x01\n" +
+	"\x18SaveValidatedFlowRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vcontext_key\x18\x03 \x01(\tR\n" +
+	"contextKey\x12\x0e\n" +
+	"\x02id\x18\x04 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x05 \x01(\x05R\x0fexpectedVersion\"\x93\x01\n" +
+	"\x13RunSavedFlowRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\x12\x1b\n" +
+	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vcontext_key\x18\x04 \x01(\tR\n" +
+	"contextKey\x12\x14\n" +
+	"\x05actor\x18\x05 \x01(\tR\x05actor2\xc8\x05\n" +
 	"\vFlowService\x12x\n" +
 	"\fValidateFlow\x123.vrooli.device_control.v1.flows.ValidateFlowRequest\x1a3.vrooli.device_control.v1.flows.CapabilityGapReport\x12d\n" +
-	"\aRunFlow\x12..vrooli.device_control.v1.flows.RunFlowRequest\x1a).vrooli.device_control.v1.flows.RunResultBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1b\x06proto3"
+	"\aRunFlow\x12..vrooli.device_control.v1.flows.RunFlowRequest\x1a).vrooli.device_control.v1.flows.RunResult\x12\x7f\n" +
+	"\x0eListSavedFlows\x125.vrooli.device_control.v1.flows.ListSavedFlowsRequest\x1a6.vrooli.device_control.v1.flows.ListSavedFlowsResponse\x12n\n" +
+	"\fGetSavedFlow\x123.vrooli.device_control.v1.flows.GetSavedFlowRequest\x1a).vrooli.device_control.v1.flows.SavedFlow\x12x\n" +
+	"\x11SaveValidatedFlow\x128.vrooli.device_control.v1.flows.SaveValidatedFlowRequest\x1a).vrooli.device_control.v1.flows.SavedFlow\x12n\n" +
+	"\fRunSavedFlow\x123.vrooli.device_control.v1.flows.RunSavedFlowRequest\x1a).vrooli.device_control.v1.flows.RunResultBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1b\x06proto3"
 
 var (
 	file_device_control_v1_flows_flows_proto_rawDescOnce sync.Once
@@ -857,36 +1316,52 @@ func file_device_control_v1_flows_flows_proto_rawDescGZIP() []byte {
 	return file_device_control_v1_flows_flows_proto_rawDescData
 }
 
-var file_device_control_v1_flows_flows_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_device_control_v1_flows_flows_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_device_control_v1_flows_flows_proto_goTypes = []any{
-	(*ValidateFlowRequest)(nil), // 0: vrooli.device_control.v1.flows.ValidateFlowRequest
-	(*RunFlowRequest)(nil),      // 1: vrooli.device_control.v1.flows.RunFlowRequest
-	(*Flow)(nil),                // 2: vrooli.device_control.v1.flows.Flow
-	(*Step)(nil),                // 3: vrooli.device_control.v1.flows.Step
-	(*CapabilityGapReport)(nil), // 4: vrooli.device_control.v1.flows.CapabilityGapReport
-	(*RunResult)(nil),           // 5: vrooli.device_control.v1.flows.RunResult
-	(*Chapter)(nil),             // 6: vrooli.device_control.v1.flows.Chapter
-	(*Resolution)(nil),          // 7: vrooli.device_control.v1.flows.Resolution
-	(*EvidenceReference)(nil),   // 8: vrooli.device_control.v1.flows.EvidenceReference
-	(*structpb.Struct)(nil),     // 9: google.protobuf.Struct
+	(*ValidateFlowRequest)(nil),      // 0: vrooli.device_control.v1.flows.ValidateFlowRequest
+	(*RunFlowRequest)(nil),           // 1: vrooli.device_control.v1.flows.RunFlowRequest
+	(*Flow)(nil),                     // 2: vrooli.device_control.v1.flows.Flow
+	(*Step)(nil),                     // 3: vrooli.device_control.v1.flows.Step
+	(*CapabilityGapReport)(nil),      // 4: vrooli.device_control.v1.flows.CapabilityGapReport
+	(*RunResult)(nil),                // 5: vrooli.device_control.v1.flows.RunResult
+	(*Chapter)(nil),                  // 6: vrooli.device_control.v1.flows.Chapter
+	(*Resolution)(nil),               // 7: vrooli.device_control.v1.flows.Resolution
+	(*EvidenceReference)(nil),        // 8: vrooli.device_control.v1.flows.EvidenceReference
+	(*SavedFlow)(nil),                // 9: vrooli.device_control.v1.flows.SavedFlow
+	(*ListSavedFlowsRequest)(nil),    // 10: vrooli.device_control.v1.flows.ListSavedFlowsRequest
+	(*ListSavedFlowsResponse)(nil),   // 11: vrooli.device_control.v1.flows.ListSavedFlowsResponse
+	(*GetSavedFlowRequest)(nil),      // 12: vrooli.device_control.v1.flows.GetSavedFlowRequest
+	(*SaveValidatedFlowRequest)(nil), // 13: vrooli.device_control.v1.flows.SaveValidatedFlowRequest
+	(*RunSavedFlowRequest)(nil),      // 14: vrooli.device_control.v1.flows.RunSavedFlowRequest
+	(*structpb.Struct)(nil),          // 15: google.protobuf.Struct
 }
 var file_device_control_v1_flows_flows_proto_depIdxs = []int32{
-	2, // 0: vrooli.device_control.v1.flows.ValidateFlowRequest.flow:type_name -> vrooli.device_control.v1.flows.Flow
-	2, // 1: vrooli.device_control.v1.flows.RunFlowRequest.flow:type_name -> vrooli.device_control.v1.flows.Flow
-	3, // 2: vrooli.device_control.v1.flows.Flow.steps:type_name -> vrooli.device_control.v1.flows.Step
-	9, // 3: vrooli.device_control.v1.flows.Step.arguments:type_name -> google.protobuf.Struct
-	6, // 4: vrooli.device_control.v1.flows.RunResult.chapters:type_name -> vrooli.device_control.v1.flows.Chapter
-	7, // 5: vrooli.device_control.v1.flows.RunResult.resolutions:type_name -> vrooli.device_control.v1.flows.Resolution
-	8, // 6: vrooli.device_control.v1.flows.RunResult.evidence:type_name -> vrooli.device_control.v1.flows.EvidenceReference
-	0, // 7: vrooli.device_control.v1.flows.FlowService.ValidateFlow:input_type -> vrooli.device_control.v1.flows.ValidateFlowRequest
-	1, // 8: vrooli.device_control.v1.flows.FlowService.RunFlow:input_type -> vrooli.device_control.v1.flows.RunFlowRequest
-	4, // 9: vrooli.device_control.v1.flows.FlowService.ValidateFlow:output_type -> vrooli.device_control.v1.flows.CapabilityGapReport
-	5, // 10: vrooli.device_control.v1.flows.FlowService.RunFlow:output_type -> vrooli.device_control.v1.flows.RunResult
-	9, // [9:11] is the sub-list for method output_type
-	7, // [7:9] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	2,  // 0: vrooli.device_control.v1.flows.ValidateFlowRequest.flow:type_name -> vrooli.device_control.v1.flows.Flow
+	2,  // 1: vrooli.device_control.v1.flows.RunFlowRequest.flow:type_name -> vrooli.device_control.v1.flows.Flow
+	3,  // 2: vrooli.device_control.v1.flows.Flow.steps:type_name -> vrooli.device_control.v1.flows.Step
+	15, // 3: vrooli.device_control.v1.flows.Step.arguments:type_name -> google.protobuf.Struct
+	6,  // 4: vrooli.device_control.v1.flows.RunResult.chapters:type_name -> vrooli.device_control.v1.flows.Chapter
+	7,  // 5: vrooli.device_control.v1.flows.RunResult.resolutions:type_name -> vrooli.device_control.v1.flows.Resolution
+	8,  // 6: vrooli.device_control.v1.flows.RunResult.evidence:type_name -> vrooli.device_control.v1.flows.EvidenceReference
+	2,  // 7: vrooli.device_control.v1.flows.SavedFlow.flow:type_name -> vrooli.device_control.v1.flows.Flow
+	9,  // 8: vrooli.device_control.v1.flows.ListSavedFlowsResponse.flows:type_name -> vrooli.device_control.v1.flows.SavedFlow
+	0,  // 9: vrooli.device_control.v1.flows.FlowService.ValidateFlow:input_type -> vrooli.device_control.v1.flows.ValidateFlowRequest
+	1,  // 10: vrooli.device_control.v1.flows.FlowService.RunFlow:input_type -> vrooli.device_control.v1.flows.RunFlowRequest
+	10, // 11: vrooli.device_control.v1.flows.FlowService.ListSavedFlows:input_type -> vrooli.device_control.v1.flows.ListSavedFlowsRequest
+	12, // 12: vrooli.device_control.v1.flows.FlowService.GetSavedFlow:input_type -> vrooli.device_control.v1.flows.GetSavedFlowRequest
+	13, // 13: vrooli.device_control.v1.flows.FlowService.SaveValidatedFlow:input_type -> vrooli.device_control.v1.flows.SaveValidatedFlowRequest
+	14, // 14: vrooli.device_control.v1.flows.FlowService.RunSavedFlow:input_type -> vrooli.device_control.v1.flows.RunSavedFlowRequest
+	4,  // 15: vrooli.device_control.v1.flows.FlowService.ValidateFlow:output_type -> vrooli.device_control.v1.flows.CapabilityGapReport
+	5,  // 16: vrooli.device_control.v1.flows.FlowService.RunFlow:output_type -> vrooli.device_control.v1.flows.RunResult
+	11, // 17: vrooli.device_control.v1.flows.FlowService.ListSavedFlows:output_type -> vrooli.device_control.v1.flows.ListSavedFlowsResponse
+	9,  // 18: vrooli.device_control.v1.flows.FlowService.GetSavedFlow:output_type -> vrooli.device_control.v1.flows.SavedFlow
+	9,  // 19: vrooli.device_control.v1.flows.FlowService.SaveValidatedFlow:output_type -> vrooli.device_control.v1.flows.SavedFlow
+	5,  // 20: vrooli.device_control.v1.flows.FlowService.RunSavedFlow:output_type -> vrooli.device_control.v1.flows.RunResult
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_device_control_v1_flows_flows_proto_init() }
@@ -900,7 +1375,7 @@ func file_device_control_v1_flows_flows_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_control_v1_flows_flows_proto_rawDesc), len(file_device_control_v1_flows_flows_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

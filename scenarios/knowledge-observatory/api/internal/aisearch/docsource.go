@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log"
@@ -164,6 +165,7 @@ func (s *DocSource) loadManifest(manifestAbs string, seen map[string]struct{}, o
 				scope:        scope,
 				scenario:     scenario,
 				origin:       SourceManifest,
+				knowledge:    doccontract.KnowledgeMetadata(doc, s.repoRelative(fileAbs)),
 			}
 			s.addDoc(fileAbs, meta, seen, out)
 		}
@@ -292,6 +294,7 @@ func (s *DocSource) supplementReadmesAndPRDs(seen map[string]struct{}, out *[]pk
 
 // docMeta is the metadata carried from discovery into a SourceDoc's payload.
 type docMeta struct {
+	knowledge    map[string]any
 	docType      string
 	title        string
 	description  string
@@ -361,10 +364,18 @@ func (s *DocSource) addDoc(fileAbs string, meta docMeta, seen map[string]struct{
 		MetaPathPrefixes: pathPrefixes(relPath),
 	}
 
+	if meta.knowledge == nil {
+		meta.knowledge = doccontract.KnowledgeMetadata(doccontract.Document{}, relPath)
+	}
+	for k, v := range meta.knowledge {
+		payload[k] = v
+	}
+	payload["file_sha256"] = doccontract.FileSHA256(body)
+
 	*out = append(*out, pkg.SourceDoc{
 		ID:          relPath,
 		Kind:        DocKind,
-		ContentHash: contentHash(string(body), title, meta.description, docType, meta.maturity, meta.scope, meta.scenario, payload[MetaAudience], payload[MetaCanonicalFor]),
+		ContentHash: contentHash(string(body), title, meta.description, docType, meta.maturity, meta.scope, meta.scenario, payload[MetaAudience], payload[MetaCanonicalFor], meta.knowledge),
 		Body:        string(body),
 		Meta:        payload,
 	})
@@ -428,6 +439,9 @@ func contentHash(parts ...any) string {
 		switch v := p.(type) {
 		case string:
 			h.Write([]byte(v))
+		case map[string]any:
+			encoded, _ := json.Marshal(v)
+			h.Write(encoded)
 		case []string:
 			for _, e := range v {
 				h.Write([]byte(e))

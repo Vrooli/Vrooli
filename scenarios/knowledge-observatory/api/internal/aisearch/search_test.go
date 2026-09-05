@@ -3,10 +3,26 @@ package aisearch
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	pkg "github.com/vrooli/ai-go/search"
 )
+
+// [REQ:KO-KB-003] Search excerpts must remain valid protobuf strings.
+func TestSearchExcerptPreservesUTF8AtByteBoundary(t *testing.T) {
+	body := strings.Repeat("a", snippetLen-1) + "界 tail"
+	got := snippet(body)
+	if !utf8.ValidString(got) || got != strings.Repeat("a", snippetLen-1)+"…" {
+		t.Fatalf("invalid or altered excerpt: %q", got)
+	}
+	body = strings.Repeat("a", rerankCandidateLen-1) + "界 tail"
+	got = rerankText(pkg.SearchResult{Payload: map[string]any{"body": body}})
+	if !utf8.ValidString(got) || len(got) > rerankCandidateLen {
+		t.Fatal("rerank candidate split a character or exceeded its budget")
+	}
+}
 
 // searchEmbedder returns a fixed vector and a controllable availability.
 type searchEmbedder struct {

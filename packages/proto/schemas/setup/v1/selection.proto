@@ -22,4 +22,16 @@ message Selection {
   string session_mode = 12;
   map<string, string> operating_mode = 13;
   bool apply = 14;
+  string capacity_posture = 15;
+  uint64 transient_headroom_reserve_bytes = 16;
+  map<string, ResourceCapacitySelection> resource_capacity = 17;
+}
+
+message ResourceCapacitySelection {
+  string rung = 1;
+  map<string, string> tunables = 2;
+  uint32 gpu_index = 3;
+  string priority = 4;
+  bool yield_when_idle = 5;
+  uint32 idle_grace_seconds = 6;
 }

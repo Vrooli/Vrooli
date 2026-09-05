@@ -20,13 +20,14 @@ import (
 
 	pkg "github.com/vrooli/ai-go/search"
 
+	"knowledge-observatory/internal/doccontract"
 	"knowledge-observatory/internal/services/docsearch"
 )
 
 // defaultDocEmbedsPerTick caps embeds per background reconcile tick when
 // KO_DOCS_MAX_EMBEDS_PER_TICK is unset, so the first full index of the large
 // documentation corpus never starves Ollama (plan §4.2). Overridable via env;
-// a one-shot `reindex run` plans uncapped.
+// a one-shot `reindex run` plans the full delta but applies the same per-pass cap.
 const defaultDocEmbedsPerTick = 800
 
 // searchTokenHolder caches the control token search-hub mints for the
@@ -203,7 +204,7 @@ func (s *Server) handleSearchQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, docSearchQueryResponse{
-		Results:  projectDocHits(resp.Results),
+		Results:  s.currentDocHits(resp.Results),
 		Total:    resp.Total,
 		Query:    resp.Query,
 		Method:   resp.Method,
@@ -450,4 +451,26 @@ func writeJSONCode(w http.ResponseWriter, code int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// currentDocHits overlays current manifest declarations on an indexed hit. The
+// chunk body/hash remains index evidence; a stale chunk cannot preserve a
+// superseded authority declaration merely because reconciliation is pending.
+func (s *Server) currentDocHits(results []pkg.SearchResult) []docSearchHit {
+	hits := projectDocHits(results)
+	if s.docSearchService == nil {
+		return hits
+	}
+	for i := range hits {
+		payload := make(map[string]any, len(hits[i].Metadata)+12)
+		for k, v := range hits[i].Metadata {
+			payload[k] = v
+		}
+		for k, v := range doccontract.ReadKnowledgeMetadata(s.docSearchService.RepoRoot(), hits[i].Path) {
+			payload[k] = v
+		}
+		payload["knowledge_metadata_basis"] = "live_manifest"
+		hits[i].Metadata = payload
+	}
+	return hits
 }

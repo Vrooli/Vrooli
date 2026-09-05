@@ -100,8 +100,12 @@ type WorldConfig struct {
 	TwoDMode        bool `protobuf:"varint,5,opt,name=two_d_mode,json=twoDMode,proto3" json:"two_d_mode,omitempty"`
 	ShowDiagnostics bool `protobuf:"varint,6,opt,name=show_diagnostics,json=showDiagnostics,proto3" json:"show_diagnostics,omitempty"`
 	// Global scale multiplier for props relative to actors.
-	Scale         float64 `protobuf:"fixed64,7,opt,name=scale,proto3" json:"scale,omitempty"`
-	UpdatedAt     string  `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Scale     float64 `protobuf:"fixed64,7,opt,name=scale,proto3" json:"scale,omitempty"`
+	UpdatedAt string  `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Zoom anchor: cursor or center. Empty preserves the legacy cursor default.
+	ZoomTarget string `protobuf:"bytes,9,opt,name=zoom_target,json=zoomTarget,proto3" json:"zoom_target,omitempty"`
+	// Decorative movement. Absent preserves the enabled default for older clients.
+	AmbientLife   *bool `protobuf:"varint,10,opt,name=ambient_life,json=ambientLife,proto3,oneof" json:"ambient_life,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -190,6 +194,20 @@ func (x *WorldConfig) GetUpdatedAt() string {
 		return x.UpdatedAt
 	}
 	return ""
+}
+
+func (x *WorldConfig) GetZoomTarget() string {
+	if x != nil {
+		return x.ZoomTarget
+	}
+	return ""
+}
+
+func (x *WorldConfig) GetAmbientLife() bool {
+	if x != nil && x.AmbientLife != nil {
+		return *x.AmbientLife
+	}
+	return false
 }
 
 type GetWorldConfigRequest struct {
@@ -923,7 +941,7 @@ var File_prompt_manager_v1_world_world_proto protoreflect.FileDescriptor
 
 const file_prompt_manager_v1_world_world_proto_rawDesc = "" +
 	"\n" +
-	"#prompt-manager/v1/world/world.proto\x12\x1evrooli.prompt_manager.v1.world\"\x8e\x02\n" +
+	"#prompt-manager/v1/world/world.proto\x12\x1evrooli.prompt_manager.v1.world\"\xe8\x02\n" +
 	"\vWorldConfig\x12\x14\n" +
 	"\x05scene\x18\x01 \x01(\tR\x05scene\x12'\n" +
 	"\x0fquality_profile\x18\x02 \x01(\tR\x0equalityProfile\x12!\n" +
@@ -935,7 +953,12 @@ const file_prompt_manager_v1_world_world_proto_rawDesc = "" +
 	"\x10show_diagnostics\x18\x06 \x01(\bR\x0fshowDiagnostics\x12\x14\n" +
 	"\x05scale\x18\a \x01(\x01R\x05scale\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\tR\tupdatedAt\"\x17\n" +
+	"updated_at\x18\b \x01(\tR\tupdatedAt\x12\x1f\n" +
+	"\vzoom_target\x18\t \x01(\tR\n" +
+	"zoomTarget\x12&\n" +
+	"\fambient_life\x18\n" +
+	" \x01(\bH\x00R\vambientLife\x88\x01\x01B\x0f\n" +
+	"\r_ambient_life\"\x17\n" +
 	"\x15GetWorldConfigRequest\"\\\n" +
 	"\x15SetWorldConfigRequest\x12C\n" +
 	"\x06config\x18\x01 \x01(\v2+.vrooli.prompt_manager.v1.world.WorldConfigR\x06config\"\"\n" +
@@ -1069,6 +1092,7 @@ func file_prompt_manager_v1_world_world_proto_init() {
 	if File_prompt_manager_v1_world_world_proto != nil {
 		return
 	}
+	file_prompt_manager_v1_world_world_proto_msgTypes[0].OneofWrappers = []any{}
 	file_prompt_manager_v1_world_world_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

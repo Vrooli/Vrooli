@@ -60,8 +60,19 @@ func TestSearchSSOTWellFormed(t *testing.T) {
 	if policy.GateK != 5 || policy.RecallTarget != 0.8 || policy.DeepK < policy.GateK {
 		t.Fatalf("unexpected docs scoring policy: %+v", policy)
 	}
-	if len(provider.Tests.Cases) != 23 {
-		t.Fatalf("docs corpus cases = %d, want 23", len(provider.Tests.Cases))
+	if len(provider.Tests.Cases) < 26 {
+		t.Fatalf("docs corpus cases = %d, want at least 26 reviewed cases", len(provider.Tests.Cases))
+	}
+	for _, id := range []string{"agent-knowledge-usage", "knowledge-artifact-authority", "knowledge-os-applicability"} {
+		found := false
+		for _, c := range provider.Tests.Cases {
+			if c.ID == id {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("agent knowledge acceptance case %q is missing", id)
+		}
 	}
 }
 

@@ -1528,9 +1528,13 @@ func (x *GetExecutionResponse) GetExecution() *execution.Execution {
 type ValidateWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The workflow definition to validate.
-	Workflow      *workflows.WorkflowDefinitionV2 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Workflow *workflows.WorkflowDefinitionV2 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	// For automated repair, preserve existing assertions and execution policy.
+	BaselineWorkflowId string `protobuf:"bytes,2,opt,name=baseline_workflow_id,json=baselineWorkflowId,proto3" json:"baseline_workflow_id,omitempty"`
+	ExpectedVersion    int32  `protobuf:"varint,3,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	RequireAssertion   bool   `protobuf:"varint,4,opt,name=require_assertion,json=requireAssertion,proto3" json:"require_assertion,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ValidateWorkflowRequest) Reset() {
@@ -1568,6 +1572,27 @@ func (x *ValidateWorkflowRequest) GetWorkflow() *workflows.WorkflowDefinitionV2 
 		return x.Workflow
 	}
 	return nil
+}
+
+func (x *ValidateWorkflowRequest) GetBaselineWorkflowId() string {
+	if x != nil {
+		return x.BaselineWorkflowId
+	}
+	return ""
+}
+
+func (x *ValidateWorkflowRequest) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+func (x *ValidateWorkflowRequest) GetRequireAssertion() bool {
+	if x != nil {
+		return x.RequireAssertion
+	}
+	return false
 }
 
 // ValidateWorkflowResponse wraps the validation result.
@@ -3413,9 +3438,12 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\x13GetExecutionRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"]\n" +
 	"\x14GetExecutionResponse\x12E\n" +
-	"\texecution\x18\x01 \x01(\v2'.browser_automation_studio.v1.ExecutionR\texecution\"i\n" +
+	"\texecution\x18\x01 \x01(\v2'.browser_automation_studio.v1.ExecutionR\texecution\"\xf3\x01\n" +
 	"\x17ValidateWorkflowRequest\x12N\n" +
-	"\bworkflow\x18\x01 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\bworkflow\"j\n" +
+	"\bworkflow\x18\x01 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\bworkflow\x120\n" +
+	"\x14baseline_workflow_id\x18\x02 \x01(\tR\x12baselineWorkflowId\x12)\n" +
+	"\x10expected_version\x18\x03 \x01(\x05R\x0fexpectedVersion\x12+\n" +
+	"\x11require_assertion\x18\x04 \x01(\bR\x10requireAssertion\"j\n" +
 	"\x18ValidateWorkflowResponse\x12N\n" +
 	"\x06result\x18\x01 \x01(\v26.browser_automation_studio.v1.WorkflowValidationResultR\x06result\"\xb9\x02\n" +
 	"\x17WorkflowValidationIssue\x12L\n" +

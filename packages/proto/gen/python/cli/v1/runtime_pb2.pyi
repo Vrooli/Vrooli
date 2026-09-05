@@ -375,3 +375,29 @@ class CliHostInstallStatus(_message.Message):
     notes: _containers.RepeatedScalarFieldContainer[str]
     ok: bool
     def __init__(self, name: _Optional[str] = ..., command: _Optional[str] = ..., installed: _Optional[bool] = ..., support_class: _Optional[str] = ..., execution_state: _Optional[str] = ..., blocking_reason: _Optional[str] = ..., version: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., ok: _Optional[bool] = ...) -> None: ...
+
+class CliDesktopSessionFacts(_message.Message):
+    __slots__ = ("session_id", "uid", "peer_pid", "peer_uid", "type", "active", "locked", "remote", "matched", "reason", "observed_at")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    UID_FIELD_NUMBER: _ClassVar[int]
+    PEER_PID_FIELD_NUMBER: _ClassVar[int]
+    PEER_UID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    LOCKED_FIELD_NUMBER: _ClassVar[int]
+    REMOTE_FIELD_NUMBER: _ClassVar[int]
+    MATCHED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    uid: int
+    peer_pid: int
+    peer_uid: int
+    type: str
+    active: bool
+    locked: bool
+    remote: bool
+    matched: bool
+    reason: str
+    observed_at: str
+    def __init__(self, session_id: _Optional[str] = ..., uid: _Optional[int] = ..., peer_pid: _Optional[int] = ..., peer_uid: _Optional[int] = ..., type: _Optional[str] = ..., active: _Optional[bool] = ..., locked: _Optional[bool] = ..., remote: _Optional[bool] = ..., matched: _Optional[bool] = ..., reason: _Optional[str] = ..., observed_at: _Optional[str] = ...) -> None: ...

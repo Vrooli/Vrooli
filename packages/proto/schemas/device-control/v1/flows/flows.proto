@@ -7,10 +7,17 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-contr
 service FlowService {
   rpc ValidateFlow(ValidateFlowRequest) returns (CapabilityGapReport);
   rpc RunFlow(RunFlowRequest) returns (RunResult);
+  rpc ListSavedFlows(ListSavedFlowsRequest) returns (ListSavedFlowsResponse);
+  rpc GetSavedFlow(GetSavedFlowRequest) returns (SavedFlow);
+  rpc SaveValidatedFlow(SaveValidatedFlowRequest) returns (SavedFlow);
+  rpc RunSavedFlow(RunSavedFlowRequest) returns (RunResult);
 }
 message ValidateFlowRequest {
   Flow flow = 1;
   string strategy_id = 2;
+  string baseline_id = 3;
+  int32 expected_version = 4;
+  bool require_assertion = 5;
 }
 message RunFlowRequest {
   Flow flow = 1;
@@ -78,4 +85,34 @@ message EvidenceReference {
   double minimum_useful_fps = 13;
   string disposition = 14;
   string disposition_reason = 15;
+}
+
+
+// A saved revision is reusable only for the exact device and comparison context.
+message SavedFlow {
+ string id = 1;
+ int32 version = 2;
+ string device_id = 3;
+ string context_key = 4;
+ string source_run_id = 5;
+ Flow flow = 6;
+ string created_at = 7;
+}
+message ListSavedFlowsRequest { string device_id = 1; string context_key = 2; }
+message ListSavedFlowsResponse { repeated SavedFlow flows = 1; }
+message GetSavedFlowRequest { string id = 1; int32 version = 2; }
+message SaveValidatedFlowRequest {
+ string run_id = 1;
+ string device_id = 2;
+ string context_key = 3;
+ // Empty creates a new flow. A repair supplies both id and expected_version.
+ string id = 4;
+ int32 expected_version = 5;
+}
+message RunSavedFlowRequest {
+ string id = 1;
+ int32 version = 2;
+ string device_id = 3;
+ string context_key = 4;
+ string actor = 5;
 }

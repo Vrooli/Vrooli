@@ -215,3 +215,11 @@ This scenario is essential infrastructure - it's not just a tool but a window in
 **Status**: Production Ready  
 **Maintainer**: AI Agents  
 **Review Cycle**: Weekly
+
+## Agent knowledge interface
+
+For task-oriented documentation retrieval and maintenance, load the scenario-owned
+`knowledge-observatory` skill. For outcome-driven improvement, load
+`knowledge-observatory-improve`. The [getting started guide](docs/guides/getting-started.md#agent-knowledge-workflows)
+explains the governed CLI, five bounded programs, authority/applicability metadata,
+and caller-owned Memory learning loop.

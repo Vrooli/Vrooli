@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { EngineIssue, SearchResult } from "../shared/search_pb";
+import { file_web_search_v1_shared_search } from "../shared/search_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file web-search/v1/livesearch/livesearch.proto.
  */
 export const file_web_search_v1_livesearch_livesearch: GenFile = /*@__PURE__*/
-  fileDesc("Cil3ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2gvbGl2ZXNlYXJjaC5wcm90bxIfdnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaCJBCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEhIKCnN5bnRoZXNpemUYAyABKAgibAoMU2VhcmNoUmVzdWx0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzbmlwcGV0GAMgASgJEg4KBmVuZ2luZRgEIAEoCRINCgVzY29yZRgFIAEoARIQCghjYXRlZ29yeRgGIAEoCSI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJImoKCVN5bnRoZXNpcxIMCgR0ZXh0GAEgASgJEjwKCWNpdGF0aW9ucxgCIAMoCzIpLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guQ2l0YXRpb24SEQoJYWJzdGFpbmVkGAMgASgIIi0KC0VuZ2luZUlzc3VlEg4KBmVuZ2luZRgBIAEoCRIOCgZyZWFzb24YAiABKAkikgIKDlNlYXJjaFJlc3BvbnNlEj4KB3Jlc3VsdHMYASADKAsyLS52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlNlYXJjaFJlc3VsdBI9CglzeW50aGVzaXMYAiABKAsyKi52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLlN5bnRoZXNpcxIOCgZjYWNoZWQYAyABKAgSEAoIZGVncmFkZWQYBCABKAgSFwoPZGVncmFkZWRfcmVhc29uGAUgASgJEkYKEGRlZ3JhZGVkX2VuZ2luZXMYBiADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkVuZ2luZUlzc3VlMn4KEUxpdmVTZWFyY2hTZXJ2aWNlEmkKBlNlYXJjaBIuLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVxdWVzdBovLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVzcG9uc2VCV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2g7bGl2ZXNlYXJjaF92MWIGcHJvdG8z");
+  fileDesc("Cil3ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2gvbGl2ZXNlYXJjaC5wcm90bxIfdnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaCJBCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEhIKCnN5bnRoZXNpemUYAyABKAgiPAoIQ2l0YXRpb24SFAoMcmVzdWx0X2luZGV4GAEgASgFEgsKA3VybBgCIAEoCRINCgV0aXRsZRgDIAEoCSJqCglTeW50aGVzaXMSDAoEdGV4dBgBIAEoCRI8CgljaXRhdGlvbnMYAiADKAsyKS52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkNpdGF0aW9uEhEKCWFic3RhaW5lZBgDIAEoCCKKAgoOU2VhcmNoUmVzcG9uc2USOgoHcmVzdWx0cxgBIAMoCzIpLnZyb29saS53ZWJfc2VhcmNoLnYxLnNoYXJlZC5TZWFyY2hSZXN1bHQSPQoJc3ludGhlc2lzGAIgASgLMioudnJvb2xpLndlYl9zZWFyY2gudjEubGl2ZXNlYXJjaC5TeW50aGVzaXMSDgoGY2FjaGVkGAMgASgIEhAKCGRlZ3JhZGVkGAQgASgIEhcKD2RlZ3JhZGVkX3JlYXNvbhgFIAEoCRJCChBkZWdyYWRlZF9lbmdpbmVzGAYgAygLMigudnJvb2xpLndlYl9zZWFyY2gudjEuc2hhcmVkLkVuZ2luZUlzc3VlMn4KEUxpdmVTZWFyY2hTZXJ2aWNlEmkKBlNlYXJjaBIuLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVxdWVzdBovLnZyb29saS53ZWJfc2VhcmNoLnYxLmxpdmVzZWFyY2guU2VhcmNoUmVzcG9uc2VCV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItc2VhcmNoL3YxL2xpdmVzZWFyY2g7bGl2ZXNlYXJjaF92MWIGcHJvdG8z", [file_web_search_v1_shared_search]);
 
 /**
  * @generated from message vrooli.web_search.v1.livesearch.SearchRequest
@@ -48,59 +50,6 @@ export const SearchRequestSchema: GenMessage<SearchRequest> = /*@__PURE__*/
   messageDesc(file_web_search_v1_livesearch_livesearch, 0);
 
 /**
- * SearchResult is one live web-search hit, normalized from the SearXNG result
- * shape. score is the RAW SearXNG relevance score (not re-normalized here).
- *
- * @generated from message vrooli.web_search.v1.livesearch.SearchResult
- */
-export type SearchResult = Message<"vrooli.web_search.v1.livesearch.SearchResult"> & {
-  /**
-   * @generated from field: string url = 1;
-   */
-  url: string;
-
-  /**
-   * @generated from field: string title = 2;
-   */
-  title: string;
-
-  /**
-   * snippet is the SearXNG result "content" field.
-   *
-   * @generated from field: string snippet = 3;
-   */
-  snippet: string;
-
-  /**
-   * engine names the upstream engine SearXNG sourced the result from.
-   *
-   * @generated from field: string engine = 4;
-   */
-  engine: string;
-
-  /**
-   * score is the raw SearXNG relevance score.
-   *
-   * @generated from field: double score = 5;
-   */
-  score: number;
-
-  /**
-   * category is the SearXNG result category (e.g. "general").
-   *
-   * @generated from field: string category = 6;
-   */
-  category: string;
-};
-
-/**
- * Describes the message vrooli.web_search.v1.livesearch.SearchResult.
- * Use `create(SearchResultSchema)` to create a new message.
- */
-export const SearchResultSchema: GenMessage<SearchResult> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 1);
-
-/**
  * Citation links a synthesis claim back to the SearchResult that supports it.
  *
  * @generated from message vrooli.web_search.v1.livesearch.Citation
@@ -129,7 +78,7 @@ export type Citation = Message<"vrooli.web_search.v1.livesearch.Citation"> & {
  * Use `create(CitationSchema)` to create a new message.
  */
 export const CitationSchema: GenMessage<Citation> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 2);
+  messageDesc(file_web_search_v1_livesearch_livesearch, 1);
 
 /**
  * Synthesis is the optional L1 summary over the returned snippets.
@@ -166,41 +115,14 @@ export type Synthesis = Message<"vrooli.web_search.v1.livesearch.Synthesis"> & {
  * Use `create(SynthesisSchema)` to create a new message.
  */
 export const SynthesisSchema: GenMessage<Synthesis> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 3);
-
-/**
- * EngineIssue names one upstream metasearch engine that did not answer a
- * query, with the upstream-reported reason (suspended, CAPTCHA, parse
- * error, ...). Structured (not a display string) so UIs can badge it and
- * automation can count it.
- *
- * @generated from message vrooli.web_search.v1.livesearch.EngineIssue
- */
-export type EngineIssue = Message<"vrooli.web_search.v1.livesearch.EngineIssue"> & {
-  /**
-   * @generated from field: string engine = 1;
-   */
-  engine: string;
-
-  /**
-   * @generated from field: string reason = 2;
-   */
-  reason: string;
-};
-
-/**
- * Describes the message vrooli.web_search.v1.livesearch.EngineIssue.
- * Use `create(EngineIssueSchema)` to create a new message.
- */
-export const EngineIssueSchema: GenMessage<EngineIssue> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 4);
+  messageDesc(file_web_search_v1_livesearch_livesearch, 2);
 
 /**
  * @generated from message vrooli.web_search.v1.livesearch.SearchResponse
  */
 export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResponse"> & {
   /**
-   * @generated from field: repeated vrooli.web_search.v1.livesearch.SearchResult results = 1;
+   * @generated from field: repeated vrooli.web_search.v1.shared.SearchResult results = 1;
    */
   results: SearchResult[];
 
@@ -236,7 +158,7 @@ export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResp
    * (per-query signal from the metasearch layer). Results may be partial when
    * non-empty; for cached responses this reflects the engines at fetch time.
    *
-   * @generated from field: repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 6;
+   * @generated from field: repeated vrooli.web_search.v1.shared.EngineIssue degraded_engines = 6;
    */
   degradedEngines: EngineIssue[];
 };
@@ -246,7 +168,7 @@ export type SearchResponse = Message<"vrooli.web_search.v1.livesearch.SearchResp
  * Use `create(SearchResponseSchema)` to create a new message.
  */
 export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_livesearch_livesearch, 5);
+  messageDesc(file_web_search_v1_livesearch_livesearch, 3);
 
 /**
  * LiveSearchService is the L0/L1 live web-search surface: it fans a query out to

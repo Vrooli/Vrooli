@@ -265,10 +265,16 @@ class GetExecutionResponse(_message.Message):
     def __init__(self, execution: _Optional[_Union[_execution_pb2.Execution, _Mapping]] = ...) -> None: ...
 
 class ValidateWorkflowRequest(_message.Message):
-    __slots__ = ("workflow",)
+    __slots__ = ("workflow", "baseline_workflow_id", "expected_version", "require_assertion")
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_ASSERTION_FIELD_NUMBER: _ClassVar[int]
     workflow: _definition_pb2.WorkflowDefinitionV2
-    def __init__(self, workflow: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
+    baseline_workflow_id: str
+    expected_version: int
+    require_assertion: bool
+    def __init__(self, workflow: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., baseline_workflow_id: _Optional[str] = ..., expected_version: _Optional[int] = ..., require_assertion: _Optional[bool] = ...) -> None: ...
 
 class ValidateWorkflowResponse(_message.Message):
     __slots__ = ("result",)

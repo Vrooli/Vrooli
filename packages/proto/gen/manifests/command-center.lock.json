@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "command-center",
-  "input_digest": "sha256:ef3b21b8b12c7e7a89a419afabc08f60274428de5b5ad655191abdfbed41ef16",
+  "input_digest": "sha256:9b9aa940b8a159306320c6379b8c31a83408f4b78bae546573abb6cb807f4666",
   "input_files": [
     "schemas/command-center/v1/integrations/integrations.proto",
+    "schemas/command-center/v1/walk/walk.proto",
     "schemas/common/v1/integrations.proto"
   ],
   "toolchain": {
@@ -19,11 +20,17 @@
   "outputs": {
     "gen/go/command-center/v1/integrations/integrations.pb.go": "sha256:ba95b1eff879c5595643b1c09729248afc92a7c1406ea03200d511ad85d88583",
     "gen/go/command-center/v1/integrations/integrations_v1connect/integrations.connect.go": "sha256:16f8aed9175b674b2a1f934764f7c6b440424958165d39f609094aec10b83f96",
+    "gen/go/command-center/v1/walk/walk.pb.go": "sha256:e6f57cbc03b1eb2d2e920ccfe04a6577866031e8cf3af40504fdfcc6006354b7",
+    "gen/go/command-center/v1/walk/walk_v1connect/walk.connect.go": "sha256:1de181faa3ad6acb92eb3b21152b3f5405f080457174a3425276ab189207b847",
     "gen/python/command_center/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/command_center/v1/integrations/integrations_pb2.py": "sha256:badd01d6402e61a1e9f6c5cbebb160b6991c381d4d47b7ccff73f1fc5c831846",
     "gen/python/command_center/v1/integrations/integrations_pb2.pyi": "sha256:c7c9b8b0085df867f67aef0c6df0f4143d448228abef6c018574961f315f8c43",
     "gen/python/command_center/v1/integrations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/command_center/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/command-center/v1/integrations/integrations_pb.ts": "sha256:5d98e2310f523acbedf1c101a118accb4f7c609df8bc23084146a5c5a7f64860"
+    "gen/python/command_center/v1/walk/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/command_center/v1/walk/walk_pb2.py": "sha256:e0a835d40a80b08ca78f76f220914aa4876b9a2bd1ef3edae6a034a40a95aae0",
+    "gen/python/command_center/v1/walk/walk_pb2.pyi": "sha256:46453e33f13dbfb289df55073bec46ccb37522c545090468e0851b3a0368eb0a",
+    "gen/typescript/command-center/v1/integrations/integrations_pb.ts": "sha256:5d98e2310f523acbedf1c101a118accb4f7c609df8bc23084146a5c5a7f64860",
+    "gen/typescript/command-center/v1/walk/walk_pb.ts": "sha256:31888f937bc09f9a1e776c1172677c81ee6efa6b93553e8a0e6e2c2fc6b882dd"
   }
 }

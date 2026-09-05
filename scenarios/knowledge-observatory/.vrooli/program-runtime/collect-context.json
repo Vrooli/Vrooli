@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.collect-context",
+  "version": "1",
+  "purpose": "Retrieve and inspect bounded task context with source revisions, applicability, and explicit evidence gaps.",
+  "inputs": {
+    "query": {
+      "type": "string",
+      "required": true
+    },
+    "scope": {
+      "type": "string",
+      "default": "global",
+      "enum": [
+        "global",
+        "scenario",
+        "path"
+      ]
+    },
+    "target": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "default": "auto",
+      "enum": [
+        "auto",
+        "hybrid",
+        "dense",
+        "text"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "default": 3
+    },
+    "follow_references": {
+      "type": "integer",
+      "default": 1
+    }
+  },
+  "assumptions": [
+    "Source owners retain knowledge authority; no search score establishes acceptance.",
+    "Knowledge Observatory and declared read dependencies are running."
+  ],
+  "invariants": [
+    "One bounded envelope on every path; no writes, retries, or shell access.",
+    "Unknown applicability and unavailable reads remain explicit.",
+    "The caller owns final task verification and one learning capture; no memory writes inside these programs."
+  ],
+  "bindings": [
+    {
+      "id": "knowledge-observatory/knowledge-base/search",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/inspect",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "documents": "At most 7 inspected excerpts of 3000 characters with 12 references each.",
+      "gaps": "Explicit incompleteness and editorial review needs.",
+      "capture_required": "Caller captures once; task_success_verified is always false."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_match",
+        "verification_failed",
+        "revision_changed",
+        "output_bound"
+      ]
+    },
+    "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 12,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "unexpected": true
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      }
+    },
+    {
+      "id": "text-context",
+      "inputs": {
+        "query": "Generated artifact placement contract",
+        "scope": "path",
+        "target": "docs/reference",
+        "mode": "text",
+        "limit": 2,
+        "follow_references": 0
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory"
+}

@@ -368,7 +368,10 @@ class ClaimMeasurement(_message.Message):
     def __init__(self, metric: _Optional[str] = ..., observed: _Optional[float] = ..., required: _Optional[float] = ..., unit: _Optional[str] = ..., comparator: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[MeasuredSubject, _Mapping]]] = ...) -> None: ...
 
 class ReconciliationEvidence(_message.Message):
-    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height", "document_kind", "component_id", "component_title", "example_name", "measurement")
+    __slots__ = ("contract_hash", "snapshot_hash", "evaluator_version", "id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height", "document_kind", "component_id", "component_title", "example_name", "measurement")
+    CONTRACT_HASH_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_HASH_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_VERSION_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PAGE_FIELD_NUMBER: _ClassVar[int]
@@ -389,6 +392,9 @@ class ReconciliationEvidence(_message.Message):
     COMPONENT_TITLE_FIELD_NUMBER: _ClassVar[int]
     EXAMPLE_NAME_FIELD_NUMBER: _ClassVar[int]
     MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
+    contract_hash: str
+    snapshot_hash: str
+    evaluator_version: str
     id: str
     scenario: str
     page: str
@@ -409,7 +415,7 @@ class ReconciliationEvidence(_message.Message):
     component_title: str
     example_name: str
     measurement: ClaimMeasurement
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., document_kind: _Optional[str] = ..., component_id: _Optional[str] = ..., component_title: _Optional[str] = ..., example_name: _Optional[str] = ..., measurement: _Optional[_Union[ClaimMeasurement, _Mapping]] = ...) -> None: ...
+    def __init__(self, contract_hash: _Optional[str] = ..., snapshot_hash: _Optional[str] = ..., evaluator_version: _Optional[str] = ..., id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., document_kind: _Optional[str] = ..., component_id: _Optional[str] = ..., component_title: _Optional[str] = ..., example_name: _Optional[str] = ..., measurement: _Optional[_Union[ClaimMeasurement, _Mapping]] = ...) -> None: ...
 
 class SuggestBindingsRequest(_message.Message):
     __slots__ = ("scenario", "path", "page", "limit")

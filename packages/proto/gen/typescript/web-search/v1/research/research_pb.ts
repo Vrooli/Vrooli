@@ -2,19 +2,19 @@
 // @generated from file web-search/v1/research/research.proto (package vrooli.web_search.v1.research, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { EngineIssue } from "../livesearch/livesearch_pb";
-import { file_web_search_v1_livesearch_livesearch } from "../livesearch/livesearch_pb";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { EngineIssue, SearchResult } from "../shared/search_pb";
+import { file_web_search_v1_shared_search } from "../shared/search_pb";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file web-search/v1/research/research.proto.
  */
 export const file_web_search_v1_research_research: GenFile = /*@__PURE__*/
-  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iPQoMUnVuTDJSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXRvcF9uGAIgASgFEg8KB2NhcHR1cmUYAyABKAgiqgIKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJEkYKEGRlZ3JhZGVkX2VuZ2luZXMYBSADKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5saXZlc2VhcmNoLkVuZ2luZUlzc3VlEhYKDmFic3RhaW5fcmVhc29uGAYgASgJEkAKCGV4Y2VycHRzGAcgAygLMi4udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRG9jdW1lbnRFeGNlcnB0Ij4KD0RvY3VtZW50RXhjZXJwdBILCgN1cmwYASABKAkSDQoFdGl0bGUYAiABKAkSDwoHZXhjZXJwdBgDIAEoCSIdCgxSdW5MM1JlcXVlc3QSDQoFcXVlcnkYASABKAkiLwoNUnVuTDNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJIioKGEdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAkiwAEKGUdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgllcnJvcl9tc2cYBiABKAkiOgocR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRILCgNtYXgYAiABKAUiZwoPR2F0aGVyZWRGaW5kaW5nEhIKCmZpbmRpbmdfaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARIOCgZzdGF0dXMYBCABKAkSDQoFc2NvcmUYBSABKAEidgodR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2USQAoIZmluZGluZ3MYASADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJlZEZpbmRpbmcSEwoLY2FwX2FwcGxpZWQYAiABKAUy9wMKD1Jlc2VhcmNoU2VydmljZRJiCgVSdW5MMhIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwyUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwyUmVzcG9uc2USYgoFUnVuTDMSKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MM1JlcXVlc3QaLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MM1Jlc3BvbnNlEoYBChFHZXRSZXNlYXJjaFN0YXR1cxI3LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBo4LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USkgEKFUdhdGhlclJlbGF0ZWRGaW5kaW5ncxI7LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlclJlbGF0ZWRGaW5kaW5nc1JlcXVlc3QaPC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1zZWFyY2gvdjEvcmVzZWFyY2g7cmVzZWFyY2hfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_web_search_v1_livesearch_livesearch]);
+  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iwAEKDFJ1bkwyUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgV0b3BfbhgCIAEoBRIPCgdjYXB0dXJlGAMgASgIEj0KBnBvbGljeRgEIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgFIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24iiQMKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJEkIKEGRlZ3JhZGVkX2VuZ2luZXMYBSADKAsyKC52cm9vbGkud2ViX3NlYXJjaC52MS5zaGFyZWQuRW5naW5lSXNzdWUSFgoOYWJzdGFpbl9yZWFzb24YBiABKAkSQAoIZXhjZXJwdHMYByADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Eb2N1bWVudEV4Y2VycHQSHAoUZXZpZGVuY2VfcmVjZWlwdF9pZHMYCCADKAkSQwoOZmV0Y2hfZmFpbHVyZXMYCSADKAsyKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5GZXRjaEZhaWx1cmUiYQoMRmV0Y2hGYWlsdXJlEgsKA3VybBgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIEhIKCnJlY2VpcHRfaWQYBSABKAkiPgoPRG9jdW1lbnRFeGNlcnB0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdleGNlcnB0GAMgASgJIrkBCgxSdW5MM1JlcXVlc3QSDQoFcXVlcnkYASABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAIgASgJEj0KBnBvbGljeRgDIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgEIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24iLwoNUnVuTDNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJIioKGEdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAki/AEKGUdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgllcnJvcl9tc2cYBiABKAkSJwoGcmVzdWx0GAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIRCgl0aW1lZF9vdXQYCCABKAgiOgocR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRILCgNtYXgYAiABKAUiZwoPR2F0aGVyZWRGaW5kaW5nEhIKCmZpbmRpbmdfaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARIOCgZzdGF0dXMYBCABKAkSDQoFc2NvcmUYBSABKAEidgodR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2USQAoIZmluZGluZ3MYASADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJlZEZpbmRpbmcSEwoLY2FwX2FwcGxpZWQYAiABKAUirwIKDUFuc3dlclJlcXVlc3QSDQoFcXVlcnkYASABKAkSDgoGZWZmb3J0GAIgASgJEhcKD21heF9hZ2Vfc2Vjb25kcxgDIAEoAxIWCg5zb3VyY2VfZG9tYWlucxgEIAMoCRIXCg9taW5pbXVtX3NvdXJjZXMYBSABKAUSDQoFdG9wX24YBiABKAUSDwoHY2FwdHVyZRgHIAEoCBISCgpmaW5kaW5nX2lkGAggASgJEj0KBnBvbGljeRgJIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgKIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24i5gMKDkFuc3dlclJlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRITCgthbnN3ZXJfa2luZBgCIAEoCRIzCgVicmllZhgDIAEoCzIkLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkJyaWVmEjoKB3Jlc3VsdHMYBCADKAsyKS52cm9vbGkud2ViX3NlYXJjaC52MS5zaGFyZWQuU2VhcmNoUmVzdWx0EhMKC2ZpbmRpbmdfaWRzGAUgAygJEhEKCWFic3RhaW5lZBgGIAEoCBIOCgZyZWFzb24YByABKAkSLgoKY2hlY2tlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKbGl2ZV9jYWxscxgJIAEoBRIOCgZjYWNoZWQYCiABKAgSDAoEZ2FwcxgLIAMoCRIcChRjYXB0dXJlZF9maW5kaW5nX2lkcxgMIAMoCRJDCgthc3Nlc3NtZW50cxgNIAMoCzIuLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkNsYWltQXNzZXNzbWVudBJBCghjb3ZlcmFnZRgOIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlF1ZXN0aW9uQ292ZXJhZ2UiPgoTV2FpdFJlc2VhcmNoUmVxdWVzdBIOCgZydW5faWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIsEBCg5FdmlkZW5jZVBvbGljeRIXCg9tYXhfYWdlX3NlY29uZHMYASABKAMSFgoOc291cmNlX2RvbWFpbnMYAiADKAkSFwoPbWluaW11bV9zb3VyY2VzGAMgASgFEg0KBXRvcF9uGAQgASgFEhUKDW1heF9xdWVzdGlvbnMYBSABKAUSGgoSbWF4X2V2aWRlbmNlX2J5dGVzGAYgASgFEiMKG3JlcXVpcmVfaW5kZXBlbmRlbnRfc291cmNlcxgHIAEoCCJAChBSZXNlYXJjaFF1ZXN0aW9uEgoKAmlkGAEgASgJEg4KBnByb21wdBgCIAEoCRIQCghyZXF1aXJlZBgDIAEoCCJvChJFdmlkZW5jZVBhc3NhZ2VSZWYSEgoKcmVjZWlwdF9pZBgBIAEoCRISCgpwYXNzYWdlX2lkGAIgASgJEhQKDGNvbnRlbnRfaGFzaBgDIAEoCRIbChNleHRyYWN0aW9uX3JldmlzaW9uGAQgASgJItwBCg9DbGFpbUFzc2Vzc21lbnQSEAoIY2xhaW1faWQYASABKAkSSQoLZGlzcG9zaXRpb24YAiABKA4yNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Bc3Nlc3NtZW50RGlzcG9zaXRpb24SQwoIZXZpZGVuY2UYAyADKAsyMS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5FdmlkZW5jZVBhc3NhZ2VSZWYSFwoPcG9saWN5X3JldmlzaW9uGAQgASgJEg4KBnJlYXNvbhgFIAEoCSJlChBRdWVzdGlvbkNvdmVyYWdlEhMKC3F1ZXN0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIRCgljbGFpbV9pZHMYAyADKAkSGQoRdW5yZXNvbHZlZF9yZWFzb24YBCABKAkivAEKD0V2aWRlbmNlUmVjZWlwdBISCgpyZWNlaXB0X2lkGAEgASgJEhYKDm9ic2VydmF0aW9uX2lkGAIgASgJEgsKA3VybBgDIAEoCRIUCgxyZXRyaWV2ZWRfYXQYBCABKAkSFAoMY29udGVudF9oYXNoGAUgASgJEhsKE2V4dHJhY3Rpb25fcmV2aXNpb24YBiABKAkSEQoJcmV0ZW50aW9uGAcgASgJEhQKDGZhaWx1cmVfY29kZRgIIAEoCSqpAQoVQXNzZXNzbWVudERpc3Bvc2l0aW9uEiYKIkFTU0VTU01FTlRfRElTUE9TSVRJT05fVU5TUEVDSUZJRUQQABIYChRBU1NFU1NNRU5UX1NVUFBPUlRFRBABEhsKF0FTU0VTU01FTlRfQ09OVFJBRElDVEVEEAISGQoVQVNTRVNTTUVOVF9VTlJFU09MVkVEEAMSFgoSQVNTRVNTTUVOVF9VTktOT1dOEAQy3AUKD1Jlc2VhcmNoU2VydmljZRJlCgZBbnN3ZXISLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5BbnN3ZXJSZXF1ZXN0Gi0udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQW5zd2VyUmVzcG9uc2USfAoMV2FpdFJlc2VhcmNoEjIudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guV2FpdFJlc2VhcmNoUmVxdWVzdBo4LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USYgoFUnVuTDISKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MMlJlcXVlc3QaLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MMlJlc3BvbnNlEmIKBVJ1bkwzEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDNSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDNSZXNwb25zZRKGAQoRR2V0UmVzZWFyY2hTdGF0dXMSNy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRSZXNlYXJjaFN0YXR1c1JlcXVlc3QaOC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRSZXNlYXJjaFN0YXR1c1Jlc3BvbnNlEpIBChVHYXRoZXJSZWxhdGVkRmluZGluZ3MSOy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXF1ZXN0GjwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItc2VhcmNoL3YxL3Jlc2VhcmNoO3Jlc2VhcmNoX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_struct, file_web_search_v1_shared_search]);
 
 /**
  * Citation links a synthesis claim back to the fetched page that supports it.
@@ -108,6 +108,16 @@ export type RunL2Request = Message<"vrooli.web_search.v1.research.RunL2Request">
    * @generated from field: bool capture = 3;
    */
   capture: boolean;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.EvidencePolicy policy = 4;
+   */
+  policy?: EvidencePolicy | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.ResearchQuestion questions = 5;
+   */
+  questions: ResearchQuestion[];
 };
 
 /**
@@ -159,7 +169,7 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
    * non-empty list usually means the inputs were partial, not that the web
    * lacks an answer.
    *
-   * @generated from field: repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
+   * @generated from field: repeated vrooli.web_search.v1.shared.EngineIssue degraded_engines = 5;
    */
   degradedEngines: EngineIssue[];
 
@@ -184,6 +194,16 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
    * @generated from field: repeated vrooli.web_search.v1.research.DocumentExcerpt excerpts = 7;
    */
   excerpts: DocumentExcerpt[];
+
+  /**
+   * @generated from field: repeated string evidence_receipt_ids = 8;
+   */
+  evidenceReceiptIds: string[];
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.FetchFailure fetch_failures = 9;
+   */
+  fetchFailures: FetchFailure[];
 };
 
 /**
@@ -192,6 +212,43 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
  */
 export const RunL2ResponseSchema: GenMessage<RunL2Response> = /*@__PURE__*/
   messageDesc(file_web_search_v1_research_research, 3);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.FetchFailure
+ */
+export type FetchFailure = Message<"vrooli.web_search.v1.research.FetchFailure"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: bool retryable = 4;
+   */
+  retryable: boolean;
+
+  /**
+   * @generated from field: string receipt_id = 5;
+   */
+  receiptId: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.FetchFailure.
+ * Use `create(FetchFailureSchema)` to create a new message.
+ */
+export const FetchFailureSchema: GenMessage<FetchFailure> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 4);
 
 /**
  * DocumentExcerpt is what the synthesis model actually read from one fetched
@@ -221,7 +278,7 @@ export type DocumentExcerpt = Message<"vrooli.web_search.v1.research.DocumentExc
  * Use `create(DocumentExcerptSchema)` to create a new message.
  */
 export const DocumentExcerptSchema: GenMessage<DocumentExcerpt> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 4);
+  messageDesc(file_web_search_v1_research_research, 5);
 
 /**
  * @generated from message vrooli.web_search.v1.research.RunL3Request
@@ -231,6 +288,21 @@ export type RunL3Request = Message<"vrooli.web_search.v1.research.RunL3Request">
    * @generated from field: string query = 1;
    */
   query: string;
+
+  /**
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey: string;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.EvidencePolicy policy = 3;
+   */
+  policy?: EvidencePolicy | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.ResearchQuestion questions = 4;
+   */
+  questions: ResearchQuestion[];
 };
 
 /**
@@ -238,14 +310,14 @@ export type RunL3Request = Message<"vrooli.web_search.v1.research.RunL3Request">
  * Use `create(RunL3RequestSchema)` to create a new message.
  */
 export const RunL3RequestSchema: GenMessage<RunL3Request> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 5);
+  messageDesc(file_web_search_v1_research_research, 6);
 
 /**
  * @generated from message vrooli.web_search.v1.research.RunL3Response
  */
 export type RunL3Response = Message<"vrooli.web_search.v1.research.RunL3Response"> & {
   /**
-   * run_id is the agent-manager run handle to poll via GetResearchStatus.
+   * run_id is the declared workflow execution handle for WaitResearch.
    *
    * @generated from field: string run_id = 1;
    */
@@ -264,7 +336,7 @@ export type RunL3Response = Message<"vrooli.web_search.v1.research.RunL3Response
  * Use `create(RunL3ResponseSchema)` to create a new message.
  */
 export const RunL3ResponseSchema: GenMessage<RunL3Response> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 6);
+  messageDesc(file_web_search_v1_research_research, 7);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GetResearchStatusRequest
@@ -281,7 +353,7 @@ export type GetResearchStatusRequest = Message<"vrooli.web_search.v1.research.Ge
  * Use `create(GetResearchStatusRequestSchema)` to create a new message.
  */
 export const GetResearchStatusRequestSchema: GenMessage<GetResearchStatusRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 7);
+  messageDesc(file_web_search_v1_research_research, 8);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GetResearchStatusResponse
@@ -325,6 +397,16 @@ export type GetResearchStatusResponse = Message<"vrooli.web_search.v1.research.G
    * @generated from field: string error_msg = 6;
    */
   errorMsg: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct result = 7;
+   */
+  result?: JsonObject | undefined;
+
+  /**
+   * @generated from field: bool timed_out = 8;
+   */
+  timedOut: boolean;
 };
 
 /**
@@ -332,7 +414,7 @@ export type GetResearchStatusResponse = Message<"vrooli.web_search.v1.research.G
  * Use `create(GetResearchStatusResponseSchema)` to create a new message.
  */
 export const GetResearchStatusResponseSchema: GenMessage<GetResearchStatusResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 8);
+  messageDesc(file_web_search_v1_research_research, 9);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsRequest
@@ -358,7 +440,7 @@ export type GatherRelatedFindingsRequest = Message<"vrooli.web_search.v1.researc
  * Use `create(GatherRelatedFindingsRequestSchema)` to create a new message.
  */
 export const GatherRelatedFindingsRequestSchema: GenMessage<GatherRelatedFindingsRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 9);
+  messageDesc(file_web_search_v1_research_research, 10);
 
 /**
  * GatheredFinding is one finding semantically near the gather query, projected
@@ -403,7 +485,7 @@ export type GatheredFinding = Message<"vrooli.web_search.v1.research.GatheredFin
  * Use `create(GatheredFindingSchema)` to create a new message.
  */
 export const GatheredFindingSchema: GenMessage<GatheredFinding> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 10);
+  messageDesc(file_web_search_v1_research_research, 11);
 
 /**
  * @generated from message vrooli.web_search.v1.research.GatherRelatedFindingsResponse
@@ -429,7 +511,455 @@ export type GatherRelatedFindingsResponse = Message<"vrooli.web_search.v1.resear
  * Use `create(GatherRelatedFindingsResponseSchema)` to create a new message.
  */
 export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindingsResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 11);
+  messageDesc(file_web_search_v1_research_research, 12);
+
+/**
+ * An omitted max_age_seconds requires live evidence. Stored reuse is opt-in.
+ *
+ * @generated from message vrooli.web_search.v1.research.AnswerRequest
+ */
+export type AnswerRequest = Message<"vrooli.web_search.v1.research.AnswerRequest"> & {
+  /**
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * l0, l1, l2 (default)
+   *
+   * @generated from field: string effort = 2;
+   */
+  effort: string;
+
+  /**
+   * @generated from field: int64 max_age_seconds = 3;
+   */
+  maxAgeSeconds: bigint;
+
+  /**
+   * @generated from field: repeated string source_domains = 4;
+   */
+  sourceDomains: string[];
+
+  /**
+   * @generated from field: int32 minimum_sources = 5;
+   */
+  minimumSources: number;
+
+  /**
+   * @generated from field: int32 top_n = 6;
+   */
+  topN: number;
+
+  /**
+   * @generated from field: bool capture = 7;
+   */
+  capture: boolean;
+
+  /**
+   * Explicitly selected relevant finding; otherwise query must match exactly.
+   *
+   * @generated from field: string finding_id = 8;
+   */
+  findingId: string;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.EvidencePolicy policy = 9;
+   */
+  policy?: EvidencePolicy | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.ResearchQuestion questions = 10;
+   */
+  questions: ResearchQuestion[];
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.AnswerRequest.
+ * Use `create(AnswerRequestSchema)` to create a new message.
+ */
+export const AnswerRequestSchema: GenMessage<AnswerRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 13);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.AnswerResponse
+ */
+export type AnswerResponse = Message<"vrooli.web_search.v1.research.AnswerResponse"> & {
+  /**
+   * ok, partial, unavailable
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * stored_finding, cited_synthesis, raw_hits, none
+   *
+   * @generated from field: string answer_kind = 2;
+   */
+  answerKind: string;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.Brief brief = 3;
+   */
+  brief?: Brief | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.shared.SearchResult results = 4;
+   */
+  results: SearchResult[];
+
+  /**
+   * @generated from field: repeated string finding_ids = 5;
+   */
+  findingIds: string[];
+
+  /**
+   * @generated from field: bool abstained = 6;
+   */
+  abstained: boolean;
+
+  /**
+   * @generated from field: string reason = 7;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp checked_at = 8;
+   */
+  checkedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int32 live_calls = 9;
+   */
+  liveCalls: number;
+
+  /**
+   * @generated from field: bool cached = 10;
+   */
+  cached: boolean;
+
+  /**
+   * @generated from field: repeated string gaps = 11;
+   */
+  gaps: string[];
+
+  /**
+   * @generated from field: repeated string captured_finding_ids = 12;
+   */
+  capturedFindingIds: string[];
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.ClaimAssessment assessments = 13;
+   */
+  assessments: ClaimAssessment[];
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.QuestionCoverage coverage = 14;
+   */
+  coverage: QuestionCoverage[];
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.AnswerResponse.
+ * Use `create(AnswerResponseSchema)` to create a new message.
+ */
+export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 14);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.WaitResearchRequest
+ */
+export type WaitResearchRequest = Message<"vrooli.web_search.v1.research.WaitResearchRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: int32 timeout_seconds = 2;
+   */
+  timeoutSeconds: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.WaitResearchRequest.
+ * Use `create(WaitResearchRequestSchema)` to create a new message.
+ */
+export const WaitResearchRequestSchema: GenMessage<WaitResearchRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 15);
+
+/**
+ * EvidencePolicy is the bounded policy shared by direct and delegated
+ * research. max_age_seconds=0 requires a fresh observation; reuse is opt-in.
+ *
+ * @generated from message vrooli.web_search.v1.research.EvidencePolicy
+ */
+export type EvidencePolicy = Message<"vrooli.web_search.v1.research.EvidencePolicy"> & {
+  /**
+   * @generated from field: int64 max_age_seconds = 1;
+   */
+  maxAgeSeconds: bigint;
+
+  /**
+   * @generated from field: repeated string source_domains = 2;
+   */
+  sourceDomains: string[];
+
+  /**
+   * @generated from field: int32 minimum_sources = 3;
+   */
+  minimumSources: number;
+
+  /**
+   * @generated from field: int32 top_n = 4;
+   */
+  topN: number;
+
+  /**
+   * @generated from field: int32 max_questions = 5;
+   */
+  maxQuestions: number;
+
+  /**
+   * @generated from field: int32 max_evidence_bytes = 6;
+   */
+  maxEvidenceBytes: number;
+
+  /**
+   * @generated from field: bool require_independent_sources = 7;
+   */
+  requireIndependentSources: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.EvidencePolicy.
+ * Use `create(EvidencePolicySchema)` to create a new message.
+ */
+export const EvidencePolicySchema: GenMessage<EvidencePolicy> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 16);
+
+/**
+ * ResearchQuestion is one independently answerable requested part. A result
+ * is answered only when every required question is covered or explicitly
+ * unresolved with a reason.
+ *
+ * @generated from message vrooli.web_search.v1.research.ResearchQuestion
+ */
+export type ResearchQuestion = Message<"vrooli.web_search.v1.research.ResearchQuestion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string prompt = 2;
+   */
+  prompt: string;
+
+  /**
+   * @generated from field: bool required = 3;
+   */
+  required: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.ResearchQuestion.
+ * Use `create(ResearchQuestionSchema)` to create a new message.
+ */
+export const ResearchQuestionSchema: GenMessage<ResearchQuestion> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 17);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.EvidencePassageRef
+ */
+export type EvidencePassageRef = Message<"vrooli.web_search.v1.research.EvidencePassageRef"> & {
+  /**
+   * @generated from field: string receipt_id = 1;
+   */
+  receiptId: string;
+
+  /**
+   * @generated from field: string passage_id = 2;
+   */
+  passageId: string;
+
+  /**
+   * @generated from field: string content_hash = 3;
+   */
+  contentHash: string;
+
+  /**
+   * @generated from field: string extraction_revision = 4;
+   */
+  extractionRevision: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.EvidencePassageRef.
+ * Use `create(EvidencePassageRefSchema)` to create a new message.
+ */
+export const EvidencePassageRefSchema: GenMessage<EvidencePassageRef> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 18);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.ClaimAssessment
+ */
+export type ClaimAssessment = Message<"vrooli.web_search.v1.research.ClaimAssessment"> & {
+  /**
+   * @generated from field: string claim_id = 1;
+   */
+  claimId: string;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.AssessmentDisposition disposition = 2;
+   */
+  disposition: AssessmentDisposition;
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.EvidencePassageRef evidence = 3;
+   */
+  evidence: EvidencePassageRef[];
+
+  /**
+   * @generated from field: string policy_revision = 4;
+   */
+  policyRevision: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.ClaimAssessment.
+ * Use `create(ClaimAssessmentSchema)` to create a new message.
+ */
+export const ClaimAssessmentSchema: GenMessage<ClaimAssessment> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 19);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.QuestionCoverage
+ */
+export type QuestionCoverage = Message<"vrooli.web_search.v1.research.QuestionCoverage"> & {
+  /**
+   * @generated from field: string question_id = 1;
+   */
+  questionId: string;
+
+  /**
+   * supported, partial, unresolved, unknown
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated string claim_ids = 3;
+   */
+  claimIds: string[];
+
+  /**
+   * @generated from field: string unresolved_reason = 4;
+   */
+  unresolvedReason: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.QuestionCoverage.
+ * Use `create(QuestionCoverageSchema)` to create a new message.
+ */
+export const QuestionCoverageSchema: GenMessage<QuestionCoverage> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 20);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.EvidenceReceipt
+ */
+export type EvidenceReceipt = Message<"vrooli.web_search.v1.research.EvidenceReceipt"> & {
+  /**
+   * @generated from field: string receipt_id = 1;
+   */
+  receiptId: string;
+
+  /**
+   * @generated from field: string observation_id = 2;
+   */
+  observationId: string;
+
+  /**
+   * @generated from field: string url = 3;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string retrieved_at = 4;
+   */
+  retrievedAt: string;
+
+  /**
+   * @generated from field: string content_hash = 5;
+   */
+  contentHash: string;
+
+  /**
+   * @generated from field: string extraction_revision = 6;
+   */
+  extractionRevision: string;
+
+  /**
+   * @generated from field: string retention = 7;
+   */
+  retention: string;
+
+  /**
+   * @generated from field: string failure_code = 8;
+   */
+  failureCode: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.EvidenceReceipt.
+ * Use `create(EvidenceReceiptSchema)` to create a new message.
+ */
+export const EvidenceReceiptSchema: GenMessage<EvidenceReceipt> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 21);
+
+/**
+ * @generated from enum vrooli.web_search.v1.research.AssessmentDisposition
+ */
+export enum AssessmentDisposition {
+  /**
+   * @generated from enum value: ASSESSMENT_DISPOSITION_UNSPECIFIED = 0;
+   */
+  ASSESSMENT_DISPOSITION_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ASSESSMENT_SUPPORTED = 1;
+   */
+  ASSESSMENT_SUPPORTED = 1,
+
+  /**
+   * @generated from enum value: ASSESSMENT_CONTRADICTED = 2;
+   */
+  ASSESSMENT_CONTRADICTED = 2,
+
+  /**
+   * @generated from enum value: ASSESSMENT_UNRESOLVED = 3;
+   */
+  ASSESSMENT_UNRESOLVED = 3,
+
+  /**
+   * @generated from enum value: ASSESSMENT_UNKNOWN = 4;
+   */
+  ASSESSMENT_UNKNOWN = 4,
+}
+
+/**
+ * Describes the enum vrooli.web_search.v1.research.AssessmentDisposition.
+ */
+export const AssessmentDispositionSchema: GenEnum<AssessmentDisposition> = /*@__PURE__*/
+  enumDesc(file_web_search_v1_research_research, 0);
 
 /**
  * ResearchService is the L2/L3 deep-research surface that sits above the L0/L1
@@ -437,7 +967,7 @@ export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindin
  * the top-N result pages, extracts readable text, and produces ONE cited
  * synthesis grounded in the full page content (not just snippets). L3 (RunL3)
  * hands the harder, iterative research-and-reconcile loop to an agent-manager
- * run and returns a run handle the caller polls via GetResearchStatus.
+ * workflow and returns an execution handle for WaitResearch or GetResearchStatus.
  *
  * Auto-capture policy: L3 distills findings by default; L2 only when the caller
  * opts in (capture=true); L0/L1 never persist.
@@ -445,6 +975,26 @@ export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindin
  * @generated from service vrooli.web_search.v1.research.ResearchService
  */
 export const ResearchService: GenService<{
+  /**
+   * Answer applies owner evidence policy before escalating to live research.
+   *
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.Answer
+   */
+  answer: {
+    methodKind: "unary";
+    input: typeof AnswerRequestSchema;
+    output: typeof AnswerResponseSchema;
+  },
+  /**
+   * WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
+   *
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.WaitResearch
+   */
+  waitResearch: {
+    methodKind: "unary";
+    input: typeof WaitResearchRequestSchema;
+    output: typeof GetResearchStatusResponseSchema;
+  },
   /**
    * RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
    * pipeline and returns a Brief plus the cited synthesis. With capture=true the
@@ -472,7 +1022,7 @@ export const ResearchService: GenService<{
     output: typeof RunL3ResponseSchema;
   },
   /**
-   * GetResearchStatus polls an L3 run by id.
+   * GetResearchStatus reads a declared L3 execution by id.
    *
    * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetResearchStatus
    */

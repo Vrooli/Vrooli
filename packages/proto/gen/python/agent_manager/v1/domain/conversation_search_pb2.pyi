@@ -78,6 +78,12 @@ class ConversationReindexState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper
     CONVERSATION_REINDEX_STATE_CANCELLED: _ClassVar[ConversationReindexState]
     CONVERSATION_REINDEX_STATE_FAILED: _ClassVar[ConversationReindexState]
     CONVERSATION_REINDEX_STATE_COMPLETE: _ClassVar[ConversationReindexState]
+
+class ConversationSearchInteractionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED: _ClassVar[ConversationSearchInteractionKind]
+    CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED: _ClassVar[ConversationSearchInteractionKind]
+    CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED: _ClassVar[ConversationSearchInteractionKind]
 CONVERSATION_SEARCH_MODE_UNSPECIFIED: ConversationSearchMode
 CONVERSATION_SEARCH_MODE_HYBRID: ConversationSearchMode
 CONVERSATION_SEARCH_MODE_TEXT: ConversationSearchMode
@@ -124,6 +130,9 @@ CONVERSATION_REINDEX_STATE_RUNNING: ConversationReindexState
 CONVERSATION_REINDEX_STATE_CANCELLED: ConversationReindexState
 CONVERSATION_REINDEX_STATE_FAILED: ConversationReindexState
 CONVERSATION_REINDEX_STATE_COMPLETE: ConversationReindexState
+CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED: ConversationSearchInteractionKind
+CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED: ConversationSearchInteractionKind
+CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED: ConversationSearchInteractionKind
 
 class ConversationSearchFilters(_message.Message):
     __slots__ = ("roles", "harnesses", "provider_origins", "project_scopes", "cwd_scopes", "runners", "models", "profiles", "run_statuses", "tags", "workloads", "occurred_after", "occurred_before", "content_classes", "include_tool_events")
@@ -160,20 +169,22 @@ class ConversationSearchFilters(_message.Message):
     def __init__(self, roles: _Optional[_Iterable[str]] = ..., harnesses: _Optional[_Iterable[str]] = ..., provider_origins: _Optional[_Iterable[str]] = ..., project_scopes: _Optional[_Iterable[str]] = ..., cwd_scopes: _Optional[_Iterable[str]] = ..., runners: _Optional[_Iterable[str]] = ..., models: _Optional[_Iterable[str]] = ..., profiles: _Optional[_Iterable[str]] = ..., run_statuses: _Optional[_Iterable[str]] = ..., tags: _Optional[_Iterable[str]] = ..., workloads: _Optional[_Iterable[str]] = ..., occurred_after: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., occurred_before: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., content_classes: _Optional[_Iterable[_Union[ConversationContentClass, str]]] = ..., include_tool_events: _Optional[bool] = ...) -> None: ...
 
 class SearchConversationsRequest(_message.Message):
-    __slots__ = ("query", "mode", "filters", "sort", "page_size", "page_cursor")
+    __slots__ = ("query", "mode", "filters", "sort", "page_size", "page_cursor", "telemetry_session_token")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     FILTERS_FIELD_NUMBER: _ClassVar[int]
     SORT_FIELD_NUMBER: _ClassVar[int]
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
     PAGE_CURSOR_FIELD_NUMBER: _ClassVar[int]
+    TELEMETRY_SESSION_TOKEN_FIELD_NUMBER: _ClassVar[int]
     query: str
     mode: ConversationSearchMode
     filters: ConversationSearchFilters
     sort: ConversationSearchSort
     page_size: int
     page_cursor: str
-    def __init__(self, query: _Optional[str] = ..., mode: _Optional[_Union[ConversationSearchMode, str]] = ..., filters: _Optional[_Union[ConversationSearchFilters, _Mapping]] = ..., sort: _Optional[_Union[ConversationSearchSort, str]] = ..., page_size: _Optional[int] = ..., page_cursor: _Optional[str] = ...) -> None: ...
+    telemetry_session_token: str
+    def __init__(self, query: _Optional[str] = ..., mode: _Optional[_Union[ConversationSearchMode, str]] = ..., filters: _Optional[_Union[ConversationSearchFilters, _Mapping]] = ..., sort: _Optional[_Union[ConversationSearchSort, str]] = ..., page_size: _Optional[int] = ..., page_cursor: _Optional[str] = ..., telemetry_session_token: _Optional[str] = ...) -> None: ...
 
 class ConversationSearchCursor(_message.Message):
     __slots__ = ("version", "request_fingerprint", "sort", "relevance_score", "occurred_at", "stable_hit_id")
@@ -294,7 +305,7 @@ class ConversationSearchHit(_message.Message):
     def __init__(self, stable_hit_id: _Optional[str] = ..., run_id: _Optional[str] = ..., event_id: _Optional[str] = ..., message_id: _Optional[str] = ..., chunk_id: _Optional[str] = ..., chunk_index: _Optional[int] = ..., event_sequence: _Optional[int] = ..., role: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., snippet: _Optional[str] = ..., highlights: _Optional[_Iterable[_Union[ConversationHighlight, _Mapping]]] = ..., content_class: _Optional[_Union[ConversationContentClass, str]] = ..., provenance: _Optional[_Union[ConversationSourceProvenance, _Mapping]] = ..., rank_evidence: _Optional[_Iterable[_Union[ConversationRankEvidence, _Mapping]]] = ..., run: _Optional[_Union[ConversationRunSummary, _Mapping]] = ..., deep_link: _Optional[str] = ..., weak: _Optional[bool] = ...) -> None: ...
 
 class ConversationSearchCoverage(_message.Message):
-    __slots__ = ("canonical_visible_messages", "catalog_documents", "lexical_documents", "semantic_documents", "pending_documents", "deleted_documents", "lexical_ratio", "semantic_ratio", "last_reconciled_at", "source_checkpoint")
+    __slots__ = ("canonical_visible_messages", "catalog_documents", "lexical_documents", "semantic_documents", "pending_documents", "deleted_documents", "lexical_ratio", "semantic_ratio", "last_reconciled_at", "source_checkpoint", "orphan_documents", "freshness_lag_ms")
     CANONICAL_VISIBLE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
     CATALOG_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
     LEXICAL_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
@@ -305,6 +316,8 @@ class ConversationSearchCoverage(_message.Message):
     SEMANTIC_RATIO_FIELD_NUMBER: _ClassVar[int]
     LAST_RECONCILED_AT_FIELD_NUMBER: _ClassVar[int]
     SOURCE_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
+    ORPHAN_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    FRESHNESS_LAG_MS_FIELD_NUMBER: _ClassVar[int]
     canonical_visible_messages: int
     catalog_documents: int
     lexical_documents: int
@@ -315,7 +328,9 @@ class ConversationSearchCoverage(_message.Message):
     semantic_ratio: float
     last_reconciled_at: _timestamp_pb2.Timestamp
     source_checkpoint: str
-    def __init__(self, canonical_visible_messages: _Optional[int] = ..., catalog_documents: _Optional[int] = ..., lexical_documents: _Optional[int] = ..., semantic_documents: _Optional[int] = ..., pending_documents: _Optional[int] = ..., deleted_documents: _Optional[int] = ..., lexical_ratio: _Optional[float] = ..., semantic_ratio: _Optional[float] = ..., last_reconciled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_checkpoint: _Optional[str] = ...) -> None: ...
+    orphan_documents: int
+    freshness_lag_ms: int
+    def __init__(self, canonical_visible_messages: _Optional[int] = ..., catalog_documents: _Optional[int] = ..., lexical_documents: _Optional[int] = ..., semantic_documents: _Optional[int] = ..., pending_documents: _Optional[int] = ..., deleted_documents: _Optional[int] = ..., lexical_ratio: _Optional[float] = ..., semantic_ratio: _Optional[float] = ..., last_reconciled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_checkpoint: _Optional[str] = ..., orphan_documents: _Optional[int] = ..., freshness_lag_ms: _Optional[int] = ...) -> None: ...
 
 class ConversationSearchDegradation(_message.Message):
     __slots__ = ("reason", "leg", "detail", "retryable")
@@ -330,7 +345,7 @@ class ConversationSearchDegradation(_message.Message):
     def __init__(self, reason: _Optional[_Union[ConversationSearchDegradationReason, str]] = ..., leg: _Optional[_Union[ConversationSearchLeg, str]] = ..., detail: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...
 
 class SearchConversationsResponse(_message.Message):
-    __slots__ = ("hits", "next_page_cursor", "mode_used", "sort_used", "coverage", "degradations", "took_ms")
+    __slots__ = ("hits", "next_page_cursor", "mode_used", "sort_used", "coverage", "degradations", "took_ms", "request_id")
     HITS_FIELD_NUMBER: _ClassVar[int]
     NEXT_PAGE_CURSOR_FIELD_NUMBER: _ClassVar[int]
     MODE_USED_FIELD_NUMBER: _ClassVar[int]
@@ -338,6 +353,7 @@ class SearchConversationsResponse(_message.Message):
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     DEGRADATIONS_FIELD_NUMBER: _ClassVar[int]
     TOOK_MS_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     hits: _containers.RepeatedCompositeFieldContainer[ConversationSearchHit]
     next_page_cursor: str
     mode_used: ConversationSearchMode
@@ -345,7 +361,28 @@ class SearchConversationsResponse(_message.Message):
     coverage: ConversationSearchCoverage
     degradations: _containers.RepeatedCompositeFieldContainer[ConversationSearchDegradation]
     took_ms: int
-    def __init__(self, hits: _Optional[_Iterable[_Union[ConversationSearchHit, _Mapping]]] = ..., next_page_cursor: _Optional[str] = ..., mode_used: _Optional[_Union[ConversationSearchMode, str]] = ..., sort_used: _Optional[_Union[ConversationSearchSort, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., took_ms: _Optional[int] = ...) -> None: ...
+    request_id: str
+    def __init__(self, hits: _Optional[_Iterable[_Union[ConversationSearchHit, _Mapping]]] = ..., next_page_cursor: _Optional[str] = ..., mode_used: _Optional[_Union[ConversationSearchMode, str]] = ..., sort_used: _Optional[_Union[ConversationSearchSort, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., took_ms: _Optional[int] = ..., request_id: _Optional[str] = ...) -> None: ...
+
+class RecordConversationSearchInteractionRequest(_message.Message):
+    __slots__ = ("request_id", "telemetry_session_token", "kind", "stable_hit_id", "selected_rank")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    TELEMETRY_SESSION_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    STABLE_HIT_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_RANK_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    telemetry_session_token: str
+    kind: ConversationSearchInteractionKind
+    stable_hit_id: str
+    selected_rank: int
+    def __init__(self, request_id: _Optional[str] = ..., telemetry_session_token: _Optional[str] = ..., kind: _Optional[_Union[ConversationSearchInteractionKind, str]] = ..., stable_hit_id: _Optional[str] = ..., selected_rank: _Optional[int] = ...) -> None: ...
+
+class RecordConversationSearchInteractionResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
 
 class GetConversationContextRequest(_message.Message):
     __slots__ = ("stable_hit_id", "before_events", "after_events")
@@ -392,7 +429,7 @@ class GetConversationIndexStatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetConversationIndexStatusResponse(_message.Message):
-    __slots__ = ("state", "coverage", "degradations", "collection_name", "active_generation", "recipe_version", "embedding_model", "last_indexed_at", "last_success_at", "last_error_code")
+    __slots__ = ("state", "coverage", "degradations", "collection_name", "active_generation", "recipe_version", "embedding_model", "last_indexed_at", "last_success_at", "last_error_code", "candidate_generation", "degraded_dependencies", "collection_layout")
     STATE_FIELD_NUMBER: _ClassVar[int]
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     DEGRADATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -403,6 +440,9 @@ class GetConversationIndexStatusResponse(_message.Message):
     LAST_INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_LAYOUT_FIELD_NUMBER: _ClassVar[int]
     state: ConversationIndexState
     coverage: ConversationSearchCoverage
     degradations: _containers.RepeatedCompositeFieldContainer[ConversationSearchDegradation]
@@ -413,31 +453,40 @@ class GetConversationIndexStatusResponse(_message.Message):
     last_indexed_at: _timestamp_pb2.Timestamp
     last_success_at: _timestamp_pb2.Timestamp
     last_error_code: str
-    def __init__(self, state: _Optional[_Union[ConversationIndexState, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., collection_name: _Optional[str] = ..., active_generation: _Optional[str] = ..., recipe_version: _Optional[str] = ..., embedding_model: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_error_code: _Optional[str] = ...) -> None: ...
+    candidate_generation: str
+    degraded_dependencies: _containers.RepeatedScalarFieldContainer[str]
+    collection_layout: str
+    def __init__(self, state: _Optional[_Union[ConversationIndexState, str]] = ..., coverage: _Optional[_Union[ConversationSearchCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ..., collection_name: _Optional[str] = ..., active_generation: _Optional[str] = ..., recipe_version: _Optional[str] = ..., embedding_model: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_error_code: _Optional[str] = ..., candidate_generation: _Optional[str] = ..., degraded_dependencies: _Optional[_Iterable[str]] = ..., collection_layout: _Optional[str] = ...) -> None: ...
 
 class PlanConversationReindexRequest(_message.Message):
-    __slots__ = ("full", "max_documents")
+    __slots__ = ("full", "max_documents", "control_token")
     FULL_FIELD_NUMBER: _ClassVar[int]
     MAX_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     full: bool
     max_documents: int
-    def __init__(self, full: _Optional[bool] = ..., max_documents: _Optional[int] = ...) -> None: ...
+    control_token: str
+    def __init__(self, full: _Optional[bool] = ..., max_documents: _Optional[int] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class ReindexConversationsRequest(_message.Message):
-    __slots__ = ("full", "max_documents", "idempotency_key")
+    __slots__ = ("full", "max_documents", "idempotency_key", "control_token")
     FULL_FIELD_NUMBER: _ClassVar[int]
     MAX_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     full: bool
     max_documents: int
     idempotency_key: str
-    def __init__(self, full: _Optional[bool] = ..., max_documents: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    control_token: str
+    def __init__(self, full: _Optional[bool] = ..., max_documents: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class CancelConversationReindexRequest(_message.Message):
-    __slots__ = ("operation_id",)
+    __slots__ = ("operation_id", "control_token")
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     operation_id: str
-    def __init__(self, operation_id: _Optional[str] = ...) -> None: ...
+    control_token: str
+    def __init__(self, operation_id: _Optional[str] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class ConversationReindexResponse(_message.Message):
     __slots__ = ("operation_id", "state", "dry_run", "planned_documents", "processed_documents", "upserted_documents", "deleted_documents", "failed_documents", "source_checkpoint", "shadow_generation", "active_generation", "started_at", "updated_at", "degradations")
@@ -472,12 +521,14 @@ class ConversationReindexResponse(_message.Message):
     def __init__(self, operation_id: _Optional[str] = ..., state: _Optional[_Union[ConversationReindexState, str]] = ..., dry_run: _Optional[bool] = ..., planned_documents: _Optional[int] = ..., processed_documents: _Optional[int] = ..., upserted_documents: _Optional[int] = ..., deleted_documents: _Optional[int] = ..., failed_documents: _Optional[int] = ..., source_checkpoint: _Optional[str] = ..., shadow_generation: _Optional[str] = ..., active_generation: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ConversationSearchDegradation, _Mapping]]] = ...) -> None: ...
 
 class WriteConversationSearchConfigRequest(_message.Message):
-    __slots__ = ("tuning", "expected_digest")
+    __slots__ = ("tuning", "expected_digest", "control_token")
     TUNING_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     tuning: _struct_pb2.Struct
     expected_digest: str
-    def __init__(self, tuning: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., expected_digest: _Optional[str] = ...) -> None: ...
+    control_token: str
+    def __init__(self, tuning: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., expected_digest: _Optional[str] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class WriteConversationSearchConfigResponse(_message.Message):
     __slots__ = ("digest", "reindex_required")
@@ -488,12 +539,14 @@ class WriteConversationSearchConfigResponse(_message.Message):
     def __init__(self, digest: _Optional[str] = ..., reindex_required: _Optional[bool] = ...) -> None: ...
 
 class WriteConversationSearchCorpusRequest(_message.Message):
-    __slots__ = ("tests", "expected_digest")
+    __slots__ = ("tests", "expected_digest", "control_token")
     TESTS_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     tests: _struct_pb2.Struct
     expected_digest: str
-    def __init__(self, tests: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., expected_digest: _Optional[str] = ...) -> None: ...
+    control_token: str
+    def __init__(self, tests: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., expected_digest: _Optional[str] = ..., control_token: _Optional[str] = ...) -> None: ...
 
 class WriteConversationSearchCorpusResponse(_message.Message):
     __slots__ = ("digest", "reviewed_cases")

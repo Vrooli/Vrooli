@@ -123,6 +123,68 @@ class AllMeasureDefinitionsResponse(_message.Message):
     definitions: _containers.RepeatedCompositeFieldContainer[MeasureDefinition]
     def __init__(self, definitions: _Optional[_Iterable[_Union[MeasureDefinition, _Mapping]]] = ...) -> None: ...
 
+class ConversationSearchQualityRequest(_message.Message):
+    __slots__ = ("window",)
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ...) -> None: ...
+
+class ConversationSearchQualityResponse(_message.Message):
+    __slots__ = ("queries", "no_result_queries", "no_result_rate", "weak_only_queries", "weak_only_rate", "reformulated_queries", "reformulation_rate", "selected_queries", "selected_query_rate", "p50_selected_rank", "p95_selected_rank", "lexical_contribution_rate", "semantic_contribution_rate", "degraded_queries", "degradation_rate", "p50_latency_ms", "p95_latency_ms", "error_queries", "error_rate", "current_index_lag_ms", "pending_documents", "orphan_documents", "truncated", "validity", "provenance", "definition_id")
+    QUERIES_FIELD_NUMBER: _ClassVar[int]
+    NO_RESULT_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    NO_RESULT_RATE_FIELD_NUMBER: _ClassVar[int]
+    WEAK_ONLY_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    WEAK_ONLY_RATE_FIELD_NUMBER: _ClassVar[int]
+    REFORMULATED_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    REFORMULATION_RATE_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_QUERY_RATE_FIELD_NUMBER: _ClassVar[int]
+    P50_SELECTED_RANK_FIELD_NUMBER: _ClassVar[int]
+    P95_SELECTED_RANK_FIELD_NUMBER: _ClassVar[int]
+    LEXICAL_CONTRIBUTION_RATE_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_CONTRIBUTION_RATE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATION_RATE_FIELD_NUMBER: _ClassVar[int]
+    P50_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    P95_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    ERROR_RATE_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_INDEX_LAG_MS_FIELD_NUMBER: _ClassVar[int]
+    PENDING_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    ORPHAN_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    queries: int
+    no_result_queries: int
+    no_result_rate: float
+    weak_only_queries: int
+    weak_only_rate: float
+    reformulated_queries: int
+    reformulation_rate: float
+    selected_queries: int
+    selected_query_rate: float
+    p50_selected_rank: float
+    p95_selected_rank: float
+    lexical_contribution_rate: float
+    semantic_contribution_rate: float
+    degraded_queries: int
+    degradation_rate: float
+    p50_latency_ms: float
+    p95_latency_ms: float
+    error_queries: int
+    error_rate: float
+    current_index_lag_ms: int
+    pending_documents: int
+    orphan_documents: int
+    truncated: bool
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, queries: _Optional[int] = ..., no_result_queries: _Optional[int] = ..., no_result_rate: _Optional[float] = ..., weak_only_queries: _Optional[int] = ..., weak_only_rate: _Optional[float] = ..., reformulated_queries: _Optional[int] = ..., reformulation_rate: _Optional[float] = ..., selected_queries: _Optional[int] = ..., selected_query_rate: _Optional[float] = ..., p50_selected_rank: _Optional[float] = ..., p95_selected_rank: _Optional[float] = ..., lexical_contribution_rate: _Optional[float] = ..., semantic_contribution_rate: _Optional[float] = ..., degraded_queries: _Optional[int] = ..., degradation_rate: _Optional[float] = ..., p50_latency_ms: _Optional[float] = ..., p95_latency_ms: _Optional[float] = ..., error_queries: _Optional[int] = ..., error_rate: _Optional[float] = ..., current_index_lag_ms: _Optional[int] = ..., pending_documents: _Optional[int] = ..., orphan_documents: _Optional[int] = ..., truncated: _Optional[bool] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
 class ExternalToolShareRequest(_message.Message):
     __slots__ = ("window", "filter")
     WINDOW_FIELD_NUMBER: _ClassVar[int]

@@ -1224,3 +1224,19 @@ Target for Phase 2 (implementing P0 requirements):
 ---
 
 _This document tracks unresolved issues and solutions for the knowledge-observatory scenario. Update as problems are discovered and resolved._
+
+## Work ladder
+
+- Rung: W0–W2 contracts and traceability validated; W3 agent knowledge implementation delivered. Whole-scenario unit policy remains below its target.
+- Scope: OT-P0-007–010 cover bounded agent workflows, outcome-linked learning, source authority/applicability, and targeted documentation validation. Existing product promises and uncovered targets remain visible.
+- Validation (2026-09-05): API and CLI `go test ./...` passed. Twelve workflow behavior tests passed. Program Runtime validated all five contracts with execution enabled and no findings; Prompt Manager skill-set validation passed at L2. Requirements validation passed with existing KO-API-005, P1/P2 orphan-target, and receipt-sync warnings.
+- Server-owned run `20260905-060548-6590b397`: programs and skill-set passed; unit failed. Its API failure was the old 23-case corpus assertion, repaired and revalidated across all API packages. Existing UI discovery/projection findings remain; Scenario QA entry `knw-1788590048249264878` tracks them. No threshold or waiver was relaxed.
+- Follow-up Unit Health execution `uh-20260905-063440`: CLI/UI commands passed; API coverage execution encountered missing shared Go cache files. Direct API package tests passed. Infrastructure evidence is filed as `knw-1788590160078021352`; no cache cleanup or policy bypass was attempted.
+- Live API validation also found byte truncation splitting UTF-8 snippets. Snippet/rerank truncation now preserves character boundaries; the Unicode regression and API tests pass.
+- Learning: duplicate test-attempt capture returned the same Memory entry; measurement excluded that test attempt. Real operator outcome bands remain pending comparable observations.
+- Federation: raw Search Hub API and current-source CLI preserve knowledge metadata. The installed Search Hub CLI omitted it; Scenario QA entry `knw-1788589894306002451` tracks the stale-client behavior. Do not infer authority from a response that omits metadata.
+- Retrieval: immutable provider-direct run `ee71b976-b10c-4ef6-a26b-51e1539a4085` met 22/26 expectations (84.6%); all three new agent usage, supplemental-artifact authority, and OS/machine applicability cases ranked the expected source first. The four remaining misses are config-resources, config-secrets, deployment-storage, and agent-layers. Configuration records a cross-encoder reranker and mixed embedding models; this is not a controlled improvement claim against historical runs. No failing expectation was removed.
+- Index: available with 18,207 chunks at final measurement. The larger pass cleared deferred work, and the normal per-pass cap was restored. The final reconcile still reported 66 per-item errors; availability does not certify whole-corpus freshness. Scenario QA entry `knw-1788590562166713303` retains this follow-up.
+- Guide: removed the obsolete ingest walkthrough, verified the documented typed search request against the live API, and checked the two-document guide family with zero link/reference findings.
+- Portability: repository-relative paths and source-root confinement are tested; the source-evidence package cross-compiles for Windows amd64 and macOS arm64. OS support declarations remain separate from native verification; this change does not certify the entire application on every OS.
+- Deferred ownership: Plan Manager owns artifact placement/closeout and source owners approve policy changes. This implementation does not delete or retire project documents.

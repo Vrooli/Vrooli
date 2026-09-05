@@ -38,12 +38,28 @@ const (
 	FlowServiceValidateFlowProcedure = "/vrooli.device_control.v1.flows.FlowService/ValidateFlow"
 	// FlowServiceRunFlowProcedure is the fully-qualified name of the FlowService's RunFlow RPC.
 	FlowServiceRunFlowProcedure = "/vrooli.device_control.v1.flows.FlowService/RunFlow"
+	// FlowServiceListSavedFlowsProcedure is the fully-qualified name of the FlowService's
+	// ListSavedFlows RPC.
+	FlowServiceListSavedFlowsProcedure = "/vrooli.device_control.v1.flows.FlowService/ListSavedFlows"
+	// FlowServiceGetSavedFlowProcedure is the fully-qualified name of the FlowService's GetSavedFlow
+	// RPC.
+	FlowServiceGetSavedFlowProcedure = "/vrooli.device_control.v1.flows.FlowService/GetSavedFlow"
+	// FlowServiceSaveValidatedFlowProcedure is the fully-qualified name of the FlowService's
+	// SaveValidatedFlow RPC.
+	FlowServiceSaveValidatedFlowProcedure = "/vrooli.device_control.v1.flows.FlowService/SaveValidatedFlow"
+	// FlowServiceRunSavedFlowProcedure is the fully-qualified name of the FlowService's RunSavedFlow
+	// RPC.
+	FlowServiceRunSavedFlowProcedure = "/vrooli.device_control.v1.flows.FlowService/RunSavedFlow"
 )
 
 // FlowServiceClient is a client for the vrooli.device_control.v1.flows.FlowService service.
 type FlowServiceClient interface {
 	ValidateFlow(context.Context, *connect.Request[flows.ValidateFlowRequest]) (*connect.Response[flows.CapabilityGapReport], error)
 	RunFlow(context.Context, *connect.Request[flows.RunFlowRequest]) (*connect.Response[flows.RunResult], error)
+	ListSavedFlows(context.Context, *connect.Request[flows.ListSavedFlowsRequest]) (*connect.Response[flows.ListSavedFlowsResponse], error)
+	GetSavedFlow(context.Context, *connect.Request[flows.GetSavedFlowRequest]) (*connect.Response[flows.SavedFlow], error)
+	SaveValidatedFlow(context.Context, *connect.Request[flows.SaveValidatedFlowRequest]) (*connect.Response[flows.SavedFlow], error)
+	RunSavedFlow(context.Context, *connect.Request[flows.RunSavedFlowRequest]) (*connect.Response[flows.RunResult], error)
 }
 
 // NewFlowServiceClient constructs a client for the vrooli.device_control.v1.flows.FlowService
@@ -69,13 +85,41 @@ func NewFlowServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(flowServiceMethods.ByName("RunFlow")),
 			connect.WithClientOptions(opts...),
 		),
+		listSavedFlows: connect.NewClient[flows.ListSavedFlowsRequest, flows.ListSavedFlowsResponse](
+			httpClient,
+			baseURL+FlowServiceListSavedFlowsProcedure,
+			connect.WithSchema(flowServiceMethods.ByName("ListSavedFlows")),
+			connect.WithClientOptions(opts...),
+		),
+		getSavedFlow: connect.NewClient[flows.GetSavedFlowRequest, flows.SavedFlow](
+			httpClient,
+			baseURL+FlowServiceGetSavedFlowProcedure,
+			connect.WithSchema(flowServiceMethods.ByName("GetSavedFlow")),
+			connect.WithClientOptions(opts...),
+		),
+		saveValidatedFlow: connect.NewClient[flows.SaveValidatedFlowRequest, flows.SavedFlow](
+			httpClient,
+			baseURL+FlowServiceSaveValidatedFlowProcedure,
+			connect.WithSchema(flowServiceMethods.ByName("SaveValidatedFlow")),
+			connect.WithClientOptions(opts...),
+		),
+		runSavedFlow: connect.NewClient[flows.RunSavedFlowRequest, flows.RunResult](
+			httpClient,
+			baseURL+FlowServiceRunSavedFlowProcedure,
+			connect.WithSchema(flowServiceMethods.ByName("RunSavedFlow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // flowServiceClient implements FlowServiceClient.
 type flowServiceClient struct {
-	validateFlow *connect.Client[flows.ValidateFlowRequest, flows.CapabilityGapReport]
-	runFlow      *connect.Client[flows.RunFlowRequest, flows.RunResult]
+	validateFlow      *connect.Client[flows.ValidateFlowRequest, flows.CapabilityGapReport]
+	runFlow           *connect.Client[flows.RunFlowRequest, flows.RunResult]
+	listSavedFlows    *connect.Client[flows.ListSavedFlowsRequest, flows.ListSavedFlowsResponse]
+	getSavedFlow      *connect.Client[flows.GetSavedFlowRequest, flows.SavedFlow]
+	saveValidatedFlow *connect.Client[flows.SaveValidatedFlowRequest, flows.SavedFlow]
+	runSavedFlow      *connect.Client[flows.RunSavedFlowRequest, flows.RunResult]
 }
 
 // ValidateFlow calls vrooli.device_control.v1.flows.FlowService.ValidateFlow.
@@ -88,11 +132,35 @@ func (c *flowServiceClient) RunFlow(ctx context.Context, req *connect.Request[fl
 	return c.runFlow.CallUnary(ctx, req)
 }
 
+// ListSavedFlows calls vrooli.device_control.v1.flows.FlowService.ListSavedFlows.
+func (c *flowServiceClient) ListSavedFlows(ctx context.Context, req *connect.Request[flows.ListSavedFlowsRequest]) (*connect.Response[flows.ListSavedFlowsResponse], error) {
+	return c.listSavedFlows.CallUnary(ctx, req)
+}
+
+// GetSavedFlow calls vrooli.device_control.v1.flows.FlowService.GetSavedFlow.
+func (c *flowServiceClient) GetSavedFlow(ctx context.Context, req *connect.Request[flows.GetSavedFlowRequest]) (*connect.Response[flows.SavedFlow], error) {
+	return c.getSavedFlow.CallUnary(ctx, req)
+}
+
+// SaveValidatedFlow calls vrooli.device_control.v1.flows.FlowService.SaveValidatedFlow.
+func (c *flowServiceClient) SaveValidatedFlow(ctx context.Context, req *connect.Request[flows.SaveValidatedFlowRequest]) (*connect.Response[flows.SavedFlow], error) {
+	return c.saveValidatedFlow.CallUnary(ctx, req)
+}
+
+// RunSavedFlow calls vrooli.device_control.v1.flows.FlowService.RunSavedFlow.
+func (c *flowServiceClient) RunSavedFlow(ctx context.Context, req *connect.Request[flows.RunSavedFlowRequest]) (*connect.Response[flows.RunResult], error) {
+	return c.runSavedFlow.CallUnary(ctx, req)
+}
+
 // FlowServiceHandler is an implementation of the vrooli.device_control.v1.flows.FlowService
 // service.
 type FlowServiceHandler interface {
 	ValidateFlow(context.Context, *connect.Request[flows.ValidateFlowRequest]) (*connect.Response[flows.CapabilityGapReport], error)
 	RunFlow(context.Context, *connect.Request[flows.RunFlowRequest]) (*connect.Response[flows.RunResult], error)
+	ListSavedFlows(context.Context, *connect.Request[flows.ListSavedFlowsRequest]) (*connect.Response[flows.ListSavedFlowsResponse], error)
+	GetSavedFlow(context.Context, *connect.Request[flows.GetSavedFlowRequest]) (*connect.Response[flows.SavedFlow], error)
+	SaveValidatedFlow(context.Context, *connect.Request[flows.SaveValidatedFlowRequest]) (*connect.Response[flows.SavedFlow], error)
+	RunSavedFlow(context.Context, *connect.Request[flows.RunSavedFlowRequest]) (*connect.Response[flows.RunResult], error)
 }
 
 // NewFlowServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -114,12 +182,44 @@ func NewFlowServiceHandler(svc FlowServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(flowServiceMethods.ByName("RunFlow")),
 		connect.WithHandlerOptions(opts...),
 	)
+	flowServiceListSavedFlowsHandler := connect.NewUnaryHandler(
+		FlowServiceListSavedFlowsProcedure,
+		svc.ListSavedFlows,
+		connect.WithSchema(flowServiceMethods.ByName("ListSavedFlows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flowServiceGetSavedFlowHandler := connect.NewUnaryHandler(
+		FlowServiceGetSavedFlowProcedure,
+		svc.GetSavedFlow,
+		connect.WithSchema(flowServiceMethods.ByName("GetSavedFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flowServiceSaveValidatedFlowHandler := connect.NewUnaryHandler(
+		FlowServiceSaveValidatedFlowProcedure,
+		svc.SaveValidatedFlow,
+		connect.WithSchema(flowServiceMethods.ByName("SaveValidatedFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flowServiceRunSavedFlowHandler := connect.NewUnaryHandler(
+		FlowServiceRunSavedFlowProcedure,
+		svc.RunSavedFlow,
+		connect.WithSchema(flowServiceMethods.ByName("RunSavedFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.device_control.v1.flows.FlowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlowServiceValidateFlowProcedure:
 			flowServiceValidateFlowHandler.ServeHTTP(w, r)
 		case FlowServiceRunFlowProcedure:
 			flowServiceRunFlowHandler.ServeHTTP(w, r)
+		case FlowServiceListSavedFlowsProcedure:
+			flowServiceListSavedFlowsHandler.ServeHTTP(w, r)
+		case FlowServiceGetSavedFlowProcedure:
+			flowServiceGetSavedFlowHandler.ServeHTTP(w, r)
+		case FlowServiceSaveValidatedFlowProcedure:
+			flowServiceSaveValidatedFlowHandler.ServeHTTP(w, r)
+		case FlowServiceRunSavedFlowProcedure:
+			flowServiceRunSavedFlowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +235,20 @@ func (UnimplementedFlowServiceHandler) ValidateFlow(context.Context, *connect.Re
 
 func (UnimplementedFlowServiceHandler) RunFlow(context.Context, *connect.Request[flows.RunFlowRequest]) (*connect.Response[flows.RunResult], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.flows.FlowService.RunFlow is not implemented"))
+}
+
+func (UnimplementedFlowServiceHandler) ListSavedFlows(context.Context, *connect.Request[flows.ListSavedFlowsRequest]) (*connect.Response[flows.ListSavedFlowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.flows.FlowService.ListSavedFlows is not implemented"))
+}
+
+func (UnimplementedFlowServiceHandler) GetSavedFlow(context.Context, *connect.Request[flows.GetSavedFlowRequest]) (*connect.Response[flows.SavedFlow], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.flows.FlowService.GetSavedFlow is not implemented"))
+}
+
+func (UnimplementedFlowServiceHandler) SaveValidatedFlow(context.Context, *connect.Request[flows.SaveValidatedFlowRequest]) (*connect.Response[flows.SavedFlow], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.flows.FlowService.SaveValidatedFlow is not implemented"))
+}
+
+func (UnimplementedFlowServiceHandler) RunSavedFlow(context.Context, *connect.Request[flows.RunSavedFlowRequest]) (*connect.Response[flows.RunResult], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.flows.FlowService.RunSavedFlow is not implemented"))
 }

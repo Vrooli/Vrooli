@@ -631,9 +631,20 @@ type ResultMapping struct {
 	// Compatibility mapping for providers that emit a top-level weak bool.
 	WeakField string `protobuf:"bytes,15,opt,name=weak_field,json=weakField,proto3" json:"weak_field,omitempty"`
 	// Compatibility mapping for providers that emit a top-level regime string.
-	RegimeField   string `protobuf:"bytes,16,opt,name=regime_field,json=regimeField,proto3" json:"regime_field,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RegimeField string `protobuf:"bytes,16,opt,name=regime_field,json=regimeField,proto3" json:"regime_field,omitempty"`
+	// Per-hit metadata key -> provider JSON path. Values are copied into the
+	// unified hit's structured metadata without provider-specific adapter code.
+	MetadataFields map[string]string `protobuf:"bytes,17,rep,name=metadata_fields,json=metadataFields,proto3" json:"metadata_fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Optional per-hit repeated rank-evidence path. Items use the generic
+	// {leg, rank, score, explanation} shape.
+	RankEvidenceField string `protobuf:"bytes,18,opt,name=rank_evidence_field,json=rankEvidenceField,proto3" json:"rank_evidence_field,omitempty"`
+	// Optional response-level structured coverage/degradation paths.
+	CoverageField     string `protobuf:"bytes,19,opt,name=coverage_field,json=coverageField,proto3" json:"coverage_field,omitempty"`
+	DegradationsField string `protobuf:"bytes,20,opt,name=degradations_field,json=degradationsField,proto3" json:"degradations_field,omitempty"`
+	// Optional response-level continuation cursor path.
+	NextCursorField string `protobuf:"bytes,21,opt,name=next_cursor_field,json=nextCursorField,proto3" json:"next_cursor_field,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ResultMapping) Reset() {
@@ -774,6 +785,41 @@ func (x *ResultMapping) GetWeakField() string {
 func (x *ResultMapping) GetRegimeField() string {
 	if x != nil {
 		return x.RegimeField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetMetadataFields() map[string]string {
+	if x != nil {
+		return x.MetadataFields
+	}
+	return nil
+}
+
+func (x *ResultMapping) GetRankEvidenceField() string {
+	if x != nil {
+		return x.RankEvidenceField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetCoverageField() string {
+	if x != nil {
+		return x.CoverageField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetDegradationsField() string {
+	if x != nil {
+		return x.DegradationsField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetNextCursorField() string {
+	if x != nil {
+		return x.NextCursorField
 	}
 	return ""
 }
@@ -2124,7 +2170,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +
 	"\vCliEndpoint\x12#\n" +
-	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xf4\x04\n" +
+	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xd4\a\n" +
 	"\rResultMapping\x12!\n" +
 	"\fresults_path\x18\x01 \x01(\tR\vresultsPath\x12\x19\n" +
 	"\bid_field\x18\x02 \x01(\tR\aidField\x12\x1f\n" +
@@ -2147,7 +2193,15 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x0flocations_field\x18\x0e \x01(\tR\x0elocationsField\x12\x1d\n" +
 	"\n" +
 	"weak_field\x18\x0f \x01(\tR\tweakField\x12!\n" +
-	"\fregime_field\x18\x10 \x01(\tR\vregimeField\"E\n" +
+	"\fregime_field\x18\x10 \x01(\tR\vregimeField\x12i\n" +
+	"\x0fmetadata_fields\x18\x11 \x03(\v2@.vrooli.search_hub.v1.registry.ResultMapping.MetadataFieldsEntryR\x0emetadataFields\x12.\n" +
+	"\x13rank_evidence_field\x18\x12 \x01(\tR\x11rankEvidenceField\x12%\n" +
+	"\x0ecoverage_field\x18\x13 \x01(\tR\rcoverageField\x12-\n" +
+	"\x12degradations_field\x18\x14 \x01(\tR\x11degradationsField\x12*\n" +
+	"\x11next_cursor_field\x18\x15 \x01(\tR\x0fnextCursorField\x1aA\n" +
+	"\x13MetadataFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"E\n" +
 	"\vFloorConfig\x12\x17\n" +
 	"\amax_gap\x18\x01 \x01(\x01R\x06maxGap\x12\x1d\n" +
 	"\n" +
@@ -2318,7 +2372,7 @@ func file_search_hub_v1_registry_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_search_hub_v1_registry_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_search_hub_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_search_hub_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_search_hub_v1_registry_registry_proto_goTypes = []any{
 	(Bucket)(0),                               // 0: vrooli.search_hub.v1.registry.Bucket
 	(Scope)(0),                                // 1: vrooli.search_hub.v1.registry.Scope
@@ -2348,7 +2402,8 @@ var file_search_hub_v1_registry_registry_proto_goTypes = []any{
 	(*DeregisterProviderRequest)(nil),         // 25: vrooli.search_hub.v1.registry.DeregisterProviderRequest
 	(*DeregisterProviderResponse)(nil),        // 26: vrooli.search_hub.v1.registry.DeregisterProviderResponse
 	nil,                                       // 27: vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
-	(*durationpb.Duration)(nil),               // 28: google.protobuf.Duration
+	nil,                                       // 28: vrooli.search_hub.v1.registry.ResultMapping.MetadataFieldsEntry
+	(*durationpb.Duration)(nil),               // 29: google.protobuf.Duration
 }
 var file_search_hub_v1_registry_registry_proto_depIdxs = []int32{
 	7,  // 0: vrooli.search_hub.v1.registry.Endpoint.http_json:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint
@@ -2356,42 +2411,43 @@ var file_search_hub_v1_registry_registry_proto_depIdxs = []int32{
 	5,  // 2: vrooli.search_hub.v1.registry.HttpJsonEndpoint.method:type_name -> vrooli.search_hub.v1.registry.HttpMethod
 	27, // 3: vrooli.search_hub.v1.registry.HttpJsonEndpoint.headers:type_name -> vrooli.search_hub.v1.registry.HttpJsonEndpoint.HeadersEntry
 	4,  // 4: vrooli.search_hub.v1.registry.ResultMapping.score_scale:type_name -> vrooli.search_hub.v1.registry.ScoreScale
-	10, // 5: vrooli.search_hub.v1.registry.Tuning.floor:type_name -> vrooli.search_hub.v1.registry.FloorConfig
-	0,  // 6: vrooli.search_hub.v1.registry.ProviderDescriptor.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
-	6,  // 7: vrooli.search_hub.v1.registry.ProviderDescriptor.endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	9,  // 8: vrooli.search_hub.v1.registry.ProviderDescriptor.result_mapping:type_name -> vrooli.search_hub.v1.registry.ResultMapping
-	6,  // 9: vrooli.search_hub.v1.registry.ProviderDescriptor.status_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	1,  // 10: vrooli.search_hub.v1.registry.ProviderDescriptor.scope:type_name -> vrooli.search_hub.v1.registry.Scope
-	2,  // 11: vrooli.search_hub.v1.registry.ProviderDescriptor.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
-	6,  // 12: vrooli.search_hub.v1.registry.ProviderDescriptor.reindex_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	6,  // 13: vrooli.search_hub.v1.registry.ProviderDescriptor.config_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
-	11, // 14: vrooli.search_hub.v1.registry.ProviderDescriptor.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
-	3,  // 15: vrooli.search_hub.v1.registry.ProviderDescriptor.lifecycle:type_name -> vrooli.search_hub.v1.registry.Lifecycle
-	14, // 16: vrooli.search_hub.v1.registry.ProviderDescriptor.tests_minimum:type_name -> vrooli.search_hub.v1.registry.EvalMinimum
-	28, // 17: vrooli.search_hub.v1.registry.ProviderDescriptor.freshness_budget:type_name -> google.protobuf.Duration
-	12, // 18: vrooli.search_hub.v1.registry.ProviderDescriptor.routing_profile:type_name -> vrooli.search_hub.v1.registry.RoutingProfile
-	13, // 19: vrooli.search_hub.v1.registry.RegisterProviderRequest.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	13, // 20: vrooli.search_hub.v1.registry.RegisterProviderResponse.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	0,  // 21: vrooli.search_hub.v1.registry.ListProvidersRequest.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
-	2,  // 22: vrooli.search_hub.v1.registry.ListProvidersRequest.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
-	13, // 23: vrooli.search_hub.v1.registry.ListProvidersResponse.providers:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
-	15, // 24: vrooli.search_hub.v1.registry.ListProvidersResponse.incubating:type_name -> vrooli.search_hub.v1.registry.IncubatingProvider
-	24, // 25: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse.targets:type_name -> vrooli.search_hub.v1.registry.MaturityTarget
-	16, // 26: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:input_type -> vrooli.search_hub.v1.registry.RegisterProviderRequest
-	18, // 27: vrooli.search_hub.v1.registry.RegistryService.ListProviders:input_type -> vrooli.search_hub.v1.registry.ListProvidersRequest
-	20, // 28: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:input_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
-	22, // 29: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:input_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
-	25, // 30: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:input_type -> vrooli.search_hub.v1.registry.DeregisterProviderRequest
-	17, // 31: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:output_type -> vrooli.search_hub.v1.registry.RegisterProviderResponse
-	19, // 32: vrooli.search_hub.v1.registry.RegistryService.ListProviders:output_type -> vrooli.search_hub.v1.registry.ListProvidersResponse
-	21, // 33: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:output_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
-	23, // 34: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:output_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
-	26, // 35: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:output_type -> vrooli.search_hub.v1.registry.DeregisterProviderResponse
-	31, // [31:36] is the sub-list for method output_type
-	26, // [26:31] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	28, // 5: vrooli.search_hub.v1.registry.ResultMapping.metadata_fields:type_name -> vrooli.search_hub.v1.registry.ResultMapping.MetadataFieldsEntry
+	10, // 6: vrooli.search_hub.v1.registry.Tuning.floor:type_name -> vrooli.search_hub.v1.registry.FloorConfig
+	0,  // 7: vrooli.search_hub.v1.registry.ProviderDescriptor.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
+	6,  // 8: vrooli.search_hub.v1.registry.ProviderDescriptor.endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	9,  // 9: vrooli.search_hub.v1.registry.ProviderDescriptor.result_mapping:type_name -> vrooli.search_hub.v1.registry.ResultMapping
+	6,  // 10: vrooli.search_hub.v1.registry.ProviderDescriptor.status_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	1,  // 11: vrooli.search_hub.v1.registry.ProviderDescriptor.scope:type_name -> vrooli.search_hub.v1.registry.Scope
+	2,  // 12: vrooli.search_hub.v1.registry.ProviderDescriptor.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
+	6,  // 13: vrooli.search_hub.v1.registry.ProviderDescriptor.reindex_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	6,  // 14: vrooli.search_hub.v1.registry.ProviderDescriptor.config_endpoint:type_name -> vrooli.search_hub.v1.registry.Endpoint
+	11, // 15: vrooli.search_hub.v1.registry.ProviderDescriptor.tuning:type_name -> vrooli.search_hub.v1.registry.Tuning
+	3,  // 16: vrooli.search_hub.v1.registry.ProviderDescriptor.lifecycle:type_name -> vrooli.search_hub.v1.registry.Lifecycle
+	14, // 17: vrooli.search_hub.v1.registry.ProviderDescriptor.tests_minimum:type_name -> vrooli.search_hub.v1.registry.EvalMinimum
+	29, // 18: vrooli.search_hub.v1.registry.ProviderDescriptor.freshness_budget:type_name -> google.protobuf.Duration
+	12, // 19: vrooli.search_hub.v1.registry.ProviderDescriptor.routing_profile:type_name -> vrooli.search_hub.v1.registry.RoutingProfile
+	13, // 20: vrooli.search_hub.v1.registry.RegisterProviderRequest.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	13, // 21: vrooli.search_hub.v1.registry.RegisterProviderResponse.descriptor:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	0,  // 22: vrooli.search_hub.v1.registry.ListProvidersRequest.bucket:type_name -> vrooli.search_hub.v1.registry.Bucket
+	2,  // 23: vrooli.search_hub.v1.registry.ListProvidersRequest.state:type_name -> vrooli.search_hub.v1.registry.ProviderState
+	13, // 24: vrooli.search_hub.v1.registry.ListProvidersResponse.providers:type_name -> vrooli.search_hub.v1.registry.ProviderDescriptor
+	15, // 25: vrooli.search_hub.v1.registry.ListProvidersResponse.incubating:type_name -> vrooli.search_hub.v1.registry.IncubatingProvider
+	24, // 26: vrooli.search_hub.v1.registry.ListMaturityTargetsResponse.targets:type_name -> vrooli.search_hub.v1.registry.MaturityTarget
+	16, // 27: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:input_type -> vrooli.search_hub.v1.registry.RegisterProviderRequest
+	18, // 28: vrooli.search_hub.v1.registry.RegistryService.ListProviders:input_type -> vrooli.search_hub.v1.registry.ListProvidersRequest
+	20, // 29: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:input_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationRequest
+	22, // 30: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:input_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsRequest
+	25, // 31: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:input_type -> vrooli.search_hub.v1.registry.DeregisterProviderRequest
+	17, // 32: vrooli.search_hub.v1.registry.RegistryService.RegisterProvider:output_type -> vrooli.search_hub.v1.registry.RegisterProviderResponse
+	19, // 33: vrooli.search_hub.v1.registry.RegistryService.ListProviders:output_type -> vrooli.search_hub.v1.registry.ListProvidersResponse
+	21, // 34: vrooli.search_hub.v1.registry.RegistryService.ExecuteEmbeddingMigration:output_type -> vrooli.search_hub.v1.registry.ExecuteEmbeddingMigrationResponse
+	23, // 35: vrooli.search_hub.v1.registry.RegistryService.ListMaturityTargets:output_type -> vrooli.search_hub.v1.registry.ListMaturityTargetsResponse
+	26, // 36: vrooli.search_hub.v1.registry.RegistryService.DeregisterProvider:output_type -> vrooli.search_hub.v1.registry.DeregisterProviderResponse
+	32, // [32:37] is the sub-list for method output_type
+	27, // [27:32] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_registry_registry_proto_init() }
@@ -2409,7 +2465,7 @@ func file_search_hub_v1_registry_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_registry_registry_proto_rawDesc), len(file_search_hub_v1_registry_registry_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

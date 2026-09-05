@@ -2134,29 +2134,34 @@ func (x *ClaimMeasurement) GetSubjects() []*MeasuredSubject {
 }
 
 type ReconciliationEvidence struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Scenario       string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Page           string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
-	Route          string                 `protobuf:"bytes,4,opt,name=route,proto3" json:"route,omitempty"`
-	State          string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
-	Claim          string                 `protobuf:"bytes,6,opt,name=claim,proto3" json:"claim,omitempty"`
-	ClaimType      string                 `protobuf:"bytes,7,opt,name=claim_type,json=claimType,proto3" json:"claim_type,omitempty"`
-	Verdict        string                 `protobuf:"bytes,8,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	CaptureRef     string                 `protobuf:"bytes,9,opt,name=capture_ref,json=captureRef,proto3" json:"capture_ref,omitempty"`
-	AxNodeJson     string                 `protobuf:"bytes,10,opt,name=ax_node_json,json=axNodeJson,proto3" json:"ax_node_json,omitempty"`
-	Message        string                 `protobuf:"bytes,11,opt,name=message,proto3" json:"message,omitempty"`
-	CheckedAt      string                 `protobuf:"bytes,12,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
-	Viewport       string                 `protobuf:"bytes,13,opt,name=viewport,proto3" json:"viewport,omitempty"`
-	ViewportWidth  int32                  `protobuf:"varint,14,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
-	ViewportHeight int32                  `protobuf:"varint,15,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
-	DocumentKind   string                 `protobuf:"bytes,16,opt,name=document_kind,json=documentKind,proto3" json:"document_kind,omitempty"`
-	ComponentId    string                 `protobuf:"bytes,17,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
-	ComponentTitle string                 `protobuf:"bytes,18,opt,name=component_title,json=componentTitle,proto3" json:"component_title,omitempty"`
-	ExampleName    string                 `protobuf:"bytes,19,opt,name=example_name,json=exampleName,proto3" json:"example_name,omitempty"`
-	Measurement    *ClaimMeasurement      `protobuf:"bytes,20,opt,name=measurement,proto3" json:"measurement,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Exact contract bytes parsed by the producer. Empty for historical evidence.
+	ContractHash string `protobuf:"bytes,21,opt,name=contract_hash,json=contractHash,proto3" json:"contract_hash,omitempty"`
+	// Hash of the normalized observed AX snapshot; not an application build hash.
+	SnapshotHash     string            `protobuf:"bytes,22,opt,name=snapshot_hash,json=snapshotHash,proto3" json:"snapshot_hash,omitempty"`
+	EvaluatorVersion string            `protobuf:"bytes,23,opt,name=evaluator_version,json=evaluatorVersion,proto3" json:"evaluator_version,omitempty"`
+	Id               string            `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Scenario         string            `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Page             string            `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Route            string            `protobuf:"bytes,4,opt,name=route,proto3" json:"route,omitempty"`
+	State            string            `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	Claim            string            `protobuf:"bytes,6,opt,name=claim,proto3" json:"claim,omitempty"`
+	ClaimType        string            `protobuf:"bytes,7,opt,name=claim_type,json=claimType,proto3" json:"claim_type,omitempty"`
+	Verdict          string            `protobuf:"bytes,8,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	CaptureRef       string            `protobuf:"bytes,9,opt,name=capture_ref,json=captureRef,proto3" json:"capture_ref,omitempty"`
+	AxNodeJson       string            `protobuf:"bytes,10,opt,name=ax_node_json,json=axNodeJson,proto3" json:"ax_node_json,omitempty"`
+	Message          string            `protobuf:"bytes,11,opt,name=message,proto3" json:"message,omitempty"`
+	CheckedAt        string            `protobuf:"bytes,12,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	Viewport         string            `protobuf:"bytes,13,opt,name=viewport,proto3" json:"viewport,omitempty"`
+	ViewportWidth    int32             `protobuf:"varint,14,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
+	ViewportHeight   int32             `protobuf:"varint,15,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	DocumentKind     string            `protobuf:"bytes,16,opt,name=document_kind,json=documentKind,proto3" json:"document_kind,omitempty"`
+	ComponentId      string            `protobuf:"bytes,17,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
+	ComponentTitle   string            `protobuf:"bytes,18,opt,name=component_title,json=componentTitle,proto3" json:"component_title,omitempty"`
+	ExampleName      string            `protobuf:"bytes,19,opt,name=example_name,json=exampleName,proto3" json:"example_name,omitempty"`
+	Measurement      *ClaimMeasurement `protobuf:"bytes,20,opt,name=measurement,proto3" json:"measurement,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ReconciliationEvidence) Reset() {
@@ -2187,6 +2192,27 @@ func (x *ReconciliationEvidence) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ReconciliationEvidence.ProtoReflect.Descriptor instead.
 func (*ReconciliationEvidence) Descriptor() ([]byte, []int) {
 	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ReconciliationEvidence) GetContractHash() string {
+	if x != nil {
+		return x.ContractHash
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetSnapshotHash() string {
+	if x != nil {
+		return x.SnapshotHash
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetEvaluatorVersion() string {
+	if x != nil {
+		return x.EvaluatorVersion
+	}
+	return ""
 }
 
 func (x *ReconciliationEvidence) GetId() string {
@@ -4127,8 +4153,11 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"comparator\x12R\n" +
 	"\bsubjects\x18\x06 \x03(\v26.vrooli.experience_manager.v1.contract.MeasuredSubjectR\bsubjectsB\v\n" +
 	"\t_observedB\v\n" +
-	"\t_required\"\xaa\x05\n" +
-	"\x16ReconciliationEvidence\x12\x0e\n" +
+	"\t_required\"\xa1\x06\n" +
+	"\x16ReconciliationEvidence\x12#\n" +
+	"\rcontract_hash\x18\x15 \x01(\tR\fcontractHash\x12#\n" +
+	"\rsnapshot_hash\x18\x16 \x01(\tR\fsnapshotHash\x12+\n" +
+	"\x11evaluator_version\x18\x17 \x01(\tR\x10evaluatorVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04page\x18\x03 \x01(\tR\x04page\x12\x14\n" +

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-bridge",
-  "input_digest": "sha256:87dbc3322eab92a0fa54489f1e49d966c87e3ae69233b7cf8d886e88d2000c9f",
+  "input_digest": "sha256:3951cebcd41031bc0dd6b77ca90c3dc2b01814a79ab432c5cf4674e0dee84cdc",
   "input_files": [
     "schemas/setup/v1/selection.proto",
     "schemas/vrooli-bridge/v1/artifacts/artifacts.proto",

@@ -289,6 +289,9 @@ message DesktopConfig {
   // Code signing configuration reference.
   // Actual signing config is in signing.proto.
   optional bool signing_enabled = 12;
+
+  // Owner-provided native module; never arbitrary code or filesystem entrypoints.
+  NativeExtension native_extension = 13;
 }
 
 // =============================================================================
@@ -458,4 +461,14 @@ message WineInstallStatusResponse {
   optional google.protobuf.Timestamp completed_at = 5;
   repeated string log = 6;
   repeated string error_log = 7;
+}
+
+// Closed presentation registry: version 1 window modes; version 2 adds global activation.
+message NativeExtension {
+  uint32 version = 1;
+  string module = 2;
+  repeated string permissions = 3;
+  repeated string platforms = 4;
+  // Version 2 global activation; requires global-shortcut permission.
+  string activation_shortcut = 5;
 }

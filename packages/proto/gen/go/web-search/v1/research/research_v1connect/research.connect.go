@@ -33,6 +33,11 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ResearchServiceAnswerProcedure is the fully-qualified name of the ResearchService's Answer RPC.
+	ResearchServiceAnswerProcedure = "/vrooli.web_search.v1.research.ResearchService/Answer"
+	// ResearchServiceWaitResearchProcedure is the fully-qualified name of the ResearchService's
+	// WaitResearch RPC.
+	ResearchServiceWaitResearchProcedure = "/vrooli.web_search.v1.research.ResearchService/WaitResearch"
 	// ResearchServiceRunL2Procedure is the fully-qualified name of the ResearchService's RunL2 RPC.
 	ResearchServiceRunL2Procedure = "/vrooli.web_search.v1.research.ResearchService/RunL2"
 	// ResearchServiceRunL3Procedure is the fully-qualified name of the ResearchService's RunL3 RPC.
@@ -47,6 +52,10 @@ const (
 
 // ResearchServiceClient is a client for the vrooli.web_search.v1.research.ResearchService service.
 type ResearchServiceClient interface {
+	// Answer applies owner evidence policy before escalating to live research.
+	Answer(context.Context, *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error)
+	// WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
+	WaitResearch(context.Context, *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
 	// pipeline and returns a Brief plus the cited synthesis. With capture=true the
 	// distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -57,7 +66,7 @@ type ResearchServiceClient interface {
 	// distill, supersede outdated, flag low-confidence contradictions) are encoded
 	// in the agent task. Auto-capture is on for L3.
 	RunL3(context.Context, *connect.Request[research.RunL3Request]) (*connect.Response[research.RunL3Response], error)
-	// GetResearchStatus polls an L3 run by id.
+	// GetResearchStatus reads a declared L3 execution by id.
 	GetResearchStatus(context.Context, *connect.Request[research.GetResearchStatusRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// GatherRelatedFindings returns the findings semantically NEAR a query — the
 	// bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
@@ -79,6 +88,18 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	researchServiceMethods := research.File_web_search_v1_research_research_proto.Services().ByName("ResearchService").Methods()
 	return &researchServiceClient{
+		answer: connect.NewClient[research.AnswerRequest, research.AnswerResponse](
+			httpClient,
+			baseURL+ResearchServiceAnswerProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("Answer")),
+			connect.WithClientOptions(opts...),
+		),
+		waitResearch: connect.NewClient[research.WaitResearchRequest, research.GetResearchStatusResponse](
+			httpClient,
+			baseURL+ResearchServiceWaitResearchProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("WaitResearch")),
+			connect.WithClientOptions(opts...),
+		),
 		runL2: connect.NewClient[research.RunL2Request, research.RunL2Response](
 			httpClient,
 			baseURL+ResearchServiceRunL2Procedure,
@@ -108,10 +129,22 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // researchServiceClient implements ResearchServiceClient.
 type researchServiceClient struct {
+	answer                *connect.Client[research.AnswerRequest, research.AnswerResponse]
+	waitResearch          *connect.Client[research.WaitResearchRequest, research.GetResearchStatusResponse]
 	runL2                 *connect.Client[research.RunL2Request, research.RunL2Response]
 	runL3                 *connect.Client[research.RunL3Request, research.RunL3Response]
 	getResearchStatus     *connect.Client[research.GetResearchStatusRequest, research.GetResearchStatusResponse]
 	gatherRelatedFindings *connect.Client[research.GatherRelatedFindingsRequest, research.GatherRelatedFindingsResponse]
+}
+
+// Answer calls vrooli.web_search.v1.research.ResearchService.Answer.
+func (c *researchServiceClient) Answer(ctx context.Context, req *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error) {
+	return c.answer.CallUnary(ctx, req)
+}
+
+// WaitResearch calls vrooli.web_search.v1.research.ResearchService.WaitResearch.
+func (c *researchServiceClient) WaitResearch(ctx context.Context, req *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
+	return c.waitResearch.CallUnary(ctx, req)
 }
 
 // RunL2 calls vrooli.web_search.v1.research.ResearchService.RunL2.
@@ -137,6 +170,10 @@ func (c *researchServiceClient) GatherRelatedFindings(ctx context.Context, req *
 // ResearchServiceHandler is an implementation of the vrooli.web_search.v1.research.ResearchService
 // service.
 type ResearchServiceHandler interface {
+	// Answer applies owner evidence policy before escalating to live research.
+	Answer(context.Context, *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error)
+	// WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
+	WaitResearch(context.Context, *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
 	// pipeline and returns a Brief plus the cited synthesis. With capture=true the
 	// distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -147,7 +184,7 @@ type ResearchServiceHandler interface {
 	// distill, supersede outdated, flag low-confidence contradictions) are encoded
 	// in the agent task. Auto-capture is on for L3.
 	RunL3(context.Context, *connect.Request[research.RunL3Request]) (*connect.Response[research.RunL3Response], error)
-	// GetResearchStatus polls an L3 run by id.
+	// GetResearchStatus reads a declared L3 execution by id.
 	GetResearchStatus(context.Context, *connect.Request[research.GetResearchStatusRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// GatherRelatedFindings returns the findings semantically NEAR a query — the
 	// bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
@@ -164,6 +201,18 @@ type ResearchServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	researchServiceMethods := research.File_web_search_v1_research_research_proto.Services().ByName("ResearchService").Methods()
+	researchServiceAnswerHandler := connect.NewUnaryHandler(
+		ResearchServiceAnswerProcedure,
+		svc.Answer,
+		connect.WithSchema(researchServiceMethods.ByName("Answer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceWaitResearchHandler := connect.NewUnaryHandler(
+		ResearchServiceWaitResearchProcedure,
+		svc.WaitResearch,
+		connect.WithSchema(researchServiceMethods.ByName("WaitResearch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	researchServiceRunL2Handler := connect.NewUnaryHandler(
 		ResearchServiceRunL2Procedure,
 		svc.RunL2,
@@ -190,6 +239,10 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 	)
 	return "/vrooli.web_search.v1.research.ResearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ResearchServiceAnswerProcedure:
+			researchServiceAnswerHandler.ServeHTTP(w, r)
+		case ResearchServiceWaitResearchProcedure:
+			researchServiceWaitResearchHandler.ServeHTTP(w, r)
 		case ResearchServiceRunL2Procedure:
 			researchServiceRunL2Handler.ServeHTTP(w, r)
 		case ResearchServiceRunL3Procedure:
@@ -206,6 +259,14 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 
 // UnimplementedResearchServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedResearchServiceHandler struct{}
+
+func (UnimplementedResearchServiceHandler) Answer(context.Context, *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.Answer is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) WaitResearch(context.Context, *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.WaitResearch is not implemented"))
+}
 
 func (UnimplementedResearchServiceHandler) RunL2(context.Context, *connect.Request[research.RunL2Request]) (*connect.Response[research.RunL2Response], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.RunL2 is not implemented"))

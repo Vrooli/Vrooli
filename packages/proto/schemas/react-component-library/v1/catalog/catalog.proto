@@ -26,10 +26,12 @@ message SearchAssetsRequest { string query = 1; int32 limit = 2; string kind = 3
 message SearchAssetResult {
 	string catalog_id = 1; string name = 2; string description = 3; string declaration_path = 4;
 	double score = 5; int32 layer = 6; bool implemented = 7; string kind = 8; string domain = 9;
+ string availability_state = 10; string availability_reason_code = 11; string availability_reason = 12;
+ string version = 13; string build_hash = 14; string source_hash = 15; int32 dependency_count = 16; repeated string regions = 17;
 }
 message SearchAssetsResponse { repeated SearchAssetResult results = 1; int32 total = 2; }
 message SearchStatusRequest {}
-message SearchStatusResponse { int32 indexed_count = 1; string indexed_at = 2; bool available = 3; }
+message SearchStatusResponse { int32 indexed_count = 1; string indexed_at = 2; bool available = 3; bool stale = 4; string last_error = 5; }
 message ReindexSearchRequest {}
 message ReindexSearchResponse { int32 indexed_count = 1; string indexed_at = 2; }
 

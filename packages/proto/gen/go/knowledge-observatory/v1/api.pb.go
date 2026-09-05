@@ -1270,6 +1270,7 @@ type DocHealthRequest struct {
 	// When true, external link probing is skipped entirely (offline mode).
 	SkipExternalLinks *bool `protobuf:"varint,4,opt,name=skip_external_links,json=skipExternalLinks,proto3,oneof" json:"skip_external_links,omitempty"`
 	// Target scope: "" or "scenario" (default; resolved from scenario_name) or
+	// "path-exact" (generic checks limited to the supplied file/directory) or
 	// "path" (scan `path` directly). A path that resolves inside a scenario is
 	// promoted to that scenario (all checks); a project-level path runs only
 	// generic checks.

@@ -110,7 +110,14 @@ class CliEndpoint(_message.Message):
     def __init__(self, argv_template: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResultMapping(_message.Message):
-    __slots__ = ("results_path", "id_field", "title_field", "score_field", "snippet_field", "path_field", "score_scale", "filter_field", "filter_value", "presence_field", "measure_field", "attestation_field", "confidence_field", "locations_field", "weak_field", "regime_field")
+    __slots__ = ("results_path", "id_field", "title_field", "score_field", "snippet_field", "path_field", "score_scale", "filter_field", "filter_value", "presence_field", "measure_field", "attestation_field", "confidence_field", "locations_field", "weak_field", "regime_field", "metadata_fields", "rank_evidence_field", "coverage_field", "degradations_field", "next_cursor_field")
+    class MetadataFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     RESULTS_PATH_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_FIELD_NUMBER: _ClassVar[int]
@@ -127,6 +134,11 @@ class ResultMapping(_message.Message):
     LOCATIONS_FIELD_FIELD_NUMBER: _ClassVar[int]
     WEAK_FIELD_FIELD_NUMBER: _ClassVar[int]
     REGIME_FIELD_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    RANK_EVIDENCE_FIELD_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATIONS_FIELD_FIELD_NUMBER: _ClassVar[int]
+    NEXT_CURSOR_FIELD_FIELD_NUMBER: _ClassVar[int]
     results_path: str
     id_field: str
     title_field: str
@@ -143,7 +155,12 @@ class ResultMapping(_message.Message):
     locations_field: str
     weak_field: str
     regime_field: str
-    def __init__(self, results_path: _Optional[str] = ..., id_field: _Optional[str] = ..., title_field: _Optional[str] = ..., score_field: _Optional[str] = ..., snippet_field: _Optional[str] = ..., path_field: _Optional[str] = ..., score_scale: _Optional[_Union[ScoreScale, str]] = ..., filter_field: _Optional[str] = ..., filter_value: _Optional[str] = ..., presence_field: _Optional[str] = ..., measure_field: _Optional[str] = ..., attestation_field: _Optional[str] = ..., confidence_field: _Optional[str] = ..., locations_field: _Optional[str] = ..., weak_field: _Optional[str] = ..., regime_field: _Optional[str] = ...) -> None: ...
+    metadata_fields: _containers.ScalarMap[str, str]
+    rank_evidence_field: str
+    coverage_field: str
+    degradations_field: str
+    next_cursor_field: str
+    def __init__(self, results_path: _Optional[str] = ..., id_field: _Optional[str] = ..., title_field: _Optional[str] = ..., score_field: _Optional[str] = ..., snippet_field: _Optional[str] = ..., path_field: _Optional[str] = ..., score_scale: _Optional[_Union[ScoreScale, str]] = ..., filter_field: _Optional[str] = ..., filter_value: _Optional[str] = ..., presence_field: _Optional[str] = ..., measure_field: _Optional[str] = ..., attestation_field: _Optional[str] = ..., confidence_field: _Optional[str] = ..., locations_field: _Optional[str] = ..., weak_field: _Optional[str] = ..., regime_field: _Optional[str] = ..., metadata_fields: _Optional[_Mapping[str, str]] = ..., rank_evidence_field: _Optional[str] = ..., coverage_field: _Optional[str] = ..., degradations_field: _Optional[str] = ..., next_cursor_field: _Optional[str] = ...) -> None: ...
 
 class FloorConfig(_message.Message):
     __slots__ = ("max_gap", "hard_floor")

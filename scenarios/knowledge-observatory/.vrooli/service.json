@@ -228,5 +228,27 @@
     "template": {
       "id": "react-vite"
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/knowledge-observatory/SKILL.md",
+      "programs": [
+        "knowledge-observatory.collect-context",
+        "knowledge-observatory.prepare-change",
+        "knowledge-observatory.verify-change"
+      ]
+    },
+    "improve": {
+      "source": "skills/knowledge-observatory-improve/SKILL.md",
+      "programs": [
+        "knowledge-observatory.setpoint-read",
+        "knowledge-observatory.learning-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "knowledge-observatory-usage"
+    },
+    "waivers": {}
   }
 }

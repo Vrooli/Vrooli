@@ -1,14 +1,29 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from web_search.v1.livesearch import livesearch_pb2 as _livesearch_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
+from web_search.v1.shared import search_pb2 as _search_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class AssessmentDisposition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ASSESSMENT_DISPOSITION_UNSPECIFIED: _ClassVar[AssessmentDisposition]
+    ASSESSMENT_SUPPORTED: _ClassVar[AssessmentDisposition]
+    ASSESSMENT_CONTRADICTED: _ClassVar[AssessmentDisposition]
+    ASSESSMENT_UNRESOLVED: _ClassVar[AssessmentDisposition]
+    ASSESSMENT_UNKNOWN: _ClassVar[AssessmentDisposition]
+ASSESSMENT_DISPOSITION_UNSPECIFIED: AssessmentDisposition
+ASSESSMENT_SUPPORTED: AssessmentDisposition
+ASSESSMENT_CONTRADICTED: AssessmentDisposition
+ASSESSMENT_UNRESOLVED: AssessmentDisposition
+ASSESSMENT_UNKNOWN: AssessmentDisposition
 
 class Citation(_message.Message):
     __slots__ = ("result_index", "url", "title")
@@ -33,17 +48,21 @@ class Brief(_message.Message):
     def __init__(self, query: _Optional[str] = ..., level: _Optional[str] = ..., summary: _Optional[str] = ..., citations: _Optional[_Iterable[_Union[Citation, _Mapping]]] = ...) -> None: ...
 
 class RunL2Request(_message.Message):
-    __slots__ = ("query", "top_n", "capture")
+    __slots__ = ("query", "top_n", "capture", "policy", "questions")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TOP_N_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     query: str
     top_n: int
     capture: bool
-    def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ...) -> None: ...
+    policy: EvidencePolicy
+    questions: _containers.RepeatedCompositeFieldContainer[ResearchQuestion]
+    def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
 
 class RunL2Response(_message.Message):
-    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts")
+    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts", "evidence_receipt_ids", "fetch_failures")
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     SYNTHESIS_FIELD_NUMBER: _ClassVar[int]
     ABSTAINED_FIELD_NUMBER: _ClassVar[int]
@@ -51,14 +70,32 @@ class RunL2Response(_message.Message):
     DEGRADED_ENGINES_FIELD_NUMBER: _ClassVar[int]
     ABSTAIN_REASON_FIELD_NUMBER: _ClassVar[int]
     EXCERPTS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    FETCH_FAILURES_FIELD_NUMBER: _ClassVar[int]
     brief: Brief
     synthesis: str
     abstained: bool
     captured_finding_ids: _containers.RepeatedScalarFieldContainer[str]
-    degraded_engines: _containers.RepeatedCompositeFieldContainer[_livesearch_pb2.EngineIssue]
+    degraded_engines: _containers.RepeatedCompositeFieldContainer[_search_pb2.EngineIssue]
     abstain_reason: str
     excerpts: _containers.RepeatedCompositeFieldContainer[DocumentExcerpt]
-    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_livesearch_pb2.EngineIssue, _Mapping]]] = ..., abstain_reason: _Optional[str] = ..., excerpts: _Optional[_Iterable[_Union[DocumentExcerpt, _Mapping]]] = ...) -> None: ...
+    evidence_receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    fetch_failures: _containers.RepeatedCompositeFieldContainer[FetchFailure]
+    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_search_pb2.EngineIssue, _Mapping]]] = ..., abstain_reason: _Optional[str] = ..., excerpts: _Optional[_Iterable[_Union[DocumentExcerpt, _Mapping]]] = ..., evidence_receipt_ids: _Optional[_Iterable[str]] = ..., fetch_failures: _Optional[_Iterable[_Union[FetchFailure, _Mapping]]] = ...) -> None: ...
+
+class FetchFailure(_message.Message):
+    __slots__ = ("url", "code", "message", "retryable", "receipt_id")
+    URL_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    url: str
+    code: str
+    message: str
+    retryable: bool
+    receipt_id: str
+    def __init__(self, url: _Optional[str] = ..., code: _Optional[str] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ..., receipt_id: _Optional[str] = ...) -> None: ...
 
 class DocumentExcerpt(_message.Message):
     __slots__ = ("url", "title", "excerpt")
@@ -71,10 +108,16 @@ class DocumentExcerpt(_message.Message):
     def __init__(self, url: _Optional[str] = ..., title: _Optional[str] = ..., excerpt: _Optional[str] = ...) -> None: ...
 
 class RunL3Request(_message.Message):
-    __slots__ = ("query",)
+    __slots__ = ("query", "idempotency_key", "policy", "questions")
     QUERY_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     query: str
-    def __init__(self, query: _Optional[str] = ...) -> None: ...
+    idempotency_key: str
+    policy: EvidencePolicy
+    questions: _containers.RepeatedCompositeFieldContainer[ResearchQuestion]
+    def __init__(self, query: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
 
 class RunL3Response(_message.Message):
     __slots__ = ("run_id", "status")
@@ -91,20 +134,24 @@ class GetResearchStatusRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class GetResearchStatusResponse(_message.Message):
-    __slots__ = ("run_id", "status", "summary", "started_at", "finished_at", "error_msg")
+    __slots__ = ("run_id", "status", "summary", "started_at", "finished_at", "error_msg", "result", "timed_out")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MSG_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     summary: str
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
     error_msg: str
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error_msg: _Optional[str] = ...) -> None: ...
+    result: _struct_pb2.Struct
+    timed_out: bool
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error_msg: _Optional[str] = ..., result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
 
 class GatherRelatedFindingsRequest(_message.Message):
     __slots__ = ("query", "max")
@@ -135,3 +182,153 @@ class GatherRelatedFindingsResponse(_message.Message):
     findings: _containers.RepeatedCompositeFieldContainer[GatheredFinding]
     cap_applied: int
     def __init__(self, findings: _Optional[_Iterable[_Union[GatheredFinding, _Mapping]]] = ..., cap_applied: _Optional[int] = ...) -> None: ...
+
+class AnswerRequest(_message.Message):
+    __slots__ = ("query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id", "policy", "questions")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
+    MAX_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_DOMAINS_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    TOP_N_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_FIELD_NUMBER: _ClassVar[int]
+    FINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    effort: str
+    max_age_seconds: int
+    source_domains: _containers.RepeatedScalarFieldContainer[str]
+    minimum_sources: int
+    top_n: int
+    capture: bool
+    finding_id: str
+    policy: EvidencePolicy
+    questions: _containers.RepeatedCompositeFieldContainer[ResearchQuestion]
+    def __init__(self, query: _Optional[str] = ..., effort: _Optional[str] = ..., max_age_seconds: _Optional[int] = ..., source_domains: _Optional[_Iterable[str]] = ..., minimum_sources: _Optional[int] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., finding_id: _Optional[str] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
+
+class AnswerResponse(_message.Message):
+    __slots__ = ("status", "answer_kind", "brief", "results", "finding_ids", "abstained", "reason", "checked_at", "live_calls", "cached", "gaps", "captured_finding_ids", "assessments", "coverage")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ANSWER_KIND_FIELD_NUMBER: _ClassVar[int]
+    BRIEF_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    FINDING_IDS_FIELD_NUMBER: _ClassVar[int]
+    ABSTAINED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    LIVE_CALLS_FIELD_NUMBER: _ClassVar[int]
+    CACHED_FIELD_NUMBER: _ClassVar[int]
+    GAPS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_FINDING_IDS_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENTS_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    answer_kind: str
+    brief: Brief
+    results: _containers.RepeatedCompositeFieldContainer[_search_pb2.SearchResult]
+    finding_ids: _containers.RepeatedScalarFieldContainer[str]
+    abstained: bool
+    reason: str
+    checked_at: _timestamp_pb2.Timestamp
+    live_calls: int
+    cached: bool
+    gaps: _containers.RepeatedScalarFieldContainer[str]
+    captured_finding_ids: _containers.RepeatedScalarFieldContainer[str]
+    assessments: _containers.RepeatedCompositeFieldContainer[ClaimAssessment]
+    coverage: _containers.RepeatedCompositeFieldContainer[QuestionCoverage]
+    def __init__(self, status: _Optional[str] = ..., answer_kind: _Optional[str] = ..., brief: _Optional[_Union[Brief, _Mapping]] = ..., results: _Optional[_Iterable[_Union[_search_pb2.SearchResult, _Mapping]]] = ..., finding_ids: _Optional[_Iterable[str]] = ..., abstained: _Optional[bool] = ..., reason: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., live_calls: _Optional[int] = ..., cached: _Optional[bool] = ..., gaps: _Optional[_Iterable[str]] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., assessments: _Optional[_Iterable[_Union[ClaimAssessment, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[QuestionCoverage, _Mapping]]] = ...) -> None: ...
+
+class WaitResearchRequest(_message.Message):
+    __slots__ = ("run_id", "timeout_seconds")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    timeout_seconds: int
+    def __init__(self, run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class EvidencePolicy(_message.Message):
+    __slots__ = ("max_age_seconds", "source_domains", "minimum_sources", "top_n", "max_questions", "max_evidence_bytes", "require_independent_sources")
+    MAX_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_DOMAINS_FIELD_NUMBER: _ClassVar[int]
+    MINIMUM_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    TOP_N_FIELD_NUMBER: _ClassVar[int]
+    MAX_QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    MAX_EVIDENCE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_INDEPENDENT_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    max_age_seconds: int
+    source_domains: _containers.RepeatedScalarFieldContainer[str]
+    minimum_sources: int
+    top_n: int
+    max_questions: int
+    max_evidence_bytes: int
+    require_independent_sources: bool
+    def __init__(self, max_age_seconds: _Optional[int] = ..., source_domains: _Optional[_Iterable[str]] = ..., minimum_sources: _Optional[int] = ..., top_n: _Optional[int] = ..., max_questions: _Optional[int] = ..., max_evidence_bytes: _Optional[int] = ..., require_independent_sources: _Optional[bool] = ...) -> None: ...
+
+class ResearchQuestion(_message.Message):
+    __slots__ = ("id", "prompt", "required")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    prompt: str
+    required: bool
+    def __init__(self, id: _Optional[str] = ..., prompt: _Optional[str] = ..., required: _Optional[bool] = ...) -> None: ...
+
+class EvidencePassageRef(_message.Message):
+    __slots__ = ("receipt_id", "passage_id", "content_hash", "extraction_revision")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    PASSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    passage_id: str
+    content_hash: str
+    extraction_revision: str
+    def __init__(self, receipt_id: _Optional[str] = ..., passage_id: _Optional[str] = ..., content_hash: _Optional[str] = ..., extraction_revision: _Optional[str] = ...) -> None: ...
+
+class ClaimAssessment(_message.Message):
+    __slots__ = ("claim_id", "disposition", "evidence", "policy_revision", "reason")
+    CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    POLICY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    claim_id: str
+    disposition: AssessmentDisposition
+    evidence: _containers.RepeatedCompositeFieldContainer[EvidencePassageRef]
+    policy_revision: str
+    reason: str
+    def __init__(self, claim_id: _Optional[str] = ..., disposition: _Optional[_Union[AssessmentDisposition, str]] = ..., evidence: _Optional[_Iterable[_Union[EvidencePassageRef, _Mapping]]] = ..., policy_revision: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class QuestionCoverage(_message.Message):
+    __slots__ = ("question_id", "status", "claim_ids", "unresolved_reason")
+    QUESTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_IDS_FIELD_NUMBER: _ClassVar[int]
+    UNRESOLVED_REASON_FIELD_NUMBER: _ClassVar[int]
+    question_id: str
+    status: str
+    claim_ids: _containers.RepeatedScalarFieldContainer[str]
+    unresolved_reason: str
+    def __init__(self, question_id: _Optional[str] = ..., status: _Optional[str] = ..., claim_ids: _Optional[_Iterable[str]] = ..., unresolved_reason: _Optional[str] = ...) -> None: ...
+
+class EvidenceReceipt(_message.Message):
+    __slots__ = ("receipt_id", "observation_id", "url", "retrieved_at", "content_hash", "extraction_revision", "retention", "failure_code")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVED_AT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    observation_id: str
+    url: str
+    retrieved_at: str
+    content_hash: str
+    extraction_revision: str
+    retention: str
+    failure_code: str
+    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_hash: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ...) -> None: ...

@@ -7,9 +7,10 @@
 package research_v1
 
 import (
-	livesearch "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -22,6 +23,61 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type AssessmentDisposition int32
+
+const (
+	AssessmentDisposition_ASSESSMENT_DISPOSITION_UNSPECIFIED AssessmentDisposition = 0
+	AssessmentDisposition_ASSESSMENT_SUPPORTED               AssessmentDisposition = 1
+	AssessmentDisposition_ASSESSMENT_CONTRADICTED            AssessmentDisposition = 2
+	AssessmentDisposition_ASSESSMENT_UNRESOLVED              AssessmentDisposition = 3
+	AssessmentDisposition_ASSESSMENT_UNKNOWN                 AssessmentDisposition = 4
+)
+
+// Enum value maps for AssessmentDisposition.
+var (
+	AssessmentDisposition_name = map[int32]string{
+		0: "ASSESSMENT_DISPOSITION_UNSPECIFIED",
+		1: "ASSESSMENT_SUPPORTED",
+		2: "ASSESSMENT_CONTRADICTED",
+		3: "ASSESSMENT_UNRESOLVED",
+		4: "ASSESSMENT_UNKNOWN",
+	}
+	AssessmentDisposition_value = map[string]int32{
+		"ASSESSMENT_DISPOSITION_UNSPECIFIED": 0,
+		"ASSESSMENT_SUPPORTED":               1,
+		"ASSESSMENT_CONTRADICTED":            2,
+		"ASSESSMENT_UNRESOLVED":              3,
+		"ASSESSMENT_UNKNOWN":                 4,
+	}
+)
+
+func (x AssessmentDisposition) Enum() *AssessmentDisposition {
+	p := new(AssessmentDisposition)
+	*p = x
+	return p
+}
+
+func (x AssessmentDisposition) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssessmentDisposition) Descriptor() protoreflect.EnumDescriptor {
+	return file_web_search_v1_research_research_proto_enumTypes[0].Descriptor()
+}
+
+func (AssessmentDisposition) Type() protoreflect.EnumType {
+	return &file_web_search_v1_research_research_proto_enumTypes[0]
+}
+
+func (x AssessmentDisposition) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssessmentDisposition.Descriptor instead.
+func (AssessmentDisposition) EnumDescriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{0}
+}
 
 // Citation links a synthesis claim back to the fetched page that supports it.
 type Citation struct {
@@ -163,7 +219,9 @@ type RunL2Request struct {
 	TopN int32 `protobuf:"varint,2,opt,name=top_n,json=topN,proto3" json:"top_n,omitempty"`
 	// capture opts in to persisting the distilled claims as findings (L2 default
 	// is OFF; L0/L1 never capture, L3 always does).
-	Capture       bool `protobuf:"varint,3,opt,name=capture,proto3" json:"capture,omitempty"`
+	Capture       bool                `protobuf:"varint,3,opt,name=capture,proto3" json:"capture,omitempty"`
+	Policy        *EvidencePolicy     `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	Questions     []*ResearchQuestion `protobuf:"bytes,5,rep,name=questions,proto3" json:"questions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,6 +277,20 @@ func (x *RunL2Request) GetCapture() bool {
 	return false
 }
 
+func (x *RunL2Request) GetPolicy() *EvidencePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *RunL2Request) GetQuestions() []*ResearchQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
 type RunL2Response struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// brief carries the query, level, summary, and citations.
@@ -237,7 +309,7 @@ type RunL2Response struct {
 	// livesearch.SearchResponse.degraded_engines). A weak synthesis with a
 	// non-empty list usually means the inputs were partial, not that the web
 	// lacks an answer.
-	DegradedEngines []*livesearch.EngineIssue `protobuf:"bytes,5,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
+	DegradedEngines []*shared.EngineIssue `protobuf:"bytes,5,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
 	// abstain_reason explains WHICH collapse produced an abstention (empty when
 	// abstained=false): "no_candidates" (the L0 search returned no usable
 	// pages), "all_fetches_empty" (candidates existed but every fetch failed or
@@ -249,9 +321,11 @@ type RunL2Response struct {
 	// excerpts mirrors, per fetched document, the text actually sent to the
 	// synthesis model (post relevance-selection/truncation, transport-capped) —
 	// the observability needed to debug a wrong or abstaining synthesis.
-	Excerpts      []*DocumentExcerpt `protobuf:"bytes,7,rep,name=excerpts,proto3" json:"excerpts,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Excerpts           []*DocumentExcerpt `protobuf:"bytes,7,rep,name=excerpts,proto3" json:"excerpts,omitempty"`
+	EvidenceReceiptIds []string           `protobuf:"bytes,8,rep,name=evidence_receipt_ids,json=evidenceReceiptIds,proto3" json:"evidence_receipt_ids,omitempty"`
+	FetchFailures      []*FetchFailure    `protobuf:"bytes,9,rep,name=fetch_failures,json=fetchFailures,proto3" json:"fetch_failures,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RunL2Response) Reset() {
@@ -312,7 +386,7 @@ func (x *RunL2Response) GetCapturedFindingIds() []string {
 	return nil
 }
 
-func (x *RunL2Response) GetDegradedEngines() []*livesearch.EngineIssue {
+func (x *RunL2Response) GetDegradedEngines() []*shared.EngineIssue {
 	if x != nil {
 		return x.DegradedEngines
 	}
@@ -333,6 +407,96 @@ func (x *RunL2Response) GetExcerpts() []*DocumentExcerpt {
 	return nil
 }
 
+func (x *RunL2Response) GetEvidenceReceiptIds() []string {
+	if x != nil {
+		return x.EvidenceReceiptIds
+	}
+	return nil
+}
+
+func (x *RunL2Response) GetFetchFailures() []*FetchFailure {
+	if x != nil {
+		return x.FetchFailures
+	}
+	return nil
+}
+
+type FetchFailure struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Retryable     bool                   `protobuf:"varint,4,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	ReceiptId     string                 `protobuf:"bytes,5,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FetchFailure) Reset() {
+	*x = FetchFailure{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FetchFailure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FetchFailure) ProtoMessage() {}
+
+func (x *FetchFailure) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FetchFailure.ProtoReflect.Descriptor instead.
+func (*FetchFailure) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FetchFailure) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *FetchFailure) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *FetchFailure) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *FetchFailure) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *FetchFailure) GetReceiptId() string {
+	if x != nil {
+		return x.ReceiptId
+	}
+	return ""
+}
+
 // DocumentExcerpt is what the synthesis model actually read from one fetched
 // document: the source url/title plus the (capped) excerpt text.
 type DocumentExcerpt struct {
@@ -346,7 +510,7 @@ type DocumentExcerpt struct {
 
 func (x *DocumentExcerpt) Reset() {
 	*x = DocumentExcerpt{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[4]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -358,7 +522,7 @@ func (x *DocumentExcerpt) String() string {
 func (*DocumentExcerpt) ProtoMessage() {}
 
 func (x *DocumentExcerpt) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[4]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -371,7 +535,7 @@ func (x *DocumentExcerpt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DocumentExcerpt.ProtoReflect.Descriptor instead.
 func (*DocumentExcerpt) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{4}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DocumentExcerpt) GetUrl() string {
@@ -396,15 +560,18 @@ func (x *DocumentExcerpt) GetExcerpt() string {
 }
 
 type RunL3Request struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Query          string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Policy         *EvidencePolicy        `protobuf:"bytes,3,opt,name=policy,proto3" json:"policy,omitempty"`
+	Questions      []*ResearchQuestion    `protobuf:"bytes,4,rep,name=questions,proto3" json:"questions,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RunL3Request) Reset() {
 	*x = RunL3Request{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[5]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +583,7 @@ func (x *RunL3Request) String() string {
 func (*RunL3Request) ProtoMessage() {}
 
 func (x *RunL3Request) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[5]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +596,7 @@ func (x *RunL3Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunL3Request.ProtoReflect.Descriptor instead.
 func (*RunL3Request) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{5}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RunL3Request) GetQuery() string {
@@ -439,9 +606,30 @@ func (x *RunL3Request) GetQuery() string {
 	return ""
 }
 
+func (x *RunL3Request) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *RunL3Request) GetPolicy() *EvidencePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *RunL3Request) GetQuestions() []*ResearchQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
 type RunL3Response struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// run_id is the agent-manager run handle to poll via GetResearchStatus.
+	// run_id is the declared workflow execution handle for WaitResearch.
 	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	// status is the initial run status (e.g. "pending", "running").
 	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
@@ -451,7 +639,7 @@ type RunL3Response struct {
 
 func (x *RunL3Response) Reset() {
 	*x = RunL3Response{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[6]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +651,7 @@ func (x *RunL3Response) String() string {
 func (*RunL3Response) ProtoMessage() {}
 
 func (x *RunL3Response) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[6]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +664,7 @@ func (x *RunL3Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunL3Response.ProtoReflect.Descriptor instead.
 func (*RunL3Response) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{6}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RunL3Response) GetRunId() string {
@@ -502,7 +690,7 @@ type GetResearchStatusRequest struct {
 
 func (x *GetResearchStatusRequest) Reset() {
 	*x = GetResearchStatusRequest{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[7]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +702,7 @@ func (x *GetResearchStatusRequest) String() string {
 func (*GetResearchStatusRequest) ProtoMessage() {}
 
 func (x *GetResearchStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[7]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +715,7 @@ func (x *GetResearchStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResearchStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetResearchStatusRequest) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{7}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetResearchStatusRequest) GetRunId() string {
@@ -549,14 +737,16 @@ type GetResearchStatusResponse struct {
 	StartedAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	// error_msg explains a failed run.
-	ErrorMsg      string `protobuf:"bytes,6,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
+	ErrorMsg      string           `protobuf:"bytes,6,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
+	Result        *structpb.Struct `protobuf:"bytes,7,opt,name=result,proto3" json:"result,omitempty"`
+	TimedOut      bool             `protobuf:"varint,8,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetResearchStatusResponse) Reset() {
 	*x = GetResearchStatusResponse{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +758,7 @@ func (x *GetResearchStatusResponse) String() string {
 func (*GetResearchStatusResponse) ProtoMessage() {}
 
 func (x *GetResearchStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[8]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +771,7 @@ func (x *GetResearchStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResearchStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetResearchStatusResponse) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{8}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetResearchStatusResponse) GetRunId() string {
@@ -626,6 +816,20 @@ func (x *GetResearchStatusResponse) GetErrorMsg() string {
 	return ""
 }
 
+func (x *GetResearchStatusResponse) GetResult() *structpb.Struct {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *GetResearchStatusResponse) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
 type GatherRelatedFindingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Query string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -639,7 +843,7 @@ type GatherRelatedFindingsRequest struct {
 
 func (x *GatherRelatedFindingsRequest) Reset() {
 	*x = GatherRelatedFindingsRequest{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +855,7 @@ func (x *GatherRelatedFindingsRequest) String() string {
 func (*GatherRelatedFindingsRequest) ProtoMessage() {}
 
 func (x *GatherRelatedFindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[9]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +868,7 @@ func (x *GatherRelatedFindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatherRelatedFindingsRequest.ProtoReflect.Descriptor instead.
 func (*GatherRelatedFindingsRequest) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{9}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GatherRelatedFindingsRequest) GetQuery() string {
@@ -699,7 +903,7 @@ type GatheredFinding struct {
 
 func (x *GatheredFinding) Reset() {
 	*x = GatheredFinding{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +915,7 @@ func (x *GatheredFinding) String() string {
 func (*GatheredFinding) ProtoMessage() {}
 
 func (x *GatheredFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[10]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +928,7 @@ func (x *GatheredFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatheredFinding.ProtoReflect.Descriptor instead.
 func (*GatheredFinding) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{10}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GatheredFinding) GetFindingId() string {
@@ -775,7 +979,7 @@ type GatherRelatedFindingsResponse struct {
 
 func (x *GatherRelatedFindingsResponse) Reset() {
 	*x = GatherRelatedFindingsResponse{}
-	mi := &file_web_search_v1_research_research_proto_msgTypes[11]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +991,7 @@ func (x *GatherRelatedFindingsResponse) String() string {
 func (*GatherRelatedFindingsResponse) ProtoMessage() {}
 
 func (x *GatherRelatedFindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_research_research_proto_msgTypes[11]
+	mi := &file_web_search_v1_research_research_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +1004,7 @@ func (x *GatherRelatedFindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatherRelatedFindingsResponse.ProtoReflect.Descriptor instead.
 func (*GatherRelatedFindingsResponse) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{11}
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GatherRelatedFindingsResponse) GetFindings() []*GatheredFinding {
@@ -817,11 +1021,797 @@ func (x *GatherRelatedFindingsResponse) GetCapApplied() int32 {
 	return 0
 }
 
+// An omitted max_age_seconds requires live evidence. Stored reuse is opt-in.
+type AnswerRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Query          string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Effort         string                 `protobuf:"bytes,2,opt,name=effort,proto3" json:"effort,omitempty"` // l0, l1, l2 (default)
+	MaxAgeSeconds  int64                  `protobuf:"varint,3,opt,name=max_age_seconds,json=maxAgeSeconds,proto3" json:"max_age_seconds,omitempty"`
+	SourceDomains  []string               `protobuf:"bytes,4,rep,name=source_domains,json=sourceDomains,proto3" json:"source_domains,omitempty"`
+	MinimumSources int32                  `protobuf:"varint,5,opt,name=minimum_sources,json=minimumSources,proto3" json:"minimum_sources,omitempty"`
+	TopN           int32                  `protobuf:"varint,6,opt,name=top_n,json=topN,proto3" json:"top_n,omitempty"`
+	Capture        bool                   `protobuf:"varint,7,opt,name=capture,proto3" json:"capture,omitempty"`
+	FindingId      string                 `protobuf:"bytes,8,opt,name=finding_id,json=findingId,proto3" json:"finding_id,omitempty"` // Explicitly selected relevant finding; otherwise query must match exactly.
+	Policy         *EvidencePolicy        `protobuf:"bytes,9,opt,name=policy,proto3" json:"policy,omitempty"`
+	Questions      []*ResearchQuestion    `protobuf:"bytes,10,rep,name=questions,proto3" json:"questions,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AnswerRequest) Reset() {
+	*x = AnswerRequest{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerRequest) ProtoMessage() {}
+
+func (x *AnswerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerRequest.ProtoReflect.Descriptor instead.
+func (*AnswerRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AnswerRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *AnswerRequest) GetEffort() string {
+	if x != nil {
+		return x.Effort
+	}
+	return ""
+}
+
+func (x *AnswerRequest) GetMaxAgeSeconds() int64 {
+	if x != nil {
+		return x.MaxAgeSeconds
+	}
+	return 0
+}
+
+func (x *AnswerRequest) GetSourceDomains() []string {
+	if x != nil {
+		return x.SourceDomains
+	}
+	return nil
+}
+
+func (x *AnswerRequest) GetMinimumSources() int32 {
+	if x != nil {
+		return x.MinimumSources
+	}
+	return 0
+}
+
+func (x *AnswerRequest) GetTopN() int32 {
+	if x != nil {
+		return x.TopN
+	}
+	return 0
+}
+
+func (x *AnswerRequest) GetCapture() bool {
+	if x != nil {
+		return x.Capture
+	}
+	return false
+}
+
+func (x *AnswerRequest) GetFindingId() string {
+	if x != nil {
+		return x.FindingId
+	}
+	return ""
+}
+
+func (x *AnswerRequest) GetPolicy() *EvidencePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *AnswerRequest) GetQuestions() []*ResearchQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+type AnswerResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Status             string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`                           // ok, partial, unavailable
+	AnswerKind         string                 `protobuf:"bytes,2,opt,name=answer_kind,json=answerKind,proto3" json:"answer_kind,omitempty"` // stored_finding, cited_synthesis, raw_hits, none
+	Brief              *Brief                 `protobuf:"bytes,3,opt,name=brief,proto3" json:"brief,omitempty"`
+	Results            []*shared.SearchResult `protobuf:"bytes,4,rep,name=results,proto3" json:"results,omitempty"`
+	FindingIds         []string               `protobuf:"bytes,5,rep,name=finding_ids,json=findingIds,proto3" json:"finding_ids,omitempty"`
+	Abstained          bool                   `protobuf:"varint,6,opt,name=abstained,proto3" json:"abstained,omitempty"`
+	Reason             string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	CheckedAt          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	LiveCalls          int32                  `protobuf:"varint,9,opt,name=live_calls,json=liveCalls,proto3" json:"live_calls,omitempty"`
+	Cached             bool                   `protobuf:"varint,10,opt,name=cached,proto3" json:"cached,omitempty"`
+	Gaps               []string               `protobuf:"bytes,11,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	CapturedFindingIds []string               `protobuf:"bytes,12,rep,name=captured_finding_ids,json=capturedFindingIds,proto3" json:"captured_finding_ids,omitempty"`
+	Assessments        []*ClaimAssessment     `protobuf:"bytes,13,rep,name=assessments,proto3" json:"assessments,omitempty"`
+	Coverage           []*QuestionCoverage    `protobuf:"bytes,14,rep,name=coverage,proto3" json:"coverage,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AnswerResponse) Reset() {
+	*x = AnswerResponse{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerResponse) ProtoMessage() {}
+
+func (x *AnswerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerResponse.ProtoReflect.Descriptor instead.
+func (*AnswerResponse) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AnswerResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AnswerResponse) GetAnswerKind() string {
+	if x != nil {
+		return x.AnswerKind
+	}
+	return ""
+}
+
+func (x *AnswerResponse) GetBrief() *Brief {
+	if x != nil {
+		return x.Brief
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetResults() []*shared.SearchResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetFindingIds() []string {
+	if x != nil {
+		return x.FindingIds
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetAbstained() bool {
+	if x != nil {
+		return x.Abstained
+	}
+	return false
+}
+
+func (x *AnswerResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *AnswerResponse) GetCheckedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetLiveCalls() int32 {
+	if x != nil {
+		return x.LiveCalls
+	}
+	return 0
+}
+
+func (x *AnswerResponse) GetCached() bool {
+	if x != nil {
+		return x.Cached
+	}
+	return false
+}
+
+func (x *AnswerResponse) GetGaps() []string {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetCapturedFindingIds() []string {
+	if x != nil {
+		return x.CapturedFindingIds
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetAssessments() []*ClaimAssessment {
+	if x != nil {
+		return x.Assessments
+	}
+	return nil
+}
+
+func (x *AnswerResponse) GetCoverage() []*QuestionCoverage {
+	if x != nil {
+		return x.Coverage
+	}
+	return nil
+}
+
+type WaitResearchRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RunId          string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,2,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *WaitResearchRequest) Reset() {
+	*x = WaitResearchRequest{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitResearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitResearchRequest) ProtoMessage() {}
+
+func (x *WaitResearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitResearchRequest.ProtoReflect.Descriptor instead.
+func (*WaitResearchRequest) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *WaitResearchRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WaitResearchRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+// EvidencePolicy is the bounded policy shared by direct and delegated
+// research. max_age_seconds=0 requires a fresh observation; reuse is opt-in.
+type EvidencePolicy struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	MaxAgeSeconds             int64                  `protobuf:"varint,1,opt,name=max_age_seconds,json=maxAgeSeconds,proto3" json:"max_age_seconds,omitempty"`
+	SourceDomains             []string               `protobuf:"bytes,2,rep,name=source_domains,json=sourceDomains,proto3" json:"source_domains,omitempty"`
+	MinimumSources            int32                  `protobuf:"varint,3,opt,name=minimum_sources,json=minimumSources,proto3" json:"minimum_sources,omitempty"`
+	TopN                      int32                  `protobuf:"varint,4,opt,name=top_n,json=topN,proto3" json:"top_n,omitempty"`
+	MaxQuestions              int32                  `protobuf:"varint,5,opt,name=max_questions,json=maxQuestions,proto3" json:"max_questions,omitempty"`
+	MaxEvidenceBytes          int32                  `protobuf:"varint,6,opt,name=max_evidence_bytes,json=maxEvidenceBytes,proto3" json:"max_evidence_bytes,omitempty"`
+	RequireIndependentSources bool                   `protobuf:"varint,7,opt,name=require_independent_sources,json=requireIndependentSources,proto3" json:"require_independent_sources,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *EvidencePolicy) Reset() {
+	*x = EvidencePolicy{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidencePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidencePolicy) ProtoMessage() {}
+
+func (x *EvidencePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidencePolicy.ProtoReflect.Descriptor instead.
+func (*EvidencePolicy) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *EvidencePolicy) GetMaxAgeSeconds() int64 {
+	if x != nil {
+		return x.MaxAgeSeconds
+	}
+	return 0
+}
+
+func (x *EvidencePolicy) GetSourceDomains() []string {
+	if x != nil {
+		return x.SourceDomains
+	}
+	return nil
+}
+
+func (x *EvidencePolicy) GetMinimumSources() int32 {
+	if x != nil {
+		return x.MinimumSources
+	}
+	return 0
+}
+
+func (x *EvidencePolicy) GetTopN() int32 {
+	if x != nil {
+		return x.TopN
+	}
+	return 0
+}
+
+func (x *EvidencePolicy) GetMaxQuestions() int32 {
+	if x != nil {
+		return x.MaxQuestions
+	}
+	return 0
+}
+
+func (x *EvidencePolicy) GetMaxEvidenceBytes() int32 {
+	if x != nil {
+		return x.MaxEvidenceBytes
+	}
+	return 0
+}
+
+func (x *EvidencePolicy) GetRequireIndependentSources() bool {
+	if x != nil {
+		return x.RequireIndependentSources
+	}
+	return false
+}
+
+// ResearchQuestion is one independently answerable requested part. A result
+// is answered only when every required question is covered or explicitly
+// unresolved with a reason.
+type ResearchQuestion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Prompt        string                 `protobuf:"bytes,2,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	Required      bool                   `protobuf:"varint,3,opt,name=required,proto3" json:"required,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResearchQuestion) Reset() {
+	*x = ResearchQuestion{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResearchQuestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResearchQuestion) ProtoMessage() {}
+
+func (x *ResearchQuestion) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResearchQuestion.ProtoReflect.Descriptor instead.
+func (*ResearchQuestion) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ResearchQuestion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ResearchQuestion) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *ResearchQuestion) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+type EvidencePassageRef struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ReceiptId          string                 `protobuf:"bytes,1,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
+	PassageId          string                 `protobuf:"bytes,2,opt,name=passage_id,json=passageId,proto3" json:"passage_id,omitempty"`
+	ContentHash        string                 `protobuf:"bytes,3,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	ExtractionRevision string                 `protobuf:"bytes,4,opt,name=extraction_revision,json=extractionRevision,proto3" json:"extraction_revision,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *EvidencePassageRef) Reset() {
+	*x = EvidencePassageRef{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidencePassageRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidencePassageRef) ProtoMessage() {}
+
+func (x *EvidencePassageRef) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidencePassageRef.ProtoReflect.Descriptor instead.
+func (*EvidencePassageRef) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *EvidencePassageRef) GetReceiptId() string {
+	if x != nil {
+		return x.ReceiptId
+	}
+	return ""
+}
+
+func (x *EvidencePassageRef) GetPassageId() string {
+	if x != nil {
+		return x.PassageId
+	}
+	return ""
+}
+
+func (x *EvidencePassageRef) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *EvidencePassageRef) GetExtractionRevision() string {
+	if x != nil {
+		return x.ExtractionRevision
+	}
+	return ""
+}
+
+type ClaimAssessment struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ClaimId        string                 `protobuf:"bytes,1,opt,name=claim_id,json=claimId,proto3" json:"claim_id,omitempty"`
+	Disposition    AssessmentDisposition  `protobuf:"varint,2,opt,name=disposition,proto3,enum=vrooli.web_search.v1.research.AssessmentDisposition" json:"disposition,omitempty"`
+	Evidence       []*EvidencePassageRef  `protobuf:"bytes,3,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	PolicyRevision string                 `protobuf:"bytes,4,opt,name=policy_revision,json=policyRevision,proto3" json:"policy_revision,omitempty"`
+	Reason         string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ClaimAssessment) Reset() {
+	*x = ClaimAssessment{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimAssessment) ProtoMessage() {}
+
+func (x *ClaimAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimAssessment.ProtoReflect.Descriptor instead.
+func (*ClaimAssessment) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ClaimAssessment) GetClaimId() string {
+	if x != nil {
+		return x.ClaimId
+	}
+	return ""
+}
+
+func (x *ClaimAssessment) GetDisposition() AssessmentDisposition {
+	if x != nil {
+		return x.Disposition
+	}
+	return AssessmentDisposition_ASSESSMENT_DISPOSITION_UNSPECIFIED
+}
+
+func (x *ClaimAssessment) GetEvidence() []*EvidencePassageRef {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ClaimAssessment) GetPolicyRevision() string {
+	if x != nil {
+		return x.PolicyRevision
+	}
+	return ""
+}
+
+func (x *ClaimAssessment) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type QuestionCoverage struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	QuestionId       string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	Status           string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // supported, partial, unresolved, unknown
+	ClaimIds         []string               `protobuf:"bytes,3,rep,name=claim_ids,json=claimIds,proto3" json:"claim_ids,omitempty"`
+	UnresolvedReason string                 `protobuf:"bytes,4,opt,name=unresolved_reason,json=unresolvedReason,proto3" json:"unresolved_reason,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *QuestionCoverage) Reset() {
+	*x = QuestionCoverage{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QuestionCoverage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QuestionCoverage) ProtoMessage() {}
+
+func (x *QuestionCoverage) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QuestionCoverage.ProtoReflect.Descriptor instead.
+func (*QuestionCoverage) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *QuestionCoverage) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *QuestionCoverage) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *QuestionCoverage) GetClaimIds() []string {
+	if x != nil {
+		return x.ClaimIds
+	}
+	return nil
+}
+
+func (x *QuestionCoverage) GetUnresolvedReason() string {
+	if x != nil {
+		return x.UnresolvedReason
+	}
+	return ""
+}
+
+type EvidenceReceipt struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ReceiptId          string                 `protobuf:"bytes,1,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
+	ObservationId      string                 `protobuf:"bytes,2,opt,name=observation_id,json=observationId,proto3" json:"observation_id,omitempty"`
+	Url                string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	RetrievedAt        string                 `protobuf:"bytes,4,opt,name=retrieved_at,json=retrievedAt,proto3" json:"retrieved_at,omitempty"`
+	ContentHash        string                 `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	ExtractionRevision string                 `protobuf:"bytes,6,opt,name=extraction_revision,json=extractionRevision,proto3" json:"extraction_revision,omitempty"`
+	Retention          string                 `protobuf:"bytes,7,opt,name=retention,proto3" json:"retention,omitempty"`
+	FailureCode        string                 `protobuf:"bytes,8,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *EvidenceReceipt) Reset() {
+	*x = EvidenceReceipt{}
+	mi := &file_web_search_v1_research_research_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvidenceReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvidenceReceipt) ProtoMessage() {}
+
+func (x *EvidenceReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_web_search_v1_research_research_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvidenceReceipt.ProtoReflect.Descriptor instead.
+func (*EvidenceReceipt) Descriptor() ([]byte, []int) {
+	return file_web_search_v1_research_research_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *EvidenceReceipt) GetReceiptId() string {
+	if x != nil {
+		return x.ReceiptId
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetObservationId() string {
+	if x != nil {
+		return x.ObservationId
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetRetrievedAt() string {
+	if x != nil {
+		return x.RetrievedAt
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetExtractionRevision() string {
+	if x != nil {
+		return x.ExtractionRevision
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetRetention() string {
+	if x != nil {
+		return x.Retention
+	}
+	return ""
+}
+
+func (x *EvidenceReceipt) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
 var File_web_search_v1_research_research_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\n" +
-	"%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)web-search/v1/livesearch/livesearch.proto\"U\n" +
+	"%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a!web-search/v1/shared/search.proto\"U\n" +
 	"\bCitation\x12!\n" +
 	"\fresult_index\x18\x01 \x01(\x05R\vresultIndex\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
@@ -830,30 +1820,44 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12E\n" +
-	"\tcitations\x18\x04 \x03(\v2'.vrooli.web_search.v1.research.CitationR\tcitations\"S\n" +
+	"\tcitations\x18\x04 \x03(\v2'.vrooli.web_search.v1.research.CitationR\tcitations\"\xe9\x01\n" +
 	"\fRunL2Request\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n" +
 	"\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n" +
-	"\acapture\x18\x03 \x01(\bR\acapture\"\x85\x03\n" +
+	"\acapture\x18\x03 \x01(\bR\acapture\x12E\n" +
+	"\x06policy\x18\x04 \x01(\v2-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n" +
+	"\tquestions\x18\x05 \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\x87\x04\n" +
 	"\rRunL2Response\x12:\n" +
 	"\x05brief\x18\x01 \x01(\v2$.vrooli.web_search.v1.research.BriefR\x05brief\x12\x1c\n" +
 	"\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n" +
 	"\tabstained\x18\x03 \x01(\bR\tabstained\x120\n" +
-	"\x14captured_finding_ids\x18\x04 \x03(\tR\x12capturedFindingIds\x12W\n" +
-	"\x10degraded_engines\x18\x05 \x03(\v2,.vrooli.web_search.v1.livesearch.EngineIssueR\x0fdegradedEngines\x12%\n" +
+	"\x14captured_finding_ids\x18\x04 \x03(\tR\x12capturedFindingIds\x12S\n" +
+	"\x10degraded_engines\x18\x05 \x03(\v2(.vrooli.web_search.v1.shared.EngineIssueR\x0fdegradedEngines\x12%\n" +
 	"\x0eabstain_reason\x18\x06 \x01(\tR\rabstainReason\x12J\n" +
-	"\bexcerpts\x18\a \x03(\v2..vrooli.web_search.v1.research.DocumentExcerptR\bexcerpts\"S\n" +
+	"\bexcerpts\x18\a \x03(\v2..vrooli.web_search.v1.research.DocumentExcerptR\bexcerpts\x120\n" +
+	"\x14evidence_receipt_ids\x18\b \x03(\tR\x12evidenceReceiptIds\x12R\n" +
+	"\x0efetch_failures\x18\t \x03(\v2+.vrooli.web_search.v1.research.FetchFailureR\rfetchFailures\"\x8b\x01\n" +
+	"\fFetchFailure\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1c\n" +
+	"\tretryable\x18\x04 \x01(\bR\tretryable\x12\x1d\n" +
+	"\n" +
+	"receipt_id\x18\x05 \x01(\tR\treceiptId\"S\n" +
 	"\x0fDocumentExcerpt\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
-	"\aexcerpt\x18\x03 \x01(\tR\aexcerpt\"$\n" +
+	"\aexcerpt\x18\x03 \x01(\tR\aexcerpt\"\xe3\x01\n" +
 	"\fRunL3Request\x12\x14\n" +
-	"\x05query\x18\x01 \x01(\tR\x05query\">\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12'\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12E\n" +
+	"\x06policy\x18\x03 \x01(\v2-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n" +
+	"\tquestions\x18\x04 \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\">\n" +
 	"\rRunL3Response\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"1\n" +
 	"\x18GetResearchStatusRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\xf9\x01\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\xc7\x02\n" +
 	"\x19GetResearchStatusResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -862,7 +1866,9 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12\x1b\n" +
-	"\terror_msg\x18\x06 \x01(\tR\berrorMsg\"F\n" +
+	"\terror_msg\x18\x06 \x01(\tR\berrorMsg\x12/\n" +
+	"\x06result\x18\a \x01(\v2\x17.google.protobuf.StructR\x06result\x12\x1b\n" +
+	"\ttimed_out\x18\b \x01(\bR\btimedOut\"F\n" +
 	"\x1cGatherRelatedFindingsRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n" +
 	"\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n" +
@@ -878,8 +1884,93 @@ const file_web_search_v1_research_research_proto_rawDesc = "" +
 	"\x1dGatherRelatedFindingsResponse\x12J\n" +
 	"\bfindings\x18\x01 \x03(\v2..vrooli.web_search.v1.research.GatheredFindingR\bfindings\x12\x1f\n" +
 	"\vcap_applied\x18\x02 \x01(\x05R\n" +
-	"capApplied2\xf7\x03\n" +
-	"\x0fResearchService\x12b\n" +
+	"capApplied\"\x99\x03\n" +
+	"\rAnswerRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x16\n" +
+	"\x06effort\x18\x02 \x01(\tR\x06effort\x12&\n" +
+	"\x0fmax_age_seconds\x18\x03 \x01(\x03R\rmaxAgeSeconds\x12%\n" +
+	"\x0esource_domains\x18\x04 \x03(\tR\rsourceDomains\x12'\n" +
+	"\x0fminimum_sources\x18\x05 \x01(\x05R\x0eminimumSources\x12\x13\n" +
+	"\x05top_n\x18\x06 \x01(\x05R\x04topN\x12\x18\n" +
+	"\acapture\x18\a \x01(\bR\acapture\x12\x1d\n" +
+	"\n" +
+	"finding_id\x18\b \x01(\tR\tfindingId\x12E\n" +
+	"\x06policy\x18\t \x01(\v2-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n" +
+	"\tquestions\x18\n" +
+	" \x03(\v2/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\xf8\x04\n" +
+	"\x0eAnswerResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1f\n" +
+	"\vanswer_kind\x18\x02 \x01(\tR\n" +
+	"answerKind\x12:\n" +
+	"\x05brief\x18\x03 \x01(\v2$.vrooli.web_search.v1.research.BriefR\x05brief\x12C\n" +
+	"\aresults\x18\x04 \x03(\v2).vrooli.web_search.v1.shared.SearchResultR\aresults\x12\x1f\n" +
+	"\vfinding_ids\x18\x05 \x03(\tR\n" +
+	"findingIds\x12\x1c\n" +
+	"\tabstained\x18\x06 \x01(\bR\tabstained\x12\x16\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"checked_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\x12\x1d\n" +
+	"\n" +
+	"live_calls\x18\t \x01(\x05R\tliveCalls\x12\x16\n" +
+	"\x06cached\x18\n" +
+	" \x01(\bR\x06cached\x12\x12\n" +
+	"\x04gaps\x18\v \x03(\tR\x04gaps\x120\n" +
+	"\x14captured_finding_ids\x18\f \x03(\tR\x12capturedFindingIds\x12P\n" +
+	"\vassessments\x18\r \x03(\v2..vrooli.web_search.v1.research.ClaimAssessmentR\vassessments\x12K\n" +
+	"\bcoverage\x18\x0e \x03(\v2/.vrooli.web_search.v1.research.QuestionCoverageR\bcoverage\"U\n" +
+	"\x13WaitResearchRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12'\n" +
+	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"\xb0\x02\n" +
+	"\x0eEvidencePolicy\x12&\n" +
+	"\x0fmax_age_seconds\x18\x01 \x01(\x03R\rmaxAgeSeconds\x12%\n" +
+	"\x0esource_domains\x18\x02 \x03(\tR\rsourceDomains\x12'\n" +
+	"\x0fminimum_sources\x18\x03 \x01(\x05R\x0eminimumSources\x12\x13\n" +
+	"\x05top_n\x18\x04 \x01(\x05R\x04topN\x12#\n" +
+	"\rmax_questions\x18\x05 \x01(\x05R\fmaxQuestions\x12,\n" +
+	"\x12max_evidence_bytes\x18\x06 \x01(\x05R\x10maxEvidenceBytes\x12>\n" +
+	"\x1brequire_independent_sources\x18\a \x01(\bR\x19requireIndependentSources\"V\n" +
+	"\x10ResearchQuestion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06prompt\x18\x02 \x01(\tR\x06prompt\x12\x1a\n" +
+	"\brequired\x18\x03 \x01(\bR\brequired\"\xa6\x01\n" +
+	"\x12EvidencePassageRef\x12\x1d\n" +
+	"\n" +
+	"receipt_id\x18\x01 \x01(\tR\treceiptId\x12\x1d\n" +
+	"\n" +
+	"passage_id\x18\x02 \x01(\tR\tpassageId\x12!\n" +
+	"\fcontent_hash\x18\x03 \x01(\tR\vcontentHash\x12/\n" +
+	"\x13extraction_revision\x18\x04 \x01(\tR\x12extractionRevision\"\x94\x02\n" +
+	"\x0fClaimAssessment\x12\x19\n" +
+	"\bclaim_id\x18\x01 \x01(\tR\aclaimId\x12V\n" +
+	"\vdisposition\x18\x02 \x01(\x0e24.vrooli.web_search.v1.research.AssessmentDispositionR\vdisposition\x12M\n" +
+	"\bevidence\x18\x03 \x03(\v21.vrooli.web_search.v1.research.EvidencePassageRefR\bevidence\x12'\n" +
+	"\x0fpolicy_revision\x18\x04 \x01(\tR\x0epolicyRevision\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\x95\x01\n" +
+	"\x10QuestionCoverage\x12\x1f\n" +
+	"\vquestion_id\x18\x01 \x01(\tR\n" +
+	"questionId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1b\n" +
+	"\tclaim_ids\x18\x03 \x03(\tR\bclaimIds\x12+\n" +
+	"\x11unresolved_reason\x18\x04 \x01(\tR\x10unresolvedReason\"\xa1\x02\n" +
+	"\x0fEvidenceReceipt\x12\x1d\n" +
+	"\n" +
+	"receipt_id\x18\x01 \x01(\tR\treceiptId\x12%\n" +
+	"\x0eobservation_id\x18\x02 \x01(\tR\robservationId\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12!\n" +
+	"\fretrieved_at\x18\x04 \x01(\tR\vretrievedAt\x12!\n" +
+	"\fcontent_hash\x18\x05 \x01(\tR\vcontentHash\x12/\n" +
+	"\x13extraction_revision\x18\x06 \x01(\tR\x12extractionRevision\x12\x1c\n" +
+	"\tretention\x18\a \x01(\tR\tretention\x12!\n" +
+	"\ffailure_code\x18\b \x01(\tR\vfailureCode*\xa9\x01\n" +
+	"\x15AssessmentDisposition\x12&\n" +
+	"\"ASSESSMENT_DISPOSITION_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14ASSESSMENT_SUPPORTED\x10\x01\x12\x1b\n" +
+	"\x17ASSESSMENT_CONTRADICTED\x10\x02\x12\x19\n" +
+	"\x15ASSESSMENT_UNRESOLVED\x10\x03\x12\x16\n" +
+	"\x12ASSESSMENT_UNKNOWN\x10\x042\xdc\x05\n" +
+	"\x0fResearchService\x12e\n" +
+	"\x06Answer\x12,.vrooli.web_search.v1.research.AnswerRequest\x1a-.vrooli.web_search.v1.research.AnswerResponse\x12|\n" +
+	"\fWaitResearch\x122.vrooli.web_search.v1.research.WaitResearchRequest\x1a8.vrooli.web_search.v1.research.GetResearchStatusResponse\x12b\n" +
 	"\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12b\n" +
 	"\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n" +
 	"\x11GetResearchStatus\x127.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a8.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n" +
@@ -897,44 +1988,77 @@ func file_web_search_v1_research_research_proto_rawDescGZIP() []byte {
 	return file_web_search_v1_research_research_proto_rawDescData
 }
 
-var file_web_search_v1_research_research_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_web_search_v1_research_research_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_web_search_v1_research_research_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_web_search_v1_research_research_proto_goTypes = []any{
-	(*Citation)(nil),                      // 0: vrooli.web_search.v1.research.Citation
-	(*Brief)(nil),                         // 1: vrooli.web_search.v1.research.Brief
-	(*RunL2Request)(nil),                  // 2: vrooli.web_search.v1.research.RunL2Request
-	(*RunL2Response)(nil),                 // 3: vrooli.web_search.v1.research.RunL2Response
-	(*DocumentExcerpt)(nil),               // 4: vrooli.web_search.v1.research.DocumentExcerpt
-	(*RunL3Request)(nil),                  // 5: vrooli.web_search.v1.research.RunL3Request
-	(*RunL3Response)(nil),                 // 6: vrooli.web_search.v1.research.RunL3Response
-	(*GetResearchStatusRequest)(nil),      // 7: vrooli.web_search.v1.research.GetResearchStatusRequest
-	(*GetResearchStatusResponse)(nil),     // 8: vrooli.web_search.v1.research.GetResearchStatusResponse
-	(*GatherRelatedFindingsRequest)(nil),  // 9: vrooli.web_search.v1.research.GatherRelatedFindingsRequest
-	(*GatheredFinding)(nil),               // 10: vrooli.web_search.v1.research.GatheredFinding
-	(*GatherRelatedFindingsResponse)(nil), // 11: vrooli.web_search.v1.research.GatherRelatedFindingsResponse
-	(*livesearch.EngineIssue)(nil),        // 12: vrooli.web_search.v1.livesearch.EngineIssue
-	(*timestamppb.Timestamp)(nil),         // 13: google.protobuf.Timestamp
+	(AssessmentDisposition)(0),            // 0: vrooli.web_search.v1.research.AssessmentDisposition
+	(*Citation)(nil),                      // 1: vrooli.web_search.v1.research.Citation
+	(*Brief)(nil),                         // 2: vrooli.web_search.v1.research.Brief
+	(*RunL2Request)(nil),                  // 3: vrooli.web_search.v1.research.RunL2Request
+	(*RunL2Response)(nil),                 // 4: vrooli.web_search.v1.research.RunL2Response
+	(*FetchFailure)(nil),                  // 5: vrooli.web_search.v1.research.FetchFailure
+	(*DocumentExcerpt)(nil),               // 6: vrooli.web_search.v1.research.DocumentExcerpt
+	(*RunL3Request)(nil),                  // 7: vrooli.web_search.v1.research.RunL3Request
+	(*RunL3Response)(nil),                 // 8: vrooli.web_search.v1.research.RunL3Response
+	(*GetResearchStatusRequest)(nil),      // 9: vrooli.web_search.v1.research.GetResearchStatusRequest
+	(*GetResearchStatusResponse)(nil),     // 10: vrooli.web_search.v1.research.GetResearchStatusResponse
+	(*GatherRelatedFindingsRequest)(nil),  // 11: vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+	(*GatheredFinding)(nil),               // 12: vrooli.web_search.v1.research.GatheredFinding
+	(*GatherRelatedFindingsResponse)(nil), // 13: vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+	(*AnswerRequest)(nil),                 // 14: vrooli.web_search.v1.research.AnswerRequest
+	(*AnswerResponse)(nil),                // 15: vrooli.web_search.v1.research.AnswerResponse
+	(*WaitResearchRequest)(nil),           // 16: vrooli.web_search.v1.research.WaitResearchRequest
+	(*EvidencePolicy)(nil),                // 17: vrooli.web_search.v1.research.EvidencePolicy
+	(*ResearchQuestion)(nil),              // 18: vrooli.web_search.v1.research.ResearchQuestion
+	(*EvidencePassageRef)(nil),            // 19: vrooli.web_search.v1.research.EvidencePassageRef
+	(*ClaimAssessment)(nil),               // 20: vrooli.web_search.v1.research.ClaimAssessment
+	(*QuestionCoverage)(nil),              // 21: vrooli.web_search.v1.research.QuestionCoverage
+	(*EvidenceReceipt)(nil),               // 22: vrooli.web_search.v1.research.EvidenceReceipt
+	(*shared.EngineIssue)(nil),            // 23: vrooli.web_search.v1.shared.EngineIssue
+	(*timestamppb.Timestamp)(nil),         // 24: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),               // 25: google.protobuf.Struct
+	(*shared.SearchResult)(nil),           // 26: vrooli.web_search.v1.shared.SearchResult
 }
 var file_web_search_v1_research_research_proto_depIdxs = []int32{
-	0,  // 0: vrooli.web_search.v1.research.Brief.citations:type_name -> vrooli.web_search.v1.research.Citation
-	1,  // 1: vrooli.web_search.v1.research.RunL2Response.brief:type_name -> vrooli.web_search.v1.research.Brief
-	12, // 2: vrooli.web_search.v1.research.RunL2Response.degraded_engines:type_name -> vrooli.web_search.v1.livesearch.EngineIssue
-	4,  // 3: vrooli.web_search.v1.research.RunL2Response.excerpts:type_name -> vrooli.web_search.v1.research.DocumentExcerpt
-	13, // 4: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	13, // 5: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
-	10, // 6: vrooli.web_search.v1.research.GatherRelatedFindingsResponse.findings:type_name -> vrooli.web_search.v1.research.GatheredFinding
-	2,  // 7: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
-	5,  // 8: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
-	7,  // 9: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
-	9,  // 10: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:input_type -> vrooli.web_search.v1.research.GatherRelatedFindingsRequest
-	3,  // 11: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
-	6,  // 12: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
-	8,  // 13: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
-	11, // 14: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:output_type -> vrooli.web_search.v1.research.GatherRelatedFindingsResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 0: vrooli.web_search.v1.research.Brief.citations:type_name -> vrooli.web_search.v1.research.Citation
+	17, // 1: vrooli.web_search.v1.research.RunL2Request.policy:type_name -> vrooli.web_search.v1.research.EvidencePolicy
+	18, // 2: vrooli.web_search.v1.research.RunL2Request.questions:type_name -> vrooli.web_search.v1.research.ResearchQuestion
+	2,  // 3: vrooli.web_search.v1.research.RunL2Response.brief:type_name -> vrooli.web_search.v1.research.Brief
+	23, // 4: vrooli.web_search.v1.research.RunL2Response.degraded_engines:type_name -> vrooli.web_search.v1.shared.EngineIssue
+	6,  // 5: vrooli.web_search.v1.research.RunL2Response.excerpts:type_name -> vrooli.web_search.v1.research.DocumentExcerpt
+	5,  // 6: vrooli.web_search.v1.research.RunL2Response.fetch_failures:type_name -> vrooli.web_search.v1.research.FetchFailure
+	17, // 7: vrooli.web_search.v1.research.RunL3Request.policy:type_name -> vrooli.web_search.v1.research.EvidencePolicy
+	18, // 8: vrooli.web_search.v1.research.RunL3Request.questions:type_name -> vrooli.web_search.v1.research.ResearchQuestion
+	24, // 9: vrooli.web_search.v1.research.GetResearchStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	24, // 10: vrooli.web_search.v1.research.GetResearchStatusResponse.finished_at:type_name -> google.protobuf.Timestamp
+	25, // 11: vrooli.web_search.v1.research.GetResearchStatusResponse.result:type_name -> google.protobuf.Struct
+	12, // 12: vrooli.web_search.v1.research.GatherRelatedFindingsResponse.findings:type_name -> vrooli.web_search.v1.research.GatheredFinding
+	17, // 13: vrooli.web_search.v1.research.AnswerRequest.policy:type_name -> vrooli.web_search.v1.research.EvidencePolicy
+	18, // 14: vrooli.web_search.v1.research.AnswerRequest.questions:type_name -> vrooli.web_search.v1.research.ResearchQuestion
+	2,  // 15: vrooli.web_search.v1.research.AnswerResponse.brief:type_name -> vrooli.web_search.v1.research.Brief
+	26, // 16: vrooli.web_search.v1.research.AnswerResponse.results:type_name -> vrooli.web_search.v1.shared.SearchResult
+	24, // 17: vrooli.web_search.v1.research.AnswerResponse.checked_at:type_name -> google.protobuf.Timestamp
+	20, // 18: vrooli.web_search.v1.research.AnswerResponse.assessments:type_name -> vrooli.web_search.v1.research.ClaimAssessment
+	21, // 19: vrooli.web_search.v1.research.AnswerResponse.coverage:type_name -> vrooli.web_search.v1.research.QuestionCoverage
+	0,  // 20: vrooli.web_search.v1.research.ClaimAssessment.disposition:type_name -> vrooli.web_search.v1.research.AssessmentDisposition
+	19, // 21: vrooli.web_search.v1.research.ClaimAssessment.evidence:type_name -> vrooli.web_search.v1.research.EvidencePassageRef
+	14, // 22: vrooli.web_search.v1.research.ResearchService.Answer:input_type -> vrooli.web_search.v1.research.AnswerRequest
+	16, // 23: vrooli.web_search.v1.research.ResearchService.WaitResearch:input_type -> vrooli.web_search.v1.research.WaitResearchRequest
+	3,  // 24: vrooli.web_search.v1.research.ResearchService.RunL2:input_type -> vrooli.web_search.v1.research.RunL2Request
+	7,  // 25: vrooli.web_search.v1.research.ResearchService.RunL3:input_type -> vrooli.web_search.v1.research.RunL3Request
+	9,  // 26: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:input_type -> vrooli.web_search.v1.research.GetResearchStatusRequest
+	11, // 27: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:input_type -> vrooli.web_search.v1.research.GatherRelatedFindingsRequest
+	15, // 28: vrooli.web_search.v1.research.ResearchService.Answer:output_type -> vrooli.web_search.v1.research.AnswerResponse
+	10, // 29: vrooli.web_search.v1.research.ResearchService.WaitResearch:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
+	4,  // 30: vrooli.web_search.v1.research.ResearchService.RunL2:output_type -> vrooli.web_search.v1.research.RunL2Response
+	8,  // 31: vrooli.web_search.v1.research.ResearchService.RunL3:output_type -> vrooli.web_search.v1.research.RunL3Response
+	10, // 32: vrooli.web_search.v1.research.ResearchService.GetResearchStatus:output_type -> vrooli.web_search.v1.research.GetResearchStatusResponse
+	13, // 33: vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings:output_type -> vrooli.web_search.v1.research.GatherRelatedFindingsResponse
+	28, // [28:34] is the sub-list for method output_type
+	22, // [22:28] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_web_search_v1_research_research_proto_init() }
@@ -947,13 +2071,14 @@ func file_web_search_v1_research_research_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_search_v1_research_research_proto_rawDesc), len(file_web_search_v1_research_research_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_web_search_v1_research_research_proto_goTypes,
 		DependencyIndexes: file_web_search_v1_research_research_proto_depIdxs,
+		EnumInfos:         file_web_search_v1_research_research_proto_enumTypes,
 		MessageInfos:      file_web_search_v1_research_research_proto_msgTypes,
 	}.Build()
 	File_web_search_v1_research_research_proto = out.File

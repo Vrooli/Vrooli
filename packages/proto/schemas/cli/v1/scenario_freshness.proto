@@ -36,6 +36,15 @@ message ScenarioFreshnessResponse {
 
   // Resolved freshness_policy of each declared scenario dependency.
   repeated ScenarioFreshnessDependency dependencies = 5;
+
+  // Present only for --inputs. This resolves the same input closure and build
+  // keys as lifecycle freshness, without evaluating or stamping artifacts.
+  ScenarioFreshnessInputs inputs = 6;
+}
+
+message ScenarioFreshnessInputs {
+  repeated string paths = 1;
+  map<string, string> build_keys = 2;
 }
 
 // ScenarioFreshnessCheck is one artifact's freshness verdict.

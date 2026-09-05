@@ -4,15 +4,18 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { Program, Provenance } from "../programs/programs_pb";
+import { file_program_runtime_v1_programs_programs } from "../programs/programs_pb";
 import type { LibraryProgram } from "../shared/library_pb";
 import { file_program_runtime_v1_shared_library } from "../shared/library_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file program-runtime/v1/library/library.proto.
  */
 export const file_program_runtime_v1_library_library: GenFile = /*@__PURE__*/
-  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiQgoSTGlzdExpYnJhcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJZChNMaXN0TGlicmFyeVJlc3BvbnNlEkIKCHByb2dyYW1zGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0iMgoRR2V0TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIokBCgxCaW5kaW5nRHJpZnQSEgoKYmluZGluZ19pZBgBIAEoCRIUCgx2YWxpZGF0ZWRfYXQYAiABKAkSGAoQZ2VuZXJhdGlvbl9tdGltZRgDIAEoCRIUCgxkcmlmdF9zdGF0dXMYBCABKAkSDwoHY2hhbmdlZBgFIAEoCBIOCgZyZWFzb24YBiABKAkilwEKEkdldExpYnJhcnlSZXNwb25zZRJBCgdwcm9ncmFtGAEgASgLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0SPgoFZHJpZnQYAiADKAsyLy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuQmluZGluZ0RyaWZ0IrgBChVQcm9tb3RlTGlicmFyeVJlcXVlc3QSEgoKcHJvZ3JhbV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhMKC3Byb21vdGVkX2J5GAQgASgJEg4KBnJlYXNvbhgFIAEoCRIQCghjb3ZlcmFnZRgGIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYByADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgIIAMoCSJbChZQcm9tb3RlTGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSI5ChhTZXRDdXJyZW50TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIl4KGVNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtMqIECg5MaWJyYXJ5U2VydmljZRJ8CgtMaXN0TGlicmFyeRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuTGlzdExpYnJhcnlSZXNwb25zZRJ5CgpHZXRMaWJyYXJ5EjQudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXF1ZXN0GjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXNwb25zZRKFAQoOUHJvbW90ZUxpYnJhcnkSOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlByb21vdGVMaWJyYXJ5UmVzcG9uc2USjgEKEVNldEN1cnJlbnRMaWJyYXJ5EjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5TZXRDdXJyZW50TGlicmFyeVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL2xpYnJhcnk7bGlicmFyeV92MWIGcHJvdG8z", [file_program_runtime_v1_shared_library]);
+  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiQgoSTGlzdExpYnJhcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJZChNMaXN0TGlicmFyeVJlc3BvbnNlEkIKCHByb2dyYW1zGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0iMgoRR2V0TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIokBCgxCaW5kaW5nRHJpZnQSEgoKYmluZGluZ19pZBgBIAEoCRIUCgx2YWxpZGF0ZWRfYXQYAiABKAkSGAoQZ2VuZXJhdGlvbl9tdGltZRgDIAEoCRIUCgxkcmlmdF9zdGF0dXMYBCABKAkSDwoHY2hhbmdlZBgFIAEoCBIOCgZyZWFzb24YBiABKAkilwEKEkdldExpYnJhcnlSZXNwb25zZRJBCgdwcm9ncmFtGAEgASgLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0SPgoFZHJpZnQYAiADKAsyLy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuQmluZGluZ0RyaWZ0IrgBChVQcm9tb3RlTGlicmFyeVJlcXVlc3QSEgoKcHJvZ3JhbV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhMKC3Byb21vdGVkX2J5GAQgASgJEg4KBnJlYXNvbhgFIAEoCRIQCghjb3ZlcmFnZRgGIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYByADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgIIAMoCSJbChZQcm9tb3RlTGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSI5ChhTZXRDdXJyZW50TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIl4KGVNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtIq8BChlSdW5EZWNsYXJlZFByb2dyYW1SZXF1ZXN0EgwKBG5hbWUYASABKAkSJwoGaW5wdXRzGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJCCgpwcm92ZW5hbmNlGAMgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm92ZW5hbmNlEhcKD2V4cGVjdGVkX2RpZ2VzdBgEIAEoCSKDAQoaUnVuRGVjbGFyZWRQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDMrYFCg5MaWJyYXJ5U2VydmljZRJ8CgtMaXN0TGlicmFyeRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuTGlzdExpYnJhcnlSZXNwb25zZRJ5CgpHZXRMaWJyYXJ5EjQudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXF1ZXN0GjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXNwb25zZRKFAQoOUHJvbW90ZUxpYnJhcnkSOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlByb21vdGVMaWJyYXJ5UmVzcG9uc2USjgEKEVNldEN1cnJlbnRMaWJyYXJ5EjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5TZXRDdXJyZW50TGlicmFyeVJlc3BvbnNlEpEBChJSdW5EZWNsYXJlZFByb2dyYW0SPC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUnVuRGVjbGFyZWRQcm9ncmFtUmVxdWVzdBo9LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5SdW5EZWNsYXJlZFByb2dyYW1SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9saWJyYXJ5O2xpYnJhcnlfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_program_runtime_v1_programs_programs, file_program_runtime_v1_shared_library]);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.ListLibraryRequest
@@ -253,6 +256,71 @@ export const SetCurrentLibraryResponseSchema: GenMessage<SetCurrentLibraryRespon
   messageDesc(file_program_runtime_v1_library_library, 8);
 
 /**
+ * RunDeclaredProgram executes one scenario-owned contract in a fresh bounded
+ * session. The server validates names/defaults, waits once, and reclaims the
+ * session; callers never coordinate low-level session and program RPCs.
+ *
+ * @generated from message vrooli.program_runtime.v1.library.RunDeclaredProgramRequest
+ */
+export type RunDeclaredProgramRequest = Message<"vrooli.program_runtime.v1.library.RunDeclaredProgramRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct inputs = 2;
+   */
+  inputs?: JsonObject | undefined;
+
+  /**
+   * @generated from field: vrooli.program_runtime.v1.programs.Provenance provenance = 3;
+   */
+  provenance: Provenance;
+
+  /**
+   * Optional content identity from GetLibrary. Refuse drift before creating a session.
+   *
+   * @generated from field: string expected_digest = 4;
+   */
+  expectedDigest: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.library.RunDeclaredProgramRequest.
+ * Use `create(RunDeclaredProgramRequestSchema)` to create a new message.
+ */
+export const RunDeclaredProgramRequestSchema: GenMessage<RunDeclaredProgramRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_library_library, 9);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.library.RunDeclaredProgramResponse
+ */
+export type RunDeclaredProgramResponse = Message<"vrooli.program_runtime.v1.library.RunDeclaredProgramResponse"> & {
+  /**
+   * @generated from field: vrooli.program_runtime.v1.programs.Program program = 1;
+   */
+  program?: Program | undefined;
+
+  /**
+   * @generated from field: bool terminal = 2;
+   */
+  terminal: boolean;
+
+  /**
+   * @generated from field: int64 waited_millis = 3;
+   */
+  waitedMillis: bigint;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.library.RunDeclaredProgramResponse.
+ * Use `create(RunDeclaredProgramResponseSchema)` to create a new message.
+ */
+export const RunDeclaredProgramResponseSchema: GenMessage<RunDeclaredProgramResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_library_library, 10);
+
+/**
  * @generated from service vrooli.program_runtime.v1.library.LibraryService
  */
 export const LibraryService: GenService<{
@@ -287,6 +355,14 @@ export const LibraryService: GenService<{
     methodKind: "unary";
     input: typeof SetCurrentLibraryRequestSchema;
     output: typeof SetCurrentLibraryResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram
+   */
+  runDeclaredProgram: {
+    methodKind: "unary";
+    input: typeof RunDeclaredProgramRequestSchema;
+    output: typeof RunDeclaredProgramResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_program_runtime_v1_library_library, 0);

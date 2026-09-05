@@ -1,7 +1,10 @@
 package main
 
 import (
+	_ "embed"
+
 	"knowledge-observatory/cli/domains"
+	"knowledge-observatory/cli/domains/knowledgebase"
 	"knowledge-observatory/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -19,6 +22,9 @@ var (
 	buildSourceRoot  = ""
 )
 
+//go:embed manifest.json
+var manifestBytes []byte
+
 type App struct {
 	core *cliapp.ScenarioApp
 }
@@ -35,6 +41,13 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			group, err := knowledgebase.Register(core, manifestBytes)
+			if err != nil {
+				panic(err)
+			}
+			return []cliapp.SubcommandGroup{group}
+		},
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
 			return domains.CommandGroups(app.dependencies())

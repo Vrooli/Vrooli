@@ -280,6 +280,11 @@ message ClaimMeasurement {
 }
 
 message ReconciliationEvidence {
+  // Exact contract bytes parsed by the producer. Empty for historical evidence.
+  string contract_hash = 21;
+  // Hash of the normalized observed AX snapshot; not an application build hash.
+  string snapshot_hash = 22;
+  string evaluator_version = 23;
   string id = 1;
   string scenario = 2;
   string page = 3;

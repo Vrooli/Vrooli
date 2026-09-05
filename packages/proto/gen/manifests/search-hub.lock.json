@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "search-hub",
-  "input_digest": "sha256:1e8c715a36dbe46455fc2a1f10c1494a4d941d9bab0f2d546382594441713a17",
+  "input_digest": "sha256:f74e62712ac115e1df5bf956cf8d59a2a2fa5a69d7ad93c28e77b7bc95de27a8",
   "input_files": [
     "schemas/common/v1/attestation.proto",
     "schemas/common/v1/confidence.proto",
@@ -38,9 +38,9 @@
     "gen/go/search-hub/v1/measures/measures_v1connect/measures.connect.go": "sha256:b36952e97ed3e651da14428e8640ba886879c3d434d41b0682ad6601bb1d7286",
     "gen/go/search-hub/v1/metrics/metrics.pb.go": "sha256:243d15b9e227b86c086d6f3d2b8c5fa07f8ac9dd0a50c25d3b7787c76500350e",
     "gen/go/search-hub/v1/metrics/metrics_v1connect/metrics.connect.go": "sha256:e141b4fe97958e5dadbd3119a33cf806b44fa6ccbda305b846441048fe12fc0e",
-    "gen/go/search-hub/v1/registry/registry.pb.go": "sha256:8cc03a5784dbd27553d775fe98adec3b3077867b4de378e613fed978f96108c6",
+    "gen/go/search-hub/v1/registry/registry.pb.go": "sha256:fd5e6d53f2a91cb279478184fb907c013941aa8741af15f15992f293f4f1f89c",
     "gen/go/search-hub/v1/registry/registry_v1connect/registry.connect.go": "sha256:f398ffc90e25dedd1b09bdf73fe17b3cf370e7e27dc7b27b88d6ec05f4fbd1e9",
-    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:1aef9fd4570890b6a1bd24045b72bd0495a503bcf9804291d0a232bc49807201",
+    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:38fac4a41655c16521c0fbd341ba58d2100c689f225546592df6d0c7cce5118e",
     "gen/go/search-hub/v1/routing/routing_v1connect/routing.connect.go": "sha256:c04cb0384e4d6e396d3b6a36f6343f23775a429663c21f23024b6e0374fd1628",
     "gen/go/search-hub/v1/shared/routing_trace.pb.go": "sha256:bedc278bf7ffc500d02c269c5e0136b5abc7d5ba97536662b173dc0bbd2a24b9",
     "gen/python/search_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -64,11 +64,11 @@
     "gen/python/search_hub/v1/metrics/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/search_hub/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/search_hub/v1/registry/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/search_hub/v1/registry/registry_pb2.py": "sha256:76882062732d0eecc87522684eb98c6715815716017685ca7b9566774993e4df",
-    "gen/python/search_hub/v1/registry/registry_pb2.pyi": "sha256:ab6b784c28451f3012a80a3ff4d272962f834cbfe2de3413a545db5983ca3e6a",
+    "gen/python/search_hub/v1/registry/registry_pb2.py": "sha256:5fb81f462c971aed176e908a323b69c0cfa2a040740d51090216409204edf848",
+    "gen/python/search_hub/v1/registry/registry_pb2.pyi": "sha256:2709ef8979511aef76e1643ac7016db3c251d6aaae82a5f1c7b4b6a34419b839",
     "gen/python/search_hub/v1/routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/search_hub/v1/routing/routing_pb2.py": "sha256:d89ca6ceb29210059aac26fbd973ae3d3bede4c587714a069fb59fa7090c74fe",
-    "gen/python/search_hub/v1/routing/routing_pb2.pyi": "sha256:26f2e066e1127e88aa7277b3d808f03578c7d310bea60766099ea309b4c605a5",
+    "gen/python/search_hub/v1/routing/routing_pb2.py": "sha256:e6ad49ed4cb31cca8fb72fd66649ca152dd82821d69e5db5c5f0ee97721cea7f",
+    "gen/python/search_hub/v1/routing/routing_pb2.pyi": "sha256:d72bec5e65cda2b022a0f4e0f7e8434b3911f5620c1277f21024b6563c9ed010",
     "gen/python/search_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/search_hub/v1/shared/routing_trace_pb2.py": "sha256:d947a766dfede3147dc8dc9db532a4ac367f542739b877c3a84ab8023b6f5783",
     "gen/python/search_hub/v1/shared/routing_trace_pb2.pyi": "sha256:88461c72d457b0e86cfac2229054d88c1c5c49c9c3bb6dcdb5db5b8de6b7f642",
@@ -78,8 +78,8 @@
     "gen/typescript/search-hub/v1/health/health_pb.ts": "sha256:3df2538859ab5f1eb883290f35c7d564f20005be98e6783a9119d0d0da77b3a3",
     "gen/typescript/search-hub/v1/measures/measures_pb.ts": "sha256:0eb57c0c519273c17ee54a51ea49d8065c197fdaaff73e239fc9acea858cd2de",
     "gen/typescript/search-hub/v1/metrics/metrics_pb.ts": "sha256:b38f20dc66c629f108d3e31e7dbd28f69c9b8301128383bd14044298492420cc",
-    "gen/typescript/search-hub/v1/registry/registry_pb.ts": "sha256:84d4a66d6034e8d74464d36d46148be61906368cc3adaf3066e4ad45669127cd",
-    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:634fba80e7c5b9cfe47cf12a640a8ad21d92e6b1b5e7dc397cf78c17fb5b13f5",
+    "gen/typescript/search-hub/v1/registry/registry_pb.ts": "sha256:39b3bd84f4695914c785307ed992b86ed4b53dc54d31f5664903dc4a8a2e346d",
+    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:bcafccbe0a68841fdf5e1597969561c81c6108d580495633286489dc3416412a",
     "gen/typescript/search-hub/v1/shared/routing_trace_pb.ts": "sha256:43f8265c76dee54adcae1fcf2508b657860337e5e4b15942fe3f9264854d853a"
   }
 }

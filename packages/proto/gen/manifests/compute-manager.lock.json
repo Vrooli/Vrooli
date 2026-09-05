@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "compute-manager",
-  "input_digest": "sha256:0d0f912a9e7fb0b219907705fb722988ebef524e2b0fb55127a4957bb0af7406",
+  "input_digest": "sha256:d1d44c9689160adc0224fbd07b6580ea6dd93e2a6f40a636d3180bce0fc26f5d",
   "input_files": [
     "schemas/compute-manager/v1/instance/instance.proto",
     "schemas/compute-manager/v1/intent/intent.proto",

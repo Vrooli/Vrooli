@@ -58,6 +58,10 @@ type refSummary struct {
 }
 
 func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
+	return validateBidirectionalRefsWithRoot(ctx, scenarioDir, scenarioDir, markdownFiles, cfg, commandValidator)
+}
+
+func validateBidirectionalRefsWithRoot(ctx context.Context, scenarioDir, referenceRoot string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
 	var out []Finding
 	var summary refSummary
 
@@ -70,7 +74,7 @@ func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdown
 		refs := extractCodeRefs(file, string(content))
 		summary.CodeRefsFound += len(refs)
 		for _, ref := range refs {
-			if err := validateCodeRef(scenarioDir, ref); err != nil {
+			if err := validateCodeRef(referenceRoot, ref); err != nil {
 				summary.CodeRefsBroken++
 				out = append(out, Finding{
 					Code:     "broken_code_ref",
@@ -93,7 +97,7 @@ func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdown
 		refs := extractMarkedRefs(file, string(content))
 		summary.MarkedRefsFound += len(refs)
 		for _, ref := range refs {
-			status, err := validateMarkedRef(ctx, scenarioDir, ref, commandValidator)
+			status, err := validateMarkedRef(ctx, referenceRoot, ref, commandValidator)
 			switch status {
 			case markedRefSkipped:
 				summary.MarkedRefsSkipped++
@@ -139,7 +143,7 @@ func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdown
 	summary.CodeFilesScanned = filesScanned
 	summary.DocRefsFound = len(docRefs)
 	for _, ref := range docRefs {
-		if err := validateDocRef(scenarioDir, ref); err != nil {
+		if err := validateDocRef(referenceRoot, ref); err != nil {
 			summary.DocRefsBroken++
 			out = append(out, Finding{
 				Code:     "broken_doc_ref",

@@ -23,10 +23,11 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from web_search.v1.livesearch import livesearch_pb2 as web__search_dot_v1_dot_livesearch_dot_livesearch__pb2
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
+from web_search.v1.shared import search_pb2 as web__search_dot_v1_dot_shared_dot_search__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)web-search/v1/livesearch/livesearch.proto\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x94\x01\n\x05\x42rief\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x45\n\tcitations\x18\x04 \x03(\x0b\x32\'.vrooli.web_search.v1.research.CitationR\tcitations\"S\n\x0cRunL2Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n\x07\x63\x61pture\x18\x03 \x01(\x08R\x07\x63\x61pture\"\x85\x03\n\rRunL2Response\x12:\n\x05\x62rief\x18\x01 \x01(\x0b\x32$.vrooli.web_search.v1.research.BriefR\x05\x62rief\x12\x1c\n\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\x12\x30\n\x14\x63\x61ptured_finding_ids\x18\x04 \x03(\tR\x12\x63\x61pturedFindingIds\x12W\n\x10\x64\x65graded_engines\x18\x05 \x03(\x0b\x32,.vrooli.web_search.v1.livesearch.EngineIssueR\x0f\x64\x65gradedEngines\x12%\n\x0e\x61\x62stain_reason\x18\x06 \x01(\tR\rabstainReason\x12J\n\x08\x65xcerpts\x18\x07 \x03(\x0b\x32..vrooli.web_search.v1.research.DocumentExcerptR\x08\x65xcerpts\"S\n\x0f\x44ocumentExcerpt\x12\x10\n\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07\x65xcerpt\x18\x03 \x01(\tR\x07\x65xcerpt\"$\n\x0cRunL3Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\">\n\rRunL3Response\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\"1\n\x18GetResearchStatusRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\"\xf9\x01\n\x19GetResearchStatusResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n\x0b\x66inished_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nfinishedAt\x12\x1b\n\terror_msg\x18\x06 \x01(\tR\x08\x65rrorMsg\"F\n\x1cGatherRelatedFindingsRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n\x0fGatheredFinding\x12\x1d\n\nfinding_id\x18\x01 \x01(\tR\tfindingId\x12\x14\n\x05\x63laim\x18\x02 \x01(\tR\x05\x63laim\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\"\x8c\x01\n\x1dGatherRelatedFindingsResponse\x12J\n\x08\x66indings\x18\x01 \x03(\x0b\x32..vrooli.web_search.v1.research.GatheredFindingR\x08\x66indings\x12\x1f\n\x0b\x63\x61p_applied\x18\x02 \x01(\x05R\ncapApplied2\xf7\x03\n\x0fResearchService\x12\x62\n\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12\x62\n\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n\x11GetResearchStatus\x12\x37.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a\x38.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n\x15GatherRelatedFindings\x12;.vrooli.web_search.v1.research.GatherRelatedFindingsRequest\x1a<.vrooli.web_search.v1.research.GatherRelatedFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%web-search/v1/research/research.proto\x12\x1dvrooli.web_search.v1.research\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a!web-search/v1/shared/search.proto\"U\n\x08\x43itation\x12!\n\x0cresult_index\x18\x01 \x01(\x05R\x0bresultIndex\x12\x10\n\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\"\x94\x01\n\x05\x42rief\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x45\n\tcitations\x18\x04 \x03(\x0b\x32\'.vrooli.web_search.v1.research.CitationR\tcitations\"\xe9\x01\n\x0cRunL2Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x13\n\x05top_n\x18\x02 \x01(\x05R\x04topN\x12\x18\n\x07\x63\x61pture\x18\x03 \x01(\x08R\x07\x63\x61pture\x12\x45\n\x06policy\x18\x04 \x01(\x0b\x32-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n\tquestions\x18\x05 \x03(\x0b\x32/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\x87\x04\n\rRunL2Response\x12:\n\x05\x62rief\x18\x01 \x01(\x0b\x32$.vrooli.web_search.v1.research.BriefR\x05\x62rief\x12\x1c\n\tsynthesis\x18\x02 \x01(\tR\tsynthesis\x12\x1c\n\tabstained\x18\x03 \x01(\x08R\tabstained\x12\x30\n\x14\x63\x61ptured_finding_ids\x18\x04 \x03(\tR\x12\x63\x61pturedFindingIds\x12S\n\x10\x64\x65graded_engines\x18\x05 \x03(\x0b\x32(.vrooli.web_search.v1.shared.EngineIssueR\x0f\x64\x65gradedEngines\x12%\n\x0e\x61\x62stain_reason\x18\x06 \x01(\tR\rabstainReason\x12J\n\x08\x65xcerpts\x18\x07 \x03(\x0b\x32..vrooli.web_search.v1.research.DocumentExcerptR\x08\x65xcerpts\x12\x30\n\x14\x65vidence_receipt_ids\x18\x08 \x03(\tR\x12\x65videnceReceiptIds\x12R\n\x0e\x66\x65tch_failures\x18\t \x03(\x0b\x32+.vrooli.web_search.v1.research.FetchFailureR\rfetchFailures\"\x8b\x01\n\x0c\x46\x65tchFailure\x12\x10\n\x03url\x18\x01 \x01(\tR\x03url\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\x12\x1c\n\tretryable\x18\x04 \x01(\x08R\tretryable\x12\x1d\n\nreceipt_id\x18\x05 \x01(\tR\treceiptId\"S\n\x0f\x44ocumentExcerpt\x12\x10\n\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n\x07\x65xcerpt\x18\x03 \x01(\tR\x07\x65xcerpt\"\xe3\x01\n\x0cRunL3Request\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\'\n\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12\x45\n\x06policy\x18\x03 \x01(\x0b\x32-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n\tquestions\x18\x04 \x03(\x0b\x32/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\">\n\rRunL3Response\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\"1\n\x18GetResearchStatusRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\"\xc7\x02\n\x19GetResearchStatusResponse\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n\x07summary\x18\x03 \x01(\tR\x07summary\x12\x39\n\nstarted_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n\x0b\x66inished_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nfinishedAt\x12\x1b\n\terror_msg\x18\x06 \x01(\tR\x08\x65rrorMsg\x12/\n\x06result\x18\x07 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\x12\x1b\n\ttimed_out\x18\x08 \x01(\x08R\x08timedOut\"F\n\x1cGatherRelatedFindingsRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x10\n\x03max\x18\x02 \x01(\x05R\x03max\"\x94\x01\n\x0fGatheredFinding\x12\x1d\n\nfinding_id\x18\x01 \x01(\tR\tfindingId\x12\x14\n\x05\x63laim\x18\x02 \x01(\tR\x05\x63laim\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n\x05score\x18\x05 \x01(\x01R\x05score\"\x8c\x01\n\x1dGatherRelatedFindingsResponse\x12J\n\x08\x66indings\x18\x01 \x03(\x0b\x32..vrooli.web_search.v1.research.GatheredFindingR\x08\x66indings\x12\x1f\n\x0b\x63\x61p_applied\x18\x02 \x01(\x05R\ncapApplied\"\x99\x03\n\rAnswerRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x16\n\x06\x65\x66\x66ort\x18\x02 \x01(\tR\x06\x65\x66\x66ort\x12&\n\x0fmax_age_seconds\x18\x03 \x01(\x03R\rmaxAgeSeconds\x12%\n\x0esource_domains\x18\x04 \x03(\tR\rsourceDomains\x12\'\n\x0fminimum_sources\x18\x05 \x01(\x05R\x0eminimumSources\x12\x13\n\x05top_n\x18\x06 \x01(\x05R\x04topN\x12\x18\n\x07\x63\x61pture\x18\x07 \x01(\x08R\x07\x63\x61pture\x12\x1d\n\nfinding_id\x18\x08 \x01(\tR\tfindingId\x12\x45\n\x06policy\x18\t \x01(\x0b\x32-.vrooli.web_search.v1.research.EvidencePolicyR\x06policy\x12M\n\tquestions\x18\n \x03(\x0b\x32/.vrooli.web_search.v1.research.ResearchQuestionR\tquestions\"\xf8\x04\n\x0e\x41nswerResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12\x1f\n\x0b\x61nswer_kind\x18\x02 \x01(\tR\nanswerKind\x12:\n\x05\x62rief\x18\x03 \x01(\x0b\x32$.vrooli.web_search.v1.research.BriefR\x05\x62rief\x12\x43\n\x07results\x18\x04 \x03(\x0b\x32).vrooli.web_search.v1.shared.SearchResultR\x07results\x12\x1f\n\x0b\x66inding_ids\x18\x05 \x03(\tR\nfindingIds\x12\x1c\n\tabstained\x18\x06 \x01(\x08R\tabstained\x12\x16\n\x06reason\x18\x07 \x01(\tR\x06reason\x12\x39\n\nchecked_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcheckedAt\x12\x1d\n\nlive_calls\x18\t \x01(\x05R\tliveCalls\x12\x16\n\x06\x63\x61\x63hed\x18\n \x01(\x08R\x06\x63\x61\x63hed\x12\x12\n\x04gaps\x18\x0b \x03(\tR\x04gaps\x12\x30\n\x14\x63\x61ptured_finding_ids\x18\x0c \x03(\tR\x12\x63\x61pturedFindingIds\x12P\n\x0b\x61ssessments\x18\r \x03(\x0b\x32..vrooli.web_search.v1.research.ClaimAssessmentR\x0b\x61ssessments\x12K\n\x08\x63overage\x18\x0e \x03(\x0b\x32/.vrooli.web_search.v1.research.QuestionCoverageR\x08\x63overage\"U\n\x13WaitResearchRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\'\n\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\"\xb0\x02\n\x0e\x45videncePolicy\x12&\n\x0fmax_age_seconds\x18\x01 \x01(\x03R\rmaxAgeSeconds\x12%\n\x0esource_domains\x18\x02 \x03(\tR\rsourceDomains\x12\'\n\x0fminimum_sources\x18\x03 \x01(\x05R\x0eminimumSources\x12\x13\n\x05top_n\x18\x04 \x01(\x05R\x04topN\x12#\n\rmax_questions\x18\x05 \x01(\x05R\x0cmaxQuestions\x12,\n\x12max_evidence_bytes\x18\x06 \x01(\x05R\x10maxEvidenceBytes\x12>\n\x1brequire_independent_sources\x18\x07 \x01(\x08R\x19requireIndependentSources\"V\n\x10ResearchQuestion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06prompt\x18\x02 \x01(\tR\x06prompt\x12\x1a\n\x08required\x18\x03 \x01(\x08R\x08required\"\xa6\x01\n\x12\x45videncePassageRef\x12\x1d\n\nreceipt_id\x18\x01 \x01(\tR\treceiptId\x12\x1d\n\npassage_id\x18\x02 \x01(\tR\tpassageId\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12/\n\x13\x65xtraction_revision\x18\x04 \x01(\tR\x12\x65xtractionRevision\"\x94\x02\n\x0f\x43laimAssessment\x12\x19\n\x08\x63laim_id\x18\x01 \x01(\tR\x07\x63laimId\x12V\n\x0b\x64isposition\x18\x02 \x01(\x0e\x32\x34.vrooli.web_search.v1.research.AssessmentDispositionR\x0b\x64isposition\x12M\n\x08\x65vidence\x18\x03 \x03(\x0b\x32\x31.vrooli.web_search.v1.research.EvidencePassageRefR\x08\x65vidence\x12\'\n\x0fpolicy_revision\x18\x04 \x01(\tR\x0epolicyRevision\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\"\x95\x01\n\x10QuestionCoverage\x12\x1f\n\x0bquestion_id\x18\x01 \x01(\tR\nquestionId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x1b\n\tclaim_ids\x18\x03 \x03(\tR\x08\x63laimIds\x12+\n\x11unresolved_reason\x18\x04 \x01(\tR\x10unresolvedReason\"\xa1\x02\n\x0f\x45videnceReceipt\x12\x1d\n\nreceipt_id\x18\x01 \x01(\tR\treceiptId\x12%\n\x0eobservation_id\x18\x02 \x01(\tR\robservationId\x12\x10\n\x03url\x18\x03 \x01(\tR\x03url\x12!\n\x0cretrieved_at\x18\x04 \x01(\tR\x0bretrievedAt\x12!\n\x0c\x63ontent_hash\x18\x05 \x01(\tR\x0b\x63ontentHash\x12/\n\x13\x65xtraction_revision\x18\x06 \x01(\tR\x12\x65xtractionRevision\x12\x1c\n\tretention\x18\x07 \x01(\tR\tretention\x12!\n\x0c\x66\x61ilure_code\x18\x08 \x01(\tR\x0b\x66\x61ilureCode*\xa9\x01\n\x15\x41ssessmentDisposition\x12&\n\"ASSESSMENT_DISPOSITION_UNSPECIFIED\x10\x00\x12\x18\n\x14\x41SSESSMENT_SUPPORTED\x10\x01\x12\x1b\n\x17\x41SSESSMENT_CONTRADICTED\x10\x02\x12\x19\n\x15\x41SSESSMENT_UNRESOLVED\x10\x03\x12\x16\n\x12\x41SSESSMENT_UNKNOWN\x10\x04\x32\xdc\x05\n\x0fResearchService\x12\x65\n\x06\x41nswer\x12,.vrooli.web_search.v1.research.AnswerRequest\x1a-.vrooli.web_search.v1.research.AnswerResponse\x12|\n\x0cWaitResearch\x12\x32.vrooli.web_search.v1.research.WaitResearchRequest\x1a\x38.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x62\n\x05RunL2\x12+.vrooli.web_search.v1.research.RunL2Request\x1a,.vrooli.web_search.v1.research.RunL2Response\x12\x62\n\x05RunL3\x12+.vrooli.web_search.v1.research.RunL3Request\x1a,.vrooli.web_search.v1.research.RunL3Response\x12\x86\x01\n\x11GetResearchStatus\x12\x37.vrooli.web_search.v1.research.GetResearchStatusRequest\x1a\x38.vrooli.web_search.v1.research.GetResearchStatusResponse\x12\x92\x01\n\x15GatherRelatedFindings\x12;.vrooli.web_search.v1.research.GatherRelatedFindingsRequest\x1a<.vrooli.web_search.v1.research.GatherRelatedFindingsResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,30 +35,52 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'web_search.v1.research.rese
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1'
-  _globals['_CITATION']._serialized_start=148
-  _globals['_CITATION']._serialized_end=233
-  _globals['_BRIEF']._serialized_start=236
-  _globals['_BRIEF']._serialized_end=384
-  _globals['_RUNL2REQUEST']._serialized_start=386
-  _globals['_RUNL2REQUEST']._serialized_end=469
-  _globals['_RUNL2RESPONSE']._serialized_start=472
-  _globals['_RUNL2RESPONSE']._serialized_end=861
-  _globals['_DOCUMENTEXCERPT']._serialized_start=863
-  _globals['_DOCUMENTEXCERPT']._serialized_end=946
-  _globals['_RUNL3REQUEST']._serialized_start=948
-  _globals['_RUNL3REQUEST']._serialized_end=984
-  _globals['_RUNL3RESPONSE']._serialized_start=986
-  _globals['_RUNL3RESPONSE']._serialized_end=1048
-  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_start=1050
-  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_end=1099
-  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_start=1102
-  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_end=1351
-  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_start=1353
-  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_end=1423
-  _globals['_GATHEREDFINDING']._serialized_start=1426
-  _globals['_GATHEREDFINDING']._serialized_end=1574
-  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_start=1577
-  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_end=1717
-  _globals['_RESEARCHSERVICE']._serialized_start=1720
-  _globals['_RESEARCHSERVICE']._serialized_end=2223
+  _globals['_ASSESSMENTDISPOSITION']._serialized_start=4856
+  _globals['_ASSESSMENTDISPOSITION']._serialized_end=5025
+  _globals['_CITATION']._serialized_start=170
+  _globals['_CITATION']._serialized_end=255
+  _globals['_BRIEF']._serialized_start=258
+  _globals['_BRIEF']._serialized_end=406
+  _globals['_RUNL2REQUEST']._serialized_start=409
+  _globals['_RUNL2REQUEST']._serialized_end=642
+  _globals['_RUNL2RESPONSE']._serialized_start=645
+  _globals['_RUNL2RESPONSE']._serialized_end=1164
+  _globals['_FETCHFAILURE']._serialized_start=1167
+  _globals['_FETCHFAILURE']._serialized_end=1306
+  _globals['_DOCUMENTEXCERPT']._serialized_start=1308
+  _globals['_DOCUMENTEXCERPT']._serialized_end=1391
+  _globals['_RUNL3REQUEST']._serialized_start=1394
+  _globals['_RUNL3REQUEST']._serialized_end=1621
+  _globals['_RUNL3RESPONSE']._serialized_start=1623
+  _globals['_RUNL3RESPONSE']._serialized_end=1685
+  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_start=1687
+  _globals['_GETRESEARCHSTATUSREQUEST']._serialized_end=1736
+  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_start=1739
+  _globals['_GETRESEARCHSTATUSRESPONSE']._serialized_end=2066
+  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_start=2068
+  _globals['_GATHERRELATEDFINDINGSREQUEST']._serialized_end=2138
+  _globals['_GATHEREDFINDING']._serialized_start=2141
+  _globals['_GATHEREDFINDING']._serialized_end=2289
+  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_start=2292
+  _globals['_GATHERRELATEDFINDINGSRESPONSE']._serialized_end=2432
+  _globals['_ANSWERREQUEST']._serialized_start=2435
+  _globals['_ANSWERREQUEST']._serialized_end=2844
+  _globals['_ANSWERRESPONSE']._serialized_start=2847
+  _globals['_ANSWERRESPONSE']._serialized_end=3479
+  _globals['_WAITRESEARCHREQUEST']._serialized_start=3481
+  _globals['_WAITRESEARCHREQUEST']._serialized_end=3566
+  _globals['_EVIDENCEPOLICY']._serialized_start=3569
+  _globals['_EVIDENCEPOLICY']._serialized_end=3873
+  _globals['_RESEARCHQUESTION']._serialized_start=3875
+  _globals['_RESEARCHQUESTION']._serialized_end=3961
+  _globals['_EVIDENCEPASSAGEREF']._serialized_start=3964
+  _globals['_EVIDENCEPASSAGEREF']._serialized_end=4130
+  _globals['_CLAIMASSESSMENT']._serialized_start=4133
+  _globals['_CLAIMASSESSMENT']._serialized_end=4409
+  _globals['_QUESTIONCOVERAGE']._serialized_start=4412
+  _globals['_QUESTIONCOVERAGE']._serialized_end=4561
+  _globals['_EVIDENCERECEIPT']._serialized_start=4564
+  _globals['_EVIDENCERECEIPT']._serialized_end=4853
+  _globals['_RESEARCHSERVICE']._serialized_start=5028
+  _globals['_RESEARCHSERVICE']._serialized_end=5760
 # @@protoc_insertion_point(module_scope)

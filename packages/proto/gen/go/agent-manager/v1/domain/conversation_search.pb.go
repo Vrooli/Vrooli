@@ -442,6 +442,55 @@ func (ConversationReindexState) EnumDescriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{6}
 }
 
+type ConversationSearchInteractionKind int32
+
+const (
+	ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED  ConversationSearchInteractionKind = 0
+	ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED     ConversationSearchInteractionKind = 1
+	ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED ConversationSearchInteractionKind = 2
+)
+
+// Enum value maps for ConversationSearchInteractionKind.
+var (
+	ConversationSearchInteractionKind_name = map[int32]string{
+		0: "CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED",
+		1: "CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED",
+		2: "CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED",
+	}
+	ConversationSearchInteractionKind_value = map[string]int32{
+		"CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED":  0,
+		"CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED":     1,
+		"CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED": 2,
+	}
+)
+
+func (x ConversationSearchInteractionKind) Enum() *ConversationSearchInteractionKind {
+	p := new(ConversationSearchInteractionKind)
+	*p = x
+	return p
+}
+
+func (x ConversationSearchInteractionKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConversationSearchInteractionKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_conversation_search_proto_enumTypes[7].Descriptor()
+}
+
+func (ConversationSearchInteractionKind) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_conversation_search_proto_enumTypes[7]
+}
+
+func (x ConversationSearchInteractionKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConversationSearchInteractionKind.Descriptor instead.
+func (ConversationSearchInteractionKind) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{7}
+}
+
 // ConversationSearchFilters restrict candidates before retrieval. Repeated
 // values within one field are ORed; distinct fields are ANDed.
 type ConversationSearchFilters struct {
@@ -612,9 +661,12 @@ type SearchConversationsRequest struct {
 	PageSize int32 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// Opaque, versioned, integrity-protected cursor bound to the normalized
 	// request fingerprint and sort tuple.
-	PageCursor    string `protobuf:"bytes,6,opt,name=page_cursor,json=pageCursor,proto3" json:"page_cursor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	PageCursor string `protobuf:"bytes,6,opt,name=page_cursor,json=pageCursor,proto3" json:"page_cursor,omitempty"`
+	// An ephemeral caller-generated correlation token. The server stores only a
+	// keyed hash and never persists the token or query text.
+	TelemetrySessionToken string `protobuf:"bytes,7,opt,name=telemetry_session_token,json=telemetrySessionToken,proto3" json:"telemetry_session_token,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SearchConversationsRequest) Reset() {
@@ -685,6 +737,13 @@ func (x *SearchConversationsRequest) GetPageSize() int32 {
 func (x *SearchConversationsRequest) GetPageCursor() string {
 	if x != nil {
 		return x.PageCursor
+	}
+	return ""
+}
+
+func (x *SearchConversationsRequest) GetTelemetrySessionToken() string {
+	if x != nil {
+		return x.TelemetrySessionToken
 	}
 	return ""
 }
@@ -1295,6 +1354,8 @@ type ConversationSearchCoverage struct {
 	SemanticRatio            float64                `protobuf:"fixed64,8,opt,name=semantic_ratio,json=semanticRatio,proto3" json:"semantic_ratio,omitempty"`
 	LastReconciledAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_reconciled_at,json=lastReconciledAt,proto3" json:"last_reconciled_at,omitempty"`
 	SourceCheckpoint         string                 `protobuf:"bytes,10,opt,name=source_checkpoint,json=sourceCheckpoint,proto3" json:"source_checkpoint,omitempty"`
+	OrphanDocuments          uint64                 `protobuf:"varint,11,opt,name=orphan_documents,json=orphanDocuments,proto3" json:"orphan_documents,omitempty"`
+	FreshnessLagMs           uint64                 `protobuf:"varint,12,opt,name=freshness_lag_ms,json=freshnessLagMs,proto3" json:"freshness_lag_ms,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -1399,6 +1460,20 @@ func (x *ConversationSearchCoverage) GetSourceCheckpoint() string {
 	return ""
 }
 
+func (x *ConversationSearchCoverage) GetOrphanDocuments() uint64 {
+	if x != nil {
+		return x.OrphanDocuments
+	}
+	return 0
+}
+
+func (x *ConversationSearchCoverage) GetFreshnessLagMs() uint64 {
+	if x != nil {
+		return x.FreshnessLagMs
+	}
+	return 0
+}
+
 type ConversationSearchDegradation struct {
 	state         protoimpl.MessageState              `protogen:"open.v1"`
 	Reason        ConversationSearchDegradationReason `protobuf:"varint,1,opt,name=reason,proto3,enum=agent_manager.v1.ConversationSearchDegradationReason" json:"reason,omitempty"`
@@ -1476,8 +1551,10 @@ type SearchConversationsResponse struct {
 	Coverage       *ConversationSearchCoverage      `protobuf:"bytes,5,opt,name=coverage,proto3" json:"coverage,omitempty"`
 	Degradations   []*ConversationSearchDegradation `protobuf:"bytes,6,rep,name=degradations,proto3" json:"degradations,omitempty"`
 	TookMs         uint64                           `protobuf:"varint,7,opt,name=took_ms,json=tookMs,proto3" json:"took_ms,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Opaque identifier for privacy-safe selection/reformulation telemetry.
+	RequestId     string `protobuf:"bytes,8,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchConversationsResponse) Reset() {
@@ -1559,6 +1636,135 @@ func (x *SearchConversationsResponse) GetTookMs() uint64 {
 	return 0
 }
 
+func (x *SearchConversationsResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type RecordConversationSearchInteractionRequest struct {
+	state                 protoimpl.MessageState            `protogen:"open.v1"`
+	RequestId             string                            `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	TelemetrySessionToken string                            `protobuf:"bytes,2,opt,name=telemetry_session_token,json=telemetrySessionToken,proto3" json:"telemetry_session_token,omitempty"`
+	Kind                  ConversationSearchInteractionKind `protobuf:"varint,3,opt,name=kind,proto3,enum=agent_manager.v1.ConversationSearchInteractionKind" json:"kind,omitempty"`
+	// Required for SELECTED and ignored for REFORMULATED. Stable identifiers are
+	// safe diagnostic evidence; snippets and raw content are never accepted.
+	StableHitId   string `protobuf:"bytes,4,opt,name=stable_hit_id,json=stableHitId,proto3" json:"stable_hit_id,omitempty"`
+	SelectedRank  uint32 `protobuf:"varint,5,opt,name=selected_rank,json=selectedRank,proto3" json:"selected_rank,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordConversationSearchInteractionRequest) Reset() {
+	*x = RecordConversationSearchInteractionRequest{}
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordConversationSearchInteractionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordConversationSearchInteractionRequest) ProtoMessage() {}
+
+func (x *RecordConversationSearchInteractionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordConversationSearchInteractionRequest.ProtoReflect.Descriptor instead.
+func (*RecordConversationSearchInteractionRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RecordConversationSearchInteractionRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *RecordConversationSearchInteractionRequest) GetTelemetrySessionToken() string {
+	if x != nil {
+		return x.TelemetrySessionToken
+	}
+	return ""
+}
+
+func (x *RecordConversationSearchInteractionRequest) GetKind() ConversationSearchInteractionKind {
+	if x != nil {
+		return x.Kind
+	}
+	return ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED
+}
+
+func (x *RecordConversationSearchInteractionRequest) GetStableHitId() string {
+	if x != nil {
+		return x.StableHitId
+	}
+	return ""
+}
+
+func (x *RecordConversationSearchInteractionRequest) GetSelectedRank() uint32 {
+	if x != nil {
+		return x.SelectedRank
+	}
+	return 0
+}
+
+type RecordConversationSearchInteractionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordConversationSearchInteractionResponse) Reset() {
+	*x = RecordConversationSearchInteractionResponse{}
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordConversationSearchInteractionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordConversationSearchInteractionResponse) ProtoMessage() {}
+
+func (x *RecordConversationSearchInteractionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordConversationSearchInteractionResponse.ProtoReflect.Descriptor instead.
+func (*RecordConversationSearchInteractionResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RecordConversationSearchInteractionResponse) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
 type GetConversationContextRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StableHitId   string                 `protobuf:"bytes,1,opt,name=stable_hit_id,json=stableHitId,proto3" json:"stable_hit_id,omitempty"`
@@ -1570,7 +1776,7 @@ type GetConversationContextRequest struct {
 
 func (x *GetConversationContextRequest) Reset() {
 	*x = GetConversationContextRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1788,7 @@ func (x *GetConversationContextRequest) String() string {
 func (*GetConversationContextRequest) ProtoMessage() {}
 
 func (x *GetConversationContextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1801,7 @@ func (x *GetConversationContextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationContextRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationContextRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetConversationContextRequest) GetStableHitId() string {
@@ -1634,7 +1840,7 @@ type ConversationContextEvent struct {
 
 func (x *ConversationContextEvent) Reset() {
 	*x = ConversationContextEvent{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1646,7 +1852,7 @@ func (x *ConversationContextEvent) String() string {
 func (*ConversationContextEvent) ProtoMessage() {}
 
 func (x *ConversationContextEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1659,7 +1865,7 @@ func (x *ConversationContextEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationContextEvent.ProtoReflect.Descriptor instead.
 func (*ConversationContextEvent) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ConversationContextEvent) GetEventId() string {
@@ -1723,7 +1929,7 @@ type GetConversationContextResponse struct {
 
 func (x *GetConversationContextResponse) Reset() {
 	*x = GetConversationContextResponse{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1735,7 +1941,7 @@ func (x *GetConversationContextResponse) String() string {
 func (*GetConversationContextResponse) ProtoMessage() {}
 
 func (x *GetConversationContextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1748,7 +1954,7 @@ func (x *GetConversationContextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationContextResponse.ProtoReflect.Descriptor instead.
 func (*GetConversationContextResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetConversationContextResponse) GetHit() *ConversationSearchHit {
@@ -1787,7 +1993,7 @@ type GetConversationIndexStatusRequest struct {
 
 func (x *GetConversationIndexStatusRequest) Reset() {
 	*x = GetConversationIndexStatusRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1799,7 +2005,7 @@ func (x *GetConversationIndexStatusRequest) String() string {
 func (*GetConversationIndexStatusRequest) ProtoMessage() {}
 
 func (x *GetConversationIndexStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1812,28 +2018,31 @@ func (x *GetConversationIndexStatusRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetConversationIndexStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationIndexStatusRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{16}
 }
 
 type GetConversationIndexStatusResponse struct {
-	state            protoimpl.MessageState           `protogen:"open.v1"`
-	State            ConversationIndexState           `protobuf:"varint,1,opt,name=state,proto3,enum=agent_manager.v1.ConversationIndexState" json:"state,omitempty"`
-	Coverage         *ConversationSearchCoverage      `protobuf:"bytes,2,opt,name=coverage,proto3" json:"coverage,omitempty"`
-	Degradations     []*ConversationSearchDegradation `protobuf:"bytes,3,rep,name=degradations,proto3" json:"degradations,omitempty"`
-	CollectionName   string                           `protobuf:"bytes,4,opt,name=collection_name,json=collectionName,proto3" json:"collection_name,omitempty"`
-	ActiveGeneration string                           `protobuf:"bytes,5,opt,name=active_generation,json=activeGeneration,proto3" json:"active_generation,omitempty"`
-	RecipeVersion    string                           `protobuf:"bytes,6,opt,name=recipe_version,json=recipeVersion,proto3" json:"recipe_version,omitempty"`
-	EmbeddingModel   string                           `protobuf:"bytes,7,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
-	LastIndexedAt    *timestamppb.Timestamp           `protobuf:"bytes,8,opt,name=last_indexed_at,json=lastIndexedAt,proto3" json:"last_indexed_at,omitempty"`
-	LastSuccessAt    *timestamppb.Timestamp           `protobuf:"bytes,9,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
-	LastErrorCode    string                           `protobuf:"bytes,10,opt,name=last_error_code,json=lastErrorCode,proto3" json:"last_error_code,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState           `protogen:"open.v1"`
+	State                ConversationIndexState           `protobuf:"varint,1,opt,name=state,proto3,enum=agent_manager.v1.ConversationIndexState" json:"state,omitempty"`
+	Coverage             *ConversationSearchCoverage      `protobuf:"bytes,2,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	Degradations         []*ConversationSearchDegradation `protobuf:"bytes,3,rep,name=degradations,proto3" json:"degradations,omitempty"`
+	CollectionName       string                           `protobuf:"bytes,4,opt,name=collection_name,json=collectionName,proto3" json:"collection_name,omitempty"`
+	ActiveGeneration     string                           `protobuf:"bytes,5,opt,name=active_generation,json=activeGeneration,proto3" json:"active_generation,omitempty"`
+	RecipeVersion        string                           `protobuf:"bytes,6,opt,name=recipe_version,json=recipeVersion,proto3" json:"recipe_version,omitempty"`
+	EmbeddingModel       string                           `protobuf:"bytes,7,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
+	LastIndexedAt        *timestamppb.Timestamp           `protobuf:"bytes,8,opt,name=last_indexed_at,json=lastIndexedAt,proto3" json:"last_indexed_at,omitempty"`
+	LastSuccessAt        *timestamppb.Timestamp           `protobuf:"bytes,9,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
+	LastErrorCode        string                           `protobuf:"bytes,10,opt,name=last_error_code,json=lastErrorCode,proto3" json:"last_error_code,omitempty"`
+	CandidateGeneration  string                           `protobuf:"bytes,11,opt,name=candidate_generation,json=candidateGeneration,proto3" json:"candidate_generation,omitempty"`
+	DegradedDependencies []string                         `protobuf:"bytes,12,rep,name=degraded_dependencies,json=degradedDependencies,proto3" json:"degraded_dependencies,omitempty"`
+	CollectionLayout     string                           `protobuf:"bytes,13,opt,name=collection_layout,json=collectionLayout,proto3" json:"collection_layout,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *GetConversationIndexStatusResponse) Reset() {
 	*x = GetConversationIndexStatusResponse{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1845,7 +2054,7 @@ func (x *GetConversationIndexStatusResponse) String() string {
 func (*GetConversationIndexStatusResponse) ProtoMessage() {}
 
 func (x *GetConversationIndexStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1858,7 +2067,7 @@ func (x *GetConversationIndexStatusResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetConversationIndexStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetConversationIndexStatusResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetConversationIndexStatusResponse) GetState() ConversationIndexState {
@@ -1931,17 +2140,39 @@ func (x *GetConversationIndexStatusResponse) GetLastErrorCode() string {
 	return ""
 }
 
+func (x *GetConversationIndexStatusResponse) GetCandidateGeneration() string {
+	if x != nil {
+		return x.CandidateGeneration
+	}
+	return ""
+}
+
+func (x *GetConversationIndexStatusResponse) GetDegradedDependencies() []string {
+	if x != nil {
+		return x.DegradedDependencies
+	}
+	return nil
+}
+
+func (x *GetConversationIndexStatusResponse) GetCollectionLayout() string {
+	if x != nil {
+		return x.CollectionLayout
+	}
+	return ""
+}
+
 type PlanConversationReindexRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Full          bool                   `protobuf:"varint,1,opt,name=full,proto3" json:"full,omitempty"`
 	MaxDocuments  uint64                 `protobuf:"varint,2,opt,name=max_documents,json=maxDocuments,proto3" json:"max_documents,omitempty"`
+	ControlToken  string                 `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlanConversationReindexRequest) Reset() {
 	*x = PlanConversationReindexRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +2184,7 @@ func (x *PlanConversationReindexRequest) String() string {
 func (*PlanConversationReindexRequest) ProtoMessage() {}
 
 func (x *PlanConversationReindexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2197,7 @@ func (x *PlanConversationReindexRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanConversationReindexRequest.ProtoReflect.Descriptor instead.
 func (*PlanConversationReindexRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PlanConversationReindexRequest) GetFull() bool {
@@ -1983,18 +2214,26 @@ func (x *PlanConversationReindexRequest) GetMaxDocuments() uint64 {
 	return 0
 }
 
+func (x *PlanConversationReindexRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
 type ReindexConversationsRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Full           bool                   `protobuf:"varint,1,opt,name=full,proto3" json:"full,omitempty"`
 	MaxDocuments   uint64                 `protobuf:"varint,2,opt,name=max_documents,json=maxDocuments,proto3" json:"max_documents,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	ControlToken   string                 `protobuf:"bytes,4,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReindexConversationsRequest) Reset() {
 	*x = ReindexConversationsRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2006,7 +2245,7 @@ func (x *ReindexConversationsRequest) String() string {
 func (*ReindexConversationsRequest) ProtoMessage() {}
 
 func (x *ReindexConversationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2019,7 +2258,7 @@ func (x *ReindexConversationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReindexConversationsRequest.ProtoReflect.Descriptor instead.
 func (*ReindexConversationsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{17}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ReindexConversationsRequest) GetFull() bool {
@@ -2043,16 +2282,24 @@ func (x *ReindexConversationsRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *ReindexConversationsRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
 type CancelConversationReindexRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OperationId   string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	ControlToken  string                 `protobuf:"bytes,2,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CancelConversationReindexRequest) Reset() {
 	*x = CancelConversationReindexRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2064,7 +2311,7 @@ func (x *CancelConversationReindexRequest) String() string {
 func (*CancelConversationReindexRequest) ProtoMessage() {}
 
 func (x *CancelConversationReindexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2077,12 +2324,19 @@ func (x *CancelConversationReindexRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelConversationReindexRequest.ProtoReflect.Descriptor instead.
 func (*CancelConversationReindexRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{18}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CancelConversationReindexRequest) GetOperationId() string {
 	if x != nil {
 		return x.OperationId
+	}
+	return ""
+}
+
+func (x *CancelConversationReindexRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
 	}
 	return ""
 }
@@ -2109,7 +2363,7 @@ type ConversationReindexResponse struct {
 
 func (x *ConversationReindexResponse) Reset() {
 	*x = ConversationReindexResponse{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2121,7 +2375,7 @@ func (x *ConversationReindexResponse) String() string {
 func (*ConversationReindexResponse) ProtoMessage() {}
 
 func (x *ConversationReindexResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2134,7 +2388,7 @@ func (x *ConversationReindexResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationReindexResponse.ProtoReflect.Descriptor instead.
 func (*ConversationReindexResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{19}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ConversationReindexResponse) GetOperationId() string {
@@ -2239,13 +2493,14 @@ type WriteConversationSearchConfigRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Tuning         *structpb.Struct       `protobuf:"bytes,1,opt,name=tuning,proto3" json:"tuning,omitempty"`
 	ExpectedDigest string                 `protobuf:"bytes,2,opt,name=expected_digest,json=expectedDigest,proto3" json:"expected_digest,omitempty"`
+	ControlToken   string                 `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *WriteConversationSearchConfigRequest) Reset() {
 	*x = WriteConversationSearchConfigRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2257,7 +2512,7 @@ func (x *WriteConversationSearchConfigRequest) String() string {
 func (*WriteConversationSearchConfigRequest) ProtoMessage() {}
 
 func (x *WriteConversationSearchConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2270,7 +2525,7 @@ func (x *WriteConversationSearchConfigRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use WriteConversationSearchConfigRequest.ProtoReflect.Descriptor instead.
 func (*WriteConversationSearchConfigRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{20}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WriteConversationSearchConfigRequest) GetTuning() *structpb.Struct {
@@ -2287,6 +2542,13 @@ func (x *WriteConversationSearchConfigRequest) GetExpectedDigest() string {
 	return ""
 }
 
+func (x *WriteConversationSearchConfigRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
 type WriteConversationSearchConfigResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Digest          string                 `protobuf:"bytes,1,opt,name=digest,proto3" json:"digest,omitempty"`
@@ -2297,7 +2559,7 @@ type WriteConversationSearchConfigResponse struct {
 
 func (x *WriteConversationSearchConfigResponse) Reset() {
 	*x = WriteConversationSearchConfigResponse{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2309,7 +2571,7 @@ func (x *WriteConversationSearchConfigResponse) String() string {
 func (*WriteConversationSearchConfigResponse) ProtoMessage() {}
 
 func (x *WriteConversationSearchConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2322,7 +2584,7 @@ func (x *WriteConversationSearchConfigResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use WriteConversationSearchConfigResponse.ProtoReflect.Descriptor instead.
 func (*WriteConversationSearchConfigResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{21}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WriteConversationSearchConfigResponse) GetDigest() string {
@@ -2343,13 +2605,14 @@ type WriteConversationSearchCorpusRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Tests          *structpb.Struct       `protobuf:"bytes,1,opt,name=tests,proto3" json:"tests,omitempty"`
 	ExpectedDigest string                 `protobuf:"bytes,2,opt,name=expected_digest,json=expectedDigest,proto3" json:"expected_digest,omitempty"`
+	ControlToken   string                 `protobuf:"bytes,3,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *WriteConversationSearchCorpusRequest) Reset() {
 	*x = WriteConversationSearchCorpusRequest{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2361,7 +2624,7 @@ func (x *WriteConversationSearchCorpusRequest) String() string {
 func (*WriteConversationSearchCorpusRequest) ProtoMessage() {}
 
 func (x *WriteConversationSearchCorpusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2374,7 +2637,7 @@ func (x *WriteConversationSearchCorpusRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use WriteConversationSearchCorpusRequest.ProtoReflect.Descriptor instead.
 func (*WriteConversationSearchCorpusRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{22}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WriteConversationSearchCorpusRequest) GetTests() *structpb.Struct {
@@ -2391,6 +2654,13 @@ func (x *WriteConversationSearchCorpusRequest) GetExpectedDigest() string {
 	return ""
 }
 
+func (x *WriteConversationSearchCorpusRequest) GetControlToken() string {
+	if x != nil {
+		return x.ControlToken
+	}
+	return ""
+}
+
 type WriteConversationSearchCorpusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Digest        string                 `protobuf:"bytes,1,opt,name=digest,proto3" json:"digest,omitempty"`
@@ -2401,7 +2671,7 @@ type WriteConversationSearchCorpusResponse struct {
 
 func (x *WriteConversationSearchCorpusResponse) Reset() {
 	*x = WriteConversationSearchCorpusResponse{}
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2413,7 +2683,7 @@ func (x *WriteConversationSearchCorpusResponse) String() string {
 func (*WriteConversationSearchCorpusResponse) ProtoMessage() {}
 
 func (x *WriteConversationSearchCorpusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[23]
+	mi := &file_agent_manager_v1_domain_conversation_search_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2426,7 +2696,7 @@ func (x *WriteConversationSearchCorpusResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use WriteConversationSearchCorpusResponse.ProtoReflect.Descriptor instead.
 func (*WriteConversationSearchCorpusResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{23}
+	return file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WriteConversationSearchCorpusResponse) GetDigest() string {
@@ -2465,7 +2735,7 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\x0eoccurred_after\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\roccurredAfter\x12C\n" +
 	"\x0foccurred_before\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x0eoccurredBefore\x12S\n" +
 	"\x0fcontent_classes\x18\x0e \x03(\x0e2*.agent_manager.v1.ConversationContentClassR\x0econtentClasses\x12.\n" +
-	"\x13include_tool_events\x18\x0f \x01(\bR\x11includeToolEvents\"\xe6\x02\n" +
+	"\x13include_tool_events\x18\x0f \x01(\bR\x11includeToolEvents\"\xa8\x03\n" +
 	"\x1aSearchConversationsRequest\x12\x1e\n" +
 	"\x05query\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\x05query\x12F\n" +
 	"\x04mode\x18\x02 \x01(\x0e2(.agent_manager.v1.ConversationSearchModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04mode\x12E\n" +
@@ -2473,7 +2743,8 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\x04sort\x18\x04 \x01(\x0e2(.agent_manager.v1.ConversationSearchSortB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12&\n" +
 	"\tpage_size\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\bpageSize\x12)\n" +
 	"\vpage_cursor\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80@R\n" +
-	"pageCursor\"\xad\x02\n" +
+	"pageCursor\x12@\n" +
+	"\x17telemetry_session_token\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x15telemetrySessionToken\"\xad\x02\n" +
 	"\x18ConversationSearchCursor\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\rR\aversion\x12/\n" +
 	"\x13request_fingerprint\x18\x02 \x01(\tR\x12requestFingerprint\x12<\n" +
@@ -2537,7 +2808,7 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\rrank_evidence\x18\x0e \x03(\v2*.agent_manager.v1.ConversationRankEvidenceR\frankEvidence\x12:\n" +
 	"\x03run\x18\x0f \x01(\v2(.agent_manager.v1.ConversationRunSummaryR\x03run\x12\x1b\n" +
 	"\tdeep_link\x18\x10 \x01(\tR\bdeepLink\x12\x12\n" +
-	"\x04weak\x18\x11 \x01(\bR\x04weak\"\x80\x04\n" +
+	"\x04weak\x18\x11 \x01(\bR\x04weak\"\xd5\x04\n" +
 	"\x1aConversationSearchCoverage\x12<\n" +
 	"\x1acanonical_visible_messages\x18\x01 \x01(\x04R\x18canonicalVisibleMessages\x12+\n" +
 	"\x11catalog_documents\x18\x02 \x01(\x04R\x10catalogDocuments\x12+\n" +
@@ -2549,12 +2820,14 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\x0esemantic_ratio\x18\b \x01(\x01R\rsemanticRatio\x12H\n" +
 	"\x12last_reconciled_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10lastReconciledAt\x12+\n" +
 	"\x11source_checkpoint\x18\n" +
-	" \x01(\tR\x10sourceCheckpoint\"\xdf\x01\n" +
+	" \x01(\tR\x10sourceCheckpoint\x12)\n" +
+	"\x10orphan_documents\x18\v \x01(\x04R\x0forphanDocuments\x12(\n" +
+	"\x10freshness_lag_ms\x18\f \x01(\x04R\x0efreshnessLagMs\"\xdf\x01\n" +
 	"\x1dConversationSearchDegradation\x12M\n" +
 	"\x06reason\x18\x01 \x01(\x0e25.agent_manager.v1.ConversationSearchDegradationReasonR\x06reason\x129\n" +
 	"\x03leg\x18\x02 \x01(\x0e2'.agent_manager.v1.ConversationSearchLegR\x03leg\x12\x16\n" +
 	"\x06detail\x18\x03 \x01(\tR\x06detail\x12\x1c\n" +
-	"\tretryable\x18\x04 \x01(\bR\tretryable\"\xca\x03\n" +
+	"\tretryable\x18\x04 \x01(\bR\tretryable\"\xe9\x03\n" +
 	"\x1bSearchConversationsResponse\x12;\n" +
 	"\x04hits\x18\x01 \x03(\v2'.agent_manager.v1.ConversationSearchHitR\x04hits\x12(\n" +
 	"\x10next_page_cursor\x18\x02 \x01(\tR\x0enextPageCursor\x12E\n" +
@@ -2562,7 +2835,20 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\tsort_used\x18\x04 \x01(\x0e2(.agent_manager.v1.ConversationSearchSortR\bsortUsed\x12H\n" +
 	"\bcoverage\x18\x05 \x01(\v2,.agent_manager.v1.ConversationSearchCoverageR\bcoverage\x12S\n" +
 	"\fdegradations\x18\x06 \x03(\v2/.agent_manager.v1.ConversationSearchDegradationR\fdegradations\x12\x17\n" +
-	"\atook_ms\x18\a \x01(\x04R\x06tookMs\"\xa9\x01\n" +
+	"\atook_ms\x18\a \x01(\x04R\x06tookMs\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\b \x01(\tR\trequestId\"\xca\x02\n" +
+	"*RecordConversationSearchInteractionRequest\x12)\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\trequestId\x12@\n" +
+	"\x17telemetry_session_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x15telemetrySessionToken\x12S\n" +
+	"\x04kind\x18\x03 \x01(\x0e23.agent_manager.v1.ConversationSearchInteractionKindB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12,\n" +
+	"\rstable_hit_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\vstableHitId\x12,\n" +
+	"\rselected_rank\x18\x05 \x01(\rB\a\xbaH\x04*\x02\x18dR\fselectedRank\"I\n" +
+	"+RecordConversationSearchInteractionResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\"\xa9\x01\n" +
 	"\x1dGetConversationContextRequest\x12.\n" +
 	"\rstable_hit_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\vstableHitId\x12,\n" +
@@ -2582,7 +2868,7 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\x06events\x18\x02 \x03(\v2*.agent_manager.v1.ConversationContextEventR\x06events\x12S\n" +
 	"\fdegradations\x18\x03 \x03(\v2/.agent_manager.v1.ConversationSearchDegradationR\fdegradations\x12\x1c\n" +
 	"\ttruncated\x18\x04 \x01(\bR\ttruncated\"#\n" +
-	"!GetConversationIndexStatusRequest\"\xd9\x04\n" +
+	"!GetConversationIndexStatusRequest\"\xee\x05\n" +
 	"\"GetConversationIndexStatusResponse\x12>\n" +
 	"\x05state\x18\x01 \x01(\x0e2(.agent_manager.v1.ConversationIndexStateR\x05state\x12H\n" +
 	"\bcoverage\x18\x02 \x01(\v2,.agent_manager.v1.ConversationSearchCoverageR\bcoverage\x12S\n" +
@@ -2594,17 +2880,23 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\x0flast_indexed_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rlastIndexedAt\x12B\n" +
 	"\x0flast_success_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12&\n" +
 	"\x0flast_error_code\x18\n" +
-	" \x01(\tR\rlastErrorCode\"Y\n" +
+	" \x01(\tR\rlastErrorCode\x121\n" +
+	"\x14candidate_generation\x18\v \x01(\tR\x13candidateGeneration\x123\n" +
+	"\x15degraded_dependencies\x18\f \x03(\tR\x14degradedDependencies\x12+\n" +
+	"\x11collection_layout\x18\r \x01(\tR\x10collectionLayout\"\x88\x01\n" +
 	"\x1ePlanConversationReindexRequest\x12\x12\n" +
 	"\x04full\x18\x01 \x01(\bR\x04full\x12#\n" +
-	"\rmax_documents\x18\x02 \x01(\x04R\fmaxDocuments\"\x89\x01\n" +
+	"\rmax_documents\x18\x02 \x01(\x04R\fmaxDocuments\x12-\n" +
+	"\rcontrol_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\fcontrolToken\"\xb8\x01\n" +
 	"\x1bReindexConversationsRequest\x12\x12\n" +
 	"\x04full\x18\x01 \x01(\bR\x04full\x12#\n" +
 	"\rmax_documents\x18\x02 \x01(\x04R\fmaxDocuments\x121\n" +
-	"\x0fidempotency_key\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01R\x0eidempotencyKey\"Q\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01R\x0eidempotencyKey\x12-\n" +
+	"\rcontrol_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\fcontrolToken\"\x80\x01\n" +
 	" CancelConversationReindexRequest\x12-\n" +
 	"\foperation_id\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\voperationId\"\xd2\x05\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\voperationId\x12-\n" +
+	"\rcontrol_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\fcontrolToken\"\xd2\x05\n" +
 	"\x1bConversationReindexResponse\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12@\n" +
 	"\x05state\x18\x02 \x01(\x0e2*.agent_manager.v1.ConversationReindexStateR\x05state\x12\x17\n" +
@@ -2622,16 +2914,18 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12S\n" +
-	"\fdegradations\x18\x0e \x03(\v2/.agent_manager.v1.ConversationSearchDegradationR\fdegradations\"\x92\x01\n" +
+	"\fdegradations\x18\x0e \x03(\v2/.agent_manager.v1.ConversationSearchDegradationR\fdegradations\"\xc1\x01\n" +
 	"$WriteConversationSearchConfigRequest\x127\n" +
 	"\x06tuning\x18\x01 \x01(\v2\x17.google.protobuf.StructB\x06\xbaH\x03\xc8\x01\x01R\x06tuning\x121\n" +
-	"\x0fexpected_digest\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0eexpectedDigest\"j\n" +
+	"\x0fexpected_digest\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0eexpectedDigest\x12-\n" +
+	"\rcontrol_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\fcontrolToken\"j\n" +
 	"%WriteConversationSearchConfigResponse\x12\x16\n" +
 	"\x06digest\x18\x01 \x01(\tR\x06digest\x12)\n" +
-	"\x10reindex_required\x18\x02 \x01(\bR\x0freindexRequired\"\x90\x01\n" +
+	"\x10reindex_required\x18\x02 \x01(\bR\x0freindexRequired\"\xbf\x01\n" +
 	"$WriteConversationSearchCorpusRequest\x125\n" +
 	"\x05tests\x18\x01 \x01(\v2\x17.google.protobuf.StructB\x06\xbaH\x03\xc8\x01\x01R\x05tests\x121\n" +
-	"\x0fexpected_digest\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0eexpectedDigest\"f\n" +
+	"\x0fexpected_digest\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0eexpectedDigest\x12-\n" +
+	"\rcontrol_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\fcontrolToken\"f\n" +
 	"%WriteConversationSearchCorpusResponse\x12\x16\n" +
 	"\x06digest\x18\x01 \x01(\tR\x06digest\x12%\n" +
 	"\x0ereviewed_cases\x18\x02 \x01(\rR\rreviewedCases*\xd5\x01\n" +
@@ -2687,11 +2981,16 @@ const file_agent_manager_v1_domain_conversation_search_proto_rawDesc = "" +
 	"\"CONVERSATION_REINDEX_STATE_RUNNING\x10\x03\x12(\n" +
 	"$CONVERSATION_REINDEX_STATE_CANCELLED\x10\x04\x12%\n" +
 	"!CONVERSATION_REINDEX_STATE_FAILED\x10\x05\x12'\n" +
-	"#CONVERSATION_REINDEX_STATE_COMPLETE\x10\x062\x96\x03\n" +
+	"#CONVERSATION_REINDEX_STATE_COMPLETE\x10\x06*\xc3\x01\n" +
+	"!ConversationSearchInteractionKind\x124\n" +
+	"0CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED\x10\x00\x121\n" +
+	"-CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED\x10\x01\x125\n" +
+	"1CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED\x10\x022\xbb\x04\n" +
 	"\x19ConversationSearchService\x12r\n" +
 	"\x13SearchConversations\x12,.agent_manager.v1.SearchConversationsRequest\x1a-.agent_manager.v1.SearchConversationsResponse\x12{\n" +
 	"\x16GetConversationContext\x12/.agent_manager.v1.GetConversationContextRequest\x1a0.agent_manager.v1.GetConversationContextResponse\x12\x87\x01\n" +
-	"\x1aGetConversationIndexStatus\x123.agent_manager.v1.GetConversationIndexStatusRequest\x1a4.agent_manager.v1.GetConversationIndexStatusResponse2\xba\x05\n" +
+	"\x1aGetConversationIndexStatus\x123.agent_manager.v1.GetConversationIndexStatusRequest\x1a4.agent_manager.v1.GetConversationIndexStatusResponse\x12\xa2\x01\n" +
+	"#RecordConversationSearchInteraction\x12<.agent_manager.v1.RecordConversationSearchInteractionRequest\x1a=.agent_manager.v1.RecordConversationSearchInteractionResponse2\xba\x05\n" +
 	" ConversationSearchControlService\x12z\n" +
 	"\x17PlanConversationReindex\x120.agent_manager.v1.PlanConversationReindexRequest\x1a-.agent_manager.v1.ConversationReindexResponse\x12t\n" +
 	"\x14ReindexConversations\x12-.agent_manager.v1.ReindexConversationsRequest\x1a-.agent_manager.v1.ConversationReindexResponse\x12~\n" +
@@ -2711,106 +3010,112 @@ func file_agent_manager_v1_domain_conversation_search_proto_rawDescGZIP() []byte
 	return file_agent_manager_v1_domain_conversation_search_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_conversation_search_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_agent_manager_v1_domain_conversation_search_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_agent_manager_v1_domain_conversation_search_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_agent_manager_v1_domain_conversation_search_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_agent_manager_v1_domain_conversation_search_proto_goTypes = []any{
-	(ConversationSearchMode)(0),                   // 0: agent_manager.v1.ConversationSearchMode
-	(ConversationSearchSort)(0),                   // 1: agent_manager.v1.ConversationSearchSort
-	(ConversationContentClass)(0),                 // 2: agent_manager.v1.ConversationContentClass
-	(ConversationSearchLeg)(0),                    // 3: agent_manager.v1.ConversationSearchLeg
-	(ConversationSearchDegradationReason)(0),      // 4: agent_manager.v1.ConversationSearchDegradationReason
-	(ConversationIndexState)(0),                   // 5: agent_manager.v1.ConversationIndexState
-	(ConversationReindexState)(0),                 // 6: agent_manager.v1.ConversationReindexState
-	(*ConversationSearchFilters)(nil),             // 7: agent_manager.v1.ConversationSearchFilters
-	(*SearchConversationsRequest)(nil),            // 8: agent_manager.v1.SearchConversationsRequest
-	(*ConversationSearchCursor)(nil),              // 9: agent_manager.v1.ConversationSearchCursor
-	(*ConversationRunSummary)(nil),                // 10: agent_manager.v1.ConversationRunSummary
-	(*ConversationSourceProvenance)(nil),          // 11: agent_manager.v1.ConversationSourceProvenance
-	(*ConversationHighlight)(nil),                 // 12: agent_manager.v1.ConversationHighlight
-	(*ConversationRankEvidence)(nil),              // 13: agent_manager.v1.ConversationRankEvidence
-	(*ConversationSearchHit)(nil),                 // 14: agent_manager.v1.ConversationSearchHit
-	(*ConversationSearchCoverage)(nil),            // 15: agent_manager.v1.ConversationSearchCoverage
-	(*ConversationSearchDegradation)(nil),         // 16: agent_manager.v1.ConversationSearchDegradation
-	(*SearchConversationsResponse)(nil),           // 17: agent_manager.v1.SearchConversationsResponse
-	(*GetConversationContextRequest)(nil),         // 18: agent_manager.v1.GetConversationContextRequest
-	(*ConversationContextEvent)(nil),              // 19: agent_manager.v1.ConversationContextEvent
-	(*GetConversationContextResponse)(nil),        // 20: agent_manager.v1.GetConversationContextResponse
-	(*GetConversationIndexStatusRequest)(nil),     // 21: agent_manager.v1.GetConversationIndexStatusRequest
-	(*GetConversationIndexStatusResponse)(nil),    // 22: agent_manager.v1.GetConversationIndexStatusResponse
-	(*PlanConversationReindexRequest)(nil),        // 23: agent_manager.v1.PlanConversationReindexRequest
-	(*ReindexConversationsRequest)(nil),           // 24: agent_manager.v1.ReindexConversationsRequest
-	(*CancelConversationReindexRequest)(nil),      // 25: agent_manager.v1.CancelConversationReindexRequest
-	(*ConversationReindexResponse)(nil),           // 26: agent_manager.v1.ConversationReindexResponse
-	(*WriteConversationSearchConfigRequest)(nil),  // 27: agent_manager.v1.WriteConversationSearchConfigRequest
-	(*WriteConversationSearchConfigResponse)(nil), // 28: agent_manager.v1.WriteConversationSearchConfigResponse
-	(*WriteConversationSearchCorpusRequest)(nil),  // 29: agent_manager.v1.WriteConversationSearchCorpusRequest
-	(*WriteConversationSearchCorpusResponse)(nil), // 30: agent_manager.v1.WriteConversationSearchCorpusResponse
-	(*timestamppb.Timestamp)(nil),                 // 31: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                       // 32: google.protobuf.Struct
+	(ConversationSearchMode)(0),                         // 0: agent_manager.v1.ConversationSearchMode
+	(ConversationSearchSort)(0),                         // 1: agent_manager.v1.ConversationSearchSort
+	(ConversationContentClass)(0),                       // 2: agent_manager.v1.ConversationContentClass
+	(ConversationSearchLeg)(0),                          // 3: agent_manager.v1.ConversationSearchLeg
+	(ConversationSearchDegradationReason)(0),            // 4: agent_manager.v1.ConversationSearchDegradationReason
+	(ConversationIndexState)(0),                         // 5: agent_manager.v1.ConversationIndexState
+	(ConversationReindexState)(0),                       // 6: agent_manager.v1.ConversationReindexState
+	(ConversationSearchInteractionKind)(0),              // 7: agent_manager.v1.ConversationSearchInteractionKind
+	(*ConversationSearchFilters)(nil),                   // 8: agent_manager.v1.ConversationSearchFilters
+	(*SearchConversationsRequest)(nil),                  // 9: agent_manager.v1.SearchConversationsRequest
+	(*ConversationSearchCursor)(nil),                    // 10: agent_manager.v1.ConversationSearchCursor
+	(*ConversationRunSummary)(nil),                      // 11: agent_manager.v1.ConversationRunSummary
+	(*ConversationSourceProvenance)(nil),                // 12: agent_manager.v1.ConversationSourceProvenance
+	(*ConversationHighlight)(nil),                       // 13: agent_manager.v1.ConversationHighlight
+	(*ConversationRankEvidence)(nil),                    // 14: agent_manager.v1.ConversationRankEvidence
+	(*ConversationSearchHit)(nil),                       // 15: agent_manager.v1.ConversationSearchHit
+	(*ConversationSearchCoverage)(nil),                  // 16: agent_manager.v1.ConversationSearchCoverage
+	(*ConversationSearchDegradation)(nil),               // 17: agent_manager.v1.ConversationSearchDegradation
+	(*SearchConversationsResponse)(nil),                 // 18: agent_manager.v1.SearchConversationsResponse
+	(*RecordConversationSearchInteractionRequest)(nil),  // 19: agent_manager.v1.RecordConversationSearchInteractionRequest
+	(*RecordConversationSearchInteractionResponse)(nil), // 20: agent_manager.v1.RecordConversationSearchInteractionResponse
+	(*GetConversationContextRequest)(nil),               // 21: agent_manager.v1.GetConversationContextRequest
+	(*ConversationContextEvent)(nil),                    // 22: agent_manager.v1.ConversationContextEvent
+	(*GetConversationContextResponse)(nil),              // 23: agent_manager.v1.GetConversationContextResponse
+	(*GetConversationIndexStatusRequest)(nil),           // 24: agent_manager.v1.GetConversationIndexStatusRequest
+	(*GetConversationIndexStatusResponse)(nil),          // 25: agent_manager.v1.GetConversationIndexStatusResponse
+	(*PlanConversationReindexRequest)(nil),              // 26: agent_manager.v1.PlanConversationReindexRequest
+	(*ReindexConversationsRequest)(nil),                 // 27: agent_manager.v1.ReindexConversationsRequest
+	(*CancelConversationReindexRequest)(nil),            // 28: agent_manager.v1.CancelConversationReindexRequest
+	(*ConversationReindexResponse)(nil),                 // 29: agent_manager.v1.ConversationReindexResponse
+	(*WriteConversationSearchConfigRequest)(nil),        // 30: agent_manager.v1.WriteConversationSearchConfigRequest
+	(*WriteConversationSearchConfigResponse)(nil),       // 31: agent_manager.v1.WriteConversationSearchConfigResponse
+	(*WriteConversationSearchCorpusRequest)(nil),        // 32: agent_manager.v1.WriteConversationSearchCorpusRequest
+	(*WriteConversationSearchCorpusResponse)(nil),       // 33: agent_manager.v1.WriteConversationSearchCorpusResponse
+	(*timestamppb.Timestamp)(nil),                       // 34: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                             // 35: google.protobuf.Struct
 }
 var file_agent_manager_v1_domain_conversation_search_proto_depIdxs = []int32{
-	31, // 0: agent_manager.v1.ConversationSearchFilters.occurred_after:type_name -> google.protobuf.Timestamp
-	31, // 1: agent_manager.v1.ConversationSearchFilters.occurred_before:type_name -> google.protobuf.Timestamp
+	34, // 0: agent_manager.v1.ConversationSearchFilters.occurred_after:type_name -> google.protobuf.Timestamp
+	34, // 1: agent_manager.v1.ConversationSearchFilters.occurred_before:type_name -> google.protobuf.Timestamp
 	2,  // 2: agent_manager.v1.ConversationSearchFilters.content_classes:type_name -> agent_manager.v1.ConversationContentClass
 	0,  // 3: agent_manager.v1.SearchConversationsRequest.mode:type_name -> agent_manager.v1.ConversationSearchMode
-	7,  // 4: agent_manager.v1.SearchConversationsRequest.filters:type_name -> agent_manager.v1.ConversationSearchFilters
+	8,  // 4: agent_manager.v1.SearchConversationsRequest.filters:type_name -> agent_manager.v1.ConversationSearchFilters
 	1,  // 5: agent_manager.v1.SearchConversationsRequest.sort:type_name -> agent_manager.v1.ConversationSearchSort
 	1,  // 6: agent_manager.v1.ConversationSearchCursor.sort:type_name -> agent_manager.v1.ConversationSearchSort
-	31, // 7: agent_manager.v1.ConversationSearchCursor.occurred_at:type_name -> google.protobuf.Timestamp
-	31, // 8: agent_manager.v1.ConversationRunSummary.started_at:type_name -> google.protobuf.Timestamp
-	31, // 9: agent_manager.v1.ConversationRunSummary.ended_at:type_name -> google.protobuf.Timestamp
+	34, // 7: agent_manager.v1.ConversationSearchCursor.occurred_at:type_name -> google.protobuf.Timestamp
+	34, // 8: agent_manager.v1.ConversationRunSummary.started_at:type_name -> google.protobuf.Timestamp
+	34, // 9: agent_manager.v1.ConversationRunSummary.ended_at:type_name -> google.protobuf.Timestamp
 	3,  // 10: agent_manager.v1.ConversationRankEvidence.leg:type_name -> agent_manager.v1.ConversationSearchLeg
-	31, // 11: agent_manager.v1.ConversationSearchHit.occurred_at:type_name -> google.protobuf.Timestamp
-	12, // 12: agent_manager.v1.ConversationSearchHit.highlights:type_name -> agent_manager.v1.ConversationHighlight
+	34, // 11: agent_manager.v1.ConversationSearchHit.occurred_at:type_name -> google.protobuf.Timestamp
+	13, // 12: agent_manager.v1.ConversationSearchHit.highlights:type_name -> agent_manager.v1.ConversationHighlight
 	2,  // 13: agent_manager.v1.ConversationSearchHit.content_class:type_name -> agent_manager.v1.ConversationContentClass
-	11, // 14: agent_manager.v1.ConversationSearchHit.provenance:type_name -> agent_manager.v1.ConversationSourceProvenance
-	13, // 15: agent_manager.v1.ConversationSearchHit.rank_evidence:type_name -> agent_manager.v1.ConversationRankEvidence
-	10, // 16: agent_manager.v1.ConversationSearchHit.run:type_name -> agent_manager.v1.ConversationRunSummary
-	31, // 17: agent_manager.v1.ConversationSearchCoverage.last_reconciled_at:type_name -> google.protobuf.Timestamp
+	12, // 14: agent_manager.v1.ConversationSearchHit.provenance:type_name -> agent_manager.v1.ConversationSourceProvenance
+	14, // 15: agent_manager.v1.ConversationSearchHit.rank_evidence:type_name -> agent_manager.v1.ConversationRankEvidence
+	11, // 16: agent_manager.v1.ConversationSearchHit.run:type_name -> agent_manager.v1.ConversationRunSummary
+	34, // 17: agent_manager.v1.ConversationSearchCoverage.last_reconciled_at:type_name -> google.protobuf.Timestamp
 	4,  // 18: agent_manager.v1.ConversationSearchDegradation.reason:type_name -> agent_manager.v1.ConversationSearchDegradationReason
 	3,  // 19: agent_manager.v1.ConversationSearchDegradation.leg:type_name -> agent_manager.v1.ConversationSearchLeg
-	14, // 20: agent_manager.v1.SearchConversationsResponse.hits:type_name -> agent_manager.v1.ConversationSearchHit
+	15, // 20: agent_manager.v1.SearchConversationsResponse.hits:type_name -> agent_manager.v1.ConversationSearchHit
 	0,  // 21: agent_manager.v1.SearchConversationsResponse.mode_used:type_name -> agent_manager.v1.ConversationSearchMode
 	1,  // 22: agent_manager.v1.SearchConversationsResponse.sort_used:type_name -> agent_manager.v1.ConversationSearchSort
-	15, // 23: agent_manager.v1.SearchConversationsResponse.coverage:type_name -> agent_manager.v1.ConversationSearchCoverage
-	16, // 24: agent_manager.v1.SearchConversationsResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
-	31, // 25: agent_manager.v1.ConversationContextEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	2,  // 26: agent_manager.v1.ConversationContextEvent.content_class:type_name -> agent_manager.v1.ConversationContentClass
-	14, // 27: agent_manager.v1.GetConversationContextResponse.hit:type_name -> agent_manager.v1.ConversationSearchHit
-	19, // 28: agent_manager.v1.GetConversationContextResponse.events:type_name -> agent_manager.v1.ConversationContextEvent
-	16, // 29: agent_manager.v1.GetConversationContextResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
-	5,  // 30: agent_manager.v1.GetConversationIndexStatusResponse.state:type_name -> agent_manager.v1.ConversationIndexState
-	15, // 31: agent_manager.v1.GetConversationIndexStatusResponse.coverage:type_name -> agent_manager.v1.ConversationSearchCoverage
-	16, // 32: agent_manager.v1.GetConversationIndexStatusResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
-	31, // 33: agent_manager.v1.GetConversationIndexStatusResponse.last_indexed_at:type_name -> google.protobuf.Timestamp
-	31, // 34: agent_manager.v1.GetConversationIndexStatusResponse.last_success_at:type_name -> google.protobuf.Timestamp
-	6,  // 35: agent_manager.v1.ConversationReindexResponse.state:type_name -> agent_manager.v1.ConversationReindexState
-	31, // 36: agent_manager.v1.ConversationReindexResponse.started_at:type_name -> google.protobuf.Timestamp
-	31, // 37: agent_manager.v1.ConversationReindexResponse.updated_at:type_name -> google.protobuf.Timestamp
-	16, // 38: agent_manager.v1.ConversationReindexResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
-	32, // 39: agent_manager.v1.WriteConversationSearchConfigRequest.tuning:type_name -> google.protobuf.Struct
-	32, // 40: agent_manager.v1.WriteConversationSearchCorpusRequest.tests:type_name -> google.protobuf.Struct
-	8,  // 41: agent_manager.v1.ConversationSearchService.SearchConversations:input_type -> agent_manager.v1.SearchConversationsRequest
-	18, // 42: agent_manager.v1.ConversationSearchService.GetConversationContext:input_type -> agent_manager.v1.GetConversationContextRequest
-	21, // 43: agent_manager.v1.ConversationSearchService.GetConversationIndexStatus:input_type -> agent_manager.v1.GetConversationIndexStatusRequest
-	23, // 44: agent_manager.v1.ConversationSearchControlService.PlanConversationReindex:input_type -> agent_manager.v1.PlanConversationReindexRequest
-	24, // 45: agent_manager.v1.ConversationSearchControlService.ReindexConversations:input_type -> agent_manager.v1.ReindexConversationsRequest
-	25, // 46: agent_manager.v1.ConversationSearchControlService.CancelConversationReindex:input_type -> agent_manager.v1.CancelConversationReindexRequest
-	27, // 47: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchConfig:input_type -> agent_manager.v1.WriteConversationSearchConfigRequest
-	29, // 48: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchCorpus:input_type -> agent_manager.v1.WriteConversationSearchCorpusRequest
-	17, // 49: agent_manager.v1.ConversationSearchService.SearchConversations:output_type -> agent_manager.v1.SearchConversationsResponse
-	20, // 50: agent_manager.v1.ConversationSearchService.GetConversationContext:output_type -> agent_manager.v1.GetConversationContextResponse
-	22, // 51: agent_manager.v1.ConversationSearchService.GetConversationIndexStatus:output_type -> agent_manager.v1.GetConversationIndexStatusResponse
-	26, // 52: agent_manager.v1.ConversationSearchControlService.PlanConversationReindex:output_type -> agent_manager.v1.ConversationReindexResponse
-	26, // 53: agent_manager.v1.ConversationSearchControlService.ReindexConversations:output_type -> agent_manager.v1.ConversationReindexResponse
-	26, // 54: agent_manager.v1.ConversationSearchControlService.CancelConversationReindex:output_type -> agent_manager.v1.ConversationReindexResponse
-	28, // 55: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchConfig:output_type -> agent_manager.v1.WriteConversationSearchConfigResponse
-	30, // 56: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchCorpus:output_type -> agent_manager.v1.WriteConversationSearchCorpusResponse
-	49, // [49:57] is the sub-list for method output_type
-	41, // [41:49] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	16, // 23: agent_manager.v1.SearchConversationsResponse.coverage:type_name -> agent_manager.v1.ConversationSearchCoverage
+	17, // 24: agent_manager.v1.SearchConversationsResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
+	7,  // 25: agent_manager.v1.RecordConversationSearchInteractionRequest.kind:type_name -> agent_manager.v1.ConversationSearchInteractionKind
+	34, // 26: agent_manager.v1.ConversationContextEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	2,  // 27: agent_manager.v1.ConversationContextEvent.content_class:type_name -> agent_manager.v1.ConversationContentClass
+	15, // 28: agent_manager.v1.GetConversationContextResponse.hit:type_name -> agent_manager.v1.ConversationSearchHit
+	22, // 29: agent_manager.v1.GetConversationContextResponse.events:type_name -> agent_manager.v1.ConversationContextEvent
+	17, // 30: agent_manager.v1.GetConversationContextResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
+	5,  // 31: agent_manager.v1.GetConversationIndexStatusResponse.state:type_name -> agent_manager.v1.ConversationIndexState
+	16, // 32: agent_manager.v1.GetConversationIndexStatusResponse.coverage:type_name -> agent_manager.v1.ConversationSearchCoverage
+	17, // 33: agent_manager.v1.GetConversationIndexStatusResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
+	34, // 34: agent_manager.v1.GetConversationIndexStatusResponse.last_indexed_at:type_name -> google.protobuf.Timestamp
+	34, // 35: agent_manager.v1.GetConversationIndexStatusResponse.last_success_at:type_name -> google.protobuf.Timestamp
+	6,  // 36: agent_manager.v1.ConversationReindexResponse.state:type_name -> agent_manager.v1.ConversationReindexState
+	34, // 37: agent_manager.v1.ConversationReindexResponse.started_at:type_name -> google.protobuf.Timestamp
+	34, // 38: agent_manager.v1.ConversationReindexResponse.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 39: agent_manager.v1.ConversationReindexResponse.degradations:type_name -> agent_manager.v1.ConversationSearchDegradation
+	35, // 40: agent_manager.v1.WriteConversationSearchConfigRequest.tuning:type_name -> google.protobuf.Struct
+	35, // 41: agent_manager.v1.WriteConversationSearchCorpusRequest.tests:type_name -> google.protobuf.Struct
+	9,  // 42: agent_manager.v1.ConversationSearchService.SearchConversations:input_type -> agent_manager.v1.SearchConversationsRequest
+	21, // 43: agent_manager.v1.ConversationSearchService.GetConversationContext:input_type -> agent_manager.v1.GetConversationContextRequest
+	24, // 44: agent_manager.v1.ConversationSearchService.GetConversationIndexStatus:input_type -> agent_manager.v1.GetConversationIndexStatusRequest
+	19, // 45: agent_manager.v1.ConversationSearchService.RecordConversationSearchInteraction:input_type -> agent_manager.v1.RecordConversationSearchInteractionRequest
+	26, // 46: agent_manager.v1.ConversationSearchControlService.PlanConversationReindex:input_type -> agent_manager.v1.PlanConversationReindexRequest
+	27, // 47: agent_manager.v1.ConversationSearchControlService.ReindexConversations:input_type -> agent_manager.v1.ReindexConversationsRequest
+	28, // 48: agent_manager.v1.ConversationSearchControlService.CancelConversationReindex:input_type -> agent_manager.v1.CancelConversationReindexRequest
+	30, // 49: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchConfig:input_type -> agent_manager.v1.WriteConversationSearchConfigRequest
+	32, // 50: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchCorpus:input_type -> agent_manager.v1.WriteConversationSearchCorpusRequest
+	18, // 51: agent_manager.v1.ConversationSearchService.SearchConversations:output_type -> agent_manager.v1.SearchConversationsResponse
+	23, // 52: agent_manager.v1.ConversationSearchService.GetConversationContext:output_type -> agent_manager.v1.GetConversationContextResponse
+	25, // 53: agent_manager.v1.ConversationSearchService.GetConversationIndexStatus:output_type -> agent_manager.v1.GetConversationIndexStatusResponse
+	20, // 54: agent_manager.v1.ConversationSearchService.RecordConversationSearchInteraction:output_type -> agent_manager.v1.RecordConversationSearchInteractionResponse
+	29, // 55: agent_manager.v1.ConversationSearchControlService.PlanConversationReindex:output_type -> agent_manager.v1.ConversationReindexResponse
+	29, // 56: agent_manager.v1.ConversationSearchControlService.ReindexConversations:output_type -> agent_manager.v1.ConversationReindexResponse
+	29, // 57: agent_manager.v1.ConversationSearchControlService.CancelConversationReindex:output_type -> agent_manager.v1.ConversationReindexResponse
+	31, // 58: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchConfig:output_type -> agent_manager.v1.WriteConversationSearchConfigResponse
+	33, // 59: agent_manager.v1.ConversationSearchControlService.WriteConversationSearchCorpus:output_type -> agent_manager.v1.WriteConversationSearchCorpusResponse
+	51, // [51:60] is the sub-list for method output_type
+	42, // [42:51] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_conversation_search_proto_init() }
@@ -2823,8 +3128,8 @@ func file_agent_manager_v1_domain_conversation_search_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_conversation_search_proto_rawDesc), len(file_agent_manager_v1_domain_conversation_search_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   24,
+			NumEnums:      8,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

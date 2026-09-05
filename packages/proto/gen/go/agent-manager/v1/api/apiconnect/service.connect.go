@@ -9,6 +9,7 @@ import (
 	context "context"
 	errors "errors"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	http "net/http"
 	strings "strings"
 )
@@ -36,6 +37,57 @@ const (
 	// AgentManagerServiceHealthProcedure is the fully-qualified name of the AgentManagerService's
 	// Health RPC.
 	AgentManagerServiceHealthProcedure = "/agent_manager.v1.AgentManagerService/Health"
+	// AgentManagerServiceCreateCohortWatchProcedure is the fully-qualified name of the
+	// AgentManagerService's CreateCohortWatch RPC.
+	AgentManagerServiceCreateCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/CreateCohortWatch"
+	// AgentManagerServiceGetCohortWatchProcedure is the fully-qualified name of the
+	// AgentManagerService's GetCohortWatch RPC.
+	AgentManagerServiceGetCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/GetCohortWatch"
+	// AgentManagerServiceListCohortWatchesProcedure is the fully-qualified name of the
+	// AgentManagerService's ListCohortWatches RPC.
+	AgentManagerServiceListCohortWatchesProcedure = "/agent_manager.v1.AgentManagerService/ListCohortWatches"
+	// AgentManagerServiceWaitCohortWatchProcedure is the fully-qualified name of the
+	// AgentManagerService's WaitCohortWatch RPC.
+	AgentManagerServiceWaitCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/WaitCohortWatch"
+	// AgentManagerServiceCancelCohortWatchProcedure is the fully-qualified name of the
+	// AgentManagerService's CancelCohortWatch RPC.
+	AgentManagerServiceCancelCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/CancelCohortWatch"
+	// AgentManagerServiceInspectCohortWatchProcedure is the fully-qualified name of the
+	// AgentManagerService's InspectCohortWatch RPC.
+	AgentManagerServiceInspectCohortWatchProcedure = "/agent_manager.v1.AgentManagerService/InspectCohortWatch"
+	// AgentManagerServiceRequestCohortWatchActionProcedure is the fully-qualified name of the
+	// AgentManagerService's RequestCohortWatchAction RPC.
+	AgentManagerServiceRequestCohortWatchActionProcedure = "/agent_manager.v1.AgentManagerService/RequestCohortWatchAction"
+	// AgentManagerServiceListCohortWatchActionsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListCohortWatchActions RPC.
+	AgentManagerServiceListCohortWatchActionsProcedure = "/agent_manager.v1.AgentManagerService/ListCohortWatchActions"
+	// AgentManagerServiceGetSupervisionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's GetSupervisionPolicy RPC.
+	AgentManagerServiceGetSupervisionPolicyProcedure = "/agent_manager.v1.AgentManagerService/GetSupervisionPolicy"
+	// AgentManagerServiceCreateSupervisionPolicyCandidateProcedure is the fully-qualified name of the
+	// AgentManagerService's CreateSupervisionPolicyCandidate RPC.
+	AgentManagerServiceCreateSupervisionPolicyCandidateProcedure = "/agent_manager.v1.AgentManagerService/CreateSupervisionPolicyCandidate"
+	// AgentManagerServiceRecordSupervisionOutcomeProcedure is the fully-qualified name of the
+	// AgentManagerService's RecordSupervisionOutcome RPC.
+	AgentManagerServiceRecordSupervisionOutcomeProcedure = "/agent_manager.v1.AgentManagerService/RecordSupervisionOutcome"
+	// AgentManagerServiceEvaluateSupervisionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's EvaluateSupervisionPolicy RPC.
+	AgentManagerServiceEvaluateSupervisionPolicyProcedure = "/agent_manager.v1.AgentManagerService/EvaluateSupervisionPolicy"
+	// AgentManagerServicePromoteSupervisionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's PromoteSupervisionPolicy RPC.
+	AgentManagerServicePromoteSupervisionPolicyProcedure = "/agent_manager.v1.AgentManagerService/PromoteSupervisionPolicy"
+	// AgentManagerServiceRejectSupervisionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's RejectSupervisionPolicy RPC.
+	AgentManagerServiceRejectSupervisionPolicyProcedure = "/agent_manager.v1.AgentManagerService/RejectSupervisionPolicy"
+	// AgentManagerServiceRollbackSupervisionPolicyProcedure is the fully-qualified name of the
+	// AgentManagerService's RollbackSupervisionPolicy RPC.
+	AgentManagerServiceRollbackSupervisionPolicyProcedure = "/agent_manager.v1.AgentManagerService/RollbackSupervisionPolicy"
+	// AgentManagerServiceSetSupervisionPolicyDisabledProcedure is the fully-qualified name of the
+	// AgentManagerService's SetSupervisionPolicyDisabled RPC.
+	AgentManagerServiceSetSupervisionPolicyDisabledProcedure = "/agent_manager.v1.AgentManagerService/SetSupervisionPolicyDisabled"
+	// AgentManagerServiceListSupervisionOutcomesProcedure is the fully-qualified name of the
+	// AgentManagerService's ListSupervisionOutcomes RPC.
+	AgentManagerServiceListSupervisionOutcomesProcedure = "/agent_manager.v1.AgentManagerService/ListSupervisionOutcomes"
 	// AgentManagerServiceCreateProfileProcedure is the fully-qualified name of the
 	// AgentManagerService's CreateProfile RPC.
 	AgentManagerServiceCreateProfileProcedure = "/agent_manager.v1.AgentManagerService/CreateProfile"
@@ -243,6 +295,24 @@ const (
 type AgentManagerServiceClient interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	GetCohortWatch(context.Context, *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	ListCohortWatches(context.Context, *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error)
+	// Canceling the waiter does not cancel the durable watch.
+	WaitCohortWatch(context.Context, *connect.Request[domain.WaitCohortWatchRequest]) (*connect.Response[domain.WaitCohortWatchResponse], error)
+	CancelCohortWatch(context.Context, *connect.Request[domain.CancelCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	InspectCohortWatch(context.Context, *connect.Request[domain.InspectCohortWatchRequest]) (*connect.Response[domain.InspectCohortWatchResponse], error)
+	RequestCohortWatchAction(context.Context, *connect.Request[domain.RequestCohortWatchActionRequest]) (*connect.Response[domain.RequestCohortWatchActionResponse], error)
+	ListCohortWatchActions(context.Context, *connect.Request[domain.ListCohortWatchActionsRequest]) (*connect.Response[domain.ListCohortWatchActionsResponse], error)
+	GetSupervisionPolicy(context.Context, *connect.Request[domain.GetSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	CreateSupervisionPolicyCandidate(context.Context, *connect.Request[domain.CreateSupervisionPolicyCandidateRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RecordSupervisionOutcome(context.Context, *connect.Request[domain.RecordSupervisionOutcomeRequest]) (*connect.Response[domain.RecordSupervisionOutcomeResponse], error)
+	EvaluateSupervisionPolicy(context.Context, *connect.Request[domain.EvaluateSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionReplayReport], error)
+	PromoteSupervisionPolicy(context.Context, *connect.Request[domain.PromoteSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RejectSupervisionPolicy(context.Context, *connect.Request[domain.RejectSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RollbackSupervisionPolicy(context.Context, *connect.Request[domain.RollbackSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	SetSupervisionPolicyDisabled(context.Context, *connect.Request[domain.SetSupervisionPolicyDisabledRequest]) (*connect.Response[domain.SupervisionPolicyControl], error)
+	ListSupervisionOutcomes(context.Context, *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error)
 	// CreateProfile creates a new agent profile.
 	CreateProfile(context.Context, *connect.Request[api.CreateProfileRequest]) (*connect.Response[api.CreateProfileResponse], error)
 	// EnsureProfile resolves a profile by key, creating it with defaults if needed.
@@ -394,6 +464,108 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceHealthProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+			connect.WithClientOptions(opts...),
+		),
+		createCohortWatch: connect.NewClient[domain.CreateCohortWatchRequest, domain.CohortWatch](
+			httpClient,
+			baseURL+AgentManagerServiceCreateCohortWatchProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("CreateCohortWatch")),
+			connect.WithClientOptions(opts...),
+		),
+		getCohortWatch: connect.NewClient[domain.GetCohortWatchRequest, domain.CohortWatch](
+			httpClient,
+			baseURL+AgentManagerServiceGetCohortWatchProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetCohortWatch")),
+			connect.WithClientOptions(opts...),
+		),
+		listCohortWatches: connect.NewClient[domain.ListCohortWatchesRequest, domain.ListCohortWatchesResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListCohortWatchesProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListCohortWatches")),
+			connect.WithClientOptions(opts...),
+		),
+		waitCohortWatch: connect.NewClient[domain.WaitCohortWatchRequest, domain.WaitCohortWatchResponse](
+			httpClient,
+			baseURL+AgentManagerServiceWaitCohortWatchProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("WaitCohortWatch")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelCohortWatch: connect.NewClient[domain.CancelCohortWatchRequest, domain.CohortWatch](
+			httpClient,
+			baseURL+AgentManagerServiceCancelCohortWatchProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("CancelCohortWatch")),
+			connect.WithClientOptions(opts...),
+		),
+		inspectCohortWatch: connect.NewClient[domain.InspectCohortWatchRequest, domain.InspectCohortWatchResponse](
+			httpClient,
+			baseURL+AgentManagerServiceInspectCohortWatchProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("InspectCohortWatch")),
+			connect.WithClientOptions(opts...),
+		),
+		requestCohortWatchAction: connect.NewClient[domain.RequestCohortWatchActionRequest, domain.RequestCohortWatchActionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceRequestCohortWatchActionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RequestCohortWatchAction")),
+			connect.WithClientOptions(opts...),
+		),
+		listCohortWatchActions: connect.NewClient[domain.ListCohortWatchActionsRequest, domain.ListCohortWatchActionsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListCohortWatchActionsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListCohortWatchActions")),
+			connect.WithClientOptions(opts...),
+		),
+		getSupervisionPolicy: connect.NewClient[domain.GetSupervisionPolicyRequest, domain.SupervisionPolicyRecord](
+			httpClient,
+			baseURL+AgentManagerServiceGetSupervisionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetSupervisionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		createSupervisionPolicyCandidate: connect.NewClient[domain.CreateSupervisionPolicyCandidateRequest, domain.SupervisionPolicyRecord](
+			httpClient,
+			baseURL+AgentManagerServiceCreateSupervisionPolicyCandidateProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("CreateSupervisionPolicyCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		recordSupervisionOutcome: connect.NewClient[domain.RecordSupervisionOutcomeRequest, domain.RecordSupervisionOutcomeResponse](
+			httpClient,
+			baseURL+AgentManagerServiceRecordSupervisionOutcomeProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RecordSupervisionOutcome")),
+			connect.WithClientOptions(opts...),
+		),
+		evaluateSupervisionPolicy: connect.NewClient[domain.EvaluateSupervisionPolicyRequest, domain.SupervisionReplayReport](
+			httpClient,
+			baseURL+AgentManagerServiceEvaluateSupervisionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("EvaluateSupervisionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		promoteSupervisionPolicy: connect.NewClient[domain.PromoteSupervisionPolicyRequest, domain.SupervisionPolicyRecord](
+			httpClient,
+			baseURL+AgentManagerServicePromoteSupervisionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("PromoteSupervisionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		rejectSupervisionPolicy: connect.NewClient[domain.RejectSupervisionPolicyRequest, domain.SupervisionPolicyRecord](
+			httpClient,
+			baseURL+AgentManagerServiceRejectSupervisionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RejectSupervisionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackSupervisionPolicy: connect.NewClient[domain.RollbackSupervisionPolicyRequest, domain.SupervisionPolicyRecord](
+			httpClient,
+			baseURL+AgentManagerServiceRollbackSupervisionPolicyProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RollbackSupervisionPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		setSupervisionPolicyDisabled: connect.NewClient[domain.SetSupervisionPolicyDisabledRequest, domain.SupervisionPolicyControl](
+			httpClient,
+			baseURL+AgentManagerServiceSetSupervisionPolicyDisabledProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("SetSupervisionPolicyDisabled")),
+			connect.WithClientOptions(opts...),
+		),
+		listSupervisionOutcomes: connect.NewClient[domain.ListSupervisionOutcomesRequest, domain.ListSupervisionOutcomesResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListSupervisionOutcomesProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListSupervisionOutcomes")),
 			connect.WithClientOptions(opts...),
 		),
 		createProfile: connect.NewClient[api.CreateProfileRequest, api.CreateProfileResponse](
@@ -803,79 +975,183 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
-	health                          *connect.Client[api.HealthRequest, api.HealthResponse]
-	createProfile                   *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
-	ensureProfile                   *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
-	reconcileScenarioProfiles       *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
-	validateWorkflow                *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
-	reconcileScenarioWorkflows      *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
-	planScenarioWorkflows           *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
-	reconcileScenarioDeclarations   *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
-	planScenarioDeclarations        *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
-	listWorkflowRevisions           *connect.Client[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse]
-	getWorkflowRevision             *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
-	reloadScenarioWorkflows         *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
-	explainWorkflow                 *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
-	startWorkflowExecution          *connect.Client[api.StartWorkflowExecutionRequest, api.WorkflowExecutionResponse]
-	listWorkflowExecutions          *connect.Client[api.ListWorkflowExecutionsRequest, api.ListWorkflowExecutionsResponse]
-	getWorkflowExecution            *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
-	getWorkflowExecutionResult      *connect.Client[api.GetWorkflowExecutionResultRequest, api.WorkflowExecutionResponse]
-	advanceWorkflowExecution        *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
-	waitWorkflowExecution           *connect.Client[api.WaitWorkflowExecutionRequest, api.WaitWorkflowExecutionResponse]
-	getWorkflowExecutionTrace       *connect.Client[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse]
-	listWorkflowExecutionRuns       *connect.Client[api.ListWorkflowExecutionRunsRequest, api.ListWorkflowExecutionRunsResponse]
-	signalWorkflowExecution         *connect.Client[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse]
-	cancelWorkflowExecution         *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
-	retryWorkflowExecution          *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
-	resumeWorkflowExecution         *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
-	simulateWorkflow                *connect.Client[api.SimulateWorkflowRequest, api.SimulateWorkflowResponse]
-	getProfile                      *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
-	listProfiles                    *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
-	updateProfile                   *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
-	deleteProfile                   *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
-	createTask                      *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
-	getTask                         *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
-	listTasks                       *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
-	updateTask                      *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
-	deleteTask                      *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
-	cancelTask                      *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
-	createRun                       *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
-	attachRun                       *connect.Client[api.AttachRunRequest, api.AttachRunResponse]
-	getRun                          *connect.Client[api.GetRunRequest, api.GetRunResponse]
-	getRunReport                    *connect.Client[api.GetRunReportRequest, api.RunReport]
-	getRunByTag                     *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
-	listRuns                        *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
-	deleteRun                       *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
-	stopRun                         *connect.Client[api.StopRunRequest, api.StopRunResponse]
-	stopRunByTag                    *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
-	stopAllRuns                     *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
-	detachRun                       *connect.Client[api.DetachRunRequest, api.DetachRunResponse]
-	quiesceScenario                 *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
-	recoverRun                      *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
-	getRunEvents                    *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
-	getRunDiff                      *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
-	approveRun                      *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
-	rejectRun                       *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
-	getRunnerStatus                 *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
-	probeRunner                     *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
-	getRolePolicyStatus             *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
-	getRolePolicyCatalog            *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
-	validateRolePolicyCatalog       *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
-	reloadRolePolicyCatalog         *connect.Client[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse]
-	explainRolePolicy               *connect.Client[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse]
-	getPermissionPolicyStatus       *connect.Client[api.GetPermissionPolicyStatusRequest, api.GetPermissionPolicyStatusResponse]
-	getPermissionPolicyCatalog      *connect.Client[api.GetPermissionPolicyCatalogRequest, api.GetPermissionPolicyCatalogResponse]
-	validatePermissionPolicyCatalog *connect.Client[api.ValidatePermissionPolicyCatalogRequest, api.ValidatePermissionPolicyCatalogResponse]
-	reloadPermissionPolicyCatalog   *connect.Client[api.ReloadPermissionPolicyCatalogRequest, api.ReloadPermissionPolicyCatalogResponse]
-	planPermissionPolicy            *connect.Client[api.PlanPermissionPolicyRequest, api.PlanPermissionPolicyResponse]
-	reconcilePermissionPolicy       *connect.Client[api.ReconcilePermissionPolicyRequest, api.ReconcilePermissionPolicyResponse]
-	doctorPermissionPolicy          *connect.Client[api.DoctorPermissionPolicyRequest, api.DoctorPermissionPolicyResponse]
-	purgeData                       *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
+	health                           *connect.Client[api.HealthRequest, api.HealthResponse]
+	createCohortWatch                *connect.Client[domain.CreateCohortWatchRequest, domain.CohortWatch]
+	getCohortWatch                   *connect.Client[domain.GetCohortWatchRequest, domain.CohortWatch]
+	listCohortWatches                *connect.Client[domain.ListCohortWatchesRequest, domain.ListCohortWatchesResponse]
+	waitCohortWatch                  *connect.Client[domain.WaitCohortWatchRequest, domain.WaitCohortWatchResponse]
+	cancelCohortWatch                *connect.Client[domain.CancelCohortWatchRequest, domain.CohortWatch]
+	inspectCohortWatch               *connect.Client[domain.InspectCohortWatchRequest, domain.InspectCohortWatchResponse]
+	requestCohortWatchAction         *connect.Client[domain.RequestCohortWatchActionRequest, domain.RequestCohortWatchActionResponse]
+	listCohortWatchActions           *connect.Client[domain.ListCohortWatchActionsRequest, domain.ListCohortWatchActionsResponse]
+	getSupervisionPolicy             *connect.Client[domain.GetSupervisionPolicyRequest, domain.SupervisionPolicyRecord]
+	createSupervisionPolicyCandidate *connect.Client[domain.CreateSupervisionPolicyCandidateRequest, domain.SupervisionPolicyRecord]
+	recordSupervisionOutcome         *connect.Client[domain.RecordSupervisionOutcomeRequest, domain.RecordSupervisionOutcomeResponse]
+	evaluateSupervisionPolicy        *connect.Client[domain.EvaluateSupervisionPolicyRequest, domain.SupervisionReplayReport]
+	promoteSupervisionPolicy         *connect.Client[domain.PromoteSupervisionPolicyRequest, domain.SupervisionPolicyRecord]
+	rejectSupervisionPolicy          *connect.Client[domain.RejectSupervisionPolicyRequest, domain.SupervisionPolicyRecord]
+	rollbackSupervisionPolicy        *connect.Client[domain.RollbackSupervisionPolicyRequest, domain.SupervisionPolicyRecord]
+	setSupervisionPolicyDisabled     *connect.Client[domain.SetSupervisionPolicyDisabledRequest, domain.SupervisionPolicyControl]
+	listSupervisionOutcomes          *connect.Client[domain.ListSupervisionOutcomesRequest, domain.ListSupervisionOutcomesResponse]
+	createProfile                    *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
+	ensureProfile                    *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
+	reconcileScenarioProfiles        *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	validateWorkflow                 *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
+	reconcileScenarioWorkflows       *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	planScenarioWorkflows            *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	reconcileScenarioDeclarations    *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
+	planScenarioDeclarations         *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
+	listWorkflowRevisions            *connect.Client[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse]
+	getWorkflowRevision              *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
+	reloadScenarioWorkflows          *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	explainWorkflow                  *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
+	startWorkflowExecution           *connect.Client[api.StartWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	listWorkflowExecutions           *connect.Client[api.ListWorkflowExecutionsRequest, api.ListWorkflowExecutionsResponse]
+	getWorkflowExecution             *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	getWorkflowExecutionResult       *connect.Client[api.GetWorkflowExecutionResultRequest, api.WorkflowExecutionResponse]
+	advanceWorkflowExecution         *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	waitWorkflowExecution            *connect.Client[api.WaitWorkflowExecutionRequest, api.WaitWorkflowExecutionResponse]
+	getWorkflowExecutionTrace        *connect.Client[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse]
+	listWorkflowExecutionRuns        *connect.Client[api.ListWorkflowExecutionRunsRequest, api.ListWorkflowExecutionRunsResponse]
+	signalWorkflowExecution          *connect.Client[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse]
+	cancelWorkflowExecution          *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	retryWorkflowExecution           *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	resumeWorkflowExecution          *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	simulateWorkflow                 *connect.Client[api.SimulateWorkflowRequest, api.SimulateWorkflowResponse]
+	getProfile                       *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
+	listProfiles                     *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
+	updateProfile                    *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
+	deleteProfile                    *connect.Client[api.DeleteProfileRequest, api.DeleteProfileResponse]
+	createTask                       *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
+	getTask                          *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
+	listTasks                        *connect.Client[api.ListTasksRequest, api.ListTasksResponse]
+	updateTask                       *connect.Client[api.UpdateTaskRequest, api.UpdateTaskResponse]
+	deleteTask                       *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
+	cancelTask                       *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
+	createRun                        *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	attachRun                        *connect.Client[api.AttachRunRequest, api.AttachRunResponse]
+	getRun                           *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunReport                     *connect.Client[api.GetRunReportRequest, api.RunReport]
+	getRunByTag                      *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
+	listRuns                         *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
+	deleteRun                        *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
+	stopRun                          *connect.Client[api.StopRunRequest, api.StopRunResponse]
+	stopRunByTag                     *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	stopAllRuns                      *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	detachRun                        *connect.Client[api.DetachRunRequest, api.DetachRunResponse]
+	quiesceScenario                  *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
+	recoverRun                       *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
+	getRunEvents                     *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
+	getRunDiff                       *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
+	approveRun                       *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
+	rejectRun                        *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
+	getRunnerStatus                  *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
+	probeRunner                      *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
+	getRolePolicyStatus              *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
+	getRolePolicyCatalog             *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
+	validateRolePolicyCatalog        *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
+	reloadRolePolicyCatalog          *connect.Client[api.ReloadRolePolicyCatalogRequest, api.ReloadRolePolicyCatalogResponse]
+	explainRolePolicy                *connect.Client[api.ExplainRolePolicyRequest, api.ExplainRolePolicyResponse]
+	getPermissionPolicyStatus        *connect.Client[api.GetPermissionPolicyStatusRequest, api.GetPermissionPolicyStatusResponse]
+	getPermissionPolicyCatalog       *connect.Client[api.GetPermissionPolicyCatalogRequest, api.GetPermissionPolicyCatalogResponse]
+	validatePermissionPolicyCatalog  *connect.Client[api.ValidatePermissionPolicyCatalogRequest, api.ValidatePermissionPolicyCatalogResponse]
+	reloadPermissionPolicyCatalog    *connect.Client[api.ReloadPermissionPolicyCatalogRequest, api.ReloadPermissionPolicyCatalogResponse]
+	planPermissionPolicy             *connect.Client[api.PlanPermissionPolicyRequest, api.PlanPermissionPolicyResponse]
+	reconcilePermissionPolicy        *connect.Client[api.ReconcilePermissionPolicyRequest, api.ReconcilePermissionPolicyResponse]
+	doctorPermissionPolicy           *connect.Client[api.DoctorPermissionPolicyRequest, api.DoctorPermissionPolicyResponse]
+	purgeData                        *connect.Client[api.PurgeDataRequest, api.PurgeDataResponse]
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
 func (c *agentManagerServiceClient) Health(ctx context.Context, req *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return c.health.CallUnary(ctx, req)
+}
+
+// CreateCohortWatch calls agent_manager.v1.AgentManagerService.CreateCohortWatch.
+func (c *agentManagerServiceClient) CreateCohortWatch(ctx context.Context, req *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return c.createCohortWatch.CallUnary(ctx, req)
+}
+
+// GetCohortWatch calls agent_manager.v1.AgentManagerService.GetCohortWatch.
+func (c *agentManagerServiceClient) GetCohortWatch(ctx context.Context, req *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return c.getCohortWatch.CallUnary(ctx, req)
+}
+
+// ListCohortWatches calls agent_manager.v1.AgentManagerService.ListCohortWatches.
+func (c *agentManagerServiceClient) ListCohortWatches(ctx context.Context, req *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error) {
+	return c.listCohortWatches.CallUnary(ctx, req)
+}
+
+// WaitCohortWatch calls agent_manager.v1.AgentManagerService.WaitCohortWatch.
+func (c *agentManagerServiceClient) WaitCohortWatch(ctx context.Context, req *connect.Request[domain.WaitCohortWatchRequest]) (*connect.Response[domain.WaitCohortWatchResponse], error) {
+	return c.waitCohortWatch.CallUnary(ctx, req)
+}
+
+// CancelCohortWatch calls agent_manager.v1.AgentManagerService.CancelCohortWatch.
+func (c *agentManagerServiceClient) CancelCohortWatch(ctx context.Context, req *connect.Request[domain.CancelCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return c.cancelCohortWatch.CallUnary(ctx, req)
+}
+
+// InspectCohortWatch calls agent_manager.v1.AgentManagerService.InspectCohortWatch.
+func (c *agentManagerServiceClient) InspectCohortWatch(ctx context.Context, req *connect.Request[domain.InspectCohortWatchRequest]) (*connect.Response[domain.InspectCohortWatchResponse], error) {
+	return c.inspectCohortWatch.CallUnary(ctx, req)
+}
+
+// RequestCohortWatchAction calls agent_manager.v1.AgentManagerService.RequestCohortWatchAction.
+func (c *agentManagerServiceClient) RequestCohortWatchAction(ctx context.Context, req *connect.Request[domain.RequestCohortWatchActionRequest]) (*connect.Response[domain.RequestCohortWatchActionResponse], error) {
+	return c.requestCohortWatchAction.CallUnary(ctx, req)
+}
+
+// ListCohortWatchActions calls agent_manager.v1.AgentManagerService.ListCohortWatchActions.
+func (c *agentManagerServiceClient) ListCohortWatchActions(ctx context.Context, req *connect.Request[domain.ListCohortWatchActionsRequest]) (*connect.Response[domain.ListCohortWatchActionsResponse], error) {
+	return c.listCohortWatchActions.CallUnary(ctx, req)
+}
+
+// GetSupervisionPolicy calls agent_manager.v1.AgentManagerService.GetSupervisionPolicy.
+func (c *agentManagerServiceClient) GetSupervisionPolicy(ctx context.Context, req *connect.Request[domain.GetSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return c.getSupervisionPolicy.CallUnary(ctx, req)
+}
+
+// CreateSupervisionPolicyCandidate calls
+// agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate.
+func (c *agentManagerServiceClient) CreateSupervisionPolicyCandidate(ctx context.Context, req *connect.Request[domain.CreateSupervisionPolicyCandidateRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return c.createSupervisionPolicyCandidate.CallUnary(ctx, req)
+}
+
+// RecordSupervisionOutcome calls agent_manager.v1.AgentManagerService.RecordSupervisionOutcome.
+func (c *agentManagerServiceClient) RecordSupervisionOutcome(ctx context.Context, req *connect.Request[domain.RecordSupervisionOutcomeRequest]) (*connect.Response[domain.RecordSupervisionOutcomeResponse], error) {
+	return c.recordSupervisionOutcome.CallUnary(ctx, req)
+}
+
+// EvaluateSupervisionPolicy calls agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy.
+func (c *agentManagerServiceClient) EvaluateSupervisionPolicy(ctx context.Context, req *connect.Request[domain.EvaluateSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionReplayReport], error) {
+	return c.evaluateSupervisionPolicy.CallUnary(ctx, req)
+}
+
+// PromoteSupervisionPolicy calls agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy.
+func (c *agentManagerServiceClient) PromoteSupervisionPolicy(ctx context.Context, req *connect.Request[domain.PromoteSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return c.promoteSupervisionPolicy.CallUnary(ctx, req)
+}
+
+// RejectSupervisionPolicy calls agent_manager.v1.AgentManagerService.RejectSupervisionPolicy.
+func (c *agentManagerServiceClient) RejectSupervisionPolicy(ctx context.Context, req *connect.Request[domain.RejectSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return c.rejectSupervisionPolicy.CallUnary(ctx, req)
+}
+
+// RollbackSupervisionPolicy calls agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy.
+func (c *agentManagerServiceClient) RollbackSupervisionPolicy(ctx context.Context, req *connect.Request[domain.RollbackSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return c.rollbackSupervisionPolicy.CallUnary(ctx, req)
+}
+
+// SetSupervisionPolicyDisabled calls
+// agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled.
+func (c *agentManagerServiceClient) SetSupervisionPolicyDisabled(ctx context.Context, req *connect.Request[domain.SetSupervisionPolicyDisabledRequest]) (*connect.Response[domain.SupervisionPolicyControl], error) {
+	return c.setSupervisionPolicyDisabled.CallUnary(ctx, req)
+}
+
+// ListSupervisionOutcomes calls agent_manager.v1.AgentManagerService.ListSupervisionOutcomes.
+func (c *agentManagerServiceClient) ListSupervisionOutcomes(ctx context.Context, req *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error) {
+	return c.listSupervisionOutcomes.CallUnary(ctx, req)
 }
 
 // CreateProfile calls agent_manager.v1.AgentManagerService.CreateProfile.
@@ -1221,6 +1497,24 @@ func (c *agentManagerServiceClient) PurgeData(ctx context.Context, req *connect.
 type AgentManagerServiceHandler interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	GetCohortWatch(context.Context, *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	ListCohortWatches(context.Context, *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error)
+	// Canceling the waiter does not cancel the durable watch.
+	WaitCohortWatch(context.Context, *connect.Request[domain.WaitCohortWatchRequest]) (*connect.Response[domain.WaitCohortWatchResponse], error)
+	CancelCohortWatch(context.Context, *connect.Request[domain.CancelCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error)
+	InspectCohortWatch(context.Context, *connect.Request[domain.InspectCohortWatchRequest]) (*connect.Response[domain.InspectCohortWatchResponse], error)
+	RequestCohortWatchAction(context.Context, *connect.Request[domain.RequestCohortWatchActionRequest]) (*connect.Response[domain.RequestCohortWatchActionResponse], error)
+	ListCohortWatchActions(context.Context, *connect.Request[domain.ListCohortWatchActionsRequest]) (*connect.Response[domain.ListCohortWatchActionsResponse], error)
+	GetSupervisionPolicy(context.Context, *connect.Request[domain.GetSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	CreateSupervisionPolicyCandidate(context.Context, *connect.Request[domain.CreateSupervisionPolicyCandidateRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RecordSupervisionOutcome(context.Context, *connect.Request[domain.RecordSupervisionOutcomeRequest]) (*connect.Response[domain.RecordSupervisionOutcomeResponse], error)
+	EvaluateSupervisionPolicy(context.Context, *connect.Request[domain.EvaluateSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionReplayReport], error)
+	PromoteSupervisionPolicy(context.Context, *connect.Request[domain.PromoteSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RejectSupervisionPolicy(context.Context, *connect.Request[domain.RejectSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	RollbackSupervisionPolicy(context.Context, *connect.Request[domain.RollbackSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error)
+	SetSupervisionPolicyDisabled(context.Context, *connect.Request[domain.SetSupervisionPolicyDisabledRequest]) (*connect.Response[domain.SupervisionPolicyControl], error)
+	ListSupervisionOutcomes(context.Context, *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error)
 	// CreateProfile creates a new agent profile.
 	CreateProfile(context.Context, *connect.Request[api.CreateProfileRequest]) (*connect.Response[api.CreateProfileResponse], error)
 	// EnsureProfile resolves a profile by key, creating it with defaults if needed.
@@ -1368,6 +1662,108 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceHealthProcedure,
 		svc.Health,
 		connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceCreateCohortWatchHandler := connect.NewUnaryHandler(
+		AgentManagerServiceCreateCohortWatchProcedure,
+		svc.CreateCohortWatch,
+		connect.WithSchema(agentManagerServiceMethods.ByName("CreateCohortWatch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetCohortWatchHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetCohortWatchProcedure,
+		svc.GetCohortWatch,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetCohortWatch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListCohortWatchesHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListCohortWatchesProcedure,
+		svc.ListCohortWatches,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListCohortWatches")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceWaitCohortWatchHandler := connect.NewUnaryHandler(
+		AgentManagerServiceWaitCohortWatchProcedure,
+		svc.WaitCohortWatch,
+		connect.WithSchema(agentManagerServiceMethods.ByName("WaitCohortWatch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceCancelCohortWatchHandler := connect.NewUnaryHandler(
+		AgentManagerServiceCancelCohortWatchProcedure,
+		svc.CancelCohortWatch,
+		connect.WithSchema(agentManagerServiceMethods.ByName("CancelCohortWatch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceInspectCohortWatchHandler := connect.NewUnaryHandler(
+		AgentManagerServiceInspectCohortWatchProcedure,
+		svc.InspectCohortWatch,
+		connect.WithSchema(agentManagerServiceMethods.ByName("InspectCohortWatch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRequestCohortWatchActionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRequestCohortWatchActionProcedure,
+		svc.RequestCohortWatchAction,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RequestCohortWatchAction")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListCohortWatchActionsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListCohortWatchActionsProcedure,
+		svc.ListCohortWatchActions,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListCohortWatchActions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetSupervisionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetSupervisionPolicyProcedure,
+		svc.GetSupervisionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetSupervisionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceCreateSupervisionPolicyCandidateHandler := connect.NewUnaryHandler(
+		AgentManagerServiceCreateSupervisionPolicyCandidateProcedure,
+		svc.CreateSupervisionPolicyCandidate,
+		connect.WithSchema(agentManagerServiceMethods.ByName("CreateSupervisionPolicyCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRecordSupervisionOutcomeHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRecordSupervisionOutcomeProcedure,
+		svc.RecordSupervisionOutcome,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RecordSupervisionOutcome")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceEvaluateSupervisionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceEvaluateSupervisionPolicyProcedure,
+		svc.EvaluateSupervisionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("EvaluateSupervisionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServicePromoteSupervisionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServicePromoteSupervisionPolicyProcedure,
+		svc.PromoteSupervisionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("PromoteSupervisionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRejectSupervisionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRejectSupervisionPolicyProcedure,
+		svc.RejectSupervisionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RejectSupervisionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRollbackSupervisionPolicyHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRollbackSupervisionPolicyProcedure,
+		svc.RollbackSupervisionPolicy,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RollbackSupervisionPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceSetSupervisionPolicyDisabledHandler := connect.NewUnaryHandler(
+		AgentManagerServiceSetSupervisionPolicyDisabledProcedure,
+		svc.SetSupervisionPolicyDisabled,
+		connect.WithSchema(agentManagerServiceMethods.ByName("SetSupervisionPolicyDisabled")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListSupervisionOutcomesHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListSupervisionOutcomesProcedure,
+		svc.ListSupervisionOutcomes,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListSupervisionOutcomes")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceCreateProfileHandler := connect.NewUnaryHandler(
@@ -1776,6 +2172,40 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case AgentManagerServiceHealthProcedure:
 			agentManagerServiceHealthHandler.ServeHTTP(w, r)
+		case AgentManagerServiceCreateCohortWatchProcedure:
+			agentManagerServiceCreateCohortWatchHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetCohortWatchProcedure:
+			agentManagerServiceGetCohortWatchHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListCohortWatchesProcedure:
+			agentManagerServiceListCohortWatchesHandler.ServeHTTP(w, r)
+		case AgentManagerServiceWaitCohortWatchProcedure:
+			agentManagerServiceWaitCohortWatchHandler.ServeHTTP(w, r)
+		case AgentManagerServiceCancelCohortWatchProcedure:
+			agentManagerServiceCancelCohortWatchHandler.ServeHTTP(w, r)
+		case AgentManagerServiceInspectCohortWatchProcedure:
+			agentManagerServiceInspectCohortWatchHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRequestCohortWatchActionProcedure:
+			agentManagerServiceRequestCohortWatchActionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListCohortWatchActionsProcedure:
+			agentManagerServiceListCohortWatchActionsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetSupervisionPolicyProcedure:
+			agentManagerServiceGetSupervisionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceCreateSupervisionPolicyCandidateProcedure:
+			agentManagerServiceCreateSupervisionPolicyCandidateHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRecordSupervisionOutcomeProcedure:
+			agentManagerServiceRecordSupervisionOutcomeHandler.ServeHTTP(w, r)
+		case AgentManagerServiceEvaluateSupervisionPolicyProcedure:
+			agentManagerServiceEvaluateSupervisionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServicePromoteSupervisionPolicyProcedure:
+			agentManagerServicePromoteSupervisionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRejectSupervisionPolicyProcedure:
+			agentManagerServiceRejectSupervisionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRollbackSupervisionPolicyProcedure:
+			agentManagerServiceRollbackSupervisionPolicyHandler.ServeHTTP(w, r)
+		case AgentManagerServiceSetSupervisionPolicyDisabledProcedure:
+			agentManagerServiceSetSupervisionPolicyDisabledHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListSupervisionOutcomesProcedure:
+			agentManagerServiceListSupervisionOutcomesHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateProfileProcedure:
 			agentManagerServiceCreateProfileHandler.ServeHTTP(w, r)
 		case AgentManagerServiceEnsureProfileProcedure:
@@ -1921,6 +2351,74 @@ type UnimplementedAgentManagerServiceHandler struct{}
 
 func (UnimplementedAgentManagerServiceHandler) Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.Health is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) CreateCohortWatch(context.Context, *connect.Request[domain.CreateCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateCohortWatch is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetCohortWatch(context.Context, *connect.Request[domain.GetCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetCohortWatch is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListCohortWatches(context.Context, *connect.Request[domain.ListCohortWatchesRequest]) (*connect.Response[domain.ListCohortWatchesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListCohortWatches is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) WaitCohortWatch(context.Context, *connect.Request[domain.WaitCohortWatchRequest]) (*connect.Response[domain.WaitCohortWatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.WaitCohortWatch is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) CancelCohortWatch(context.Context, *connect.Request[domain.CancelCohortWatchRequest]) (*connect.Response[domain.CohortWatch], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CancelCohortWatch is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) InspectCohortWatch(context.Context, *connect.Request[domain.InspectCohortWatchRequest]) (*connect.Response[domain.InspectCohortWatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.InspectCohortWatch is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RequestCohortWatchAction(context.Context, *connect.Request[domain.RequestCohortWatchActionRequest]) (*connect.Response[domain.RequestCohortWatchActionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RequestCohortWatchAction is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListCohortWatchActions(context.Context, *connect.Request[domain.ListCohortWatchActionsRequest]) (*connect.Response[domain.ListCohortWatchActionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListCohortWatchActions is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetSupervisionPolicy(context.Context, *connect.Request[domain.GetSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetSupervisionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) CreateSupervisionPolicyCandidate(context.Context, *connect.Request[domain.CreateSupervisionPolicyCandidateRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateSupervisionPolicyCandidate is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RecordSupervisionOutcome(context.Context, *connect.Request[domain.RecordSupervisionOutcomeRequest]) (*connect.Response[domain.RecordSupervisionOutcomeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RecordSupervisionOutcome is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) EvaluateSupervisionPolicy(context.Context, *connect.Request[domain.EvaluateSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionReplayReport], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.EvaluateSupervisionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) PromoteSupervisionPolicy(context.Context, *connect.Request[domain.PromoteSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.PromoteSupervisionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RejectSupervisionPolicy(context.Context, *connect.Request[domain.RejectSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RejectSupervisionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RollbackSupervisionPolicy(context.Context, *connect.Request[domain.RollbackSupervisionPolicyRequest]) (*connect.Response[domain.SupervisionPolicyRecord], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RollbackSupervisionPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) SetSupervisionPolicyDisabled(context.Context, *connect.Request[domain.SetSupervisionPolicyDisabledRequest]) (*connect.Response[domain.SupervisionPolicyControl], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.SetSupervisionPolicyDisabled is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListSupervisionOutcomes(context.Context, *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListSupervisionOutcomes is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) CreateProfile(context.Context, *connect.Request[api.CreateProfileRequest]) (*connect.Response[api.CreateProfileResponse], error) {

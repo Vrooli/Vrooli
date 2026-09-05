@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0react-component-library/v1/preview/preview.proto\x12)vrooli.react_component_library.v1.preview\")\n\x17GetPreviewBundleRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"\x7f\n\x18GetPreviewBundleResponse\x12\x0e\n\x02js\x18\x01 \x01(\tR\x02js\x12\x1f\n\x0bsource_path\x18\x02 \x01(\tR\nsourcePath\x12\x16\n\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x1a\n\x08warnings\x18\x04 \x03(\tR\x08warnings2\xae\x01\n\x0ePreviewService\x12\x9b\x01\n\x10GetPreviewBundle\x12\x42.vrooli.react_component_library.v1.preview.GetPreviewBundleRequest\x1a\x43.vrooli.react_component_library.v1.preview.GetPreviewBundleResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview;preview_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0react-component-library/v1/preview/preview.proto\x12)vrooli.react_component_library.v1.preview\x1a\x1cgoogle/protobuf/struct.proto\")\n\x17GetPreviewBundleRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"\x7f\n\x18GetPreviewBundleResponse\x12\x0e\n\x02js\x18\x01 \x01(\tR\x02js\x12\x1f\n\x0bsource_path\x18\x02 \x01(\tR\nsourcePath\x12\x16\n\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x1a\n\x08warnings\x18\x04 \x03(\tR\x08warnings\"c\n\x10\x43ompositionAsset\x12\x1d\n\ncatalog_id\x18\x01 \x01(\tR\tcatalogId\x12\x18\n\x07version\x18\x02 \x01(\tR\x07version\x12\x16\n\x06\x65xport\x18\x03 \x01(\tR\x06\x65xport\"\xbe\x01\n\x11\x43ompositionRegion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12Q\n\x05\x61sset\x18\x02 \x01(\x0b\x32;.vrooli.react_component_library.v1.preview.CompositionAssetR\x05\x61sset\x12\x12\n\x04slot\x18\x03 \x03(\tR\x04slot\x12\x1a\n\x08required\x18\x04 \x01(\x08R\x08required\x12\x16\n\x06parent\x18\x05 \x01(\tR\x06parent\"\xea\x01\n\x1bGetCompositionBundleRequest\x12\x1a\n\x08revision\x18\x01 \x01(\tR\x08revision\x12W\n\x08template\x18\x02 \x01(\x0b\x32;.vrooli.react_component_library.v1.preview.CompositionAssetR\x08template\x12V\n\x07regions\x18\x03 \x03(\x0b\x32<.vrooli.react_component_library.v1.preview.CompositionRegionR\x07regions\"r\n\x0e\x43ompositionGap\x12\x16\n\x06region\x18\x01 \x01(\tR\x06region\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\x12\x1a\n\x08required\x18\x04 \x01(\x08R\x08required\"\xe5\x01\n\x1cGetCompositionBundleResponse\x12\x1a\n\x08revision\x18\x01 \x01(\tR\x08revision\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12\x0e\n\x02js\x18\x03 \x01(\tR\x02js\x12\x16\n\x06sha256\x18\x04 \x01(\tR\x06sha256\x12\x1a\n\x08warnings\x18\x05 \x03(\tR\x08warnings\x12M\n\x04gaps\x18\x06 \x03(\x0b\x32\x39.vrooli.react_component_library.v1.preview.CompositionGapR\x04gaps\"\xa3\x01\n\x19\x43ompositionFixtureBinding\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12\x14\n\x05\x61sset\x18\x02 \x01(\tR\x05\x61sset\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\x12\x14\n\x05state\x18\x04 \x01(\tR\x05state\x12\x14\n\x05\x66ield\x18\x05 \x01(\tR\x05\x66ield\x12\x12\n\x04prop\x18\x06 \x03(\tR\x04prop\"\xe1\x02\n\x18RenderCompositionRequest\x12h\n\x0b\x63omposition\x18\x01 \x01(\x0b\x32\x46.vrooli.react_component_library.v1.preview.GetCompositionBundleRequestR\x0b\x63omposition\x12\x33\n\x08\x62indings\x18\x02 \x01(\x0b\x32\x17.google.protobuf.StructR\x08\x62indings\x12`\n\x08\x66ixtures\x18\x03 \x03(\x0b\x32\x44.vrooli.react_component_library.v1.preview.CompositionFixtureBindingR\x08\x66ixtures\x12\x10\n\x03kit\x18\x04 \x01(\tR\x03kit\x12\x14\n\x05theme\x18\x05 \x01(\tR\x05theme\x12\x1c\n\tdirection\x18\x06 \x01(\tR\tdirection\"\x8d\x02\n\x19RenderCompositionResponse\x12_\n\x06\x62undle\x18\x01 \x01(\x0b\x32G.vrooli.react_component_library.v1.preview.GetCompositionBundleResponseR\x06\x62undle\x12\x12\n\x04html\x18\x02 \x01(\tR\x04html\x12\x1f\n\x0brender_hash\x18\x03 \x01(\tR\nrenderHash\x12Z\n\x06target\x18\x04 \x01(\x0b\x32\x42.vrooli.react_component_library.v1.preview.CompositionRenderTargetR\x06target\"\xae\x03\n\x17\x43ompositionRenderTarget\x12v\n\x0cinput_hashes\x18\t \x03(\x0b\x32S.vrooli.react_component_library.v1.preview.CompositionRenderTarget.InputHashesEntryR\x0binputHashes\x12\x1a\n\x08revision\x18\x01 \x01(\tR\x08revision\x12\x1f\n\x0brender_hash\x18\x02 \x01(\tR\nrenderHash\x12\x1f\n\x0bhtml_sha256\x18\x03 \x01(\tR\nhtmlSha256\x12#\n\rinputs_sha256\x18\x04 \x01(\tR\x0cinputsSha256\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x10\n\x03kit\x18\x06 \x01(\tR\x03kit\x12\x14\n\x05theme\x18\x07 \x01(\tR\x05theme\x12\x1c\n\tdirection\x18\x08 \x01(\tR\tdirection\x1a>\n\x10InputHashesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x32\xf9\x03\n\x0ePreviewService\x12\x9e\x01\n\x11RenderComposition\x12\x43.vrooli.react_component_library.v1.preview.RenderCompositionRequest\x1a\x44.vrooli.react_component_library.v1.preview.RenderCompositionResponse\x12\xa7\x01\n\x14GetCompositionBundle\x12\x46.vrooli.react_component_library.v1.preview.GetCompositionBundleRequest\x1aG.vrooli.react_component_library.v1.preview.GetCompositionBundleResponse\x12\x9b\x01\n\x10GetPreviewBundle\x12\x42.vrooli.react_component_library.v1.preview.GetPreviewBundleRequest\x1a\x43.vrooli.react_component_library.v1.preview.GetPreviewBundleResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview;preview_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,10 +33,32 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'react_component_library.v1.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview;preview_v1'
-  _globals['_GETPREVIEWBUNDLEREQUEST']._serialized_start=95
-  _globals['_GETPREVIEWBUNDLEREQUEST']._serialized_end=136
-  _globals['_GETPREVIEWBUNDLERESPONSE']._serialized_start=138
-  _globals['_GETPREVIEWBUNDLERESPONSE']._serialized_end=265
-  _globals['_PREVIEWSERVICE']._serialized_start=268
-  _globals['_PREVIEWSERVICE']._serialized_end=442
+  _globals['_COMPOSITIONRENDERTARGET_INPUTHASHESENTRY']._loaded_options = None
+  _globals['_COMPOSITIONRENDERTARGET_INPUTHASHESENTRY']._serialized_options = b'8\001'
+  _globals['_GETPREVIEWBUNDLEREQUEST']._serialized_start=125
+  _globals['_GETPREVIEWBUNDLEREQUEST']._serialized_end=166
+  _globals['_GETPREVIEWBUNDLERESPONSE']._serialized_start=168
+  _globals['_GETPREVIEWBUNDLERESPONSE']._serialized_end=295
+  _globals['_COMPOSITIONASSET']._serialized_start=297
+  _globals['_COMPOSITIONASSET']._serialized_end=396
+  _globals['_COMPOSITIONREGION']._serialized_start=399
+  _globals['_COMPOSITIONREGION']._serialized_end=589
+  _globals['_GETCOMPOSITIONBUNDLEREQUEST']._serialized_start=592
+  _globals['_GETCOMPOSITIONBUNDLEREQUEST']._serialized_end=826
+  _globals['_COMPOSITIONGAP']._serialized_start=828
+  _globals['_COMPOSITIONGAP']._serialized_end=942
+  _globals['_GETCOMPOSITIONBUNDLERESPONSE']._serialized_start=945
+  _globals['_GETCOMPOSITIONBUNDLERESPONSE']._serialized_end=1174
+  _globals['_COMPOSITIONFIXTUREBINDING']._serialized_start=1177
+  _globals['_COMPOSITIONFIXTUREBINDING']._serialized_end=1340
+  _globals['_RENDERCOMPOSITIONREQUEST']._serialized_start=1343
+  _globals['_RENDERCOMPOSITIONREQUEST']._serialized_end=1696
+  _globals['_RENDERCOMPOSITIONRESPONSE']._serialized_start=1699
+  _globals['_RENDERCOMPOSITIONRESPONSE']._serialized_end=1968
+  _globals['_COMPOSITIONRENDERTARGET']._serialized_start=1971
+  _globals['_COMPOSITIONRENDERTARGET']._serialized_end=2401
+  _globals['_COMPOSITIONRENDERTARGET_INPUTHASHESENTRY']._serialized_start=2339
+  _globals['_COMPOSITIONRENDERTARGET_INPUTHASHESENTRY']._serialized_end=2401
+  _globals['_PREVIEWSERVICE']._serialized_start=2404
+  _globals['_PREVIEWSERVICE']._serialized_end=2909
 # @@protoc_insertion_point(module_scope)

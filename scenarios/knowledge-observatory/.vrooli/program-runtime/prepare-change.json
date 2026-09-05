@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.prepare-change",
+  "version": "1",
+  "purpose": "Prepare a bounded document-family review with source revision preconditions, duplicate and reference evidence, and promotion candidates.",
+  "inputs": {
+    "paths": {
+      "type": "array",
+      "required": true
+    },
+    "base_path": {
+      "type": "string",
+      "required": true
+    },
+    "intent": {
+      "type": "string",
+      "required": true
+    },
+    "max_files": {
+      "type": "integer",
+      "default": 300
+    }
+  },
+  "assumptions": [
+    "Source owners retain knowledge authority; no search score establishes acceptance.",
+    "Knowledge Observatory and declared read dependencies are running."
+  ],
+  "invariants": [
+    "One bounded envelope on every path; no writes, retries, or shell access.",
+    "Unknown applicability and unavailable reads remain explicit.",
+    "The caller owns final task verification and one learning capture; no memory writes inside these programs."
+  ],
+  "bindings": [
+    {
+      "id": "knowledge-observatory/knowledge-base/review",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/search",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "preconditions": "Exact source byte hashes; recheck before caller writes.",
+      "observations": "At most 100 backlink, duplicate, missing-reference, or portability cues.",
+      "decisions_required": "Editorial decisions; never an automatic deletion instruction."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_match",
+        "verification_failed",
+        "revision_changed",
+        "output_bound"
+      ]
+    },
+    "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 12,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "unexpected": true
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      }
+    },
+    {
+      "id": "selected-reference",
+      "inputs": {
+        "paths": [
+          "docs/reference/storage-retention.md"
+        ],
+        "base_path": "docs/reference",
+        "intent": "Generated artifact placement contract",
+        "max_files": 1000
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory"
+}

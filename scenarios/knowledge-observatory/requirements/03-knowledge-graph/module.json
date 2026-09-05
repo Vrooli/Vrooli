@@ -8,7 +8,7 @@
       "id": "KO-KG-001",
       "title": "Graph generation from vector relationships",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "prd_ref": "OT-P0-003",
       "description": "Build graph structure by finding semantically similar entries and creating edges based on similarity strength",
       "validation": [
         {
@@ -23,7 +23,7 @@
       "id": "KO-KG-002",
       "title": "Graph API endpoint",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "prd_ref": "OT-P0-003",
       "description": "GET /api/v1/knowledge/graph returns nodes and edges in standardized format for visualization",
       "validation": [
         {
@@ -36,9 +36,9 @@
     },
     {
       "id": "KO-KG-003",
-      "title": "Graph rendering performance \u003c 2s",
+      "title": "Graph rendering performance < 2s",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "prd_ref": "OT-P0-003",
       "description": "Graph generation and rendering for up to 1000 nodes must complete in under 2 seconds",
       "validation": [
         {
@@ -53,7 +53,7 @@
       "id": "KO-KG-004",
       "title": "Graph metadata extraction",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "prd_ref": "OT-P0-003",
       "description": "Extract and include relevant metadata (source, scenario, quality) in graph nodes",
       "validation": [
         {

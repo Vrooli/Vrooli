@@ -199,18 +199,26 @@ func (x *SearchAssetsRequest) GetAccepts() string {
 }
 
 type SearchAssetResult struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	CatalogId       string                 `protobuf:"bytes,1,opt,name=catalog_id,json=catalogId,proto3" json:"catalog_id,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description     string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	DeclarationPath string                 `protobuf:"bytes,4,opt,name=declaration_path,json=declarationPath,proto3" json:"declaration_path,omitempty"`
-	Score           float64                `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
-	Layer           int32                  `protobuf:"varint,6,opt,name=layer,proto3" json:"layer,omitempty"`
-	Implemented     bool                   `protobuf:"varint,7,opt,name=implemented,proto3" json:"implemented,omitempty"`
-	Kind            string                 `protobuf:"bytes,8,opt,name=kind,proto3" json:"kind,omitempty"`
-	Domain          string                 `protobuf:"bytes,9,opt,name=domain,proto3" json:"domain,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	CatalogId              string                 `protobuf:"bytes,1,opt,name=catalog_id,json=catalogId,proto3" json:"catalog_id,omitempty"`
+	Name                   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description            string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	DeclarationPath        string                 `protobuf:"bytes,4,opt,name=declaration_path,json=declarationPath,proto3" json:"declaration_path,omitempty"`
+	Score                  float64                `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
+	Layer                  int32                  `protobuf:"varint,6,opt,name=layer,proto3" json:"layer,omitempty"`
+	Implemented            bool                   `protobuf:"varint,7,opt,name=implemented,proto3" json:"implemented,omitempty"`
+	Kind                   string                 `protobuf:"bytes,8,opt,name=kind,proto3" json:"kind,omitempty"`
+	Domain                 string                 `protobuf:"bytes,9,opt,name=domain,proto3" json:"domain,omitempty"`
+	AvailabilityState      string                 `protobuf:"bytes,10,opt,name=availability_state,json=availabilityState,proto3" json:"availability_state,omitempty"`
+	AvailabilityReasonCode string                 `protobuf:"bytes,11,opt,name=availability_reason_code,json=availabilityReasonCode,proto3" json:"availability_reason_code,omitempty"`
+	AvailabilityReason     string                 `protobuf:"bytes,12,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	Version                string                 `protobuf:"bytes,13,opt,name=version,proto3" json:"version,omitempty"`
+	BuildHash              string                 `protobuf:"bytes,14,opt,name=build_hash,json=buildHash,proto3" json:"build_hash,omitempty"`
+	SourceHash             string                 `protobuf:"bytes,15,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
+	DependencyCount        int32                  `protobuf:"varint,16,opt,name=dependency_count,json=dependencyCount,proto3" json:"dependency_count,omitempty"`
+	Regions                []string               `protobuf:"bytes,17,rep,name=regions,proto3" json:"regions,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *SearchAssetResult) Reset() {
@@ -306,6 +314,62 @@ func (x *SearchAssetResult) GetDomain() string {
 	return ""
 }
 
+func (x *SearchAssetResult) GetAvailabilityState() string {
+	if x != nil {
+		return x.AvailabilityState
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetAvailabilityReasonCode() string {
+	if x != nil {
+		return x.AvailabilityReasonCode
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetBuildHash() string {
+	if x != nil {
+		return x.BuildHash
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetSourceHash() string {
+	if x != nil {
+		return x.SourceHash
+	}
+	return ""
+}
+
+func (x *SearchAssetResult) GetDependencyCount() int32 {
+	if x != nil {
+		return x.DependencyCount
+	}
+	return 0
+}
+
+func (x *SearchAssetResult) GetRegions() []string {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
 type SearchAssetsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Results       []*SearchAssetResult   `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
@@ -399,6 +463,8 @@ type SearchStatusResponse struct {
 	IndexedCount  int32                  `protobuf:"varint,1,opt,name=indexed_count,json=indexedCount,proto3" json:"indexed_count,omitempty"`
 	IndexedAt     string                 `protobuf:"bytes,2,opt,name=indexed_at,json=indexedAt,proto3" json:"indexed_at,omitempty"`
 	Available     bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
+	Stale         bool                   `protobuf:"varint,4,opt,name=stale,proto3" json:"stale,omitempty"`
+	LastError     string                 `protobuf:"bytes,5,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -452,6 +518,20 @@ func (x *SearchStatusResponse) GetAvailable() bool {
 		return x.Available
 	}
 	return false
+}
+
+func (x *SearchStatusResponse) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+func (x *SearchStatusResponse) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
 }
 
 type ReindexSearchRequest struct {
@@ -4689,7 +4769,7 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x12\n" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x16\n" +
 	"\x06domain\x18\x04 \x01(\tR\x06domain\x12\x18\n" +
-	"\aaccepts\x18\x05 \x01(\tR\aaccepts\"\x8d\x02\n" +
+	"\aaccepts\x18\x05 \x01(\tR\aaccepts\"\xc6\x04\n" +
 	"\x11SearchAssetResult\x12\x1d\n" +
 	"\n" +
 	"catalog_id\x18\x01 \x01(\tR\tcatalogId\x12\x12\n" +
@@ -4700,16 +4780,30 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x05layer\x18\x06 \x01(\x05R\x05layer\x12 \n" +
 	"\vimplemented\x18\a \x01(\bR\vimplemented\x12\x12\n" +
 	"\x04kind\x18\b \x01(\tR\x04kind\x12\x16\n" +
-	"\x06domain\x18\t \x01(\tR\x06domain\"\x84\x01\n" +
+	"\x06domain\x18\t \x01(\tR\x06domain\x12-\n" +
+	"\x12availability_state\x18\n" +
+	" \x01(\tR\x11availabilityState\x128\n" +
+	"\x18availability_reason_code\x18\v \x01(\tR\x16availabilityReasonCode\x12/\n" +
+	"\x13availability_reason\x18\f \x01(\tR\x12availabilityReason\x12\x18\n" +
+	"\aversion\x18\r \x01(\tR\aversion\x12\x1d\n" +
+	"\n" +
+	"build_hash\x18\x0e \x01(\tR\tbuildHash\x12\x1f\n" +
+	"\vsource_hash\x18\x0f \x01(\tR\n" +
+	"sourceHash\x12)\n" +
+	"\x10dependency_count\x18\x10 \x01(\x05R\x0fdependencyCount\x12\x18\n" +
+	"\aregions\x18\x11 \x03(\tR\aregions\"\x84\x01\n" +
 	"\x14SearchAssetsResponse\x12V\n" +
 	"\aresults\x18\x01 \x03(\v2<.vrooli.react_component_library.v1.catalog.SearchAssetResultR\aresults\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\"\x15\n" +
-	"\x13SearchStatusRequest\"x\n" +
+	"\x13SearchStatusRequest\"\xad\x01\n" +
 	"\x14SearchStatusResponse\x12#\n" +
 	"\rindexed_count\x18\x01 \x01(\x05R\findexedCount\x12\x1d\n" +
 	"\n" +
 	"indexed_at\x18\x02 \x01(\tR\tindexedAt\x12\x1c\n" +
-	"\tavailable\x18\x03 \x01(\bR\tavailable\"\x16\n" +
+	"\tavailable\x18\x03 \x01(\bR\tavailable\x12\x14\n" +
+	"\x05stale\x18\x04 \x01(\bR\x05stale\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\x05 \x01(\tR\tlastError\"\x16\n" +
 	"\x14ReindexSearchRequest\"[\n" +
 	"\x15ReindexSearchResponse\x12#\n" +
 	"\rindexed_count\x18\x01 \x01(\x05R\findexedCount\x12\x1d\n" +

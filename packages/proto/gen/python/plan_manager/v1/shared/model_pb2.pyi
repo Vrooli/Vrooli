@@ -431,14 +431,18 @@ class ChangeBoundary(_message.Message):
     def __init__(self, acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., operator_only_reason: _Optional[str] = ...) -> None: ...
 
 class ValidationScope(_message.Message):
-    __slots__ = ("mode", "boundary", "rationale")
+    __slots__ = ("mode", "boundary", "rationale", "test_phases", "compare_behavior")
     MODE_FIELD_NUMBER: _ClassVar[int]
     BOUNDARY_FIELD_NUMBER: _ClassVar[int]
     RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    TEST_PHASES_FIELD_NUMBER: _ClassVar[int]
+    COMPARE_BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
     mode: ValidationScopeMode
     boundary: ChangeBoundary
     rationale: str
-    def __init__(self, mode: _Optional[_Union[ValidationScopeMode, str]] = ..., boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., rationale: _Optional[str] = ...) -> None: ...
+    test_phases: _containers.RepeatedScalarFieldContainer[str]
+    compare_behavior: bool
+    def __init__(self, mode: _Optional[_Union[ValidationScopeMode, str]] = ..., boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., rationale: _Optional[str] = ..., test_phases: _Optional[_Iterable[str]] = ..., compare_behavior: _Optional[bool] = ...) -> None: ...
 
 class RegressionAnchor(_message.Message):
     __slots__ = ("strategy", "scenario", "baseline_name", "head_sha", "allowlist_paths", "commands", "captured_at", "unavailable")

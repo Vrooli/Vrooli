@@ -15,11 +15,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // ValidationService is the verification surface: it resolves code references
 // against code-facts, computes staleness tiers from filesystem existence plus
 // git-sourced referenced-code change,
-// derives each phase's exact baseline/validation command set across all affected
-// locations, runs those baselines on request (compute + run, the agent in the
-// loop), and verifies Definition-of-Done against the regression anchor as an
-// oracle (baseline diff exit-0). Every cross-scenario call is behind a seam and
-// degrades to a marked gap (UNKNOWN), never a false PASS. See
+// selects validation policy and creates canonical Test Genie receipt intents.
+// Guided execution owns when to request phase and final validation; this API
+// exposes ticket creation and projection reads without dispatch or waiting.
+// Every cross-scenario call is behind a seam and degrades to a marked gap
+// (UNKNOWN), never a false PASS. See
 // docs/concepts/DOMAINS.md (validation) and docs/internal/SEAMS.md.
 //
 // This service does NOT own project-level validation of resources/packages —
@@ -37,26 +37,12 @@ service ValidationService {
   // ComputeStaleness computes staleness tiers for a plan/phase's references
   // (OT-P0-004, PM-STALE-001).
   rpc ComputeStaleness(ComputeStalenessRequest) returns (ComputeStalenessResponse);
-  // DeriveBaselineScope derives the exact baseline/validation command set across
-  // all affected locations for a phase (OT-P0-005).
-  rpc DeriveBaselineScope(DeriveBaselineScopeRequest) returns (DeriveBaselineScopeResponse);
   // StartValidation persists a durable producer ticket and exact action argv.
   // It never dispatches or waits for producer work.
   rpc StartValidation(StartValidationRequest) returns (StartValidationResponse);
-  // GetValidationOperation inspects a durable operation or waits once. A
-  // transport timeout detaches without canceling server-owned work.
+  // GetValidationOperation inspects a durable operation without waiting.
   rpc GetValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
-  rpc WaitValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
-  rpc ResumeValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
   rpc SyncValidation(SyncValidationRequest) returns (SyncValidationResponse);
-  // RunValidation runs the derived baseline/check set on request and returns the
-  // result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
-  // exec failure — degrades to UNKNOWN.
-  rpc RunValidation(RunValidationRequest) returns (RunValidationResponse);
-  // VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
-  // an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
-  // PM-VALID-002).
-  rpc VerifyDefinitionOfDone(VerifyDefinitionOfDoneRequest) returns (VerifyDefinitionOfDoneResponse);
 }
 
 message ResolveReferencesRequest {
@@ -81,18 +67,6 @@ message ComputeStalenessResponse {
   shared.StalenessTier overall = 1;
   repeated shared.Reference references = 2;
   bool degraded = 3;
-}
-
-message DeriveBaselineScopeRequest {
-  string plan_id = 1;
-  string phase_id = 2;
-}
-
-message DeriveBaselineScopeResponse {
-  // The exact baseline/diff command set across all affected locations.
-  repeated string commands = 1;
-  // The distinct affected locations the commands cover (scenarios + paths).
-  repeated string locations = 2;
 }
 
 enum ValidationOperationStatus {
@@ -187,7 +161,6 @@ message StartValidationResponse {
 
 message GetValidationOperationRequest {
   string operation_id = 1;
-  bool wait = 2;
 }
 
 message GetValidationOperationResponse {
@@ -199,24 +172,4 @@ message SyncValidationRequest {
 }
 message SyncValidationResponse {
   ValidationOperation operation = 1;
-}
-
-message RunValidationRequest {
-  string plan_id = 1;
-  string phase_id = 2;
-}
-
-message RunValidationResponse {
-  shared.ValidationResult result = 1;
-}
-
-message VerifyDefinitionOfDoneRequest {
-  string plan_id = 1;
-}
-
-message VerifyDefinitionOfDoneResponse {
-  shared.ValidationResult result = 1;
-  // True only when the regression-anchor oracle returned exit-0; false on FAIL;
-  // unset semantics carried by result.verdict == UNKNOWN when degraded.
-  bool dod_met = 2;
 }

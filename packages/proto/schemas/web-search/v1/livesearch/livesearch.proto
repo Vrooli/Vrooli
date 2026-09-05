@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.web_search.v1.livesearch;
 
+import "web-search/v1/shared/search.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1";
 
 // LiveSearchService is the L0/L1 live web-search surface: it fans a query out to
@@ -30,20 +32,6 @@ message SearchRequest {
   bool synthesize = 3;
 }
 
-// SearchResult is one live web-search hit, normalized from the SearXNG result
-// shape. score is the RAW SearXNG relevance score (not re-normalized here).
-message SearchResult {
-  string url = 1;
-  string title = 2;
-  // snippet is the SearXNG result "content" field.
-  string snippet = 3;
-  // engine names the upstream engine SearXNG sourced the result from.
-  string engine = 4;
-  // score is the raw SearXNG relevance score.
-  double score = 5;
-  // category is the SearXNG result category (e.g. "general").
-  string category = 6;
-}
 
 // Citation links a synthesis claim back to the SearchResult that supports it.
 message Citation {
@@ -65,17 +53,9 @@ message Synthesis {
   bool abstained = 3;
 }
 
-// EngineIssue names one upstream metasearch engine that did not answer a
-// query, with the upstream-reported reason (suspended, CAPTCHA, parse
-// error, ...). Structured (not a display string) so UIs can badge it and
-// automation can count it.
-message EngineIssue {
-  string engine = 1;
-  string reason = 2;
-}
 
 message SearchResponse {
-  repeated SearchResult results = 1;
+  repeated vrooli.web_search.v1.shared.SearchResult results = 1;
   // synthesis is present only when the request set synthesize and the pass ran.
   Synthesis synthesis = 2;
   // cached is true when the results came from the in-memory TTL cache.
@@ -87,5 +67,5 @@ message SearchResponse {
   // degraded_engines lists engines that did not contribute to THIS query
   // (per-query signal from the metasearch layer). Results may be partial when
   // non-empty; for cached responses this reflects the engines at fetch time.
-  repeated EngineIssue degraded_engines = 6;
+  repeated vrooli.web_search.v1.shared.EngineIssue degraded_engines = 6;
 }

@@ -466,3 +466,18 @@ message CliHostInstallStatus {
   // True when the operation succeeded or the tool was already present.
   bool ok = 9;
 }
+
+// Live logind/X-server peer association. This is not an execution grant.
+message CliDesktopSessionFacts {
+ string session_id = 1;
+ uint32 uid = 2;
+ int64 peer_pid = 3;
+ uint32 peer_uid = 4;
+ string type = 5;
+ bool active = 6;
+ bool locked = 7;
+ bool remote = 8;
+ bool matched = 9;
+ string reason = 10;
+ string observed_at = 11;
+}

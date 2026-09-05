@@ -45,6 +45,9 @@ const (
 	// LibraryServiceSetCurrentLibraryProcedure is the fully-qualified name of the LibraryService's
 	// SetCurrentLibrary RPC.
 	LibraryServiceSetCurrentLibraryProcedure = "/vrooli.program_runtime.v1.library.LibraryService/SetCurrentLibrary"
+	// LibraryServiceRunDeclaredProgramProcedure is the fully-qualified name of the LibraryService's
+	// RunDeclaredProgram RPC.
+	LibraryServiceRunDeclaredProgramProcedure = "/vrooli.program_runtime.v1.library.LibraryService/RunDeclaredProgram"
 )
 
 // LibraryServiceClient is a client for the vrooli.program_runtime.v1.library.LibraryService
@@ -54,6 +57,7 @@ type LibraryServiceClient interface {
 	GetLibrary(context.Context, *connect.Request[library.GetLibraryRequest]) (*connect.Response[library.GetLibraryResponse], error)
 	PromoteLibrary(context.Context, *connect.Request[library.PromoteLibraryRequest]) (*connect.Response[library.PromoteLibraryResponse], error)
 	SetCurrentLibrary(context.Context, *connect.Request[library.SetCurrentLibraryRequest]) (*connect.Response[library.SetCurrentLibraryResponse], error)
+	RunDeclaredProgram(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error)
 }
 
 // NewLibraryServiceClient constructs a client for the
@@ -92,15 +96,22 @@ func NewLibraryServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(libraryServiceMethods.ByName("SetCurrentLibrary")),
 			connect.WithClientOptions(opts...),
 		),
+		runDeclaredProgram: connect.NewClient[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse](
+			httpClient,
+			baseURL+LibraryServiceRunDeclaredProgramProcedure,
+			connect.WithSchema(libraryServiceMethods.ByName("RunDeclaredProgram")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // libraryServiceClient implements LibraryServiceClient.
 type libraryServiceClient struct {
-	listLibrary       *connect.Client[library.ListLibraryRequest, library.ListLibraryResponse]
-	getLibrary        *connect.Client[library.GetLibraryRequest, library.GetLibraryResponse]
-	promoteLibrary    *connect.Client[library.PromoteLibraryRequest, library.PromoteLibraryResponse]
-	setCurrentLibrary *connect.Client[library.SetCurrentLibraryRequest, library.SetCurrentLibraryResponse]
+	listLibrary        *connect.Client[library.ListLibraryRequest, library.ListLibraryResponse]
+	getLibrary         *connect.Client[library.GetLibraryRequest, library.GetLibraryResponse]
+	promoteLibrary     *connect.Client[library.PromoteLibraryRequest, library.PromoteLibraryResponse]
+	setCurrentLibrary  *connect.Client[library.SetCurrentLibraryRequest, library.SetCurrentLibraryResponse]
+	runDeclaredProgram *connect.Client[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse]
 }
 
 // ListLibrary calls vrooli.program_runtime.v1.library.LibraryService.ListLibrary.
@@ -123,6 +134,11 @@ func (c *libraryServiceClient) SetCurrentLibrary(ctx context.Context, req *conne
 	return c.setCurrentLibrary.CallUnary(ctx, req)
 }
 
+// RunDeclaredProgram calls vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram.
+func (c *libraryServiceClient) RunDeclaredProgram(ctx context.Context, req *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error) {
+	return c.runDeclaredProgram.CallUnary(ctx, req)
+}
+
 // LibraryServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.library.LibraryService service.
 type LibraryServiceHandler interface {
@@ -130,6 +146,7 @@ type LibraryServiceHandler interface {
 	GetLibrary(context.Context, *connect.Request[library.GetLibraryRequest]) (*connect.Response[library.GetLibraryResponse], error)
 	PromoteLibrary(context.Context, *connect.Request[library.PromoteLibraryRequest]) (*connect.Response[library.PromoteLibraryResponse], error)
 	SetCurrentLibrary(context.Context, *connect.Request[library.SetCurrentLibraryRequest]) (*connect.Response[library.SetCurrentLibraryResponse], error)
+	RunDeclaredProgram(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error)
 }
 
 // NewLibraryServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -163,6 +180,12 @@ func NewLibraryServiceHandler(svc LibraryServiceHandler, opts ...connect.Handler
 		connect.WithSchema(libraryServiceMethods.ByName("SetCurrentLibrary")),
 		connect.WithHandlerOptions(opts...),
 	)
+	libraryServiceRunDeclaredProgramHandler := connect.NewUnaryHandler(
+		LibraryServiceRunDeclaredProgramProcedure,
+		svc.RunDeclaredProgram,
+		connect.WithSchema(libraryServiceMethods.ByName("RunDeclaredProgram")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.library.LibraryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LibraryServiceListLibraryProcedure:
@@ -173,6 +196,8 @@ func NewLibraryServiceHandler(svc LibraryServiceHandler, opts ...connect.Handler
 			libraryServicePromoteLibraryHandler.ServeHTTP(w, r)
 		case LibraryServiceSetCurrentLibraryProcedure:
 			libraryServiceSetCurrentLibraryHandler.ServeHTTP(w, r)
+		case LibraryServiceRunDeclaredProgramProcedure:
+			libraryServiceRunDeclaredProgramHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -196,4 +221,8 @@ func (UnimplementedLibraryServiceHandler) PromoteLibrary(context.Context, *conne
 
 func (UnimplementedLibraryServiceHandler) SetCurrentLibrary(context.Context, *connect.Request[library.SetCurrentLibraryRequest]) (*connect.Response[library.SetCurrentLibraryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary is not implemented"))
+}
+
+func (UnimplementedLibraryServiceHandler) RunDeclaredProgram(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.library.LibraryService.RunDeclaredProgram is not implemented"))
 }

@@ -86,7 +86,7 @@ class FindingMaturity(_message.Message):
     def __init__(self, local_level: _Optional[str] = ..., global_impact: _Optional[_Union[GlobalImpact, str]] = ..., dimension: _Optional[str] = ..., recommended_skill_ids: _Optional[_Iterable[str]] = ..., clean_requirement: _Optional[_Union[CleanRequirement, str]] = ..., capability_id: _Optional[str] = ...) -> None: ...
 
 class AssessmentFinding(_message.Message):
-    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity", "autofix_available", "fix_class", "subject")
+    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity", "autofix_available", "fix_class", "subject", "evidence")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -97,6 +97,7 @@ class AssessmentFinding(_message.Message):
     AUTOFIX_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
     SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     code: str
     severity: str
     title: str
@@ -107,7 +108,20 @@ class AssessmentFinding(_message.Message):
     autofix_available: bool
     fix_class: str
     subject: _validation_target_pb2.ValidationTarget
-    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ..., subject: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
+    evidence: _containers.RepeatedCompositeFieldContainer[AssessmentEvidence]
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ..., subject: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[AssessmentEvidence, _Mapping]]] = ...) -> None: ...
+
+class AssessmentEvidence(_message.Message):
+    __slots__ = ("kind", "summary", "locator", "payload")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    LOCATOR_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    summary: str
+    locator: str
+    payload: bytes
+    def __init__(self, kind: _Optional[str] = ..., summary: _Optional[str] = ..., locator: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
 
 class LocalMaturityAssessment(_message.Message):
     __slots__ = ("current_level", "next_level", "levels", "blocking_finding_codes", "clean", "unknown_count")

@@ -34,4 +34,6 @@ message LibraryProgram {
   string validation_error = 23;
   string path = 24;
   double score = 25;
+  // SHA-256 of the declared contract bytes and sibling executable source.
+  string content_digest = 26;
 }

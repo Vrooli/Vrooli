@@ -4,13 +4,14 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file react-component-library/v1/preview/preview.proto.
  */
 export const file_react_component_library_v1_preview_preview: GenFile = /*@__PURE__*/
-  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9wcmV2aWV3L3ByZXZpZXcucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3IiUKF0dldFByZXZpZXdCdW5kbGVSZXF1ZXN0EgoKAmlkGAEgASgJIl0KGEdldFByZXZpZXdCdW5kbGVSZXNwb25zZRIKCgJqcxgBIAEoCRITCgtzb3VyY2VfcGF0aBgCIAEoCRIOCgZzaGEyNTYYAyABKAkSEAoId2FybmluZ3MYBCADKAkyrgEKDlByZXZpZXdTZXJ2aWNlEpsBChBHZXRQcmV2aWV3QnVuZGxlEkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuR2V0UHJldmlld0J1bmRsZVJlcXVlc3QaQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEucHJldmlldy5HZXRQcmV2aWV3QnVuZGxlUmVzcG9uc2VCXlpcZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9wcmV2aWV3O3ByZXZpZXdfdjFiBnByb3RvMw");
+  fileDesc("CjByZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9wcmV2aWV3L3ByZXZpZXcucHJvdG8SKXZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3IiUKF0dldFByZXZpZXdCdW5kbGVSZXF1ZXN0EgoKAmlkGAEgASgJIl0KGEdldFByZXZpZXdCdW5kbGVSZXNwb25zZRIKCgJqcxgBIAEoCRITCgtzb3VyY2VfcGF0aBgCIAEoCRIOCgZzaGEyNTYYAyABKAkSEAoId2FybmluZ3MYBCADKAkiRwoQQ29tcG9zaXRpb25Bc3NldBISCgpjYXRhbG9nX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSDgoGZXhwb3J0GAMgASgJIpsBChFDb21wb3NpdGlvblJlZ2lvbhIKCgJpZBgBIAEoCRJKCgVhc3NldBgCIAEoCzI7LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LkNvbXBvc2l0aW9uQXNzZXQSDAoEc2xvdBgDIAMoCRIQCghyZXF1aXJlZBgEIAEoCBIOCgZwYXJlbnQYBSABKAkizQEKG0dldENvbXBvc2l0aW9uQnVuZGxlUmVxdWVzdBIQCghyZXZpc2lvbhgBIAEoCRJNCgh0ZW1wbGF0ZRgCIAEoCzI7LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LkNvbXBvc2l0aW9uQXNzZXQSTQoHcmVnaW9ucxgDIAMoCzI8LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LkNvbXBvc2l0aW9uUmVnaW9uIlEKDkNvbXBvc2l0aW9uR2FwEg4KBnJlZ2lvbhgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSEAoIcmVxdWlyZWQYBCABKAgitwEKHEdldENvbXBvc2l0aW9uQnVuZGxlUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAkSDgoGc291cmNlGAIgASgJEgoKAmpzGAMgASgJEg4KBnNoYTI1NhgEIAEoCRIQCgh3YXJuaW5ncxgFIAMoCRJHCgRnYXBzGAYgAygLMjkudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuQ29tcG9zaXRpb25HYXAidwoZQ29tcG9zaXRpb25GaXh0dXJlQmluZGluZxIOCgZ0YXJnZXQYASABKAkSDQoFYXNzZXQYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRINCgVzdGF0ZRgEIAEoCRINCgVmaWVsZBgFIAEoCRIMCgRwcm9wGAYgAygJIqkCChhSZW5kZXJDb21wb3NpdGlvblJlcXVlc3QSWwoLY29tcG9zaXRpb24YASABKAsyRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEucHJldmlldy5HZXRDb21wb3NpdGlvbkJ1bmRsZVJlcXVlc3QSKQoIYmluZGluZ3MYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0ElYKCGZpeHR1cmVzGAMgAygLMkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuQ29tcG9zaXRpb25GaXh0dXJlQmluZGluZxILCgNraXQYBCABKAkSDQoFdGhlbWUYBSABKAkSEQoJZGlyZWN0aW9uGAYgASgJIusBChlSZW5kZXJDb21wb3NpdGlvblJlc3BvbnNlElcKBmJ1bmRsZRgBIAEoCzJHLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LkdldENvbXBvc2l0aW9uQnVuZGxlUmVzcG9uc2USDAoEaHRtbBgCIAEoCRITCgtyZW5kZXJfaGFzaBgDIAEoCRJSCgZ0YXJnZXQYBCABKAsyQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEucHJldmlldy5Db21wb3NpdGlvblJlbmRlclRhcmdldCLIAgoXQ29tcG9zaXRpb25SZW5kZXJUYXJnZXQSaQoMaW5wdXRfaGFzaGVzGAkgAygLMlMudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuQ29tcG9zaXRpb25SZW5kZXJUYXJnZXQuSW5wdXRIYXNoZXNFbnRyeRIQCghyZXZpc2lvbhgBIAEoCRITCgtyZW5kZXJfaGFzaBgCIAEoCRITCgtodG1sX3NoYTI1NhgDIAEoCRIVCg1pbnB1dHNfc2hhMjU2GAQgASgJEgwKBGtpbmQYBSABKAkSCwoDa2l0GAYgASgJEg0KBXRoZW1lGAcgASgJEhEKCWRpcmVjdGlvbhgIIAEoCRoyChBJbnB1dEhhc2hlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEy+QMKDlByZXZpZXdTZXJ2aWNlEp4BChFSZW5kZXJDb21wb3NpdGlvbhJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LlJlbmRlckNvbXBvc2l0aW9uUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LlJlbmRlckNvbXBvc2l0aW9uUmVzcG9uc2USpwEKFEdldENvbXBvc2l0aW9uQnVuZGxlEkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuR2V0Q29tcG9zaXRpb25CdW5kbGVSZXF1ZXN0GkcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuR2V0Q29tcG9zaXRpb25CdW5kbGVSZXNwb25zZRKbAQoQR2V0UHJldmlld0J1bmRsZRJCLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5wcmV2aWV3LkdldFByZXZpZXdCdW5kbGVSZXF1ZXN0GkMudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnByZXZpZXcuR2V0UHJldmlld0J1bmRsZVJlc3BvbnNlQl5aXGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcmVhY3QtY29tcG9uZW50LWxpYnJhcnkvdjEvcHJldmlldztwcmV2aWV3X3YxYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.react_component_library.v1.preview.GetPreviewBundleRequest
@@ -79,9 +80,370 @@ export const GetPreviewBundleResponseSchema: GenMessage<GetPreviewBundleResponse
   messageDesc(file_react_component_library_v1_preview_preview, 1);
 
 /**
+ * Exact exports and prop slots used by both generated scenario code and Preview.
+ *
+ * @generated from message vrooli.react_component_library.v1.preview.CompositionAsset
+ */
+export type CompositionAsset = Message<"vrooli.react_component_library.v1.preview.CompositionAsset"> & {
+  /**
+   * @generated from field: string catalog_id = 1;
+   */
+  catalogId: string;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string export = 3;
+   */
+  export: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.CompositionAsset.
+ * Use `create(CompositionAssetSchema)` to create a new message.
+ */
+export const CompositionAssetSchema: GenMessage<CompositionAsset> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 2);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.CompositionRegion
+ */
+export type CompositionRegion = Message<"vrooli.react_component_library.v1.preview.CompositionRegion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.preview.CompositionAsset asset = 2;
+   */
+  asset?: CompositionAsset | undefined;
+
+  /**
+   * @generated from field: repeated string slot = 3;
+   */
+  slot: string[];
+
+  /**
+   * @generated from field: bool required = 4;
+   */
+  required: boolean;
+
+  /**
+   * @generated from field: string parent = 5;
+   */
+  parent: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.CompositionRegion.
+ * Use `create(CompositionRegionSchema)` to create a new message.
+ */
+export const CompositionRegionSchema: GenMessage<CompositionRegion> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 3);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.GetCompositionBundleRequest
+ */
+export type GetCompositionBundleRequest = Message<"vrooli.react_component_library.v1.preview.GetCompositionBundleRequest"> & {
+  /**
+   * @generated from field: string revision = 1;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.preview.CompositionAsset template = 2;
+   */
+  template?: CompositionAsset | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.preview.CompositionRegion regions = 3;
+   */
+  regions: CompositionRegion[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.GetCompositionBundleRequest.
+ * Use `create(GetCompositionBundleRequestSchema)` to create a new message.
+ */
+export const GetCompositionBundleRequestSchema: GenMessage<GetCompositionBundleRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 4);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.CompositionGap
+ */
+export type CompositionGap = Message<"vrooli.react_component_library.v1.preview.CompositionGap"> & {
+  /**
+   * @generated from field: string region = 1;
+   */
+  region: string;
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: bool required = 4;
+   */
+  required: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.CompositionGap.
+ * Use `create(CompositionGapSchema)` to create a new message.
+ */
+export const CompositionGapSchema: GenMessage<CompositionGap> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 5);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.GetCompositionBundleResponse
+ */
+export type GetCompositionBundleResponse = Message<"vrooli.react_component_library.v1.preview.GetCompositionBundleResponse"> & {
+  /**
+   * @generated from field: string revision = 1;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string source = 2;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string js = 3;
+   */
+  js: string;
+
+  /**
+   * @generated from field: string sha256 = 4;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: repeated string warnings = 5;
+   */
+  warnings: string[];
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.preview.CompositionGap gaps = 6;
+   */
+  gaps: CompositionGap[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.GetCompositionBundleResponse.
+ * Use `create(GetCompositionBundleResponseSchema)` to create a new message.
+ */
+export const GetCompositionBundleResponseSchema: GenMessage<GetCompositionBundleResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 6);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.CompositionFixtureBinding
+ */
+export type CompositionFixtureBinding = Message<"vrooli.react_component_library.v1.preview.CompositionFixtureBinding"> & {
+  /**
+   * @generated from field: string target = 1;
+   */
+  target: string;
+
+  /**
+   * @generated from field: string asset = 2;
+   */
+  asset: string;
+
+  /**
+   * @generated from field: string version = 3;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string state = 4;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string field = 5;
+   */
+  field: string;
+
+  /**
+   * @generated from field: repeated string prop = 6;
+   */
+  prop: string[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.CompositionFixtureBinding.
+ * Use `create(CompositionFixtureBindingSchema)` to create a new message.
+ */
+export const CompositionFixtureBindingSchema: GenMessage<CompositionFixtureBinding> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 7);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.RenderCompositionRequest
+ */
+export type RenderCompositionRequest = Message<"vrooli.react_component_library.v1.preview.RenderCompositionRequest"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.preview.GetCompositionBundleRequest composition = 1;
+   */
+  composition?: GetCompositionBundleRequest | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct bindings = 2;
+   */
+  bindings?: JsonObject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.preview.CompositionFixtureBinding fixtures = 3;
+   */
+  fixtures: CompositionFixtureBinding[];
+
+  /**
+   * @generated from field: string kit = 4;
+   */
+  kit: string;
+
+  /**
+   * @generated from field: string theme = 5;
+   */
+  theme: string;
+
+  /**
+   * @generated from field: string direction = 6;
+   */
+  direction: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.RenderCompositionRequest.
+ * Use `create(RenderCompositionRequestSchema)` to create a new message.
+ */
+export const RenderCompositionRequestSchema: GenMessage<RenderCompositionRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 8);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.preview.RenderCompositionResponse
+ */
+export type RenderCompositionResponse = Message<"vrooli.react_component_library.v1.preview.RenderCompositionResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.preview.GetCompositionBundleResponse bundle = 1;
+   */
+  bundle?: GetCompositionBundleResponse | undefined;
+
+  /**
+   * @generated from field: string html = 2;
+   */
+  html: string;
+
+  /**
+   * @generated from field: string render_hash = 3;
+   */
+  renderHash: string;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.preview.CompositionRenderTarget target = 4;
+   */
+  target?: CompositionRenderTarget | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.RenderCompositionResponse.
+ * Use `create(RenderCompositionResponseSchema)` to create a new message.
+ */
+export const RenderCompositionResponseSchema: GenMessage<RenderCompositionResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 9);
+
+/**
+ * Exact preview target. Viewport and interaction identity are supplied by the
+ * browser capture operation; this descriptor does not claim browser execution.
+ *
+ * @generated from message vrooli.react_component_library.v1.preview.CompositionRenderTarget
+ */
+export type CompositionRenderTarget = Message<"vrooli.react_component_library.v1.preview.CompositionRenderTarget"> & {
+  /**
+   * Digests of independently comparable rendering inputs and generated harness.
+   *
+   * @generated from field: map<string, string> input_hashes = 9;
+   */
+  inputHashes: { [key: string]: string };
+
+  /**
+   * @generated from field: string revision = 1;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string render_hash = 2;
+   */
+  renderHash: string;
+
+  /**
+   * @generated from field: string html_sha256 = 3;
+   */
+  htmlSha256: string;
+
+  /**
+   * @generated from field: string inputs_sha256 = 4;
+   */
+  inputsSha256: string;
+
+  /**
+   * @generated from field: string kind = 5;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string kit = 6;
+   */
+  kit: string;
+
+  /**
+   * @generated from field: string theme = 7;
+   */
+  theme: string;
+
+  /**
+   * @generated from field: string direction = 8;
+   */
+  direction: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.preview.CompositionRenderTarget.
+ * Use `create(CompositionRenderTargetSchema)` to create a new message.
+ */
+export const CompositionRenderTargetSchema: GenMessage<CompositionRenderTarget> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_preview_preview, 10);
+
+/**
  * @generated from service vrooli.react_component_library.v1.preview.PreviewService
  */
 export const PreviewService: GenService<{
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.preview.PreviewService.RenderComposition
+   */
+  renderComposition: {
+    methodKind: "unary";
+    input: typeof RenderCompositionRequestSchema;
+    output: typeof RenderCompositionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.preview.PreviewService.GetCompositionBundle
+   */
+  getCompositionBundle: {
+    methodKind: "unary";
+    input: typeof GetCompositionBundleRequestSchema;
+    output: typeof GetCompositionBundleResponseSchema;
+  },
   /**
    * GetPreviewBundle transpiles the component's source file into an
    * ES module and returns the JS text. The handler is read-only with

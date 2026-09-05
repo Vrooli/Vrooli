@@ -1,6 +1,7 @@
 import datetime
 
 from buf.validate import validate_pb2 as _validate_pb2
+from scenario_to_desktop.v1.domain import config_pb2 as _config_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from scenario_to_desktop.v1.shared import common_pb2 as _common_pb2
 from scenario_to_desktop.v1.shared import metadata_pb2 as _metadata_pb2
@@ -16,7 +17,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PipelineConfig(_message.Message):
-    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config")
+    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config", "native_extension")
     class PreflightSecretsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -53,6 +54,7 @@ class PipelineConfig(_message.Message):
     STAGES_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_TRUST_MODE_FIELD_NUMBER: _ClassVar[int]
     UPDATE_CONFIG_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_EXTENSION_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     platforms: _containers.RepeatedScalarFieldContainer[_common_pb2.Platform]
     skip_preflight: bool
@@ -82,7 +84,8 @@ class PipelineConfig(_message.Message):
     stages: _containers.RepeatedScalarFieldContainer[_common_pb2.StageName]
     artifact_trust_mode: str
     update_config: _update_config_pb2.UpdateConfig
-    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ...) -> None: ...
+    native_extension: _config_pb2.NativeExtension
+    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., native_extension: _Optional[_Union[_config_pb2.NativeExtension, _Mapping]] = ...) -> None: ...
 
 class StageResult(_message.Message):
     __slots__ = ("stage", "status", "started_at", "completed_at", "error", "logs", "details")

@@ -33,7 +33,7 @@ func (s *Service) resolveTarget(scenarioName string, opts DocHealthOptions) (doc
 	pathArg := strings.TrimSpace(opts.Path)
 	scenarioName = strings.TrimSpace(scenarioName)
 
-	usePath := scope == "path" || (scope == "" && scenarioName == "" && pathArg != "")
+	usePath := scope == "path" || scope == "path-exact" || (scope == "" && scenarioName == "" && pathArg != "")
 	if usePath {
 		if pathArg == "" {
 			return docTarget{}, fmt.Errorf("%w: scope=path requires --path", ErrScenarioNameInvalid)
@@ -45,6 +45,9 @@ func (s *Service) resolveTarget(scenarioName string, opts DocHealthOptions) (doc
 		abs = filepath.Clean(abs)
 		if _, err := os.Stat(abs); err != nil {
 			return docTarget{}, fmt.Errorf("%w: %s", ErrScenarioNotFound, pathArg)
+		}
+		if scope == "path-exact" {
+			return docTarget{root: abs, isScenario: false, label: s.relLabel(abs)}, nil
 		}
 		if name, ok := s.scenarioForPath(abs); ok {
 			return docTarget{

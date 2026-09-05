@@ -384,6 +384,10 @@ message GetExecutionResponse {
 message ValidateWorkflowRequest {
   // The workflow definition to validate.
   WorkflowDefinitionV2 workflow = 1;
+  // For automated repair, preserve existing assertions and execution policy.
+  string baseline_workflow_id = 2;
+  int32 expected_version = 3;
+  bool require_assertion = 4;
 }
 
 // ValidateWorkflowResponse wraps the validation result.

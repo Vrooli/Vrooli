@@ -208,8 +208,10 @@ type BaselineSetState struct {
 	LastSyncedAt         string                     `protobuf:"bytes,20,opt,name=last_synced_at,json=lastSyncedAt,proto3" json:"last_synced_at,omitempty"`
 	SourcePreflight      *SourceEvidencePreflight   `protobuf:"bytes,21,opt,name=source_preflight,json=sourcePreflight,proto3" json:"source_preflight,omitempty"`
 	PreflightUnavailable bool                       `protobuf:"varint,22,opt,name=preflight_unavailable,json=preflightUnavailable,proto3" json:"preflight_unavailable,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Canonical Test Genie receipt which owns behavioral-before capture.
+	ReceiptId     string `protobuf:"bytes,23,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BaselineSetState) Reset() {
@@ -394,6 +396,13 @@ func (x *BaselineSetState) GetPreflightUnavailable() bool {
 		return x.PreflightUnavailable
 	}
 	return false
+}
+
+func (x *BaselineSetState) GetReceiptId() string {
+	if x != nil {
+		return x.ReceiptId
+	}
+	return ""
 }
 
 // Direct GCT preflight evidence retained with the execution checkpoint. It is
@@ -3702,7 +3711,7 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x10abandoned_reason\x18\f \x01(\tR\x0fabandonedReason\x12!\n" +
 	"\fabandoned_at\x18\r \x01(\tR\vabandonedAt\x12!\n" +
 	"\fabandoned_by\x18\x0e \x01(\tR\vabandonedBy\x12d\n" +
-	"\x13boundary_extensions\x18\x0f \x03(\v23.vrooli.plan_manager.v1.execution.BoundaryExtensionR\x12boundaryExtensions\"\xeb\x06\n" +
+	"\x13boundary_extensions\x18\x0f \x03(\v23.vrooli.plan_manager.v1.execution.BoundaryExtensionR\x12boundaryExtensions\"\x8a\a\n" +
 	"\x10BaselineSetState\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
@@ -3728,7 +3737,9 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\tsync_argv\x18\x13 \x03(\tR\bsyncArgv\x12$\n" +
 	"\x0elast_synced_at\x18\x14 \x01(\tR\flastSyncedAt\x12d\n" +
 	"\x10source_preflight\x18\x15 \x01(\v29.vrooli.plan_manager.v1.execution.SourceEvidencePreflightR\x0fsourcePreflight\x123\n" +
-	"\x15preflight_unavailable\x18\x16 \x01(\bR\x14preflightUnavailable\"\xe1\x06\n" +
+	"\x15preflight_unavailable\x18\x16 \x01(\bR\x14preflightUnavailable\x12\x1d\n" +
+	"\n" +
+	"receipt_id\x18\x17 \x01(\tR\treceiptId\"\xe1\x06\n" +
 	"\x17SourceEvidencePreflight\x12%\n" +
 	"\x0eeligible_files\x18\x01 \x01(\x05R\religibleFiles\x12%\n" +
 	"\x0eeligible_bytes\x18\x02 \x01(\x03R\religibleBytes\x124\n" +

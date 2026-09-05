@@ -133,6 +133,8 @@ message BaselineSetState {
   string last_synced_at = 20;
   SourceEvidencePreflight source_preflight = 21;
   bool preflight_unavailable = 22;
+  // Canonical Test Genie receipt which owns behavioral-before capture.
+  string receipt_id = 23;
 }
 
 // Direct GCT preflight evidence retained with the execution checkpoint. It is

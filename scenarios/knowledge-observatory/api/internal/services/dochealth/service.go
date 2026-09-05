@@ -254,9 +254,22 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 		}
 	}
 
+	// TotalDocs and per-check counters have distinct meanings: the selected
+	// Markdown corpus, then the work actually performed by each check.
+	if sel.needsMarkdownFiles(target) {
+		result.TotalDocs = len(files)
+	}
+
 	// Per-file content + number checks.
 	var linkTasks []linkTarget
 	for _, file := range files {
+		if sel.runs(checkLinks, target) && !sel.runs(checkContent, target) {
+			_, _, links, ioErrs := inspectMarkdownFile(file, cfg)
+			linkTasks = append(linkTasks, links...)
+			for _, msg := range ioErrs {
+				result.ContentFindings = append(result.ContentFindings, Finding{Code: "file_read_error", Severity: SeverityFailure, Message: msg, Path: file})
+			}
+		}
 		if sel.runs(checkContent, target) {
 			findings, summary, links, ioErrs := inspectMarkdownFile(file, cfg, s.diagramValidator)
 			result.ContentFindings = append(result.ContentFindings, findings...)
@@ -295,7 +308,14 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 	}
 
 	if sel.runs(checkRefs, target) {
-		refFindings, refSum := validateBidirectionalRefs(ctx, target.root, files, cfg, s.commandValidator)
+		referenceRoot := target.root
+		if !target.isScenario {
+			referenceRoot = s.repoRoot()
+			if name, ok := s.scenarioForPath(target.root); ok {
+				referenceRoot = filepath.Join(s.scenariosRoot, name)
+			}
+		}
+		refFindings, refSum := validateBidirectionalRefsWithRoot(ctx, target.root, referenceRoot, files, cfg, s.commandValidator)
 		result.ReferenceFindings = append(result.ReferenceFindings, refFindings...)
 		result.Counts.CodeRefsFound = refSum.CodeRefsFound
 		result.Counts.CodeRefsBroken = refSum.CodeRefsBroken

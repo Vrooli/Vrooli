@@ -512,6 +512,10 @@ type AppendEntryRequest struct {
 	Evidence         string                 `protobuf:"bytes,9,opt,name=evidence,proto3" json:"evidence,omitempty"`
 	Outcome          string                 `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	Scope            string                 `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Optional optimistic append condition on latest entry of the same scope/kind.
+	// Present empty string requires no predecessor. Request-key retries return the original receipt.
+	ExpectedLatestId *string `protobuf:"bytes,12,opt,name=expected_latest_id,json=expectedLatestId,proto3,oneof" json:"expected_latest_id,omitempty"`
+	RequestKey       string  `protobuf:"bytes,13,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -623,6 +627,20 @@ func (x *AppendEntryRequest) GetScope() string {
 	return ""
 }
 
+func (x *AppendEntryRequest) GetExpectedLatestId() string {
+	if x != nil && x.ExpectedLatestId != nil {
+		return *x.ExpectedLatestId
+	}
+	return ""
+}
+
+func (x *AppendEntryRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
 type AppendEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entry         *Entry                 `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
@@ -679,6 +697,7 @@ type GetEntryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	RequestKey    string                 `protobuf:"bytes,3,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -723,6 +742,13 @@ func (x *GetEntryRequest) GetId() string {
 func (x *GetEntryRequest) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *GetEntryRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
 	}
 	return ""
 }
@@ -772,11 +798,15 @@ func (x *GetEntryResponse) GetEntry() *Entry {
 }
 
 type ListEntriesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FacetId       string                 `protobuf:"bytes,1,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Cursor        string                 `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	FacetId string                 `protobuf:"bytes,1,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
+	Limit   int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor  string                 `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Scope   string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Latest-first bounded read, optionally restricted to an exact entry kind.
+	// Cursor and facet filters are not supported in this mode.
+	NewestFirst   bool   `protobuf:"varint,5,opt,name=newest_first,json=newestFirst,proto3" json:"newest_first,omitempty"`
+	Kind          string `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -835,6 +865,20 @@ func (x *ListEntriesRequest) GetCursor() string {
 func (x *ListEntriesRequest) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *ListEntriesRequest) GetNewestFirst() bool {
+	if x != nil {
+		return x.NewestFirst
+	}
+	return false
+}
+
+func (x *ListEntriesRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
@@ -1159,7 +1203,7 @@ const file_source_ledger_v1_journal_journal_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12?\n" +
 	"\rsuperseded_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\fsupersededAt\x12\x12\n" +
 	"\x04kind\x18\n" +
-	" \x01(\tR\x04kind\"\xd9\x03\n" +
+	" \x01(\tR\x04kind\"\xc4\x04\n" +
 	"\x12AppendEntryRequest\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
@@ -1172,20 +1216,28 @@ const file_source_ledger_v1_journal_journal_proto_rawDesc = "" +
 	"\bevidence\x18\t \x01(\tR\bevidence\x12\x18\n" +
 	"\aoutcome\x18\n" +
 	" \x01(\tR\aoutcome\x12\x14\n" +
-	"\x05scope\x18\v \x01(\tR\x05scope\"o\n" +
+	"\x05scope\x18\v \x01(\tR\x05scope\x121\n" +
+	"\x12expected_latest_id\x18\f \x01(\tH\x00R\x10expectedLatestId\x88\x01\x01\x12\x1f\n" +
+	"\vrequest_key\x18\r \x01(\tR\n" +
+	"requestKeyB\x15\n" +
+	"\x13_expected_latest_id\"o\n" +
 	"\x13AppendEntryResponse\x12<\n" +
 	"\x05entry\x18\x01 \x01(\v2&.vrooli.source_ledger.v1.journal.EntryR\x05entry\x12\x1a\n" +
-	"\bexisting\x18\x02 \x01(\bR\bexisting\"7\n" +
+	"\bexisting\x18\x02 \x01(\bR\bexisting\"X\n" +
 	"\x0fGetEntryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05scope\x18\x02 \x01(\tR\x05scope\"P\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x1f\n" +
+	"\vrequest_key\x18\x03 \x01(\tR\n" +
+	"requestKey\"P\n" +
 	"\x10GetEntryResponse\x12<\n" +
-	"\x05entry\x18\x01 \x01(\v2&.vrooli.source_ledger.v1.journal.EntryR\x05entry\"s\n" +
+	"\x05entry\x18\x01 \x01(\v2&.vrooli.source_ledger.v1.journal.EntryR\x05entry\"\xaa\x01\n" +
 	"\x12ListEntriesRequest\x12\x19\n" +
 	"\bfacet_id\x18\x01 \x01(\tR\afacetId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06cursor\x18\x03 \x01(\tR\x06cursor\x12\x14\n" +
-	"\x05scope\x18\x04 \x01(\tR\x05scope\"x\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\x12!\n" +
+	"\fnewest_first\x18\x05 \x01(\bR\vnewestFirst\x12\x12\n" +
+	"\x04kind\x18\x06 \x01(\tR\x04kind\"x\n" +
 	"\x13ListEntriesResponse\x12@\n" +
 	"\aentries\x18\x01 \x03(\v2&.vrooli.source_ledger.v1.journal.EntryR\aentries\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
@@ -1284,6 +1336,7 @@ func file_source_ledger_v1_journal_journal_proto_init() {
 	if File_source_ledger_v1_journal_journal_proto != nil {
 		return
 	}
+	file_source_ledger_v1_journal_journal_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

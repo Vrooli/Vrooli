@@ -2,12 +2,12 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
-from typing import ClassVar as _ClassVar, Optional as _Optional
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Selection(_message.Message):
-    __slots__ = ("schema_version", "target", "scenarios", "optional_resources", "core_seed", "trusted_base", "host_tools", "host_safeguards", "credential_addresses", "trust_posture", "update_control", "session_mode", "operating_mode", "apply")
+    __slots__ = ("schema_version", "target", "scenarios", "optional_resources", "core_seed", "trusted_base", "host_tools", "host_safeguards", "credential_addresses", "trust_posture", "update_control", "session_mode", "operating_mode", "apply", "capacity_posture", "transient_headroom_reserve_bytes", "resource_capacity")
     class OperatingModeEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -15,6 +15,13 @@ class Selection(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    class ResourceCapacityEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ResourceCapacitySelection
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ResourceCapacitySelection, _Mapping]] = ...) -> None: ...
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
@@ -29,6 +36,9 @@ class Selection(_message.Message):
     SESSION_MODE_FIELD_NUMBER: _ClassVar[int]
     OPERATING_MODE_FIELD_NUMBER: _ClassVar[int]
     APPLY_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_POSTURE_FIELD_NUMBER: _ClassVar[int]
+    TRANSIENT_HEADROOM_RESERVE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_CAPACITY_FIELD_NUMBER: _ClassVar[int]
     schema_version: str
     target: str
     scenarios: _containers.RepeatedScalarFieldContainer[str]
@@ -43,4 +53,30 @@ class Selection(_message.Message):
     session_mode: str
     operating_mode: _containers.ScalarMap[str, str]
     apply: bool
-    def __init__(self, schema_version: _Optional[str] = ..., target: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ..., core_seed: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., host_tools: _Optional[_Iterable[str]] = ..., host_safeguards: _Optional[_Iterable[str]] = ..., credential_addresses: _Optional[_Iterable[str]] = ..., trust_posture: _Optional[str] = ..., update_control: _Optional[str] = ..., session_mode: _Optional[str] = ..., operating_mode: _Optional[_Mapping[str, str]] = ..., apply: _Optional[bool] = ...) -> None: ...
+    capacity_posture: str
+    transient_headroom_reserve_bytes: int
+    resource_capacity: _containers.MessageMap[str, ResourceCapacitySelection]
+    def __init__(self, schema_version: _Optional[str] = ..., target: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ..., core_seed: _Optional[_Iterable[str]] = ..., trusted_base: _Optional[_Iterable[str]] = ..., host_tools: _Optional[_Iterable[str]] = ..., host_safeguards: _Optional[_Iterable[str]] = ..., credential_addresses: _Optional[_Iterable[str]] = ..., trust_posture: _Optional[str] = ..., update_control: _Optional[str] = ..., session_mode: _Optional[str] = ..., operating_mode: _Optional[_Mapping[str, str]] = ..., apply: _Optional[bool] = ..., capacity_posture: _Optional[str] = ..., transient_headroom_reserve_bytes: _Optional[int] = ..., resource_capacity: _Optional[_Mapping[str, ResourceCapacitySelection]] = ...) -> None: ...
+
+class ResourceCapacitySelection(_message.Message):
+    __slots__ = ("rung", "tunables", "gpu_index", "priority", "yield_when_idle", "idle_grace_seconds")
+    class TunablesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    RUNG_FIELD_NUMBER: _ClassVar[int]
+    TUNABLES_FIELD_NUMBER: _ClassVar[int]
+    GPU_INDEX_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    YIELD_WHEN_IDLE_FIELD_NUMBER: _ClassVar[int]
+    IDLE_GRACE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    rung: str
+    tunables: _containers.ScalarMap[str, str]
+    gpu_index: int
+    priority: str
+    yield_when_idle: bool
+    idle_grace_seconds: int
+    def __init__(self, rung: _Optional[str] = ..., tunables: _Optional[_Mapping[str, str]] = ..., gpu_index: _Optional[int] = ..., priority: _Optional[str] = ..., yield_when_idle: _Optional[bool] = ..., idle_grace_seconds: _Optional[int] = ...) -> None: ...

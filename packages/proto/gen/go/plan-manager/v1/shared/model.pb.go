@@ -2079,12 +2079,15 @@ func (x *ChangeBoundary) GetOperatorOnlyReason() string {
 }
 
 type ValidationScope struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          ValidationScopeMode    `protobuf:"varint,1,opt,name=mode,proto3,enum=vrooli.plan_manager.v1.shared.ValidationScopeMode" json:"mode,omitempty"`
-	Boundary      *ChangeBoundary        `protobuf:"bytes,2,opt,name=boundary,proto3" json:"boundary,omitempty"`
-	Rationale     string                 `protobuf:"bytes,3,opt,name=rationale,proto3" json:"rationale,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Mode       ValidationScopeMode    `protobuf:"varint,1,opt,name=mode,proto3,enum=vrooli.plan_manager.v1.shared.ValidationScopeMode" json:"mode,omitempty"`
+	Boundary   *ChangeBoundary        `protobuf:"bytes,2,opt,name=boundary,proto3" json:"boundary,omitempty"`
+	Rationale  string                 `protobuf:"bytes,3,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	TestPhases []string               `protobuf:"bytes,4,rep,name=test_phases,json=testPhases,proto3" json:"test_phases,omitempty"`
+	// Phase-specific behavioral comparison; final certification retains plan policy.
+	CompareBehavior bool `protobuf:"varint,5,opt,name=compare_behavior,json=compareBehavior,proto3" json:"compare_behavior,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ValidationScope) Reset() {
@@ -2136,6 +2139,20 @@ func (x *ValidationScope) GetRationale() string {
 		return x.Rationale
 	}
 	return ""
+}
+
+func (x *ValidationScope) GetTestPhases() []string {
+	if x != nil {
+		return x.TestPhases
+	}
+	return nil
+}
+
+func (x *ValidationScope) GetCompareBehavior() bool {
+	if x != nil {
+		return x.CompareBehavior
+	}
+	return false
 }
 
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
@@ -4593,11 +4610,14 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\x0eChangeBoundary\x12)\n" +
 	"\x10acceptance_allow\x18\x01 \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x02 \x03(\tR\x0eacceptanceDeny\x120\n" +
-	"\x14operator_only_reason\x18\x03 \x01(\tR\x12operatorOnlyReason\"\xc2\x01\n" +
+	"\x14operator_only_reason\x18\x03 \x01(\tR\x12operatorOnlyReason\"\x8e\x02\n" +
 	"\x0fValidationScope\x12F\n" +
 	"\x04mode\x18\x01 \x01(\x0e22.vrooli.plan_manager.v1.shared.ValidationScopeModeR\x04mode\x12I\n" +
 	"\bboundary\x18\x02 \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\bboundary\x12\x1c\n" +
-	"\trationale\x18\x03 \x01(\tR\trationale\"\x92\x02\n" +
+	"\trationale\x18\x03 \x01(\tR\trationale\x12\x1f\n" +
+	"\vtest_phases\x18\x04 \x03(\tR\n" +
+	"testPhases\x12)\n" +
+	"\x10compare_behavior\x18\x05 \x01(\bR\x0fcompareBehavior\"\x92\x02\n" +
 	"\x10RegressionAnchor\x12\x1a\n" +
 	"\bstrategy\x18\x01 \x01(\tR\bstrategy\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12#\n" +

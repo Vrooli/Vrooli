@@ -12,7 +12,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file portal/v1/message/message.proto.
  */
 export const file_portal_v1_message_message: GenFile = /*@__PURE__*/
-  fileDesc("Ch9wb3J0YWwvdjEvbWVzc2FnZS9tZXNzYWdlLnByb3RvEhh2cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UinQIKB01lc3NhZ2USCgoCaWQYASABKAkSDwoHY2hhdF9pZBgCIAEoCRIZChFwYXJlbnRfbWVzc2FnZV9pZBgDIAEoCRIVCg1zaWJsaW5nX2luZGV4GAQgASgFEjMKBHJvbGUYBSABKA4yJS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZVJvbGUSDwoHY29udGVudBgGIAEoCRINCgVtb2RlbBgHIAEoCRISCgpjcmVhdGVkX2F0GAggASgJEhIKCnVwZGF0ZWRfYXQYCSABKAkSRgoSc2VhcmNoX2F0dGFjaG1lbnRzGAogAygLMioudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlNlYXJjaEF0dGFjaG1lbnQiqQEKEFNlYXJjaEF0dGFjaG1lbnQSCgoCaWQYASABKAkSDQoFcXVlcnkYAiABKAkSMAoEaGl0cxgDIAMoCzIiLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLlNlYXJjaEhpdBIQCghkZWdyYWRlZBgEIAEoCBIOCgZyZWFzb24YBSABKAkSEgoKbGF0ZW5jeV9tcxgGIAEoAxISCgpjcmVhdGVkX2F0GAcgASgJIoYBCgtVc2FnZVJlY29yZBISCgptZXNzYWdlX2lkGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhUKDXByb21wdF90b2tlbnMYBCABKAUSGQoRY29tcGxldGlvbl90b2tlbnMYBSABKAUSEAoIY29zdF91c2QYBiABKAEiIQoOR2V0VHJlZVJlcXVlc3QSDwoHY2hhdF9pZBgBIAEoCSJmCg9HZXRUcmVlUmVzcG9uc2USMwoIbWVzc2FnZXMYASADKAsyIS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZRIeChZhY3RpdmVfbGVhZl9tZXNzYWdlX2lkGAIgASgJIpgBChJTZW5kTWVzc2FnZVJlcXVlc3QSDwoHY2hhdF9pZBgBIAEoCRIZChFwYXJlbnRfbWVzc2FnZV9pZBgCIAEoCRIPCgdjb250ZW50GAMgASgJEg0KBW1vZGVsGAQgASgJEhoKEndlYl9zZWFyY2hfZW5hYmxlZBgFIAEoCBIaChJzZWxlY3RlZF9za2lsbF9pZHMYBiADKAkiTgoTU2VuZE1lc3NhZ2VSZXNwb25zZRI3Cgx1c2VyX21lc3NhZ2UYASABKAsyIS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZSI5ChJFZGl0TWVzc2FnZVJlcXVlc3QSEgoKbWVzc2FnZV9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJIkkKE0VkaXRNZXNzYWdlUmVzcG9uc2USMgoHbWVzc2FnZRgBIAEoCzIhLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5NZXNzYWdlIjYKEVJlZ2VuZXJhdGVSZXF1ZXN0EhIKCm1lc3NhZ2VfaWQYASABKAkSDQoFbW9kZWwYAiABKAkiUgoSUmVnZW5lcmF0ZVJlc3BvbnNlEjwKEWFzc2lzdGFudF9tZXNzYWdlGAEgASgLMiEudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLk1lc3NhZ2UiuwEKF1N0cmVhbUNvbXBsZXRpb25SZXF1ZXN0Eg8KB2NoYXRfaWQYASABKAkSFwoPZnJvbV9tZXNzYWdlX2lkGAIgASgJEg0KBW1vZGVsGAMgASgJEhoKEndlYl9zZWFyY2hfZW5hYmxlZBgEIAEoCBIaChJzZWxlY3RlZF9za2lsbF9pZHMYBSADKAkSLwoEbW9kZRgGIAEoDjIhLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLkNoYXRNb2RlIpgCCg9Db21wbGV0aW9uRXZlbnQSOwoEa2luZBgBIAEoDjItLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5Db21wbGV0aW9uRXZlbnRLaW5kEhIKCm1lc3NhZ2VfaWQYAiABKAkSDAoEdGV4dBgDIAEoCRJFChFzZWFyY2hfYXR0YWNobWVudBgEIAEoCzIqLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5TZWFyY2hBdHRhY2htZW50EjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlVzYWdlUmVjb3JkEhIKCmVycm9yX2NvZGUYBiABKAkSFQoNZXJyb3JfbWVzc2FnZRgHIAEoCSqPAQoLTWVzc2FnZVJvbGUSHAoYTUVTU0FHRV9ST0xFX1VOU1BFQ0lGSUVEEAASFwoTTUVTU0FHRV9ST0xFX1NZU1RFTRABEhUKEU1FU1NBR0VfUk9MRV9VU0VSEAISGgoWTUVTU0FHRV9ST0xFX0FTU0lTVEFOVBADEhYKEk1FU1NBR0VfUk9MRV9BR0VOVBAEKpcCChNDb21wbGV0aW9uRXZlbnRLaW5kEiUKIUNPTVBMRVRJT05fRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEiAKHENPTVBMRVRJT05fRVZFTlRfS0lORF9TVEFUVVMQARIfChtDT01QTEVUSU9OX0VWRU5UX0tJTkRfVE9LRU4QAhIrCidDT01QTEVUSU9OX0VWRU5UX0tJTkRfU0VBUkNIX0FUVEFDSE1FTlQQAxIoCiRDT01QTEVUSU9OX0VWRU5UX0tJTkRfQUdFTlRfQUNUSVZJVFkQBBIeChpDT01QTEVUSU9OX0VWRU5UX0tJTkRfRE9ORRAFEh8KG0NPTVBMRVRJT05fRVZFTlRfS0lORF9FUlJPUhAGMqUECg5NZXNzYWdlU2VydmljZRJeCgdHZXRUcmVlEigudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkdldFRyZWVSZXF1ZXN0GikudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkdldFRyZWVSZXNwb25zZRJqCgtTZW5kTWVzc2FnZRIsLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5TZW5kTWVzc2FnZVJlcXVlc3QaLS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuU2VuZE1lc3NhZ2VSZXNwb25zZRJqCgtFZGl0TWVzc2FnZRIsLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5FZGl0TWVzc2FnZVJlcXVlc3QaLS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuRWRpdE1lc3NhZ2VSZXNwb25zZRJnCgpSZWdlbmVyYXRlEisudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlJlZ2VuZXJhdGVSZXF1ZXN0GiwudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlJlZ2VuZXJhdGVSZXNwb25zZRJyChBTdHJlYW1Db21wbGV0aW9uEjEudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlN0cmVhbUNvbXBsZXRpb25SZXF1ZXN0GikudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkNvbXBsZXRpb25FdmVudDABQk1aS2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcG9ydGFsL3YxL21lc3NhZ2U7bWVzc2FnZV92MWIGcHJvdG8z", [file_portal_v1_shared_common]);
+  fileDesc("Ch9wb3J0YWwvdjEvbWVzc2FnZS9tZXNzYWdlLnByb3RvEhh2cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UinQIKB01lc3NhZ2USCgoCaWQYASABKAkSDwoHY2hhdF9pZBgCIAEoCRIZChFwYXJlbnRfbWVzc2FnZV9pZBgDIAEoCRIVCg1zaWJsaW5nX2luZGV4GAQgASgFEjMKBHJvbGUYBSABKA4yJS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZVJvbGUSDwoHY29udGVudBgGIAEoCRINCgVtb2RlbBgHIAEoCRISCgpjcmVhdGVkX2F0GAggASgJEhIKCnVwZGF0ZWRfYXQYCSABKAkSRgoSc2VhcmNoX2F0dGFjaG1lbnRzGAogAygLMioudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlNlYXJjaEF0dGFjaG1lbnQiqQEKEFNlYXJjaEF0dGFjaG1lbnQSCgoCaWQYASABKAkSDQoFcXVlcnkYAiABKAkSMAoEaGl0cxgDIAMoCzIiLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLlNlYXJjaEhpdBIQCghkZWdyYWRlZBgEIAEoCBIOCgZyZWFzb24YBSABKAkSEgoKbGF0ZW5jeV9tcxgGIAEoAxISCgpjcmVhdGVkX2F0GAcgASgJIoYBCgtVc2FnZVJlY29yZBISCgptZXNzYWdlX2lkGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhUKDXByb21wdF90b2tlbnMYBCABKAUSGQoRY29tcGxldGlvbl90b2tlbnMYBSABKAUSEAoIY29zdF91c2QYBiABKAEiIQoOR2V0VHJlZVJlcXVlc3QSDwoHY2hhdF9pZBgBIAEoCSJmCg9HZXRUcmVlUmVzcG9uc2USMwoIbWVzc2FnZXMYASADKAsyIS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZRIeChZhY3RpdmVfbGVhZl9tZXNzYWdlX2lkGAIgASgJIpgBChJTZW5kTWVzc2FnZVJlcXVlc3QSDwoHY2hhdF9pZBgBIAEoCRIZChFwYXJlbnRfbWVzc2FnZV9pZBgCIAEoCRIPCgdjb250ZW50GAMgASgJEg0KBW1vZGVsGAQgASgJEhoKEndlYl9zZWFyY2hfZW5hYmxlZBgFIAEoCBIaChJzZWxlY3RlZF9za2lsbF9pZHMYBiADKAkiTgoTU2VuZE1lc3NhZ2VSZXNwb25zZRI3Cgx1c2VyX21lc3NhZ2UYASABKAsyIS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuTWVzc2FnZSI5ChJFZGl0TWVzc2FnZVJlcXVlc3QSEgoKbWVzc2FnZV9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJIkkKE0VkaXRNZXNzYWdlUmVzcG9uc2USMgoHbWVzc2FnZRgBIAEoCzIhLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5NZXNzYWdlIjYKEVJlZ2VuZXJhdGVSZXF1ZXN0EhIKCm1lc3NhZ2VfaWQYASABKAkSDQoFbW9kZWwYAiABKAkiUgoSUmVnZW5lcmF0ZVJlc3BvbnNlEjwKEWFzc2lzdGFudF9tZXNzYWdlGAEgASgLMiEudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLk1lc3NhZ2UiuwEKF1N0cmVhbUNvbXBsZXRpb25SZXF1ZXN0Eg8KB2NoYXRfaWQYASABKAkSFwoPZnJvbV9tZXNzYWdlX2lkGAIgASgJEg0KBW1vZGVsGAMgASgJEhoKEndlYl9zZWFyY2hfZW5hYmxlZBgEIAEoCBIaChJzZWxlY3RlZF9za2lsbF9pZHMYBSADKAkSLwoEbW9kZRgGIAEoDjIhLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLkNoYXRNb2RlIpgCCg9Db21wbGV0aW9uRXZlbnQSOwoEa2luZBgBIAEoDjItLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5Db21wbGV0aW9uRXZlbnRLaW5kEhIKCm1lc3NhZ2VfaWQYAiABKAkSDAoEdGV4dBgDIAEoCRJFChFzZWFyY2hfYXR0YWNobWVudBgEIAEoCzIqLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5TZWFyY2hBdHRhY2htZW50EjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlVzYWdlUmVjb3JkEhIKCmVycm9yX2NvZGUYBiABKAkSFQoNZXJyb3JfbWVzc2FnZRgHIAEoCSI2Cg9BZ2VudFJ1blJlcXVlc3QSDwoHY2hhdF9pZBgBIAEoCRISCgptZXNzYWdlX2lkGAIgASgJIkQKEEFnZW50UnVuUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIQCgh0ZXJtaW5hbBgDIAEoCCJDChpMaXN0QWdlbnRBZG1pc3Npb25zUmVxdWVzdBISCgpwYWdlX3Rva2VuGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBSI1Cg5BZ2VudEFkbWlzc2lvbhIPCgdjaGF0X2lkGAEgASgJEhIKCm1lc3NhZ2VfaWQYAiABKAkidAobTGlzdEFnZW50QWRtaXNzaW9uc1Jlc3BvbnNlEjwKCmFkbWlzc2lvbnMYASADKAsyKC52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuQWdlbnRBZG1pc3Npb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJKo8BCgtNZXNzYWdlUm9sZRIcChhNRVNTQUdFX1JPTEVfVU5TUEVDSUZJRUQQABIXChNNRVNTQUdFX1JPTEVfU1lTVEVNEAESFQoRTUVTU0FHRV9ST0xFX1VTRVIQAhIaChZNRVNTQUdFX1JPTEVfQVNTSVNUQU5UEAMSFgoSTUVTU0FHRV9ST0xFX0FHRU5UEAQqlwIKE0NvbXBsZXRpb25FdmVudEtpbmQSJQohQ09NUExFVElPTl9FVkVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASIAocQ09NUExFVElPTl9FVkVOVF9LSU5EX1NUQVRVUxABEh8KG0NPTVBMRVRJT05fRVZFTlRfS0lORF9UT0tFThACEisKJ0NPTVBMRVRJT05fRVZFTlRfS0lORF9TRUFSQ0hfQVRUQUNITUVOVBADEigKJENPTVBMRVRJT05fRVZFTlRfS0lORF9BR0VOVF9BQ1RJVklUWRAEEh4KGkNPTVBMRVRJT05fRVZFTlRfS0lORF9ET05FEAUSHwobQ09NUExFVElPTl9FVkVOVF9LSU5EX0VSUk9SEAYy9wYKDk1lc3NhZ2VTZXJ2aWNlEoIBChNMaXN0QWdlbnRBZG1pc3Npb25zEjQudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkxpc3RBZ2VudEFkbWlzc2lvbnNSZXF1ZXN0GjUudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkxpc3RBZ2VudEFkbWlzc2lvbnNSZXNwb25zZRJkCgtHZXRBZ2VudFJ1bhIpLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5BZ2VudFJ1blJlcXVlc3QaKi52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuQWdlbnRSdW5SZXNwb25zZRJlCgxTdG9wQWdlbnRSdW4SKS52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuQWdlbnRSdW5SZXF1ZXN0GioudnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkFnZW50UnVuUmVzcG9uc2USXgoHR2V0VHJlZRIoLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5HZXRUcmVlUmVxdWVzdBopLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5HZXRUcmVlUmVzcG9uc2USagoLU2VuZE1lc3NhZ2USLC52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuU2VuZE1lc3NhZ2VSZXF1ZXN0Gi0udnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLlNlbmRNZXNzYWdlUmVzcG9uc2USagoLRWRpdE1lc3NhZ2USLC52cm9vbGkucG9ydGFsLnYxLm1lc3NhZ2UuRWRpdE1lc3NhZ2VSZXF1ZXN0Gi0udnJvb2xpLnBvcnRhbC52MS5tZXNzYWdlLkVkaXRNZXNzYWdlUmVzcG9uc2USZwoKUmVnZW5lcmF0ZRIrLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5SZWdlbmVyYXRlUmVxdWVzdBosLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5SZWdlbmVyYXRlUmVzcG9uc2UScgoQU3RyZWFtQ29tcGxldGlvbhIxLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5TdHJlYW1Db21wbGV0aW9uUmVxdWVzdBopLnZyb29saS5wb3J0YWwudjEubWVzc2FnZS5Db21wbGV0aW9uRXZlbnQwAUJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BvcnRhbC92MS9tZXNzYWdlO21lc3NhZ2VfdjFiBnByb3RvMw", [file_portal_v1_shared_common]);
 
 /**
  * @generated from message vrooli.portal.v1.message.Message
@@ -431,6 +431,125 @@ export const CompletionEventSchema: GenMessage<CompletionEvent> = /*@__PURE__*/
   messageDesc(file_portal_v1_message_message, 12);
 
 /**
+ * Remote run IDs are returned as evidence, never accepted as cancellation authority.
+ *
+ * @generated from message vrooli.portal.v1.message.AgentRunRequest
+ */
+export type AgentRunRequest = Message$1<"vrooli.portal.v1.message.AgentRunRequest"> & {
+  /**
+   * @generated from field: string chat_id = 1;
+   */
+  chatId: string;
+
+  /**
+   * @generated from field: string message_id = 2;
+   */
+  messageId: string;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.message.AgentRunRequest.
+ * Use `create(AgentRunRequestSchema)` to create a new message.
+ */
+export const AgentRunRequestSchema: GenMessage<AgentRunRequest> = /*@__PURE__*/
+  messageDesc(file_portal_v1_message_message, 13);
+
+/**
+ * @generated from message vrooli.portal.v1.message.AgentRunResponse
+ */
+export type AgentRunResponse = Message$1<"vrooli.portal.v1.message.AgentRunResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: bool terminal = 3;
+   */
+  terminal: boolean;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.message.AgentRunResponse.
+ * Use `create(AgentRunResponseSchema)` to create a new message.
+ */
+export const AgentRunResponseSchema: GenMessage<AgentRunResponse> = /*@__PURE__*/
+  messageDesc(file_portal_v1_message_message, 14);
+
+/**
+ * Page tokens are opaque continuation values returned by the service.
+ *
+ * @generated from message vrooli.portal.v1.message.ListAgentAdmissionsRequest
+ */
+export type ListAgentAdmissionsRequest = Message$1<"vrooli.portal.v1.message.ListAgentAdmissionsRequest"> & {
+  /**
+   * @generated from field: string page_token = 1;
+   */
+  pageToken: string;
+
+  /**
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize: number;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.message.ListAgentAdmissionsRequest.
+ * Use `create(ListAgentAdmissionsRequestSchema)` to create a new message.
+ */
+export const ListAgentAdmissionsRequestSchema: GenMessage<ListAgentAdmissionsRequest> = /*@__PURE__*/
+  messageDesc(file_portal_v1_message_message, 15);
+
+/**
+ * @generated from message vrooli.portal.v1.message.AgentAdmission
+ */
+export type AgentAdmission = Message$1<"vrooli.portal.v1.message.AgentAdmission"> & {
+  /**
+   * @generated from field: string chat_id = 1;
+   */
+  chatId: string;
+
+  /**
+   * @generated from field: string message_id = 2;
+   */
+  messageId: string;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.message.AgentAdmission.
+ * Use `create(AgentAdmissionSchema)` to create a new message.
+ */
+export const AgentAdmissionSchema: GenMessage<AgentAdmission> = /*@__PURE__*/
+  messageDesc(file_portal_v1_message_message, 16);
+
+/**
+ * @generated from message vrooli.portal.v1.message.ListAgentAdmissionsResponse
+ */
+export type ListAgentAdmissionsResponse = Message$1<"vrooli.portal.v1.message.ListAgentAdmissionsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.portal.v1.message.AgentAdmission admissions = 1;
+   */
+  admissions: AgentAdmission[];
+
+  /**
+   * @generated from field: string next_page_token = 2;
+   */
+  nextPageToken: string;
+};
+
+/**
+ * Describes the message vrooli.portal.v1.message.ListAgentAdmissionsResponse.
+ * Use `create(ListAgentAdmissionsResponseSchema)` to create a new message.
+ */
+export const ListAgentAdmissionsResponseSchema: GenMessage<ListAgentAdmissionsResponse> = /*@__PURE__*/
+  messageDesc(file_portal_v1_message_message, 17);
+
+/**
  * @generated from enum vrooli.portal.v1.message.MessageRole
  */
 export enum MessageRole {
@@ -518,6 +637,36 @@ export const CompletionEventKindSchema: GenEnum<CompletionEventKind> = /*@__PURE
  * @generated from service vrooli.portal.v1.message.MessageService
  */
 export const MessageService: GenService<{
+  /**
+   * Enumerate durable admissions for recovery; includes unknown launch outcomes.
+   *
+   * @generated from rpc vrooli.portal.v1.message.MessageService.ListAgentAdmissions
+   */
+  listAgentAdmissions: {
+    methodKind: "unary";
+    input: typeof ListAgentAdmissionsRequestSchema;
+    output: typeof ListAgentAdmissionsResponseSchema;
+  },
+  /**
+   * Resolve or reconcile the run associated with a Portal message; never launches.
+   *
+   * @generated from rpc vrooli.portal.v1.message.MessageService.GetAgentRun
+   */
+  getAgentRun: {
+    methodKind: "unary";
+    input: typeof AgentRunRequestSchema;
+    output: typeof AgentRunResponseSchema;
+  },
+  /**
+   * Stop the associated run. Failure is unconfirmed; use GetAgentRun for readback.
+   *
+   * @generated from rpc vrooli.portal.v1.message.MessageService.StopAgentRun
+   */
+  stopAgentRun: {
+    methodKind: "unary";
+    input: typeof AgentRunRequestSchema;
+    output: typeof AgentRunResponseSchema;
+  },
   /**
    * @generated from rpc vrooli.portal.v1.message.MessageService.GetTree
    */

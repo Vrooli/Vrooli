@@ -7,6 +7,7 @@ import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/run.proto";
 import "agent-manager/v1/domain/task.proto";
 import "agent-manager/v1/domain/types.proto";
+import "agent-manager/v1/domain/watch.proto";
 import "agent-manager/v1/domain/workflow.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
@@ -52,6 +53,71 @@ service AgentManagerService {
   // Health returns the service health status.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {get: "/health"};
+  }
+
+  // ========================================================================
+  // DURABLE COHORT SUPERVISION
+  // ========================================================================
+
+  rpc CreateCohortWatch(CreateCohortWatchRequest) returns (CohortWatch) {
+    option (google.api.http) = { post: "/api/v1/cohort-watches" body: "*" };
+  }
+
+  rpc GetCohortWatch(GetCohortWatchRequest) returns (CohortWatch) {
+    option (google.api.http) = { get: "/api/v1/cohort-watches/{watch_id}" };
+  }
+
+  rpc ListCohortWatches(ListCohortWatchesRequest) returns (ListCohortWatchesResponse) {
+    option (google.api.http) = { get: "/api/v1/cohort-watches" };
+  }
+
+  // Canceling the waiter does not cancel the durable watch.
+  rpc WaitCohortWatch(WaitCohortWatchRequest) returns (WaitCohortWatchResponse) {
+    option (google.api.http) = { post: "/api/v1/cohort-watches/{watch_id}/wait" body: "*" };
+  }
+
+  rpc CancelCohortWatch(CancelCohortWatchRequest) returns (CohortWatch) {
+    option (google.api.http) = { post: "/api/v1/cohort-watches/{watch_id}/cancel" body: "*" };
+  }
+
+  rpc InspectCohortWatch(InspectCohortWatchRequest) returns (InspectCohortWatchResponse) {
+    option (google.api.http) = { get: "/api/v1/cohort-watches/{watch_id}/inspect" };
+  }
+
+  rpc RequestCohortWatchAction(RequestCohortWatchActionRequest) returns (RequestCohortWatchActionResponse) {
+    option (google.api.http) = { post: "/api/v1/cohort-watches/{watch_id}/actions" body: "*" };
+  }
+
+  rpc ListCohortWatchActions(ListCohortWatchActionsRequest) returns (ListCohortWatchActionsResponse) {
+    option (google.api.http) = { get: "/api/v1/cohort-watches/{watch_id}/actions" };
+  }
+
+  rpc GetSupervisionPolicy(GetSupervisionPolicyRequest) returns (SupervisionPolicyRecord) {
+    option (google.api.http) = { get: "/api/v1/supervision/policies/{version}" };
+  }
+  rpc CreateSupervisionPolicyCandidate(CreateSupervisionPolicyCandidateRequest) returns (SupervisionPolicyRecord) {
+    option (google.api.http) = { post: "/api/v1/supervision/policies" body: "*" };
+  }
+  rpc RecordSupervisionOutcome(RecordSupervisionOutcomeRequest) returns (RecordSupervisionOutcomeResponse) {
+    option (google.api.http) = { post: "/api/v1/supervision/outcomes" body: "*" };
+  }
+  rpc EvaluateSupervisionPolicy(EvaluateSupervisionPolicyRequest) returns (SupervisionReplayReport) {
+    option (google.api.http) = { post: "/api/v1/supervision/policies/{version}/evaluate" body: "*" };
+  }
+  rpc PromoteSupervisionPolicy(PromoteSupervisionPolicyRequest) returns (SupervisionPolicyRecord) {
+    option (google.api.http) = { post: "/api/v1/supervision/policies/{version}/promote" body: "*" };
+  }
+  rpc RejectSupervisionPolicy(RejectSupervisionPolicyRequest) returns (SupervisionPolicyRecord) {
+    option (google.api.http) = { post: "/api/v1/supervision/policies/{version}/reject" body: "*" };
+  }
+  rpc RollbackSupervisionPolicy(RollbackSupervisionPolicyRequest) returns (SupervisionPolicyRecord) {
+    option (google.api.http) = { post: "/api/v1/supervision/policies/{active_version}/rollback" body: "*" };
+  }
+  rpc SetSupervisionPolicyDisabled(SetSupervisionPolicyDisabledRequest) returns (SupervisionPolicyControl) {
+    option (google.api.http) = { post: "/api/v1/supervision/policy-control" body: "*" };
+  }
+  rpc ListSupervisionOutcomes(ListSupervisionOutcomesRequest) returns (ListSupervisionOutcomesResponse) {
+    option (google.api.http) = { get: "/api/v1/supervision/outcomes" };
   }
 
   // ==========================================================================

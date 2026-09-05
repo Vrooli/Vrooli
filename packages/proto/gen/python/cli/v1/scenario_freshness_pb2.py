@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1f\x63li/v1/scenario_freshness.proto\x12\rvrooli.cli.v1\"\xf6\x01\n\x19ScenarioFreshnessResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x14\n\x05stale\x18\x03 \x01(\x08R\x05stale\x12=\n\x06\x63hecks\x18\x04 \x03(\x0b\x32%.vrooli.cli.v1.ScenarioFreshnessCheckR\x06\x63hecks\x12N\n\x0c\x64\x65pendencies\x18\x05 \x03(\x0b\x32*.vrooli.cli.v1.ScenarioFreshnessDependencyR\x0c\x64\x65pendencies\"\x8f\x01\n\x16ScenarioFreshnessCheck\x12\x1d\n\ncheck_type\x18\x01 \x01(\tR\tcheckType\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x14\n\x05stale\x18\x03 \x01(\x08R\x05stale\x12\x14\n\x05\x63\x61use\x18\x04 \x01(\tR\x05\x63\x61use\x12\x12\n\x04\x66ile\x18\x05 \x01(\tR\x04\x66ile\"I\n\x1bScenarioFreshnessDependency\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n\x06policy\x18\x02 \x01(\tR\x06policyB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1f\x63li/v1/scenario_freshness.proto\x12\rvrooli.cli.v1\"\xb6\x02\n\x19ScenarioFreshnessResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x14\n\x05stale\x18\x03 \x01(\x08R\x05stale\x12=\n\x06\x63hecks\x18\x04 \x03(\x0b\x32%.vrooli.cli.v1.ScenarioFreshnessCheckR\x06\x63hecks\x12N\n\x0c\x64\x65pendencies\x18\x05 \x03(\x0b\x32*.vrooli.cli.v1.ScenarioFreshnessDependencyR\x0c\x64\x65pendencies\x12>\n\x06inputs\x18\x06 \x01(\x0b\x32&.vrooli.cli.v1.ScenarioFreshnessInputsR\x06inputs\"\xc3\x01\n\x17ScenarioFreshnessInputs\x12\x14\n\x05paths\x18\x01 \x03(\tR\x05paths\x12T\n\nbuild_keys\x18\x02 \x03(\x0b\x32\x35.vrooli.cli.v1.ScenarioFreshnessInputs.BuildKeysEntryR\tbuildKeys\x1a<\n\x0e\x42uildKeysEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x8f\x01\n\x16ScenarioFreshnessCheck\x12\x1d\n\ncheck_type\x18\x01 \x01(\tR\tcheckType\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x14\n\x05stale\x18\x03 \x01(\x08R\x05stale\x12\x14\n\x05\x63\x61use\x18\x04 \x01(\tR\x05\x63\x61use\x12\x12\n\x04\x66ile\x18\x05 \x01(\tR\x04\x66ile\"I\n\x1bScenarioFreshnessDependency\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n\x06policy\x18\x02 \x01(\tR\x06policyB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,10 +32,16 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'cli.v1.scenario_freshness_p
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1'
+  _globals['_SCENARIOFRESHNESSINPUTS_BUILDKEYSENTRY']._loaded_options = None
+  _globals['_SCENARIOFRESHNESSINPUTS_BUILDKEYSENTRY']._serialized_options = b'8\001'
   _globals['_SCENARIOFRESHNESSRESPONSE']._serialized_start=51
-  _globals['_SCENARIOFRESHNESSRESPONSE']._serialized_end=297
-  _globals['_SCENARIOFRESHNESSCHECK']._serialized_start=300
-  _globals['_SCENARIOFRESHNESSCHECK']._serialized_end=443
-  _globals['_SCENARIOFRESHNESSDEPENDENCY']._serialized_start=445
-  _globals['_SCENARIOFRESHNESSDEPENDENCY']._serialized_end=518
+  _globals['_SCENARIOFRESHNESSRESPONSE']._serialized_end=361
+  _globals['_SCENARIOFRESHNESSINPUTS']._serialized_start=364
+  _globals['_SCENARIOFRESHNESSINPUTS']._serialized_end=559
+  _globals['_SCENARIOFRESHNESSINPUTS_BUILDKEYSENTRY']._serialized_start=499
+  _globals['_SCENARIOFRESHNESSINPUTS_BUILDKEYSENTRY']._serialized_end=559
+  _globals['_SCENARIOFRESHNESSCHECK']._serialized_start=562
+  _globals['_SCENARIOFRESHNESSCHECK']._serialized_end=705
+  _globals['_SCENARIOFRESHNESSDEPENDENCY']._serialized_start=707
+  _globals['_SCENARIOFRESHNESSDEPENDENCY']._serialized_end=780
 # @@protoc_insertion_point(module_scope)

@@ -42,7 +42,7 @@ class SearchAssetsRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., kind: _Optional[str] = ..., domain: _Optional[str] = ..., accepts: _Optional[str] = ...) -> None: ...
 
 class SearchAssetResult(_message.Message):
-    __slots__ = ("catalog_id", "name", "description", "declaration_path", "score", "layer", "implemented", "kind", "domain")
+    __slots__ = ("catalog_id", "name", "description", "declaration_path", "score", "layer", "implemented", "kind", "domain", "availability_state", "availability_reason_code", "availability_reason", "version", "build_hash", "source_hash", "dependency_count", "regions")
     CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -52,6 +52,14 @@ class SearchAssetResult(_message.Message):
     IMPLEMENTED_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_STATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_CODE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    BUILD_HASH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REGIONS_FIELD_NUMBER: _ClassVar[int]
     catalog_id: str
     name: str
     description: str
@@ -61,7 +69,15 @@ class SearchAssetResult(_message.Message):
     implemented: bool
     kind: str
     domain: str
-    def __init__(self, catalog_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., declaration_path: _Optional[str] = ..., score: _Optional[float] = ..., layer: _Optional[int] = ..., implemented: _Optional[bool] = ..., kind: _Optional[str] = ..., domain: _Optional[str] = ...) -> None: ...
+    availability_state: str
+    availability_reason_code: str
+    availability_reason: str
+    version: str
+    build_hash: str
+    source_hash: str
+    dependency_count: int
+    regions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, catalog_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., declaration_path: _Optional[str] = ..., score: _Optional[float] = ..., layer: _Optional[int] = ..., implemented: _Optional[bool] = ..., kind: _Optional[str] = ..., domain: _Optional[str] = ..., availability_state: _Optional[str] = ..., availability_reason_code: _Optional[str] = ..., availability_reason: _Optional[str] = ..., version: _Optional[str] = ..., build_hash: _Optional[str] = ..., source_hash: _Optional[str] = ..., dependency_count: _Optional[int] = ..., regions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SearchAssetsResponse(_message.Message):
     __slots__ = ("results", "total")
@@ -76,14 +92,18 @@ class SearchStatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class SearchStatusResponse(_message.Message):
-    __slots__ = ("indexed_count", "indexed_at", "available")
+    __slots__ = ("indexed_count", "indexed_at", "available", "stale", "last_error")
     INDEXED_COUNT_FIELD_NUMBER: _ClassVar[int]
     INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    LAST_ERROR_FIELD_NUMBER: _ClassVar[int]
     indexed_count: int
     indexed_at: str
     available: bool
-    def __init__(self, indexed_count: _Optional[int] = ..., indexed_at: _Optional[str] = ..., available: _Optional[bool] = ...) -> None: ...
+    stale: bool
+    last_error: str
+    def __init__(self, indexed_count: _Optional[int] = ..., indexed_at: _Optional[str] = ..., available: _Optional[bool] = ..., stale: _Optional[bool] = ..., last_error: _Optional[str] = ...) -> None: ...
 
 class ReindexSearchRequest(_message.Message):
     __slots__ = ()

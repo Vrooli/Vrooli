@@ -5,6 +5,7 @@ from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import task_pb2 as _task_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
+from agent_manager.v1.domain import watch_pb2 as _watch_pb2
 from agent_manager.v1.domain import workflow_pb2 as _workflow_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2_1

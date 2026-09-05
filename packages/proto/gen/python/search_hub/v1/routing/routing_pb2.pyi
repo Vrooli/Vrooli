@@ -2,6 +2,7 @@ import datetime
 
 from common.v1 import attestation_pb2 as _attestation_pb2
 from common.v1 import confidence_pb2 as _confidence_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from search_hub.v1.registry import registry_pb2 as _registry_pb2
 from search_hub.v1.shared import routing_trace_pb2 as _routing_trace_pb2
@@ -54,7 +55,7 @@ class SearchOverrides(_message.Message):
     def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ..., hybrid_fusion: _Optional[str] = ...) -> None: ...
 
 class SearchHit(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation", "confidence", "locations", "merged_count")
+    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation", "confidence", "locations", "merged_count", "metadata", "rank_evidence")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +70,8 @@ class SearchHit(_message.Message):
     CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     LOCATIONS_FIELD_NUMBER: _ClassVar[int]
     MERGED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    RANK_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     type: str
@@ -83,7 +86,61 @@ class SearchHit(_message.Message):
     confidence: _confidence_pb2.Confidence
     locations: _containers.RepeatedScalarFieldContainer[str]
     merged_count: int
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., locations: _Optional[_Iterable[str]] = ..., merged_count: _Optional[int] = ...) -> None: ...
+    metadata: _struct_pb2.Struct
+    rank_evidence: _containers.RepeatedCompositeFieldContainer[ProviderRankEvidence]
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., locations: _Optional[_Iterable[str]] = ..., merged_count: _Optional[int] = ..., metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., rank_evidence: _Optional[_Iterable[_Union[ProviderRankEvidence, _Mapping]]] = ...) -> None: ...
+
+class ProviderRankEvidence(_message.Message):
+    __slots__ = ("leg", "rank", "score", "explanation")
+    LEG_FIELD_NUMBER: _ClassVar[int]
+    RANK_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    EXPLANATION_FIELD_NUMBER: _ClassVar[int]
+    leg: str
+    rank: int
+    score: float
+    explanation: str
+    def __init__(self, leg: _Optional[str] = ..., rank: _Optional[int] = ..., score: _Optional[float] = ..., explanation: _Optional[str] = ...) -> None: ...
+
+class ProviderCoverage(_message.Message):
+    __slots__ = ("canonical_visible_messages", "catalog_documents", "lexical_documents", "semantic_documents", "pending_documents", "deleted_documents", "lexical_ratio", "semantic_ratio", "last_reconciled_at", "source_checkpoint", "orphan_documents", "freshness_lag_ms")
+    CANONICAL_VISIBLE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    LEXICAL_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    PENDING_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    DELETED_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    LEXICAL_RATIO_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_RATIO_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILED_AT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
+    ORPHAN_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    FRESHNESS_LAG_MS_FIELD_NUMBER: _ClassVar[int]
+    canonical_visible_messages: int
+    catalog_documents: int
+    lexical_documents: int
+    semantic_documents: int
+    pending_documents: int
+    deleted_documents: int
+    lexical_ratio: float
+    semantic_ratio: float
+    last_reconciled_at: _timestamp_pb2.Timestamp
+    source_checkpoint: str
+    orphan_documents: int
+    freshness_lag_ms: int
+    def __init__(self, canonical_visible_messages: _Optional[int] = ..., catalog_documents: _Optional[int] = ..., lexical_documents: _Optional[int] = ..., semantic_documents: _Optional[int] = ..., pending_documents: _Optional[int] = ..., deleted_documents: _Optional[int] = ..., lexical_ratio: _Optional[float] = ..., semantic_ratio: _Optional[float] = ..., last_reconciled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_checkpoint: _Optional[str] = ..., orphan_documents: _Optional[int] = ..., freshness_lag_ms: _Optional[int] = ...) -> None: ...
+
+class ProviderDegradation(_message.Message):
+    __slots__ = ("reason", "leg", "detail", "retryable")
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    LEG_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    leg: str
+    detail: str
+    retryable: bool
+    def __init__(self, reason: _Optional[str] = ..., leg: _Optional[str] = ..., detail: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...
 
 class MeasureHit(_message.Message):
     __slots__ = ("measure_id", "scenario", "params", "answer", "needs", "effect", "executed_query", "confidence")
@@ -113,20 +170,26 @@ class MeasureHit(_message.Message):
     def __init__(self, measure_id: _Optional[str] = ..., scenario: _Optional[str] = ..., params: _Optional[_Mapping[str, str]] = ..., answer: _Optional[str] = ..., needs: _Optional[_Iterable[str]] = ..., effect: _Optional[str] = ..., executed_query: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class ProviderResultGroup(_message.Message):
-    __slots__ = ("provider_id", "hits", "count", "degraded", "note", "latency_ms")
+    __slots__ = ("provider_id", "hits", "count", "degraded", "note", "latency_ms", "coverage", "degradations", "next_cursor")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     HITS_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATIONS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     hits: _containers.RepeatedCompositeFieldContainer[SearchHit]
     count: int
     degraded: bool
     note: str
     latency_ms: int
-    def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
+    coverage: ProviderCoverage
+    degradations: _containers.RepeatedCompositeFieldContainer[ProviderDegradation]
+    next_cursor: str
+    def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ..., coverage: _Optional[_Union[ProviderCoverage, _Mapping]] = ..., degradations: _Optional[_Iterable[_Union[ProviderDegradation, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
     __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms", "partial", "pending_providers", "reranker_leg", "routing_degrade_reason", "ordered_by", "selector_leg", "routing_trace")

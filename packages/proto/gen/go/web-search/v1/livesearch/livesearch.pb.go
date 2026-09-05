@@ -7,6 +7,7 @@
 package livesearch_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -86,96 +87,6 @@ func (x *SearchRequest) GetSynthesize() bool {
 	return false
 }
 
-// SearchResult is one live web-search hit, normalized from the SearXNG result
-// shape. score is the RAW SearXNG relevance score (not re-normalized here).
-type SearchResult struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	// snippet is the SearXNG result "content" field.
-	Snippet string `protobuf:"bytes,3,opt,name=snippet,proto3" json:"snippet,omitempty"`
-	// engine names the upstream engine SearXNG sourced the result from.
-	Engine string `protobuf:"bytes,4,opt,name=engine,proto3" json:"engine,omitempty"`
-	// score is the raw SearXNG relevance score.
-	Score float64 `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
-	// category is the SearXNG result category (e.g. "general").
-	Category      string `protobuf:"bytes,6,opt,name=category,proto3" json:"category,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SearchResult) Reset() {
-	*x = SearchResult{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SearchResult) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SearchResult) ProtoMessage() {}
-
-func (x *SearchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SearchResult.ProtoReflect.Descriptor instead.
-func (*SearchResult) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SearchResult) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
-func (x *SearchResult) GetTitle() string {
-	if x != nil {
-		return x.Title
-	}
-	return ""
-}
-
-func (x *SearchResult) GetSnippet() string {
-	if x != nil {
-		return x.Snippet
-	}
-	return ""
-}
-
-func (x *SearchResult) GetEngine() string {
-	if x != nil {
-		return x.Engine
-	}
-	return ""
-}
-
-func (x *SearchResult) GetScore() float64 {
-	if x != nil {
-		return x.Score
-	}
-	return 0
-}
-
-func (x *SearchResult) GetCategory() string {
-	if x != nil {
-		return x.Category
-	}
-	return ""
-}
-
 // Citation links a synthesis claim back to the SearchResult that supports it.
 type Citation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -189,7 +100,7 @@ type Citation struct {
 
 func (x *Citation) Reset() {
 	*x = Citation{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[2]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +112,7 @@ func (x *Citation) String() string {
 func (*Citation) ProtoMessage() {}
 
 func (x *Citation) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[2]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +125,7 @@ func (x *Citation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Citation.ProtoReflect.Descriptor instead.
 func (*Citation) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{2}
+	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Citation) GetResultIndex() int32 {
@@ -255,7 +166,7 @@ type Synthesis struct {
 
 func (x *Synthesis) Reset() {
 	*x = Synthesis{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[3]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +178,7 @@ func (x *Synthesis) String() string {
 func (*Synthesis) ProtoMessage() {}
 
 func (x *Synthesis) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[3]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +191,7 @@ func (x *Synthesis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Synthesis.ProtoReflect.Descriptor instead.
 func (*Synthesis) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{3}
+	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Synthesis) GetText() string {
@@ -304,65 +215,9 @@ func (x *Synthesis) GetAbstained() bool {
 	return false
 }
 
-// EngineIssue names one upstream metasearch engine that did not answer a
-// query, with the upstream-reported reason (suspended, CAPTCHA, parse
-// error, ...). Structured (not a display string) so UIs can badge it and
-// automation can count it.
-type EngineIssue struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Engine        string                 `protobuf:"bytes,1,opt,name=engine,proto3" json:"engine,omitempty"`
-	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EngineIssue) Reset() {
-	*x = EngineIssue{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EngineIssue) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EngineIssue) ProtoMessage() {}
-
-func (x *EngineIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EngineIssue.ProtoReflect.Descriptor instead.
-func (*EngineIssue) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *EngineIssue) GetEngine() string {
-	if x != nil {
-		return x.Engine
-	}
-	return ""
-}
-
-func (x *EngineIssue) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
 type SearchResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
-	Results []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	Results []*shared.SearchResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
 	// synthesis is present only when the request set synthesize and the pass ran.
 	Synthesis *Synthesis `protobuf:"bytes,2,opt,name=synthesis,proto3" json:"synthesis,omitempty"`
 	// cached is true when the results came from the in-memory TTL cache.
@@ -374,14 +229,14 @@ type SearchResponse struct {
 	// degraded_engines lists engines that did not contribute to THIS query
 	// (per-query signal from the metasearch layer). Results may be partial when
 	// non-empty; for cached responses this reflects the engines at fetch time.
-	DegradedEngines []*EngineIssue `protobuf:"bytes,6,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
+	DegradedEngines []*shared.EngineIssue `protobuf:"bytes,6,rep,name=degraded_engines,json=degradedEngines,proto3" json:"degraded_engines,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[5]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -393,7 +248,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[5]
+	mi := &file_web_search_v1_livesearch_livesearch_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -406,10 +261,10 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{5}
+	return file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SearchResponse) GetResults() []*SearchResult {
+func (x *SearchResponse) GetResults() []*shared.SearchResult {
 	if x != nil {
 		return x.Results
 	}
@@ -444,7 +299,7 @@ func (x *SearchResponse) GetDegradedReason() string {
 	return ""
 }
 
-func (x *SearchResponse) GetDegradedEngines() []*EngineIssue {
+func (x *SearchResponse) GetDegradedEngines() []*shared.EngineIssue {
 	if x != nil {
 		return x.DegradedEngines
 	}
@@ -455,20 +310,13 @@ var File_web_search_v1_livesearch_livesearch_proto protoreflect.FileDescriptor
 
 const file_web_search_v1_livesearch_livesearch_proto_rawDesc = "" +
 	"\n" +
-	")web-search/v1/livesearch/livesearch.proto\x12\x1fvrooli.web_search.v1.livesearch\"[\n" +
+	")web-search/v1/livesearch/livesearch.proto\x12\x1fvrooli.web_search.v1.livesearch\x1a!web-search/v1/shared/search.proto\"[\n" +
 	"\rSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1e\n" +
 	"\n" +
 	"synthesize\x18\x03 \x01(\bR\n" +
-	"synthesize\"\x9a\x01\n" +
-	"\fSearchResult\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
-	"\asnippet\x18\x03 \x01(\tR\asnippet\x12\x16\n" +
-	"\x06engine\x18\x04 \x01(\tR\x06engine\x12\x14\n" +
-	"\x05score\x18\x05 \x01(\x01R\x05score\x12\x1a\n" +
-	"\bcategory\x18\x06 \x01(\tR\bcategory\"U\n" +
+	"synthesize\"U\n" +
 	"\bCitation\x12!\n" +
 	"\fresult_index\x18\x01 \x01(\x05R\vresultIndex\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
@@ -476,17 +324,14 @@ const file_web_search_v1_livesearch_livesearch_proto_rawDesc = "" +
 	"\tSynthesis\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12G\n" +
 	"\tcitations\x18\x02 \x03(\v2).vrooli.web_search.v1.livesearch.CitationR\tcitations\x12\x1c\n" +
-	"\tabstained\x18\x03 \x01(\bR\tabstained\"=\n" +
-	"\vEngineIssue\x12\x16\n" +
-	"\x06engine\x18\x01 \x01(\tR\x06engine\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xd9\x02\n" +
-	"\x0eSearchResponse\x12G\n" +
-	"\aresults\x18\x01 \x03(\v2-.vrooli.web_search.v1.livesearch.SearchResultR\aresults\x12H\n" +
+	"\tabstained\x18\x03 \x01(\bR\tabstained\"\xd1\x02\n" +
+	"\x0eSearchResponse\x12C\n" +
+	"\aresults\x18\x01 \x03(\v2).vrooli.web_search.v1.shared.SearchResultR\aresults\x12H\n" +
 	"\tsynthesis\x18\x02 \x01(\v2*.vrooli.web_search.v1.livesearch.SynthesisR\tsynthesis\x12\x16\n" +
 	"\x06cached\x18\x03 \x01(\bR\x06cached\x12\x1a\n" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12'\n" +
-	"\x0fdegraded_reason\x18\x05 \x01(\tR\x0edegradedReason\x12W\n" +
-	"\x10degraded_engines\x18\x06 \x03(\v2,.vrooli.web_search.v1.livesearch.EngineIssueR\x0fdegradedEngines2~\n" +
+	"\x0fdegraded_reason\x18\x05 \x01(\tR\x0edegradedReason\x12S\n" +
+	"\x10degraded_engines\x18\x06 \x03(\v2(.vrooli.web_search.v1.shared.EngineIssueR\x0fdegradedEngines2~\n" +
 	"\x11LiveSearchService\x12i\n" +
 	"\x06Search\x12..vrooli.web_search.v1.livesearch.SearchRequest\x1a/.vrooli.web_search.v1.livesearch.SearchResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch;livesearch_v1b\x06proto3"
 
@@ -502,22 +347,22 @@ func file_web_search_v1_livesearch_livesearch_proto_rawDescGZIP() []byte {
 	return file_web_search_v1_livesearch_livesearch_proto_rawDescData
 }
 
-var file_web_search_v1_livesearch_livesearch_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_web_search_v1_livesearch_livesearch_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_web_search_v1_livesearch_livesearch_proto_goTypes = []any{
-	(*SearchRequest)(nil),  // 0: vrooli.web_search.v1.livesearch.SearchRequest
-	(*SearchResult)(nil),   // 1: vrooli.web_search.v1.livesearch.SearchResult
-	(*Citation)(nil),       // 2: vrooli.web_search.v1.livesearch.Citation
-	(*Synthesis)(nil),      // 3: vrooli.web_search.v1.livesearch.Synthesis
-	(*EngineIssue)(nil),    // 4: vrooli.web_search.v1.livesearch.EngineIssue
-	(*SearchResponse)(nil), // 5: vrooli.web_search.v1.livesearch.SearchResponse
+	(*SearchRequest)(nil),       // 0: vrooli.web_search.v1.livesearch.SearchRequest
+	(*Citation)(nil),            // 1: vrooli.web_search.v1.livesearch.Citation
+	(*Synthesis)(nil),           // 2: vrooli.web_search.v1.livesearch.Synthesis
+	(*SearchResponse)(nil),      // 3: vrooli.web_search.v1.livesearch.SearchResponse
+	(*shared.SearchResult)(nil), // 4: vrooli.web_search.v1.shared.SearchResult
+	(*shared.EngineIssue)(nil),  // 5: vrooli.web_search.v1.shared.EngineIssue
 }
 var file_web_search_v1_livesearch_livesearch_proto_depIdxs = []int32{
-	2, // 0: vrooli.web_search.v1.livesearch.Synthesis.citations:type_name -> vrooli.web_search.v1.livesearch.Citation
-	1, // 1: vrooli.web_search.v1.livesearch.SearchResponse.results:type_name -> vrooli.web_search.v1.livesearch.SearchResult
-	3, // 2: vrooli.web_search.v1.livesearch.SearchResponse.synthesis:type_name -> vrooli.web_search.v1.livesearch.Synthesis
-	4, // 3: vrooli.web_search.v1.livesearch.SearchResponse.degraded_engines:type_name -> vrooli.web_search.v1.livesearch.EngineIssue
+	1, // 0: vrooli.web_search.v1.livesearch.Synthesis.citations:type_name -> vrooli.web_search.v1.livesearch.Citation
+	4, // 1: vrooli.web_search.v1.livesearch.SearchResponse.results:type_name -> vrooli.web_search.v1.shared.SearchResult
+	2, // 2: vrooli.web_search.v1.livesearch.SearchResponse.synthesis:type_name -> vrooli.web_search.v1.livesearch.Synthesis
+	5, // 3: vrooli.web_search.v1.livesearch.SearchResponse.degraded_engines:type_name -> vrooli.web_search.v1.shared.EngineIssue
 	0, // 4: vrooli.web_search.v1.livesearch.LiveSearchService.Search:input_type -> vrooli.web_search.v1.livesearch.SearchRequest
-	5, // 5: vrooli.web_search.v1.livesearch.LiveSearchService.Search:output_type -> vrooli.web_search.v1.livesearch.SearchResponse
+	3, // 5: vrooli.web_search.v1.livesearch.LiveSearchService.Search:output_type -> vrooli.web_search.v1.livesearch.SearchResponse
 	5, // [5:6] is the sub-list for method output_type
 	4, // [4:5] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -536,7 +381,7 @@ func file_web_search_v1_livesearch_livesearch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_search_v1_livesearch_livesearch_proto_rawDesc), len(file_web_search_v1_livesearch_livesearch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

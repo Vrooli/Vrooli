@@ -1022,6 +1022,276 @@ func (x *CompletionEvent) GetErrorMessage() string {
 	return ""
 }
 
+// Remote run IDs are returned as evidence, never accepted as cancellation authority.
+type AgentRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChatId        string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	MessageId     string                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentRunRequest) Reset() {
+	*x = AgentRunRequest{}
+	mi := &file_portal_v1_message_message_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentRunRequest) ProtoMessage() {}
+
+func (x *AgentRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_message_message_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentRunRequest.ProtoReflect.Descriptor instead.
+func (*AgentRunRequest) Descriptor() ([]byte, []int) {
+	return file_portal_v1_message_message_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AgentRunRequest) GetChatId() string {
+	if x != nil {
+		return x.ChatId
+	}
+	return ""
+}
+
+func (x *AgentRunRequest) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+type AgentRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Terminal      bool                   `protobuf:"varint,3,opt,name=terminal,proto3" json:"terminal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentRunResponse) Reset() {
+	*x = AgentRunResponse{}
+	mi := &file_portal_v1_message_message_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentRunResponse) ProtoMessage() {}
+
+func (x *AgentRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_message_message_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentRunResponse.ProtoReflect.Descriptor instead.
+func (*AgentRunResponse) Descriptor() ([]byte, []int) {
+	return file_portal_v1_message_message_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AgentRunResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentRunResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentRunResponse) GetTerminal() bool {
+	if x != nil {
+		return x.Terminal
+	}
+	return false
+}
+
+// Page tokens are opaque continuation values returned by the service.
+type ListAgentAdmissionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageToken     string                 `protobuf:"bytes,1,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentAdmissionsRequest) Reset() {
+	*x = ListAgentAdmissionsRequest{}
+	mi := &file_portal_v1_message_message_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentAdmissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentAdmissionsRequest) ProtoMessage() {}
+
+func (x *ListAgentAdmissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_message_message_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentAdmissionsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentAdmissionsRequest) Descriptor() ([]byte, []int) {
+	return file_portal_v1_message_message_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListAgentAdmissionsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListAgentAdmissionsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type AgentAdmission struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChatId        string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	MessageId     string                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentAdmission) Reset() {
+	*x = AgentAdmission{}
+	mi := &file_portal_v1_message_message_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentAdmission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentAdmission) ProtoMessage() {}
+
+func (x *AgentAdmission) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_message_message_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentAdmission.ProtoReflect.Descriptor instead.
+func (*AgentAdmission) Descriptor() ([]byte, []int) {
+	return file_portal_v1_message_message_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *AgentAdmission) GetChatId() string {
+	if x != nil {
+		return x.ChatId
+	}
+	return ""
+}
+
+func (x *AgentAdmission) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+type ListAgentAdmissionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Admissions    []*AgentAdmission      `protobuf:"bytes,1,rep,name=admissions,proto3" json:"admissions,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentAdmissionsResponse) Reset() {
+	*x = ListAgentAdmissionsResponse{}
+	mi := &file_portal_v1_message_message_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentAdmissionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentAdmissionsResponse) ProtoMessage() {}
+
+func (x *ListAgentAdmissionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_message_message_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentAdmissionsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentAdmissionsResponse) Descriptor() ([]byte, []int) {
+	return file_portal_v1_message_message_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListAgentAdmissionsResponse) GetAdmissions() []*AgentAdmission {
+	if x != nil {
+		return x.Admissions
+	}
+	return nil
+}
+
+func (x *ListAgentAdmissionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_portal_v1_message_message_proto protoreflect.FileDescriptor
 
 const file_portal_v1_message_message_proto_rawDesc = "" +
@@ -1101,7 +1371,28 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"\x05usage\x18\x05 \x01(\v2%.vrooli.portal.v1.message.UsageRecordR\x05usage\x12\x1d\n" +
 	"\n" +
 	"error_code\x18\x06 \x01(\tR\terrorCode\x12#\n" +
-	"\rerror_message\x18\a \x01(\tR\ferrorMessage*\x8f\x01\n" +
+	"\rerror_message\x18\a \x01(\tR\ferrorMessage\"I\n" +
+	"\x0fAgentRunRequest\x12\x17\n" +
+	"\achat_id\x18\x01 \x01(\tR\x06chatId\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x02 \x01(\tR\tmessageId\"]\n" +
+	"\x10AgentRunResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n" +
+	"\bterminal\x18\x03 \x01(\bR\bterminal\"X\n" +
+	"\x1aListAgentAdmissionsRequest\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x01 \x01(\tR\tpageToken\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"H\n" +
+	"\x0eAgentAdmission\x12\x17\n" +
+	"\achat_id\x18\x01 \x01(\tR\x06chatId\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x02 \x01(\tR\tmessageId\"\x8f\x01\n" +
+	"\x1bListAgentAdmissionsResponse\x12H\n" +
+	"\n" +
+	"admissions\x18\x01 \x03(\v2(.vrooli.portal.v1.message.AgentAdmissionR\n" +
+	"admissions\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x8f\x01\n" +
 	"\vMessageRole\x12\x1c\n" +
 	"\x18MESSAGE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13MESSAGE_ROLE_SYSTEM\x10\x01\x12\x15\n" +
@@ -1115,8 +1406,11 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"'COMPLETION_EVENT_KIND_SEARCH_ATTACHMENT\x10\x03\x12(\n" +
 	"$COMPLETION_EVENT_KIND_AGENT_ACTIVITY\x10\x04\x12\x1e\n" +
 	"\x1aCOMPLETION_EVENT_KIND_DONE\x10\x05\x12\x1f\n" +
-	"\x1bCOMPLETION_EVENT_KIND_ERROR\x10\x062\xa5\x04\n" +
-	"\x0eMessageService\x12^\n" +
+	"\x1bCOMPLETION_EVENT_KIND_ERROR\x10\x062\xf7\x06\n" +
+	"\x0eMessageService\x12\x82\x01\n" +
+	"\x13ListAgentAdmissions\x124.vrooli.portal.v1.message.ListAgentAdmissionsRequest\x1a5.vrooli.portal.v1.message.ListAgentAdmissionsResponse\x12d\n" +
+	"\vGetAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12e\n" +
+	"\fStopAgentRun\x12).vrooli.portal.v1.message.AgentRunRequest\x1a*.vrooli.portal.v1.message.AgentRunResponse\x12^\n" +
 	"\aGetTree\x12(.vrooli.portal.v1.message.GetTreeRequest\x1a).vrooli.portal.v1.message.GetTreeResponse\x12j\n" +
 	"\vSendMessage\x12,.vrooli.portal.v1.message.SendMessageRequest\x1a-.vrooli.portal.v1.message.SendMessageResponse\x12j\n" +
 	"\vEditMessage\x12,.vrooli.portal.v1.message.EditMessageRequest\x1a-.vrooli.portal.v1.message.EditMessageResponse\x12g\n" +
@@ -1137,53 +1431,65 @@ func file_portal_v1_message_message_proto_rawDescGZIP() []byte {
 }
 
 var file_portal_v1_message_message_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_portal_v1_message_message_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_portal_v1_message_message_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_portal_v1_message_message_proto_goTypes = []any{
-	(MessageRole)(0),                // 0: vrooli.portal.v1.message.MessageRole
-	(CompletionEventKind)(0),        // 1: vrooli.portal.v1.message.CompletionEventKind
-	(*Message)(nil),                 // 2: vrooli.portal.v1.message.Message
-	(*SearchAttachment)(nil),        // 3: vrooli.portal.v1.message.SearchAttachment
-	(*UsageRecord)(nil),             // 4: vrooli.portal.v1.message.UsageRecord
-	(*GetTreeRequest)(nil),          // 5: vrooli.portal.v1.message.GetTreeRequest
-	(*GetTreeResponse)(nil),         // 6: vrooli.portal.v1.message.GetTreeResponse
-	(*SendMessageRequest)(nil),      // 7: vrooli.portal.v1.message.SendMessageRequest
-	(*SendMessageResponse)(nil),     // 8: vrooli.portal.v1.message.SendMessageResponse
-	(*EditMessageRequest)(nil),      // 9: vrooli.portal.v1.message.EditMessageRequest
-	(*EditMessageResponse)(nil),     // 10: vrooli.portal.v1.message.EditMessageResponse
-	(*RegenerateRequest)(nil),       // 11: vrooli.portal.v1.message.RegenerateRequest
-	(*RegenerateResponse)(nil),      // 12: vrooli.portal.v1.message.RegenerateResponse
-	(*StreamCompletionRequest)(nil), // 13: vrooli.portal.v1.message.StreamCompletionRequest
-	(*CompletionEvent)(nil),         // 14: vrooli.portal.v1.message.CompletionEvent
-	(*shared.SearchHit)(nil),        // 15: vrooli.portal.v1.shared.SearchHit
-	(shared.ChatMode)(0),            // 16: vrooli.portal.v1.shared.ChatMode
+	(MessageRole)(0),                    // 0: vrooli.portal.v1.message.MessageRole
+	(CompletionEventKind)(0),            // 1: vrooli.portal.v1.message.CompletionEventKind
+	(*Message)(nil),                     // 2: vrooli.portal.v1.message.Message
+	(*SearchAttachment)(nil),            // 3: vrooli.portal.v1.message.SearchAttachment
+	(*UsageRecord)(nil),                 // 4: vrooli.portal.v1.message.UsageRecord
+	(*GetTreeRequest)(nil),              // 5: vrooli.portal.v1.message.GetTreeRequest
+	(*GetTreeResponse)(nil),             // 6: vrooli.portal.v1.message.GetTreeResponse
+	(*SendMessageRequest)(nil),          // 7: vrooli.portal.v1.message.SendMessageRequest
+	(*SendMessageResponse)(nil),         // 8: vrooli.portal.v1.message.SendMessageResponse
+	(*EditMessageRequest)(nil),          // 9: vrooli.portal.v1.message.EditMessageRequest
+	(*EditMessageResponse)(nil),         // 10: vrooli.portal.v1.message.EditMessageResponse
+	(*RegenerateRequest)(nil),           // 11: vrooli.portal.v1.message.RegenerateRequest
+	(*RegenerateResponse)(nil),          // 12: vrooli.portal.v1.message.RegenerateResponse
+	(*StreamCompletionRequest)(nil),     // 13: vrooli.portal.v1.message.StreamCompletionRequest
+	(*CompletionEvent)(nil),             // 14: vrooli.portal.v1.message.CompletionEvent
+	(*AgentRunRequest)(nil),             // 15: vrooli.portal.v1.message.AgentRunRequest
+	(*AgentRunResponse)(nil),            // 16: vrooli.portal.v1.message.AgentRunResponse
+	(*ListAgentAdmissionsRequest)(nil),  // 17: vrooli.portal.v1.message.ListAgentAdmissionsRequest
+	(*AgentAdmission)(nil),              // 18: vrooli.portal.v1.message.AgentAdmission
+	(*ListAgentAdmissionsResponse)(nil), // 19: vrooli.portal.v1.message.ListAgentAdmissionsResponse
+	(*shared.SearchHit)(nil),            // 20: vrooli.portal.v1.shared.SearchHit
+	(shared.ChatMode)(0),                // 21: vrooli.portal.v1.shared.ChatMode
 }
 var file_portal_v1_message_message_proto_depIdxs = []int32{
 	0,  // 0: vrooli.portal.v1.message.Message.role:type_name -> vrooli.portal.v1.message.MessageRole
 	3,  // 1: vrooli.portal.v1.message.Message.search_attachments:type_name -> vrooli.portal.v1.message.SearchAttachment
-	15, // 2: vrooli.portal.v1.message.SearchAttachment.hits:type_name -> vrooli.portal.v1.shared.SearchHit
+	20, // 2: vrooli.portal.v1.message.SearchAttachment.hits:type_name -> vrooli.portal.v1.shared.SearchHit
 	2,  // 3: vrooli.portal.v1.message.GetTreeResponse.messages:type_name -> vrooli.portal.v1.message.Message
 	2,  // 4: vrooli.portal.v1.message.SendMessageResponse.user_message:type_name -> vrooli.portal.v1.message.Message
 	2,  // 5: vrooli.portal.v1.message.EditMessageResponse.message:type_name -> vrooli.portal.v1.message.Message
 	2,  // 6: vrooli.portal.v1.message.RegenerateResponse.assistant_message:type_name -> vrooli.portal.v1.message.Message
-	16, // 7: vrooli.portal.v1.message.StreamCompletionRequest.mode:type_name -> vrooli.portal.v1.shared.ChatMode
+	21, // 7: vrooli.portal.v1.message.StreamCompletionRequest.mode:type_name -> vrooli.portal.v1.shared.ChatMode
 	1,  // 8: vrooli.portal.v1.message.CompletionEvent.kind:type_name -> vrooli.portal.v1.message.CompletionEventKind
 	3,  // 9: vrooli.portal.v1.message.CompletionEvent.search_attachment:type_name -> vrooli.portal.v1.message.SearchAttachment
 	4,  // 10: vrooli.portal.v1.message.CompletionEvent.usage:type_name -> vrooli.portal.v1.message.UsageRecord
-	5,  // 11: vrooli.portal.v1.message.MessageService.GetTree:input_type -> vrooli.portal.v1.message.GetTreeRequest
-	7,  // 12: vrooli.portal.v1.message.MessageService.SendMessage:input_type -> vrooli.portal.v1.message.SendMessageRequest
-	9,  // 13: vrooli.portal.v1.message.MessageService.EditMessage:input_type -> vrooli.portal.v1.message.EditMessageRequest
-	11, // 14: vrooli.portal.v1.message.MessageService.Regenerate:input_type -> vrooli.portal.v1.message.RegenerateRequest
-	13, // 15: vrooli.portal.v1.message.MessageService.StreamCompletion:input_type -> vrooli.portal.v1.message.StreamCompletionRequest
-	6,  // 16: vrooli.portal.v1.message.MessageService.GetTree:output_type -> vrooli.portal.v1.message.GetTreeResponse
-	8,  // 17: vrooli.portal.v1.message.MessageService.SendMessage:output_type -> vrooli.portal.v1.message.SendMessageResponse
-	10, // 18: vrooli.portal.v1.message.MessageService.EditMessage:output_type -> vrooli.portal.v1.message.EditMessageResponse
-	12, // 19: vrooli.portal.v1.message.MessageService.Regenerate:output_type -> vrooli.portal.v1.message.RegenerateResponse
-	14, // 20: vrooli.portal.v1.message.MessageService.StreamCompletion:output_type -> vrooli.portal.v1.message.CompletionEvent
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	18, // 11: vrooli.portal.v1.message.ListAgentAdmissionsResponse.admissions:type_name -> vrooli.portal.v1.message.AgentAdmission
+	17, // 12: vrooli.portal.v1.message.MessageService.ListAgentAdmissions:input_type -> vrooli.portal.v1.message.ListAgentAdmissionsRequest
+	15, // 13: vrooli.portal.v1.message.MessageService.GetAgentRun:input_type -> vrooli.portal.v1.message.AgentRunRequest
+	15, // 14: vrooli.portal.v1.message.MessageService.StopAgentRun:input_type -> vrooli.portal.v1.message.AgentRunRequest
+	5,  // 15: vrooli.portal.v1.message.MessageService.GetTree:input_type -> vrooli.portal.v1.message.GetTreeRequest
+	7,  // 16: vrooli.portal.v1.message.MessageService.SendMessage:input_type -> vrooli.portal.v1.message.SendMessageRequest
+	9,  // 17: vrooli.portal.v1.message.MessageService.EditMessage:input_type -> vrooli.portal.v1.message.EditMessageRequest
+	11, // 18: vrooli.portal.v1.message.MessageService.Regenerate:input_type -> vrooli.portal.v1.message.RegenerateRequest
+	13, // 19: vrooli.portal.v1.message.MessageService.StreamCompletion:input_type -> vrooli.portal.v1.message.StreamCompletionRequest
+	19, // 20: vrooli.portal.v1.message.MessageService.ListAgentAdmissions:output_type -> vrooli.portal.v1.message.ListAgentAdmissionsResponse
+	16, // 21: vrooli.portal.v1.message.MessageService.GetAgentRun:output_type -> vrooli.portal.v1.message.AgentRunResponse
+	16, // 22: vrooli.portal.v1.message.MessageService.StopAgentRun:output_type -> vrooli.portal.v1.message.AgentRunResponse
+	6,  // 23: vrooli.portal.v1.message.MessageService.GetTree:output_type -> vrooli.portal.v1.message.GetTreeResponse
+	8,  // 24: vrooli.portal.v1.message.MessageService.SendMessage:output_type -> vrooli.portal.v1.message.SendMessageResponse
+	10, // 25: vrooli.portal.v1.message.MessageService.EditMessage:output_type -> vrooli.portal.v1.message.EditMessageResponse
+	12, // 26: vrooli.portal.v1.message.MessageService.Regenerate:output_type -> vrooli.portal.v1.message.RegenerateResponse
+	14, // 27: vrooli.portal.v1.message.MessageService.StreamCompletion:output_type -> vrooli.portal.v1.message.CompletionEvent
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_portal_v1_message_message_proto_init() }
@@ -1197,7 +1503,7 @@ func file_portal_v1_message_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_portal_v1_message_message_proto_rawDesc), len(file_portal_v1_message_message_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -25,23 +25,26 @@ const (
 // operator-state persistence details, allowing Bridge to hold a desired copy
 // while Onboarding remains the authority for local application.
 type Selection struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	SchemaVersion       string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	Target              string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
-	Scenarios           []string               `protobuf:"bytes,3,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
-	OptionalResources   []string               `protobuf:"bytes,4,rep,name=optional_resources,json=optionalResources,proto3" json:"optional_resources,omitempty"`
-	CoreSeed            []string               `protobuf:"bytes,5,rep,name=core_seed,json=coreSeed,proto3" json:"core_seed,omitempty"`
-	TrustedBase         []string               `protobuf:"bytes,6,rep,name=trusted_base,json=trustedBase,proto3" json:"trusted_base,omitempty"`
-	HostTools           []string               `protobuf:"bytes,7,rep,name=host_tools,json=hostTools,proto3" json:"host_tools,omitempty"`
-	HostSafeguards      []string               `protobuf:"bytes,8,rep,name=host_safeguards,json=hostSafeguards,proto3" json:"host_safeguards,omitempty"`
-	CredentialAddresses []string               `protobuf:"bytes,9,rep,name=credential_addresses,json=credentialAddresses,proto3" json:"credential_addresses,omitempty"`
-	TrustPosture        string                 `protobuf:"bytes,10,opt,name=trust_posture,json=trustPosture,proto3" json:"trust_posture,omitempty"`
-	UpdateControl       string                 `protobuf:"bytes,11,opt,name=update_control,json=updateControl,proto3" json:"update_control,omitempty"`
-	SessionMode         string                 `protobuf:"bytes,12,opt,name=session_mode,json=sessionMode,proto3" json:"session_mode,omitempty"`
-	OperatingMode       map[string]string      `protobuf:"bytes,13,rep,name=operating_mode,json=operatingMode,proto3" json:"operating_mode,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Apply               bool                   `protobuf:"varint,14,opt,name=apply,proto3" json:"apply,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                         protoimpl.MessageState                `protogen:"open.v1"`
+	SchemaVersion                 string                                `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Target                        string                                `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Scenarios                     []string                              `protobuf:"bytes,3,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	OptionalResources             []string                              `protobuf:"bytes,4,rep,name=optional_resources,json=optionalResources,proto3" json:"optional_resources,omitempty"`
+	CoreSeed                      []string                              `protobuf:"bytes,5,rep,name=core_seed,json=coreSeed,proto3" json:"core_seed,omitempty"`
+	TrustedBase                   []string                              `protobuf:"bytes,6,rep,name=trusted_base,json=trustedBase,proto3" json:"trusted_base,omitempty"`
+	HostTools                     []string                              `protobuf:"bytes,7,rep,name=host_tools,json=hostTools,proto3" json:"host_tools,omitempty"`
+	HostSafeguards                []string                              `protobuf:"bytes,8,rep,name=host_safeguards,json=hostSafeguards,proto3" json:"host_safeguards,omitempty"`
+	CredentialAddresses           []string                              `protobuf:"bytes,9,rep,name=credential_addresses,json=credentialAddresses,proto3" json:"credential_addresses,omitempty"`
+	TrustPosture                  string                                `protobuf:"bytes,10,opt,name=trust_posture,json=trustPosture,proto3" json:"trust_posture,omitempty"`
+	UpdateControl                 string                                `protobuf:"bytes,11,opt,name=update_control,json=updateControl,proto3" json:"update_control,omitempty"`
+	SessionMode                   string                                `protobuf:"bytes,12,opt,name=session_mode,json=sessionMode,proto3" json:"session_mode,omitempty"`
+	OperatingMode                 map[string]string                     `protobuf:"bytes,13,rep,name=operating_mode,json=operatingMode,proto3" json:"operating_mode,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Apply                         bool                                  `protobuf:"varint,14,opt,name=apply,proto3" json:"apply,omitempty"`
+	CapacityPosture               string                                `protobuf:"bytes,15,opt,name=capacity_posture,json=capacityPosture,proto3" json:"capacity_posture,omitempty"`
+	TransientHeadroomReserveBytes uint64                                `protobuf:"varint,16,opt,name=transient_headroom_reserve_bytes,json=transientHeadroomReserveBytes,proto3" json:"transient_headroom_reserve_bytes,omitempty"`
+	ResourceCapacity              map[string]*ResourceCapacitySelection `protobuf:"bytes,17,rep,name=resource_capacity,json=resourceCapacity,proto3" json:"resource_capacity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Selection) Reset() {
@@ -172,11 +175,116 @@ func (x *Selection) GetApply() bool {
 	return false
 }
 
+func (x *Selection) GetCapacityPosture() string {
+	if x != nil {
+		return x.CapacityPosture
+	}
+	return ""
+}
+
+func (x *Selection) GetTransientHeadroomReserveBytes() uint64 {
+	if x != nil {
+		return x.TransientHeadroomReserveBytes
+	}
+	return 0
+}
+
+func (x *Selection) GetResourceCapacity() map[string]*ResourceCapacitySelection {
+	if x != nil {
+		return x.ResourceCapacity
+	}
+	return nil
+}
+
+type ResourceCapacitySelection struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Rung             string                 `protobuf:"bytes,1,opt,name=rung,proto3" json:"rung,omitempty"`
+	Tunables         map[string]string      `protobuf:"bytes,2,rep,name=tunables,proto3" json:"tunables,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	GpuIndex         uint32                 `protobuf:"varint,3,opt,name=gpu_index,json=gpuIndex,proto3" json:"gpu_index,omitempty"`
+	Priority         string                 `protobuf:"bytes,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	YieldWhenIdle    bool                   `protobuf:"varint,5,opt,name=yield_when_idle,json=yieldWhenIdle,proto3" json:"yield_when_idle,omitempty"`
+	IdleGraceSeconds uint32                 `protobuf:"varint,6,opt,name=idle_grace_seconds,json=idleGraceSeconds,proto3" json:"idle_grace_seconds,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ResourceCapacitySelection) Reset() {
+	*x = ResourceCapacitySelection{}
+	mi := &file_setup_v1_selection_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceCapacitySelection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceCapacitySelection) ProtoMessage() {}
+
+func (x *ResourceCapacitySelection) ProtoReflect() protoreflect.Message {
+	mi := &file_setup_v1_selection_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceCapacitySelection.ProtoReflect.Descriptor instead.
+func (*ResourceCapacitySelection) Descriptor() ([]byte, []int) {
+	return file_setup_v1_selection_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ResourceCapacitySelection) GetRung() string {
+	if x != nil {
+		return x.Rung
+	}
+	return ""
+}
+
+func (x *ResourceCapacitySelection) GetTunables() map[string]string {
+	if x != nil {
+		return x.Tunables
+	}
+	return nil
+}
+
+func (x *ResourceCapacitySelection) GetGpuIndex() uint32 {
+	if x != nil {
+		return x.GpuIndex
+	}
+	return 0
+}
+
+func (x *ResourceCapacitySelection) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *ResourceCapacitySelection) GetYieldWhenIdle() bool {
+	if x != nil {
+		return x.YieldWhenIdle
+	}
+	return false
+}
+
+func (x *ResourceCapacitySelection) GetIdleGraceSeconds() uint32 {
+	if x != nil {
+		return x.IdleGraceSeconds
+	}
+	return 0
+}
+
 var File_setup_v1_selection_proto protoreflect.FileDescriptor
 
 const file_setup_v1_selection_proto_rawDesc = "" +
 	"\n" +
-	"\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xef\x04\n" +
+	"\x18setup/v1/selection.proto\x12\x0fvrooli.setup.v1\"\xb3\a\n" +
 	"\tSelection\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12\x1c\n" +
@@ -193,8 +301,24 @@ const file_setup_v1_selection_proto_rawDesc = "" +
 	"\x0eupdate_control\x18\v \x01(\tR\rupdateControl\x12!\n" +
 	"\fsession_mode\x18\f \x01(\tR\vsessionMode\x12T\n" +
 	"\x0eoperating_mode\x18\r \x03(\v2-.vrooli.setup.v1.Selection.OperatingModeEntryR\roperatingMode\x12\x14\n" +
-	"\x05apply\x18\x0e \x01(\bR\x05apply\x1a@\n" +
+	"\x05apply\x18\x0e \x01(\bR\x05apply\x12)\n" +
+	"\x10capacity_posture\x18\x0f \x01(\tR\x0fcapacityPosture\x12G\n" +
+	" transient_headroom_reserve_bytes\x18\x10 \x01(\x04R\x1dtransientHeadroomReserveBytes\x12]\n" +
+	"\x11resource_capacity\x18\x11 \x03(\v20.vrooli.setup.v1.Selection.ResourceCapacityEntryR\x10resourceCapacity\x1a@\n" +
 	"\x12OperatingModeEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ao\n" +
+	"\x15ResourceCapacityEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12@\n" +
+	"\x05value\x18\x02 \x01(\v2*.vrooli.setup.v1.ResourceCapacitySelectionR\x05value:\x028\x01\"\xd1\x02\n" +
+	"\x19ResourceCapacitySelection\x12\x12\n" +
+	"\x04rung\x18\x01 \x01(\tR\x04rung\x12T\n" +
+	"\btunables\x18\x02 \x03(\v28.vrooli.setup.v1.ResourceCapacitySelection.TunablesEntryR\btunables\x12\x1b\n" +
+	"\tgpu_index\x18\x03 \x01(\rR\bgpuIndex\x12\x1a\n" +
+	"\bpriority\x18\x04 \x01(\tR\bpriority\x12&\n" +
+	"\x0fyield_when_idle\x18\x05 \x01(\bR\ryieldWhenIdle\x12,\n" +
+	"\x12idle_grace_seconds\x18\x06 \x01(\rR\x10idleGraceSeconds\x1a;\n" +
+	"\rTunablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BBZ@github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1b\x06proto3"
 
@@ -210,18 +334,24 @@ func file_setup_v1_selection_proto_rawDescGZIP() []byte {
 	return file_setup_v1_selection_proto_rawDescData
 }
 
-var file_setup_v1_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_setup_v1_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_setup_v1_selection_proto_goTypes = []any{
-	(*Selection)(nil), // 0: vrooli.setup.v1.Selection
-	nil,               // 1: vrooli.setup.v1.Selection.OperatingModeEntry
+	(*Selection)(nil),                 // 0: vrooli.setup.v1.Selection
+	(*ResourceCapacitySelection)(nil), // 1: vrooli.setup.v1.ResourceCapacitySelection
+	nil,                               // 2: vrooli.setup.v1.Selection.OperatingModeEntry
+	nil,                               // 3: vrooli.setup.v1.Selection.ResourceCapacityEntry
+	nil,                               // 4: vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
 }
 var file_setup_v1_selection_proto_depIdxs = []int32{
-	1, // 0: vrooli.setup.v1.Selection.operating_mode:type_name -> vrooli.setup.v1.Selection.OperatingModeEntry
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: vrooli.setup.v1.Selection.operating_mode:type_name -> vrooli.setup.v1.Selection.OperatingModeEntry
+	3, // 1: vrooli.setup.v1.Selection.resource_capacity:type_name -> vrooli.setup.v1.Selection.ResourceCapacityEntry
+	4, // 2: vrooli.setup.v1.ResourceCapacitySelection.tunables:type_name -> vrooli.setup.v1.ResourceCapacitySelection.TunablesEntry
+	1, // 3: vrooli.setup.v1.Selection.ResourceCapacityEntry.value:type_name -> vrooli.setup.v1.ResourceCapacitySelection
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_setup_v1_selection_proto_init() }
@@ -235,7 +365,7 @@ func file_setup_v1_selection_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_setup_v1_selection_proto_rawDesc), len(file_setup_v1_selection_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

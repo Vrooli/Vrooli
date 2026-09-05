@@ -46,6 +46,9 @@ const (
 	// ConversationSearchServiceGetConversationIndexStatusProcedure is the fully-qualified name of the
 	// ConversationSearchService's GetConversationIndexStatus RPC.
 	ConversationSearchServiceGetConversationIndexStatusProcedure = "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus"
+	// ConversationSearchServiceRecordConversationSearchInteractionProcedure is the fully-qualified name
+	// of the ConversationSearchService's RecordConversationSearchInteraction RPC.
+	ConversationSearchServiceRecordConversationSearchInteractionProcedure = "/agent_manager.v1.ConversationSearchService/RecordConversationSearchInteraction"
 	// ConversationSearchControlServicePlanConversationReindexProcedure is the fully-qualified name of
 	// the ConversationSearchControlService's PlanConversationReindex RPC.
 	ConversationSearchControlServicePlanConversationReindexProcedure = "/agent_manager.v1.ConversationSearchControlService/PlanConversationReindex"
@@ -69,6 +72,7 @@ type ConversationSearchServiceClient interface {
 	SearchConversations(context.Context, *connect.Request[domain.SearchConversationsRequest]) (*connect.Response[domain.SearchConversationsResponse], error)
 	GetConversationContext(context.Context, *connect.Request[domain.GetConversationContextRequest]) (*connect.Response[domain.GetConversationContextResponse], error)
 	GetConversationIndexStatus(context.Context, *connect.Request[domain.GetConversationIndexStatusRequest]) (*connect.Response[domain.GetConversationIndexStatusResponse], error)
+	RecordConversationSearchInteraction(context.Context, *connect.Request[domain.RecordConversationSearchInteractionRequest]) (*connect.Response[domain.RecordConversationSearchInteractionResponse], error)
 }
 
 // NewConversationSearchServiceClient constructs a client for the
@@ -100,14 +104,21 @@ func NewConversationSearchServiceClient(httpClient connect.HTTPClient, baseURL s
 			connect.WithSchema(conversationSearchServiceMethods.ByName("GetConversationIndexStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		recordConversationSearchInteraction: connect.NewClient[domain.RecordConversationSearchInteractionRequest, domain.RecordConversationSearchInteractionResponse](
+			httpClient,
+			baseURL+ConversationSearchServiceRecordConversationSearchInteractionProcedure,
+			connect.WithSchema(conversationSearchServiceMethods.ByName("RecordConversationSearchInteraction")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // conversationSearchServiceClient implements ConversationSearchServiceClient.
 type conversationSearchServiceClient struct {
-	searchConversations        *connect.Client[domain.SearchConversationsRequest, domain.SearchConversationsResponse]
-	getConversationContext     *connect.Client[domain.GetConversationContextRequest, domain.GetConversationContextResponse]
-	getConversationIndexStatus *connect.Client[domain.GetConversationIndexStatusRequest, domain.GetConversationIndexStatusResponse]
+	searchConversations                 *connect.Client[domain.SearchConversationsRequest, domain.SearchConversationsResponse]
+	getConversationContext              *connect.Client[domain.GetConversationContextRequest, domain.GetConversationContextResponse]
+	getConversationIndexStatus          *connect.Client[domain.GetConversationIndexStatusRequest, domain.GetConversationIndexStatusResponse]
+	recordConversationSearchInteraction *connect.Client[domain.RecordConversationSearchInteractionRequest, domain.RecordConversationSearchInteractionResponse]
 }
 
 // SearchConversations calls agent_manager.v1.ConversationSearchService.SearchConversations.
@@ -126,12 +137,19 @@ func (c *conversationSearchServiceClient) GetConversationIndexStatus(ctx context
 	return c.getConversationIndexStatus.CallUnary(ctx, req)
 }
 
+// RecordConversationSearchInteraction calls
+// agent_manager.v1.ConversationSearchService.RecordConversationSearchInteraction.
+func (c *conversationSearchServiceClient) RecordConversationSearchInteraction(ctx context.Context, req *connect.Request[domain.RecordConversationSearchInteractionRequest]) (*connect.Response[domain.RecordConversationSearchInteractionResponse], error) {
+	return c.recordConversationSearchInteraction.CallUnary(ctx, req)
+}
+
 // ConversationSearchServiceHandler is an implementation of the
 // agent_manager.v1.ConversationSearchService service.
 type ConversationSearchServiceHandler interface {
 	SearchConversations(context.Context, *connect.Request[domain.SearchConversationsRequest]) (*connect.Response[domain.SearchConversationsResponse], error)
 	GetConversationContext(context.Context, *connect.Request[domain.GetConversationContextRequest]) (*connect.Response[domain.GetConversationContextResponse], error)
 	GetConversationIndexStatus(context.Context, *connect.Request[domain.GetConversationIndexStatusRequest]) (*connect.Response[domain.GetConversationIndexStatusResponse], error)
+	RecordConversationSearchInteraction(context.Context, *connect.Request[domain.RecordConversationSearchInteractionRequest]) (*connect.Response[domain.RecordConversationSearchInteractionResponse], error)
 }
 
 // NewConversationSearchServiceHandler builds an HTTP handler from the service implementation. It
@@ -159,6 +177,12 @@ func NewConversationSearchServiceHandler(svc ConversationSearchServiceHandler, o
 		connect.WithSchema(conversationSearchServiceMethods.ByName("GetConversationIndexStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationSearchServiceRecordConversationSearchInteractionHandler := connect.NewUnaryHandler(
+		ConversationSearchServiceRecordConversationSearchInteractionProcedure,
+		svc.RecordConversationSearchInteraction,
+		connect.WithSchema(conversationSearchServiceMethods.ByName("RecordConversationSearchInteraction")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/agent_manager.v1.ConversationSearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConversationSearchServiceSearchConversationsProcedure:
@@ -167,6 +191,8 @@ func NewConversationSearchServiceHandler(svc ConversationSearchServiceHandler, o
 			conversationSearchServiceGetConversationContextHandler.ServeHTTP(w, r)
 		case ConversationSearchServiceGetConversationIndexStatusProcedure:
 			conversationSearchServiceGetConversationIndexStatusHandler.ServeHTTP(w, r)
+		case ConversationSearchServiceRecordConversationSearchInteractionProcedure:
+			conversationSearchServiceRecordConversationSearchInteractionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -186,6 +212,10 @@ func (UnimplementedConversationSearchServiceHandler) GetConversationContext(cont
 
 func (UnimplementedConversationSearchServiceHandler) GetConversationIndexStatus(context.Context, *connect.Request[domain.GetConversationIndexStatusRequest]) (*connect.Response[domain.GetConversationIndexStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.ConversationSearchService.GetConversationIndexStatus is not implemented"))
+}
+
+func (UnimplementedConversationSearchServiceHandler) RecordConversationSearchInteraction(context.Context, *connect.Request[domain.RecordConversationSearchInteractionRequest]) (*connect.Response[domain.RecordConversationSearchInteractionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.ConversationSearchService.RecordConversationSearchInteraction is not implemented"))
 }
 
 // ConversationSearchControlServiceClient is a client for the

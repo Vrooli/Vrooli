@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.scenario_to_desktop.v1.pipeline;
 
 import "buf/validate/validate.proto";
+import "scenario-to-desktop/v1/domain/config.proto";
 import "google/protobuf/timestamp.proto";
 import "scenario-to-desktop/v1/shared/common.proto";
 import "scenario-to-desktop/v1/shared/metadata.proto";
@@ -146,6 +147,9 @@ message PipelineConfig {
   // Generic update URLs may use HTTP only for development-local evidence; a
   // production pipeline requires an HTTPS endpoint.
   optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update_config = 28;
+
+  // Select an owner-provided native extension for generated Electron code.
+  vrooli.scenario_to_desktop.v1.domain.NativeExtension native_extension = 30;
 }
 
 // =============================================================================

@@ -63,6 +63,10 @@ message AppendEntryRequest {
   string evidence = 9;
   string outcome = 10;
   string scope = 11;
+  // Optional optimistic append condition on latest entry of the same scope/kind.
+  // Present empty string requires no predecessor. Request-key retries return the original receipt.
+  optional string expected_latest_id = 12;
+  string request_key = 13;
 }
 message AppendEntryResponse {
   Entry entry = 1;
@@ -71,6 +75,7 @@ message AppendEntryResponse {
 message GetEntryRequest {
   string id = 1;
   string scope = 2;
+  string request_key = 3;
 }
 message GetEntryResponse {
   Entry entry = 1;
@@ -80,6 +85,10 @@ message ListEntriesRequest {
   int32 limit = 2;
   string cursor = 3;
   string scope = 4;
+  // Latest-first bounded read, optionally restricted to an exact entry kind.
+  // Cursor and facet filters are not supported in this mode.
+  bool newest_first = 5;
+  string kind = 6;
 }
 message ListEntriesResponse {
   repeated Entry entries = 1;

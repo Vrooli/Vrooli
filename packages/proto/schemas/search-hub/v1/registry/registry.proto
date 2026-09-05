@@ -191,6 +191,17 @@ message ResultMapping {
   string weak_field = 15;
   // Compatibility mapping for providers that emit a top-level regime string.
   string regime_field = 16;
+  // Per-hit metadata key -> provider JSON path. Values are copied into the
+  // unified hit's structured metadata without provider-specific adapter code.
+  map<string, string> metadata_fields = 17;
+  // Optional per-hit repeated rank-evidence path. Items use the generic
+  // {leg, rank, score, explanation} shape.
+  string rank_evidence_field = 18;
+  // Optional response-level structured coverage/degradation paths.
+  string coverage_field = 19;
+  string degradations_field = 20;
+  // Optional response-level continuation cursor path.
+  string next_cursor_field = 21;
 }
 
 // Per-leg score floor (query-time). A value of 0 means "use the regime

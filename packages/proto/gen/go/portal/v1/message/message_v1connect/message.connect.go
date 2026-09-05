@@ -33,6 +33,15 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MessageServiceListAgentAdmissionsProcedure is the fully-qualified name of the MessageService's
+	// ListAgentAdmissions RPC.
+	MessageServiceListAgentAdmissionsProcedure = "/vrooli.portal.v1.message.MessageService/ListAgentAdmissions"
+	// MessageServiceGetAgentRunProcedure is the fully-qualified name of the MessageService's
+	// GetAgentRun RPC.
+	MessageServiceGetAgentRunProcedure = "/vrooli.portal.v1.message.MessageService/GetAgentRun"
+	// MessageServiceStopAgentRunProcedure is the fully-qualified name of the MessageService's
+	// StopAgentRun RPC.
+	MessageServiceStopAgentRunProcedure = "/vrooli.portal.v1.message.MessageService/StopAgentRun"
 	// MessageServiceGetTreeProcedure is the fully-qualified name of the MessageService's GetTree RPC.
 	MessageServiceGetTreeProcedure = "/vrooli.portal.v1.message.MessageService/GetTree"
 	// MessageServiceSendMessageProcedure is the fully-qualified name of the MessageService's
@@ -51,6 +60,12 @@ const (
 
 // MessageServiceClient is a client for the vrooli.portal.v1.message.MessageService service.
 type MessageServiceClient interface {
+	// Enumerate durable admissions for recovery; includes unknown launch outcomes.
+	ListAgentAdmissions(context.Context, *connect.Request[message.ListAgentAdmissionsRequest]) (*connect.Response[message.ListAgentAdmissionsResponse], error)
+	// Resolve or reconcile the run associated with a Portal message; never launches.
+	GetAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error)
+	// Stop the associated run. Failure is unconfirmed; use GetAgentRun for readback.
+	StopAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error)
 	GetTree(context.Context, *connect.Request[message.GetTreeRequest]) (*connect.Response[message.GetTreeResponse], error)
 	SendMessage(context.Context, *connect.Request[message.SendMessageRequest]) (*connect.Response[message.SendMessageResponse], error)
 	EditMessage(context.Context, *connect.Request[message.EditMessageRequest]) (*connect.Response[message.EditMessageResponse], error)
@@ -69,6 +84,24 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	messageServiceMethods := message.File_portal_v1_message_message_proto.Services().ByName("MessageService").Methods()
 	return &messageServiceClient{
+		listAgentAdmissions: connect.NewClient[message.ListAgentAdmissionsRequest, message.ListAgentAdmissionsResponse](
+			httpClient,
+			baseURL+MessageServiceListAgentAdmissionsProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("ListAgentAdmissions")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentRun: connect.NewClient[message.AgentRunRequest, message.AgentRunResponse](
+			httpClient,
+			baseURL+MessageServiceGetAgentRunProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("GetAgentRun")),
+			connect.WithClientOptions(opts...),
+		),
+		stopAgentRun: connect.NewClient[message.AgentRunRequest, message.AgentRunResponse](
+			httpClient,
+			baseURL+MessageServiceStopAgentRunProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("StopAgentRun")),
+			connect.WithClientOptions(opts...),
+		),
 		getTree: connect.NewClient[message.GetTreeRequest, message.GetTreeResponse](
 			httpClient,
 			baseURL+MessageServiceGetTreeProcedure,
@@ -104,11 +137,29 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	getTree          *connect.Client[message.GetTreeRequest, message.GetTreeResponse]
-	sendMessage      *connect.Client[message.SendMessageRequest, message.SendMessageResponse]
-	editMessage      *connect.Client[message.EditMessageRequest, message.EditMessageResponse]
-	regenerate       *connect.Client[message.RegenerateRequest, message.RegenerateResponse]
-	streamCompletion *connect.Client[message.StreamCompletionRequest, message.CompletionEvent]
+	listAgentAdmissions *connect.Client[message.ListAgentAdmissionsRequest, message.ListAgentAdmissionsResponse]
+	getAgentRun         *connect.Client[message.AgentRunRequest, message.AgentRunResponse]
+	stopAgentRun        *connect.Client[message.AgentRunRequest, message.AgentRunResponse]
+	getTree             *connect.Client[message.GetTreeRequest, message.GetTreeResponse]
+	sendMessage         *connect.Client[message.SendMessageRequest, message.SendMessageResponse]
+	editMessage         *connect.Client[message.EditMessageRequest, message.EditMessageResponse]
+	regenerate          *connect.Client[message.RegenerateRequest, message.RegenerateResponse]
+	streamCompletion    *connect.Client[message.StreamCompletionRequest, message.CompletionEvent]
+}
+
+// ListAgentAdmissions calls vrooli.portal.v1.message.MessageService.ListAgentAdmissions.
+func (c *messageServiceClient) ListAgentAdmissions(ctx context.Context, req *connect.Request[message.ListAgentAdmissionsRequest]) (*connect.Response[message.ListAgentAdmissionsResponse], error) {
+	return c.listAgentAdmissions.CallUnary(ctx, req)
+}
+
+// GetAgentRun calls vrooli.portal.v1.message.MessageService.GetAgentRun.
+func (c *messageServiceClient) GetAgentRun(ctx context.Context, req *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error) {
+	return c.getAgentRun.CallUnary(ctx, req)
+}
+
+// StopAgentRun calls vrooli.portal.v1.message.MessageService.StopAgentRun.
+func (c *messageServiceClient) StopAgentRun(ctx context.Context, req *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error) {
+	return c.stopAgentRun.CallUnary(ctx, req)
 }
 
 // GetTree calls vrooli.portal.v1.message.MessageService.GetTree.
@@ -139,6 +190,12 @@ func (c *messageServiceClient) StreamCompletion(ctx context.Context, req *connec
 // MessageServiceHandler is an implementation of the vrooli.portal.v1.message.MessageService
 // service.
 type MessageServiceHandler interface {
+	// Enumerate durable admissions for recovery; includes unknown launch outcomes.
+	ListAgentAdmissions(context.Context, *connect.Request[message.ListAgentAdmissionsRequest]) (*connect.Response[message.ListAgentAdmissionsResponse], error)
+	// Resolve or reconcile the run associated with a Portal message; never launches.
+	GetAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error)
+	// Stop the associated run. Failure is unconfirmed; use GetAgentRun for readback.
+	StopAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error)
 	GetTree(context.Context, *connect.Request[message.GetTreeRequest]) (*connect.Response[message.GetTreeResponse], error)
 	SendMessage(context.Context, *connect.Request[message.SendMessageRequest]) (*connect.Response[message.SendMessageResponse], error)
 	EditMessage(context.Context, *connect.Request[message.EditMessageRequest]) (*connect.Response[message.EditMessageResponse], error)
@@ -153,6 +210,24 @@ type MessageServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	messageServiceMethods := message.File_portal_v1_message_message_proto.Services().ByName("MessageService").Methods()
+	messageServiceListAgentAdmissionsHandler := connect.NewUnaryHandler(
+		MessageServiceListAgentAdmissionsProcedure,
+		svc.ListAgentAdmissions,
+		connect.WithSchema(messageServiceMethods.ByName("ListAgentAdmissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceGetAgentRunHandler := connect.NewUnaryHandler(
+		MessageServiceGetAgentRunProcedure,
+		svc.GetAgentRun,
+		connect.WithSchema(messageServiceMethods.ByName("GetAgentRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceStopAgentRunHandler := connect.NewUnaryHandler(
+		MessageServiceStopAgentRunProcedure,
+		svc.StopAgentRun,
+		connect.WithSchema(messageServiceMethods.ByName("StopAgentRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messageServiceGetTreeHandler := connect.NewUnaryHandler(
 		MessageServiceGetTreeProcedure,
 		svc.GetTree,
@@ -185,6 +260,12 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.portal.v1.message.MessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MessageServiceListAgentAdmissionsProcedure:
+			messageServiceListAgentAdmissionsHandler.ServeHTTP(w, r)
+		case MessageServiceGetAgentRunProcedure:
+			messageServiceGetAgentRunHandler.ServeHTTP(w, r)
+		case MessageServiceStopAgentRunProcedure:
+			messageServiceStopAgentRunHandler.ServeHTTP(w, r)
 		case MessageServiceGetTreeProcedure:
 			messageServiceGetTreeHandler.ServeHTTP(w, r)
 		case MessageServiceSendMessageProcedure:
@@ -203,6 +284,18 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 
 // UnimplementedMessageServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMessageServiceHandler struct{}
+
+func (UnimplementedMessageServiceHandler) ListAgentAdmissions(context.Context, *connect.Request[message.ListAgentAdmissionsRequest]) (*connect.Response[message.ListAgentAdmissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.message.MessageService.ListAgentAdmissions is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) GetAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.message.MessageService.GetAgentRun is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) StopAgentRun(context.Context, *connect.Request[message.AgentRunRequest]) (*connect.Response[message.AgentRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.message.MessageService.StopAgentRun is not implemented"))
+}
 
 func (UnimplementedMessageServiceHandler) GetTree(context.Context, *connect.Request[message.GetTreeRequest]) (*connect.Response[message.GetTreeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.message.MessageService.GetTree is not implemented"))

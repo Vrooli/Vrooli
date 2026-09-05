@@ -42,7 +42,7 @@ class Execution(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ..., scope_amendments: _Optional[_Iterable[_Union[ScopeAmendment, _Mapping]]] = ..., degraded_reason: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., abandoned_reason: _Optional[str] = ..., abandoned_at: _Optional[str] = ..., abandoned_by: _Optional[str] = ..., boundary_extensions: _Optional[_Iterable[_Union[BoundaryExtension, _Mapping]]] = ...) -> None: ...
 
 class BaselineSetState(_message.Message):
-    __slots__ = ("version", "name", "scenario_targets", "repo_paths", "captured_at", "status", "required", "ready", "pending", "failed", "skipped", "stale", "detail", "collection_branch", "members", "path_snapshots", "capture_argv", "wait_argv", "sync_argv", "last_synced_at", "source_preflight", "preflight_unavailable")
+    __slots__ = ("version", "name", "scenario_targets", "repo_paths", "captured_at", "status", "required", "ready", "pending", "failed", "skipped", "stale", "detail", "collection_branch", "members", "path_snapshots", "capture_argv", "wait_argv", "sync_argv", "last_synced_at", "source_preflight", "preflight_unavailable", "receipt_id")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_TARGETS_FIELD_NUMBER: _ClassVar[int]
@@ -65,6 +65,7 @@ class BaselineSetState(_message.Message):
     LAST_SYNCED_AT_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PREFLIGHT_FIELD_NUMBER: _ClassVar[int]
     PREFLIGHT_UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     version: int
     name: str
     scenario_targets: _containers.RepeatedScalarFieldContainer[str]
@@ -87,7 +88,8 @@ class BaselineSetState(_message.Message):
     last_synced_at: str
     source_preflight: SourceEvidencePreflight
     preflight_unavailable: bool
-    def __init__(self, version: _Optional[int] = ..., name: _Optional[str] = ..., scenario_targets: _Optional[_Iterable[str]] = ..., repo_paths: _Optional[_Iterable[str]] = ..., captured_at: _Optional[str] = ..., status: _Optional[str] = ..., required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., detail: _Optional[str] = ..., collection_branch: _Optional[str] = ..., members: _Optional[_Iterable[_Union[BaselineSetMember, _Mapping]]] = ..., path_snapshots: _Optional[_Iterable[_Union[BaselineSetPathSnapshot, _Mapping]]] = ..., capture_argv: _Optional[_Iterable[str]] = ..., wait_argv: _Optional[_Iterable[str]] = ..., sync_argv: _Optional[_Iterable[str]] = ..., last_synced_at: _Optional[str] = ..., source_preflight: _Optional[_Union[SourceEvidencePreflight, _Mapping]] = ..., preflight_unavailable: _Optional[bool] = ...) -> None: ...
+    receipt_id: str
+    def __init__(self, version: _Optional[int] = ..., name: _Optional[str] = ..., scenario_targets: _Optional[_Iterable[str]] = ..., repo_paths: _Optional[_Iterable[str]] = ..., captured_at: _Optional[str] = ..., status: _Optional[str] = ..., required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., detail: _Optional[str] = ..., collection_branch: _Optional[str] = ..., members: _Optional[_Iterable[_Union[BaselineSetMember, _Mapping]]] = ..., path_snapshots: _Optional[_Iterable[_Union[BaselineSetPathSnapshot, _Mapping]]] = ..., capture_argv: _Optional[_Iterable[str]] = ..., wait_argv: _Optional[_Iterable[str]] = ..., sync_argv: _Optional[_Iterable[str]] = ..., last_synced_at: _Optional[str] = ..., source_preflight: _Optional[_Union[SourceEvidencePreflight, _Mapping]] = ..., preflight_unavailable: _Optional[bool] = ..., receipt_id: _Optional[str] = ...) -> None: ...
 
 class SourceEvidencePreflight(_message.Message):
     __slots__ = ("eligible_files", "eligible_bytes", "retained_content_bytes", "repair_required", "issues", "recommendations", "policy_version", "include_ignored", "retain_content", "excluded_ignored_files", "excluded_ignored_bytes", "excluded_sensitive_files", "excluded_binary_files", "oversized_files", "top_contributors")

@@ -39,30 +39,15 @@ const (
 	// ValidationServiceComputeStalenessProcedure is the fully-qualified name of the ValidationService's
 	// ComputeStaleness RPC.
 	ValidationServiceComputeStalenessProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/ComputeStaleness"
-	// ValidationServiceDeriveBaselineScopeProcedure is the fully-qualified name of the
-	// ValidationService's DeriveBaselineScope RPC.
-	ValidationServiceDeriveBaselineScopeProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/DeriveBaselineScope"
 	// ValidationServiceStartValidationProcedure is the fully-qualified name of the ValidationService's
 	// StartValidation RPC.
 	ValidationServiceStartValidationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/StartValidation"
 	// ValidationServiceGetValidationOperationProcedure is the fully-qualified name of the
 	// ValidationService's GetValidationOperation RPC.
 	ValidationServiceGetValidationOperationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/GetValidationOperation"
-	// ValidationServiceWaitValidationOperationProcedure is the fully-qualified name of the
-	// ValidationService's WaitValidationOperation RPC.
-	ValidationServiceWaitValidationOperationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/WaitValidationOperation"
-	// ValidationServiceResumeValidationOperationProcedure is the fully-qualified name of the
-	// ValidationService's ResumeValidationOperation RPC.
-	ValidationServiceResumeValidationOperationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/ResumeValidationOperation"
 	// ValidationServiceSyncValidationProcedure is the fully-qualified name of the ValidationService's
 	// SyncValidation RPC.
 	ValidationServiceSyncValidationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/SyncValidation"
-	// ValidationServiceRunValidationProcedure is the fully-qualified name of the ValidationService's
-	// RunValidation RPC.
-	ValidationServiceRunValidationProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/RunValidation"
-	// ValidationServiceVerifyDefinitionOfDoneProcedure is the fully-qualified name of the
-	// ValidationService's VerifyDefinitionOfDone RPC.
-	ValidationServiceVerifyDefinitionOfDoneProcedure = "/vrooli.plan_manager.v1.validation.ValidationService/VerifyDefinitionOfDone"
 )
 
 // ValidationServiceClient is a client for the vrooli.plan_manager.v1.validation.ValidationService
@@ -75,26 +60,12 @@ type ValidationServiceClient interface {
 	// ComputeStaleness computes staleness tiers for a plan/phase's references
 	// (OT-P0-004, PM-STALE-001).
 	ComputeStaleness(context.Context, *connect.Request[validation.ComputeStalenessRequest]) (*connect.Response[validation.ComputeStalenessResponse], error)
-	// DeriveBaselineScope derives the exact baseline/validation command set across
-	// all affected locations for a phase (OT-P0-005).
-	DeriveBaselineScope(context.Context, *connect.Request[validation.DeriveBaselineScopeRequest]) (*connect.Response[validation.DeriveBaselineScopeResponse], error)
 	// StartValidation persists a durable producer ticket and exact action argv.
 	// It never dispatches or waits for producer work.
 	StartValidation(context.Context, *connect.Request[validation.StartValidationRequest]) (*connect.Response[validation.StartValidationResponse], error)
-	// GetValidationOperation inspects a durable operation or waits once. A
-	// transport timeout detaches without canceling server-owned work.
+	// GetValidationOperation inspects a durable operation without waiting.
 	GetValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
-	WaitValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
-	ResumeValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
 	SyncValidation(context.Context, *connect.Request[validation.SyncValidationRequest]) (*connect.Response[validation.SyncValidationResponse], error)
-	// RunValidation runs the derived baseline/check set on request and returns the
-	// result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
-	// exec failure — degrades to UNKNOWN.
-	RunValidation(context.Context, *connect.Request[validation.RunValidationRequest]) (*connect.Response[validation.RunValidationResponse], error)
-	// VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
-	// an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
-	// PM-VALID-002).
-	VerifyDefinitionOfDone(context.Context, *connect.Request[validation.VerifyDefinitionOfDoneRequest]) (*connect.Response[validation.VerifyDefinitionOfDoneResponse], error)
 }
 
 // NewValidationServiceClient constructs a client for the
@@ -121,12 +92,6 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(validationServiceMethods.ByName("ComputeStaleness")),
 			connect.WithClientOptions(opts...),
 		),
-		deriveBaselineScope: connect.NewClient[validation.DeriveBaselineScopeRequest, validation.DeriveBaselineScopeResponse](
-			httpClient,
-			baseURL+ValidationServiceDeriveBaselineScopeProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("DeriveBaselineScope")),
-			connect.WithClientOptions(opts...),
-		),
 		startValidation: connect.NewClient[validation.StartValidationRequest, validation.StartValidationResponse](
 			httpClient,
 			baseURL+ValidationServiceStartValidationProcedure,
@@ -139,34 +104,10 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(validationServiceMethods.ByName("GetValidationOperation")),
 			connect.WithClientOptions(opts...),
 		),
-		waitValidationOperation: connect.NewClient[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse](
-			httpClient,
-			baseURL+ValidationServiceWaitValidationOperationProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("WaitValidationOperation")),
-			connect.WithClientOptions(opts...),
-		),
-		resumeValidationOperation: connect.NewClient[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse](
-			httpClient,
-			baseURL+ValidationServiceResumeValidationOperationProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("ResumeValidationOperation")),
-			connect.WithClientOptions(opts...),
-		),
 		syncValidation: connect.NewClient[validation.SyncValidationRequest, validation.SyncValidationResponse](
 			httpClient,
 			baseURL+ValidationServiceSyncValidationProcedure,
 			connect.WithSchema(validationServiceMethods.ByName("SyncValidation")),
-			connect.WithClientOptions(opts...),
-		),
-		runValidation: connect.NewClient[validation.RunValidationRequest, validation.RunValidationResponse](
-			httpClient,
-			baseURL+ValidationServiceRunValidationProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("RunValidation")),
-			connect.WithClientOptions(opts...),
-		),
-		verifyDefinitionOfDone: connect.NewClient[validation.VerifyDefinitionOfDoneRequest, validation.VerifyDefinitionOfDoneResponse](
-			httpClient,
-			baseURL+ValidationServiceVerifyDefinitionOfDoneProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("VerifyDefinitionOfDone")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -174,16 +115,11 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // validationServiceClient implements ValidationServiceClient.
 type validationServiceClient struct {
-	resolveReferences         *connect.Client[validation.ResolveReferencesRequest, validation.ResolveReferencesResponse]
-	computeStaleness          *connect.Client[validation.ComputeStalenessRequest, validation.ComputeStalenessResponse]
-	deriveBaselineScope       *connect.Client[validation.DeriveBaselineScopeRequest, validation.DeriveBaselineScopeResponse]
-	startValidation           *connect.Client[validation.StartValidationRequest, validation.StartValidationResponse]
-	getValidationOperation    *connect.Client[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse]
-	waitValidationOperation   *connect.Client[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse]
-	resumeValidationOperation *connect.Client[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse]
-	syncValidation            *connect.Client[validation.SyncValidationRequest, validation.SyncValidationResponse]
-	runValidation             *connect.Client[validation.RunValidationRequest, validation.RunValidationResponse]
-	verifyDefinitionOfDone    *connect.Client[validation.VerifyDefinitionOfDoneRequest, validation.VerifyDefinitionOfDoneResponse]
+	resolveReferences      *connect.Client[validation.ResolveReferencesRequest, validation.ResolveReferencesResponse]
+	computeStaleness       *connect.Client[validation.ComputeStalenessRequest, validation.ComputeStalenessResponse]
+	startValidation        *connect.Client[validation.StartValidationRequest, validation.StartValidationResponse]
+	getValidationOperation *connect.Client[validation.GetValidationOperationRequest, validation.GetValidationOperationResponse]
+	syncValidation         *connect.Client[validation.SyncValidationRequest, validation.SyncValidationResponse]
 }
 
 // ResolveReferences calls vrooli.plan_manager.v1.validation.ValidationService.ResolveReferences.
@@ -194,12 +130,6 @@ func (c *validationServiceClient) ResolveReferences(ctx context.Context, req *co
 // ComputeStaleness calls vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness.
 func (c *validationServiceClient) ComputeStaleness(ctx context.Context, req *connect.Request[validation.ComputeStalenessRequest]) (*connect.Response[validation.ComputeStalenessResponse], error) {
 	return c.computeStaleness.CallUnary(ctx, req)
-}
-
-// DeriveBaselineScope calls
-// vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope.
-func (c *validationServiceClient) DeriveBaselineScope(ctx context.Context, req *connect.Request[validation.DeriveBaselineScopeRequest]) (*connect.Response[validation.DeriveBaselineScopeResponse], error) {
-	return c.deriveBaselineScope.CallUnary(ctx, req)
 }
 
 // StartValidation calls vrooli.plan_manager.v1.validation.ValidationService.StartValidation.
@@ -213,32 +143,9 @@ func (c *validationServiceClient) GetValidationOperation(ctx context.Context, re
 	return c.getValidationOperation.CallUnary(ctx, req)
 }
 
-// WaitValidationOperation calls
-// vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation.
-func (c *validationServiceClient) WaitValidationOperation(ctx context.Context, req *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error) {
-	return c.waitValidationOperation.CallUnary(ctx, req)
-}
-
-// ResumeValidationOperation calls
-// vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation.
-func (c *validationServiceClient) ResumeValidationOperation(ctx context.Context, req *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error) {
-	return c.resumeValidationOperation.CallUnary(ctx, req)
-}
-
 // SyncValidation calls vrooli.plan_manager.v1.validation.ValidationService.SyncValidation.
 func (c *validationServiceClient) SyncValidation(ctx context.Context, req *connect.Request[validation.SyncValidationRequest]) (*connect.Response[validation.SyncValidationResponse], error) {
 	return c.syncValidation.CallUnary(ctx, req)
-}
-
-// RunValidation calls vrooli.plan_manager.v1.validation.ValidationService.RunValidation.
-func (c *validationServiceClient) RunValidation(ctx context.Context, req *connect.Request[validation.RunValidationRequest]) (*connect.Response[validation.RunValidationResponse], error) {
-	return c.runValidation.CallUnary(ctx, req)
-}
-
-// VerifyDefinitionOfDone calls
-// vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone.
-func (c *validationServiceClient) VerifyDefinitionOfDone(ctx context.Context, req *connect.Request[validation.VerifyDefinitionOfDoneRequest]) (*connect.Response[validation.VerifyDefinitionOfDoneResponse], error) {
-	return c.verifyDefinitionOfDone.CallUnary(ctx, req)
 }
 
 // ValidationServiceHandler is an implementation of the
@@ -251,26 +158,12 @@ type ValidationServiceHandler interface {
 	// ComputeStaleness computes staleness tiers for a plan/phase's references
 	// (OT-P0-004, PM-STALE-001).
 	ComputeStaleness(context.Context, *connect.Request[validation.ComputeStalenessRequest]) (*connect.Response[validation.ComputeStalenessResponse], error)
-	// DeriveBaselineScope derives the exact baseline/validation command set across
-	// all affected locations for a phase (OT-P0-005).
-	DeriveBaselineScope(context.Context, *connect.Request[validation.DeriveBaselineScopeRequest]) (*connect.Response[validation.DeriveBaselineScopeResponse], error)
 	// StartValidation persists a durable producer ticket and exact action argv.
 	// It never dispatches or waits for producer work.
 	StartValidation(context.Context, *connect.Request[validation.StartValidationRequest]) (*connect.Response[validation.StartValidationResponse], error)
-	// GetValidationOperation inspects a durable operation or waits once. A
-	// transport timeout detaches without canceling server-owned work.
+	// GetValidationOperation inspects a durable operation without waiting.
 	GetValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
-	WaitValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
-	ResumeValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error)
 	SyncValidation(context.Context, *connect.Request[validation.SyncValidationRequest]) (*connect.Response[validation.SyncValidationResponse], error)
-	// RunValidation runs the derived baseline/check set on request and returns the
-	// result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
-	// exec failure — degrades to UNKNOWN.
-	RunValidation(context.Context, *connect.Request[validation.RunValidationRequest]) (*connect.Response[validation.RunValidationResponse], error)
-	// VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
-	// an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
-	// PM-VALID-002).
-	VerifyDefinitionOfDone(context.Context, *connect.Request[validation.VerifyDefinitionOfDoneRequest]) (*connect.Response[validation.VerifyDefinitionOfDoneResponse], error)
 }
 
 // NewValidationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -292,12 +185,6 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 		connect.WithSchema(validationServiceMethods.ByName("ComputeStaleness")),
 		connect.WithHandlerOptions(opts...),
 	)
-	validationServiceDeriveBaselineScopeHandler := connect.NewUnaryHandler(
-		ValidationServiceDeriveBaselineScopeProcedure,
-		svc.DeriveBaselineScope,
-		connect.WithSchema(validationServiceMethods.ByName("DeriveBaselineScope")),
-		connect.WithHandlerOptions(opts...),
-	)
 	validationServiceStartValidationHandler := connect.NewUnaryHandler(
 		ValidationServiceStartValidationProcedure,
 		svc.StartValidation,
@@ -310,34 +197,10 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 		connect.WithSchema(validationServiceMethods.ByName("GetValidationOperation")),
 		connect.WithHandlerOptions(opts...),
 	)
-	validationServiceWaitValidationOperationHandler := connect.NewUnaryHandler(
-		ValidationServiceWaitValidationOperationProcedure,
-		svc.WaitValidationOperation,
-		connect.WithSchema(validationServiceMethods.ByName("WaitValidationOperation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	validationServiceResumeValidationOperationHandler := connect.NewUnaryHandler(
-		ValidationServiceResumeValidationOperationProcedure,
-		svc.ResumeValidationOperation,
-		connect.WithSchema(validationServiceMethods.ByName("ResumeValidationOperation")),
-		connect.WithHandlerOptions(opts...),
-	)
 	validationServiceSyncValidationHandler := connect.NewUnaryHandler(
 		ValidationServiceSyncValidationProcedure,
 		svc.SyncValidation,
 		connect.WithSchema(validationServiceMethods.ByName("SyncValidation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	validationServiceRunValidationHandler := connect.NewUnaryHandler(
-		ValidationServiceRunValidationProcedure,
-		svc.RunValidation,
-		connect.WithSchema(validationServiceMethods.ByName("RunValidation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	validationServiceVerifyDefinitionOfDoneHandler := connect.NewUnaryHandler(
-		ValidationServiceVerifyDefinitionOfDoneProcedure,
-		svc.VerifyDefinitionOfDone,
-		connect.WithSchema(validationServiceMethods.ByName("VerifyDefinitionOfDone")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/vrooli.plan_manager.v1.validation.ValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -346,22 +209,12 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 			validationServiceResolveReferencesHandler.ServeHTTP(w, r)
 		case ValidationServiceComputeStalenessProcedure:
 			validationServiceComputeStalenessHandler.ServeHTTP(w, r)
-		case ValidationServiceDeriveBaselineScopeProcedure:
-			validationServiceDeriveBaselineScopeHandler.ServeHTTP(w, r)
 		case ValidationServiceStartValidationProcedure:
 			validationServiceStartValidationHandler.ServeHTTP(w, r)
 		case ValidationServiceGetValidationOperationProcedure:
 			validationServiceGetValidationOperationHandler.ServeHTTP(w, r)
-		case ValidationServiceWaitValidationOperationProcedure:
-			validationServiceWaitValidationOperationHandler.ServeHTTP(w, r)
-		case ValidationServiceResumeValidationOperationProcedure:
-			validationServiceResumeValidationOperationHandler.ServeHTTP(w, r)
 		case ValidationServiceSyncValidationProcedure:
 			validationServiceSyncValidationHandler.ServeHTTP(w, r)
-		case ValidationServiceRunValidationProcedure:
-			validationServiceRunValidationHandler.ServeHTTP(w, r)
-		case ValidationServiceVerifyDefinitionOfDoneProcedure:
-			validationServiceVerifyDefinitionOfDoneHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -379,10 +232,6 @@ func (UnimplementedValidationServiceHandler) ComputeStaleness(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.ComputeStaleness is not implemented"))
 }
 
-func (UnimplementedValidationServiceHandler) DeriveBaselineScope(context.Context, *connect.Request[validation.DeriveBaselineScopeRequest]) (*connect.Response[validation.DeriveBaselineScopeResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope is not implemented"))
-}
-
 func (UnimplementedValidationServiceHandler) StartValidation(context.Context, *connect.Request[validation.StartValidationRequest]) (*connect.Response[validation.StartValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.StartValidation is not implemented"))
 }
@@ -391,22 +240,6 @@ func (UnimplementedValidationServiceHandler) GetValidationOperation(context.Cont
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation is not implemented"))
 }
 
-func (UnimplementedValidationServiceHandler) WaitValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation is not implemented"))
-}
-
-func (UnimplementedValidationServiceHandler) ResumeValidationOperation(context.Context, *connect.Request[validation.GetValidationOperationRequest]) (*connect.Response[validation.GetValidationOperationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation is not implemented"))
-}
-
 func (UnimplementedValidationServiceHandler) SyncValidation(context.Context, *connect.Request[validation.SyncValidationRequest]) (*connect.Response[validation.SyncValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.SyncValidation is not implemented"))
-}
-
-func (UnimplementedValidationServiceHandler) RunValidation(context.Context, *connect.Request[validation.RunValidationRequest]) (*connect.Response[validation.RunValidationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.RunValidation is not implemented"))
-}
-
-func (UnimplementedValidationServiceHandler) VerifyDefinitionOfDone(context.Context, *connect.Request[validation.VerifyDefinitionOfDoneRequest]) (*connect.Response[validation.VerifyDefinitionOfDoneResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone is not implemented"))
 }

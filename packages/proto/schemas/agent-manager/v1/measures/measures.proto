@@ -35,6 +35,7 @@ service MeasuresService {
   rpc EpisodeCohort(EpisodeCohortRequest) returns (EpisodeCohortResponse);
   rpc CapabilityUsage(CapabilityUsageRequest) returns (CapabilityUsageResponse);
   rpc CapabilityEfficacy(CapabilityEfficacyRequest) returns (CapabilityEfficacyResponse);
+  rpc ConversationSearchQuality(ConversationSearchQualityRequest) returns (ConversationSearchQualityResponse);
   rpc AllMeasureDefinitions(AllMeasureDefinitionsRequest) returns (AllMeasureDefinitionsResponse);
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
@@ -108,6 +109,39 @@ message AllMeasureDefinitionsRequest {}
 
 message AllMeasureDefinitionsResponse {
   repeated MeasureDefinition definitions = 1;
+}
+
+message ConversationSearchQualityRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message ConversationSearchQualityResponse {
+  int64 queries = 1;
+  int64 no_result_queries = 2;
+  double no_result_rate = 3;
+  int64 weak_only_queries = 4;
+  double weak_only_rate = 5;
+  int64 reformulated_queries = 6;
+  double reformulation_rate = 7;
+  int64 selected_queries = 8;
+  double selected_query_rate = 9;
+  double p50_selected_rank = 10;
+  double p95_selected_rank = 11;
+  double lexical_contribution_rate = 12;
+  double semantic_contribution_rate = 13;
+  int64 degraded_queries = 14;
+  double degradation_rate = 15;
+  double p50_latency_ms = 16;
+  double p95_latency_ms = 17;
+  int64 error_queries = 18;
+  double error_rate = 19;
+  int64 current_index_lag_ms = 20;
+  uint64 pending_documents = 21;
+  uint64 orphan_documents = 22;
+  bool truncated = 23;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message ExternalToolShareRequest {

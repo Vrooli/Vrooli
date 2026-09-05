@@ -95,7 +95,7 @@ class Entry(_message.Message):
     def __init__(self, id: _Optional[str] = ..., body: _Optional[str] = ..., facet_id: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., facet_texts: _Optional[_Iterable[_Union[FacetText, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., superseded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class AppendEntryRequest(_message.Message):
-    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance", "trigger", "approach", "evidence", "outcome", "scope")
+    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance", "trigger", "approach", "evidence", "outcome", "scope", "expected_latest_id", "request_key")
     BODY_FIELD_NUMBER: _ClassVar[int]
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -107,6 +107,8 @@ class AppendEntryRequest(_message.Message):
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_LATEST_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
     body: str
     facet_id: str
     kind: str
@@ -118,7 +120,9 @@ class AppendEntryRequest(_message.Message):
     evidence: str
     outcome: str
     scope: str
-    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+    expected_latest_id: str
+    request_key: str
+    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ..., scope: _Optional[str] = ..., expected_latest_id: _Optional[str] = ..., request_key: _Optional[str] = ...) -> None: ...
 
 class AppendEntryResponse(_message.Message):
     __slots__ = ("entry", "existing")
@@ -129,12 +133,14 @@ class AppendEntryResponse(_message.Message):
     def __init__(self, entry: _Optional[_Union[Entry, _Mapping]] = ..., existing: _Optional[bool] = ...) -> None: ...
 
 class GetEntryRequest(_message.Message):
-    __slots__ = ("id", "scope")
+    __slots__ = ("id", "scope", "request_key")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
     id: str
     scope: str
-    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+    request_key: str
+    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ..., request_key: _Optional[str] = ...) -> None: ...
 
 class GetEntryResponse(_message.Message):
     __slots__ = ("entry",)
@@ -143,16 +149,20 @@ class GetEntryResponse(_message.Message):
     def __init__(self, entry: _Optional[_Union[Entry, _Mapping]] = ...) -> None: ...
 
 class ListEntriesRequest(_message.Message):
-    __slots__ = ("facet_id", "limit", "cursor", "scope")
+    __slots__ = ("facet_id", "limit", "cursor", "scope", "newest_first", "kind")
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     CURSOR_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    NEWEST_FIRST_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     facet_id: str
     limit: int
     cursor: str
     scope: str
-    def __init__(self, facet_id: _Optional[str] = ..., limit: _Optional[int] = ..., cursor: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+    newest_first: bool
+    kind: str
+    def __init__(self, facet_id: _Optional[str] = ..., limit: _Optional[int] = ..., cursor: _Optional[str] = ..., scope: _Optional[str] = ..., newest_first: _Optional[bool] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class ListEntriesResponse(_message.Message):
     __slots__ = ("entries", "next_cursor")

@@ -48,20 +48,25 @@ type Section struct {
 }
 
 type Document struct {
-	Path         string     `json:"path"`
-	DocType      string     `json:"docType"`
-	Title        string     `json:"title"`
-	Aliases      []string   `json:"aliases,omitempty"`
-	Description  string     `json:"description,omitempty"`
-	Audience     []string   `json:"audience,omitempty"`
-	CanonicalFor []string   `json:"canonicalFor,omitempty"`
-	Maturity     string     `json:"maturity"`
-	RequiredBy   []string   `json:"requiredBy"`
-	Completion   string     `json:"completion"`
-	Condition    string     `json:"condition,omitempty"`
-	OwnerSkills  []string   `json:"ownerSkills,omitempty"`
-	Operations   Operations `json:"operations,omitempty"`
-	Validation   Validation `json:"validation,omitempty"`
+	KnowledgeStatus          string     `json:"knowledgeStatus,omitempty"`
+	OperatingSystems         []string   `json:"operatingSystems,omitempty"`
+	VerifiedOperatingSystems []string   `json:"verifiedOperatingSystems,omitempty"`
+	MachineScope             string     `json:"machineScope,omitempty"`
+	SupersededBy             []string   `json:"supersededBy,omitempty"`
+	Path                     string     `json:"path"`
+	DocType                  string     `json:"docType"`
+	Title                    string     `json:"title"`
+	Aliases                  []string   `json:"aliases,omitempty"`
+	Description              string     `json:"description,omitempty"`
+	Audience                 []string   `json:"audience,omitempty"`
+	CanonicalFor             []string   `json:"canonicalFor,omitempty"`
+	Maturity                 string     `json:"maturity"`
+	RequiredBy               []string   `json:"requiredBy"`
+	Completion               string     `json:"completion"`
+	Condition                string     `json:"condition,omitempty"`
+	OwnerSkills              []string   `json:"ownerSkills,omitempty"`
+	Operations               Operations `json:"operations,omitempty"`
+	Validation               Validation `json:"validation,omitempty"`
 
 	ScenarioPath string `json:"-"`
 	SectionID    string `json:"-"`

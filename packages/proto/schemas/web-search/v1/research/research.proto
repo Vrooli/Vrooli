@@ -3,7 +3,8 @@ syntax = "proto3";
 package vrooli.web_search.v1.research;
 
 import "google/protobuf/timestamp.proto";
-import "web-search/v1/livesearch/livesearch.proto";
+import "google/protobuf/struct.proto";
+import "web-search/v1/shared/search.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1";
 
@@ -12,11 +13,15 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v
 // the top-N result pages, extracts readable text, and produces ONE cited
 // synthesis grounded in the full page content (not just snippets). L3 (RunL3)
 // hands the harder, iterative research-and-reconcile loop to an agent-manager
-// run and returns a run handle the caller polls via GetResearchStatus.
+// workflow and returns an execution handle for WaitResearch or GetResearchStatus.
 //
 // Auto-capture policy: L3 distills findings by default; L2 only when the caller
 // opts in (capture=true); L0/L1 never persist.
 service ResearchService {
+  // Answer applies owner evidence policy before escalating to live research.
+  rpc Answer(AnswerRequest) returns (AnswerResponse);
+  // WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
+  rpc WaitResearch(WaitResearchRequest) returns (GetResearchStatusResponse);
   // RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
   // pipeline and returns a Brief plus the cited synthesis. With capture=true the
   // distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -27,7 +32,7 @@ service ResearchService {
   // distill, supersede outdated, flag low-confidence contradictions) are encoded
   // in the agent task. Auto-capture is on for L3.
   rpc RunL3(RunL3Request) returns (RunL3Response);
-  // GetResearchStatus polls an L3 run by id.
+  // GetResearchStatus reads a declared L3 execution by id.
   rpc GetResearchStatus(GetResearchStatusRequest) returns (GetResearchStatusResponse);
   // GatherRelatedFindings returns the findings semantically NEAR a query — the
   // bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
@@ -62,6 +67,8 @@ message RunL2Request {
   // capture opts in to persisting the distilled claims as findings (L2 default
   // is OFF; L0/L1 never capture, L3 always does).
   bool capture = 3;
+  EvidencePolicy policy = 4;
+  repeated ResearchQuestion questions = 5;
 }
 
 message RunL2Response {
@@ -81,7 +88,7 @@ message RunL2Response {
   // livesearch.SearchResponse.degraded_engines). A weak synthesis with a
   // non-empty list usually means the inputs were partial, not that the web
   // lacks an answer.
-  repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
+  repeated vrooli.web_search.v1.shared.EngineIssue degraded_engines = 5;
   // abstain_reason explains WHICH collapse produced an abstention (empty when
   // abstained=false): "no_candidates" (the L0 search returned no usable
   // pages), "all_fetches_empty" (candidates existed but every fetch failed or
@@ -94,6 +101,16 @@ message RunL2Response {
   // synthesis model (post relevance-selection/truncation, transport-capped) —
   // the observability needed to debug a wrong or abstaining synthesis.
   repeated DocumentExcerpt excerpts = 7;
+  repeated string evidence_receipt_ids = 8;
+  repeated FetchFailure fetch_failures = 9;
+}
+
+message FetchFailure {
+  string url = 1;
+  string code = 2;
+  string message = 3;
+  bool retryable = 4;
+  string receipt_id = 5;
 }
 
 // DocumentExcerpt is what the synthesis model actually read from one fetched
@@ -106,10 +123,13 @@ message DocumentExcerpt {
 
 message RunL3Request {
   string query = 1;
+  string idempotency_key = 2;
+  EvidencePolicy policy = 3;
+  repeated ResearchQuestion questions = 4;
 }
 
 message RunL3Response {
-  // run_id is the agent-manager run handle to poll via GetResearchStatus.
+  // run_id is the declared workflow execution handle for WaitResearch.
   string run_id = 1;
   // status is the initial run status (e.g. "pending", "running").
   string status = 2;
@@ -131,6 +151,8 @@ message GetResearchStatusResponse {
   google.protobuf.Timestamp finished_at = 5;
   // error_msg explains a failed run.
   string error_msg = 6;
+  google.protobuf.Struct result = 7;
+  bool timed_out = 8;
 }
 
 message GatherRelatedFindingsRequest {
@@ -160,4 +182,100 @@ message GatherRelatedFindingsResponse {
   // (after clamping the requested max), so callers can see the sweep was
   // bounded.
   int32 cap_applied = 2;
+}
+
+// An omitted max_age_seconds requires live evidence. Stored reuse is opt-in.
+message AnswerRequest {
+  string query = 1;
+  string effort = 2; // l0, l1, l2 (default)
+  int64 max_age_seconds = 3;
+  repeated string source_domains = 4;
+  int32 minimum_sources = 5;
+  int32 top_n = 6;
+  bool capture = 7;
+  string finding_id = 8; // Explicitly selected relevant finding; otherwise query must match exactly.
+  EvidencePolicy policy = 9;
+  repeated ResearchQuestion questions = 10;
+}
+message AnswerResponse {
+  string status = 1; // ok, partial, unavailable
+  string answer_kind = 2; // stored_finding, cited_synthesis, raw_hits, none
+  Brief brief = 3;
+  repeated vrooli.web_search.v1.shared.SearchResult results = 4;
+  repeated string finding_ids = 5;
+  bool abstained = 6;
+  string reason = 7;
+  google.protobuf.Timestamp checked_at = 8;
+  int32 live_calls = 9;
+  bool cached = 10;
+  repeated string gaps = 11;
+  repeated string captured_finding_ids = 12;
+  repeated ClaimAssessment assessments = 13;
+  repeated QuestionCoverage coverage = 14;
+}
+message WaitResearchRequest {
+  string run_id = 1;
+  int32 timeout_seconds = 2;
+}
+
+// EvidencePolicy is the bounded policy shared by direct and delegated
+// research. max_age_seconds=0 requires a fresh observation; reuse is opt-in.
+message EvidencePolicy {
+  int64 max_age_seconds = 1;
+  repeated string source_domains = 2;
+  int32 minimum_sources = 3;
+  int32 top_n = 4;
+  int32 max_questions = 5;
+  int32 max_evidence_bytes = 6;
+  bool require_independent_sources = 7;
+}
+
+// ResearchQuestion is one independently answerable requested part. A result
+// is answered only when every required question is covered or explicitly
+// unresolved with a reason.
+message ResearchQuestion {
+  string id = 1;
+  string prompt = 2;
+  bool required = 3;
+}
+
+enum AssessmentDisposition {
+  ASSESSMENT_DISPOSITION_UNSPECIFIED = 0;
+  ASSESSMENT_SUPPORTED = 1;
+  ASSESSMENT_CONTRADICTED = 2;
+  ASSESSMENT_UNRESOLVED = 3;
+  ASSESSMENT_UNKNOWN = 4;
+}
+
+message EvidencePassageRef {
+  string receipt_id = 1;
+  string passage_id = 2;
+  string content_hash = 3;
+  string extraction_revision = 4;
+}
+
+message ClaimAssessment {
+  string claim_id = 1;
+  AssessmentDisposition disposition = 2;
+  repeated EvidencePassageRef evidence = 3;
+  string policy_revision = 4;
+  string reason = 5;
+}
+
+message QuestionCoverage {
+  string question_id = 1;
+  string status = 2; // supported, partial, unresolved, unknown
+  repeated string claim_ids = 3;
+  string unresolved_reason = 4;
+}
+
+message EvidenceReceipt {
+  string receipt_id = 1;
+  string observation_id = 2;
+  string url = 3;
+  string retrieved_at = 4;
+  string content_hash = 5;
+  string extraction_revision = 6;
+  string retention = 7;
+  string failure_code = 8;
 }

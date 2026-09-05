@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.react_component_library.v1.preview;
 
+import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview;preview_v1";
 
 // =============================================================================
@@ -30,6 +32,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 
 service PreviewService {
+  rpc RenderComposition(RenderCompositionRequest) returns (RenderCompositionResponse);
+  rpc GetCompositionBundle(GetCompositionBundleRequest) returns (GetCompositionBundleResponse);
   // GetPreviewBundle transpiles the component's source file into an
   // ES module and returns the JS text. The handler is read-only with
   // respect to the registry — it does NOT mutate component rows.
@@ -60,4 +64,56 @@ message GetPreviewBundleResponse {
   // bundler errors surface as Connect InvalidArgument and never
   // populate this field.
   repeated string warnings = 4;
+}
+
+// Exact exports and prop slots used by both generated scenario code and Preview.
+message CompositionAsset { string catalog_id = 1; string version = 2; string export = 3; }
+message CompositionRegion { string id = 1; CompositionAsset asset = 2; repeated string slot = 3; bool required = 4; string parent = 5; }
+message GetCompositionBundleRequest { string revision = 1; CompositionAsset template = 2; repeated CompositionRegion regions = 3; }
+message CompositionGap { string region = 1; string code = 2; string message = 3; bool required = 4; }
+message GetCompositionBundleResponse {
+ string revision = 1;
+ string source = 2;
+ string js = 3;
+ string sha256 = 4;
+ repeated string warnings = 5;
+ repeated CompositionGap gaps = 6;
+}
+
+message CompositionFixtureBinding {
+ string target = 1;
+ string asset = 2;
+ string version = 3;
+ string state = 4;
+ string field = 5;
+ repeated string prop = 6;
+}
+message RenderCompositionRequest {
+ GetCompositionBundleRequest composition = 1;
+ google.protobuf.Struct bindings = 2;
+ repeated CompositionFixtureBinding fixtures = 3;
+ string kit = 4;
+ string theme = 5;
+ string direction = 6;
+}
+message RenderCompositionResponse {
+ GetCompositionBundleResponse bundle = 1;
+ string html = 2;
+ string render_hash = 3;
+ CompositionRenderTarget target = 4;
+}
+
+// Exact preview target. Viewport and interaction identity are supplied by the
+// browser capture operation; this descriptor does not claim browser execution.
+message CompositionRenderTarget {
+ // Digests of independently comparable rendering inputs and generated harness.
+ map<string, string> input_hashes = 9;
+ string revision = 1;
+ string render_hash = 2;
+ string html_sha256 = 3;
+ string inputs_sha256 = 4;
+ string kind = 5;
+ string kit = 6;
+ string theme = 7;
+ string direction = 8;
 }

@@ -8,6 +8,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/me
 
 // MessageService owns the conversation tree and streamed completion path.
 service MessageService {
+  // Enumerate durable admissions for recovery; includes unknown launch outcomes.
+  rpc ListAgentAdmissions(ListAgentAdmissionsRequest) returns (ListAgentAdmissionsResponse);
+  // Resolve or reconcile the run associated with a Portal message; never launches.
+  rpc GetAgentRun(AgentRunRequest) returns (AgentRunResponse);
+  // Stop the associated run. Failure is unconfirmed; use GetAgentRun for readback.
+  rpc StopAgentRun(AgentRunRequest) returns (AgentRunResponse);
   rpc GetTree(GetTreeRequest) returns (GetTreeResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
@@ -122,4 +128,30 @@ message CompletionEvent {
   UsageRecord usage = 5;
   string error_code = 6;
   string error_message = 7;
+}
+
+// Remote run IDs are returned as evidence, never accepted as cancellation authority.
+message AgentRunRequest {
+  string chat_id = 1;
+  string message_id = 2;
+}
+
+message AgentRunResponse {
+  string run_id = 1;
+  string status = 2;
+  bool terminal = 3;
+}
+
+// Page tokens are opaque continuation values returned by the service.
+message ListAgentAdmissionsRequest {
+  string page_token = 1;
+  int32 page_size = 2;
+}
+message AgentAdmission {
+  string chat_id = 1;
+  string message_id = 2;
+}
+message ListAgentAdmissionsResponse {
+  repeated AgentAdmission admissions = 1;
+  string next_page_token = 2;
 }

@@ -14,6 +14,7 @@ service ConversationSearchService {
   rpc SearchConversations(SearchConversationsRequest) returns (SearchConversationsResponse);
   rpc GetConversationContext(GetConversationContextRequest) returns (GetConversationContextResponse);
   rpc GetConversationIndexStatus(GetConversationIndexStatusRequest) returns (GetConversationIndexStatusResponse);
+  rpc RecordConversationSearchInteraction(RecordConversationSearchInteractionRequest) returns (RecordConversationSearchInteractionResponse);
 }
 
 // ConversationSearchControlService owns bounded, token-gated index and search
@@ -128,6 +129,9 @@ message SearchConversationsRequest {
   // Opaque, versioned, integrity-protected cursor bound to the normalized
   // request fingerprint and sort tuple.
   string page_cursor = 6 [(buf.validate.field).string.max_len = 8192];
+  // An ephemeral caller-generated correlation token. The server stores only a
+  // keyed hash and never persists the token or query text.
+  string telemetry_session_token = 7 [(buf.validate.field).string.max_len = 128];
 }
 
 // ConversationSearchCursor documents the server payload carried inside an
@@ -208,6 +212,8 @@ message ConversationSearchCoverage {
   double semantic_ratio = 8;
   google.protobuf.Timestamp last_reconciled_at = 9;
   string source_checkpoint = 10;
+  uint64 orphan_documents = 11;
+  uint64 freshness_lag_ms = 12;
 }
 
 message ConversationSearchDegradation {
@@ -225,6 +231,28 @@ message SearchConversationsResponse {
   ConversationSearchCoverage coverage = 5;
   repeated ConversationSearchDegradation degradations = 6;
   uint64 took_ms = 7;
+  // Opaque identifier for privacy-safe selection/reformulation telemetry.
+  string request_id = 8;
+}
+
+enum ConversationSearchInteractionKind {
+  CONVERSATION_SEARCH_INTERACTION_KIND_UNSPECIFIED = 0;
+  CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED = 1;
+  CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED = 2;
+}
+
+message RecordConversationSearchInteractionRequest {
+  string request_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string telemetry_session_token = 2 [(buf.validate.field).string.max_len = 128];
+  ConversationSearchInteractionKind kind = 3 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  // Required for SELECTED and ignored for REFORMULATED. Stable identifiers are
+  // safe diagnostic evidence; snippets and raw content are never accepted.
+  string stable_hit_id = 4 [(buf.validate.field).string.max_len = 512];
+  uint32 selected_rank = 5 [(buf.validate.field).uint32.lte = 100];
+}
+
+message RecordConversationSearchInteractionResponse {
+  bool accepted = 1;
 }
 
 message GetConversationContextRequest {
@@ -266,17 +294,22 @@ message GetConversationIndexStatusResponse {
   google.protobuf.Timestamp last_indexed_at = 8;
   google.protobuf.Timestamp last_success_at = 9;
   string last_error_code = 10;
+  string candidate_generation = 11;
+  repeated string degraded_dependencies = 12;
+  string collection_layout = 13;
 }
 
 message PlanConversationReindexRequest {
   bool full = 1;
   uint64 max_documents = 2;
+  string control_token = 3 [(buf.validate.field).string.max_len = 512];
 }
 
 message ReindexConversationsRequest {
   bool full = 1;
   uint64 max_documents = 2;
   string idempotency_key = 3 [(buf.validate.field).string.max_len = 255];
+  string control_token = 4 [(buf.validate.field).string.max_len = 512];
 }
 
 message CancelConversationReindexRequest {
@@ -284,6 +317,7 @@ message CancelConversationReindexRequest {
     min_len: 1
     max_len: 255
   }];
+  string control_token = 2 [(buf.validate.field).string.max_len = 512];
 }
 
 message ConversationReindexResponse {
@@ -306,6 +340,7 @@ message ConversationReindexResponse {
 message WriteConversationSearchConfigRequest {
   google.protobuf.Struct tuning = 1 [(buf.validate.field).required = true];
   string expected_digest = 2 [(buf.validate.field).string.max_len = 128];
+  string control_token = 3 [(buf.validate.field).string.max_len = 512];
 }
 
 message WriteConversationSearchConfigResponse {
@@ -316,6 +351,7 @@ message WriteConversationSearchConfigResponse {
 message WriteConversationSearchCorpusRequest {
   google.protobuf.Struct tests = 1 [(buf.validate.field).required = true];
   string expected_digest = 2 [(buf.validate.field).string.max_len = 128];
+  string control_token = 3 [(buf.validate.field).string.max_len = 512];
 }
 
 message WriteConversationSearchCorpusResponse {

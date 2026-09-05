@@ -27,7 +27,7 @@
       "title": "Getting Started",
       "documents": [
         {"path": "QUICKSTART.md", "docType": "quickstart", "title": "Quickstart", "aliases": ["quick-start", "run-local"], "description": "Run the scenario and complete the first workflows", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
-        {"path": "guides/getting-started.md", "docType": "getting-started-guide", "title": "Getting Started Guide", "aliases": ["getting-started", "guide"], "description": "End-to-end usage across UI, CLI, and API", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "guides/getting-started.md", "docType": "getting-started-guide", "title": "Getting Started Guide", "aliases": ["getting-started", "guide"], "description": "Operator onboarding and agent knowledge workflows: source evidence, applicability, bounded programs, and learning.", "maturity": "active", "requiredBy": ["generated"], "completion": "required", "knowledgeStatus": "accepted", "ownerSkills": ["knowledge-observatory", "knowledge-observatory-improve"], "canonicalFor": ["knowledge-observatory-agent-usage"]},
         {"path": "guides/troubleshooting.md", "docType": "troubleshooting", "title": "Troubleshooting", "aliases": ["troubleshoot", "common-failures"], "description": "Known local failure modes and recovery steps", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     },

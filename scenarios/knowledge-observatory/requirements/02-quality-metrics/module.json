@@ -8,7 +8,7 @@
       "id": "KO-QM-001",
       "title": "Coherence score calculation",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "prd_ref": "OT-P0-002",
       "description": "Calculate semantic coherence within collections by measuring similarity variance and cluster tightness",
       "validation": [
         {
@@ -23,7 +23,7 @@
       "id": "KO-QM-002",
       "title": "Freshness score calculation",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "prd_ref": "OT-P0-002",
       "description": "Track knowledge age using payload timestamps and calculate time-decay based freshness scores",
       "validation": [
         {
@@ -38,7 +38,7 @@
       "id": "KO-QM-003",
       "title": "Redundancy detection",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "prd_ref": "OT-P0-002",
       "description": "Identify duplicate or near-duplicate knowledge entries using similarity thresholds",
       "validation": [
         {
@@ -53,7 +53,7 @@
       "id": "KO-QM-004",
       "title": "Quality metrics API endpoint",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "prd_ref": "OT-P0-002",
       "description": "GET /api/v1/knowledge/health returns aggregated quality metrics for all collections",
       "validation": [
         {
@@ -66,9 +66,9 @@
     },
     {
       "id": "KO-QM-005",
-      "title": "Quality calculation performance \u003c 1s",
+      "title": "Quality calculation performance < 1s",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "prd_ref": "OT-P0-002",
       "description": "Quality metrics calculation must complete in under 1 second per collection scan",
       "validation": [
         {

@@ -1,13 +1,15 @@
 # Product Requirements Document (PRD)
 
 > **Version**: 2.0.0
-> **Last Updated**: 2026-02-07
+> **Last Updated**: 2026-09-05
 > **Status**: Active
 > **Template**: Canonical PRD v2.0.0
 
 ## 🎯 Overview
 
-Knowledge Observatory provides real-time introspection and management of Vrooli's semantic memory system stored in Qdrant. It acts as a consciousness monitor for collective intelligence, showing health, drift, gaps, and relationships across knowledge collections.
+Knowledge Observatory helps agents retrieve, assess, and maintain documentation as a knowledge base through scenario-owned skills, bounded programs, and memory-backed improvement. Document owners retain policy authority; Plan Manager owns plan artifacts. OS and machine applicability must remain explicit, and unknown support must not be presented as verified.
+
+Knowledge Observatory also provides real-time introspection and management of Vrooli's semantic memory system stored in Qdrant. It acts as a consciousness monitor for collective intelligence, showing health, drift, gaps, and relationships across knowledge collections.
 
 **Purpose**: Enable operators and agents to query, assess, and evolve the knowledge base with confidence by surfacing semantic search, quality metrics, and graph relationships in one system.
 
@@ -31,6 +33,11 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 - [ ] OT-P0-004 | API endpoints for knowledge queries | Stable REST endpoints for search, health, and graph queries
 - [ ] OT-P0-005 | CLI exploration commands | CLI workflows for search, health, and graph inspection
 - [ ] OT-P0-006 | Operator dashboard UI | Modern control-tower UI with search, metrics, and health views
+
+- [ ] OT-P0-007 | Agent knowledge workflows | When an agent needs task context or document maintenance, the system shall provide governed bounded retrieval, source inspection, change preparation, and verification with revision evidence and explicit gaps.
+- [ ] OT-P0-008 | Learning from usage | The system shall expose usage and improve skills with one caller-owned learning attempt per operation and comparable memory measurements without treating search hits as verified task success.
+- [ ] OT-P0-009 | Documentation authority and portability | The system shall preserve declared authority, supersession, OS applicability, and stable repository-relative identity across retrieval modes and federation without inferring policy from plan supplements.
+- [ ] OT-P0-010 | Documentation contract validation | The system shall validate canonical documentation placement and surface actionable reference and manifest findings for scenario owners.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -65,7 +72,7 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 - Ollama (enhanced embeddings and semantic enrichment)
 
 **Scenario Dependencies**:
-- None (standalone capability)
+- Program Runtime (governed orchestration), Vrooli Memory (usage learning), Search Hub (federation and retrieval evaluations), Prompt Manager (skill discovery). Documentation files remain owned by their source; this scenario does not replace Plan Manager or Source Ledger.
 
 **Launch Sequencing**:
 1. P0 API endpoints and CLI workflows
@@ -112,9 +119,9 @@ Performance Targets:
 | Resource Usage | < 512MB memory, < 10% CPU | System monitoring |
 
 Quality Gates:
-- [x] All P0 targets implemented and tested
-- [x] Integration tests pass with Qdrant and Postgres resources
-- [x] Performance targets met under normal load
+- [ ] All P0 targets implemented and tested
+- [ ] Integration tests pass with Qdrant and Postgres resources
+- [ ] Performance targets met under normal load
 - [x] Documentation complete (README, API docs, CLI help)
 - [x] Scenario callable via API/CLI from other agents
 

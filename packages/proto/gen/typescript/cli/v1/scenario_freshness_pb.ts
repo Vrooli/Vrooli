@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/scenario_freshness.proto.
  */
 export const file_cli_v1_scenario_freshness: GenFile = /*@__PURE__*/
-  fileDesc("Ch9jbGkvdjEvc2NlbmFyaW9fZnJlc2huZXNzLnByb3RvEg12cm9vbGkuY2xpLnYxIsYBChlTY2VuYXJpb0ZyZXNobmVzc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEAoIc2NlbmFyaW8YAiABKAkSDQoFc3RhbGUYAyABKAgSNQoGY2hlY2tzGAQgAygLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb0ZyZXNobmVzc0NoZWNrEkAKDGRlcGVuZGVuY2llcxgFIAMoCzIqLnZyb29saS5jbGkudjEuU2NlbmFyaW9GcmVzaG5lc3NEZXBlbmRlbmN5ImgKFlNjZW5hcmlvRnJlc2huZXNzQ2hlY2sSEgoKY2hlY2tfdHlwZRgBIAEoCRIOCgZ0YXJnZXQYAiABKAkSDQoFc3RhbGUYAyABKAgSDQoFY2F1c2UYBCABKAkSDAoEZmlsZRgFIAEoCSI7ChtTY2VuYXJpb0ZyZXNobmVzc0RlcGVuZGVuY3kSDAoEbmFtZRgBIAEoCRIOCgZwb2xpY3kYAiABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw");
+  fileDesc("Ch9jbGkvdjEvc2NlbmFyaW9fZnJlc2huZXNzLnByb3RvEg12cm9vbGkuY2xpLnYxIv4BChlTY2VuYXJpb0ZyZXNobmVzc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEAoIc2NlbmFyaW8YAiABKAkSDQoFc3RhbGUYAyABKAgSNQoGY2hlY2tzGAQgAygLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb0ZyZXNobmVzc0NoZWNrEkAKDGRlcGVuZGVuY2llcxgFIAMoCzIqLnZyb29saS5jbGkudjEuU2NlbmFyaW9GcmVzaG5lc3NEZXBlbmRlbmN5EjYKBmlucHV0cxgGIAEoCzImLnZyb29saS5jbGkudjEuU2NlbmFyaW9GcmVzaG5lc3NJbnB1dHMipQEKF1NjZW5hcmlvRnJlc2huZXNzSW5wdXRzEg0KBXBhdGhzGAEgAygJEkkKCmJ1aWxkX2tleXMYAiADKAsyNS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvRnJlc2huZXNzSW5wdXRzLkJ1aWxkS2V5c0VudHJ5GjAKDkJ1aWxkS2V5c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiaAoWU2NlbmFyaW9GcmVzaG5lc3NDaGVjaxISCgpjaGVja190eXBlGAEgASgJEg4KBnRhcmdldBgCIAEoCRINCgVzdGFsZRgDIAEoCBINCgVjYXVzZRgEIAEoCRIMCgRmaWxlGAUgASgJIjsKG1NjZW5hcmlvRnJlc2huZXNzRGVwZW5kZW5jeRIMCgRuYW1lGAEgASgJEg4KBnBvbGljeRgCIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
 
 /**
  * ScenarioFreshnessResponse is the envelope of `vrooli scenario freshness --json`.
@@ -52,6 +52,14 @@ export type ScenarioFreshnessResponse = Message<"vrooli.cli.v1.ScenarioFreshness
    * @generated from field: repeated vrooli.cli.v1.ScenarioFreshnessDependency dependencies = 5;
    */
   dependencies: ScenarioFreshnessDependency[];
+
+  /**
+   * Present only for --inputs. This resolves the same input closure and build
+   * keys as lifecycle freshness, without evaluating or stamping artifacts.
+   *
+   * @generated from field: vrooli.cli.v1.ScenarioFreshnessInputs inputs = 6;
+   */
+  inputs?: ScenarioFreshnessInputs | undefined;
 };
 
 /**
@@ -60,6 +68,28 @@ export type ScenarioFreshnessResponse = Message<"vrooli.cli.v1.ScenarioFreshness
  */
 export const ScenarioFreshnessResponseSchema: GenMessage<ScenarioFreshnessResponse> = /*@__PURE__*/
   messageDesc(file_cli_v1_scenario_freshness, 0);
+
+/**
+ * @generated from message vrooli.cli.v1.ScenarioFreshnessInputs
+ */
+export type ScenarioFreshnessInputs = Message<"vrooli.cli.v1.ScenarioFreshnessInputs"> & {
+  /**
+   * @generated from field: repeated string paths = 1;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: map<string, string> build_keys = 2;
+   */
+  buildKeys: { [key: string]: string };
+};
+
+/**
+ * Describes the message vrooli.cli.v1.ScenarioFreshnessInputs.
+ * Use `create(ScenarioFreshnessInputsSchema)` to create a new message.
+ */
+export const ScenarioFreshnessInputsSchema: GenMessage<ScenarioFreshnessInputs> = /*@__PURE__*/
+  messageDesc(file_cli_v1_scenario_freshness, 1);
 
 /**
  * ScenarioFreshnessCheck is one artifact's freshness verdict.
@@ -110,7 +140,7 @@ export type ScenarioFreshnessCheck = Message<"vrooli.cli.v1.ScenarioFreshnessChe
  * Use `create(ScenarioFreshnessCheckSchema)` to create a new message.
  */
 export const ScenarioFreshnessCheckSchema: GenMessage<ScenarioFreshnessCheck> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_freshness, 1);
+  messageDesc(file_cli_v1_scenario_freshness, 2);
 
 /**
  * ScenarioFreshnessDependency reports the resolved freshness_policy for one
@@ -142,5 +172,5 @@ export type ScenarioFreshnessDependency = Message<"vrooli.cli.v1.ScenarioFreshne
  * Use `create(ScenarioFreshnessDependencySchema)` to create a new message.
  */
 export const ScenarioFreshnessDependencySchema: GenMessage<ScenarioFreshnessDependency> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_freshness, 2);
+  messageDesc(file_cli_v1_scenario_freshness, 3);
 

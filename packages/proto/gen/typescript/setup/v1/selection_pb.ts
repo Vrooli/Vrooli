@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file setup/v1/selection.proto.
  */
 export const file_setup_v1_selection: GenFile = /*@__PURE__*/
-  fileDesc("ChhzZXR1cC92MS9zZWxlY3Rpb24ucHJvdG8SD3Zyb29saS5zZXR1cC52MSKnAwoJU2VsZWN0aW9uEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEg4KBnRhcmdldBgCIAEoCRIRCglzY2VuYXJpb3MYAyADKAkSGgoSb3B0aW9uYWxfcmVzb3VyY2VzGAQgAygJEhEKCWNvcmVfc2VlZBgFIAMoCRIUCgx0cnVzdGVkX2Jhc2UYBiADKAkSEgoKaG9zdF90b29scxgHIAMoCRIXCg9ob3N0X3NhZmVndWFyZHMYCCADKAkSHAoUY3JlZGVudGlhbF9hZGRyZXNzZXMYCSADKAkSFQoNdHJ1c3RfcG9zdHVyZRgKIAEoCRIWCg51cGRhdGVfY29udHJvbBgLIAEoCRIUCgxzZXNzaW9uX21vZGUYDCABKAkSRQoOb3BlcmF0aW5nX21vZGUYDSADKAsyLS52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uLk9wZXJhdGluZ01vZGVFbnRyeRINCgVhcHBseRgOIAEoCBo0ChJPcGVyYXRpbmdNb2RlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUJCWkBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NldHVwL3YxO3NldHVwX3YxYgZwcm90bzM");
+  fileDesc("ChhzZXR1cC92MS9zZWxlY3Rpb24ucHJvdG8SD3Zyb29saS5zZXR1cC52MSKdBQoJU2VsZWN0aW9uEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEg4KBnRhcmdldBgCIAEoCRIRCglzY2VuYXJpb3MYAyADKAkSGgoSb3B0aW9uYWxfcmVzb3VyY2VzGAQgAygJEhEKCWNvcmVfc2VlZBgFIAMoCRIUCgx0cnVzdGVkX2Jhc2UYBiADKAkSEgoKaG9zdF90b29scxgHIAMoCRIXCg9ob3N0X3NhZmVndWFyZHMYCCADKAkSHAoUY3JlZGVudGlhbF9hZGRyZXNzZXMYCSADKAkSFQoNdHJ1c3RfcG9zdHVyZRgKIAEoCRIWCg51cGRhdGVfY29udHJvbBgLIAEoCRIUCgxzZXNzaW9uX21vZGUYDCABKAkSRQoOb3BlcmF0aW5nX21vZGUYDSADKAsyLS52cm9vbGkuc2V0dXAudjEuU2VsZWN0aW9uLk9wZXJhdGluZ01vZGVFbnRyeRINCgVhcHBseRgOIAEoCBIYChBjYXBhY2l0eV9wb3N0dXJlGA8gASgJEigKIHRyYW5zaWVudF9oZWFkcm9vbV9yZXNlcnZlX2J5dGVzGBAgASgEEksKEXJlc291cmNlX2NhcGFjaXR5GBEgAygLMjAudnJvb2xpLnNldHVwLnYxLlNlbGVjdGlvbi5SZXNvdXJjZUNhcGFjaXR5RW50cnkaNAoST3BlcmF0aW5nTW9kZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaYwoVUmVzb3VyY2VDYXBhY2l0eUVudHJ5EgsKA2tleRgBIAEoCRI5CgV2YWx1ZRgCIAEoCzIqLnZyb29saS5zZXR1cC52MS5SZXNvdXJjZUNhcGFjaXR5U2VsZWN0aW9uOgI4ASKAAgoZUmVzb3VyY2VDYXBhY2l0eVNlbGVjdGlvbhIMCgRydW5nGAEgASgJEkoKCHR1bmFibGVzGAIgAygLMjgudnJvb2xpLnNldHVwLnYxLlJlc291cmNlQ2FwYWNpdHlTZWxlY3Rpb24uVHVuYWJsZXNFbnRyeRIRCglncHVfaW5kZXgYAyABKA0SEAoIcHJpb3JpdHkYBCABKAkSFwoPeWllbGRfd2hlbl9pZGxlGAUgASgIEhoKEmlkbGVfZ3JhY2Vfc2Vjb25kcxgGIAEoDRovCg1UdW5hYmxlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCQlpAZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZXR1cC92MTtzZXR1cF92MWIGcHJvdG8z");
 
 /**
  * Capability-shaped desired configuration. It intentionally does not expose
@@ -89,6 +89,21 @@ export type Selection = Message<"vrooli.setup.v1.Selection"> & {
    * @generated from field: bool apply = 14;
    */
   apply: boolean;
+
+  /**
+   * @generated from field: string capacity_posture = 15;
+   */
+  capacityPosture: string;
+
+  /**
+   * @generated from field: uint64 transient_headroom_reserve_bytes = 16;
+   */
+  transientHeadroomReserveBytes: bigint;
+
+  /**
+   * @generated from field: map<string, vrooli.setup.v1.ResourceCapacitySelection> resource_capacity = 17;
+   */
+  resourceCapacity: { [key: string]: ResourceCapacitySelection };
 };
 
 /**
@@ -97,4 +112,46 @@ export type Selection = Message<"vrooli.setup.v1.Selection"> & {
  */
 export const SelectionSchema: GenMessage<Selection> = /*@__PURE__*/
   messageDesc(file_setup_v1_selection, 0);
+
+/**
+ * @generated from message vrooli.setup.v1.ResourceCapacitySelection
+ */
+export type ResourceCapacitySelection = Message<"vrooli.setup.v1.ResourceCapacitySelection"> & {
+  /**
+   * @generated from field: string rung = 1;
+   */
+  rung: string;
+
+  /**
+   * @generated from field: map<string, string> tunables = 2;
+   */
+  tunables: { [key: string]: string };
+
+  /**
+   * @generated from field: uint32 gpu_index = 3;
+   */
+  gpuIndex: number;
+
+  /**
+   * @generated from field: string priority = 4;
+   */
+  priority: string;
+
+  /**
+   * @generated from field: bool yield_when_idle = 5;
+   */
+  yieldWhenIdle: boolean;
+
+  /**
+   * @generated from field: uint32 idle_grace_seconds = 6;
+   */
+  idleGraceSeconds: number;
+};
+
+/**
+ * Describes the message vrooli.setup.v1.ResourceCapacitySelection.
+ * Use `create(ResourceCapacitySelectionSchema)` to create a new message.
+ */
+export const ResourceCapacitySelectionSchema: GenMessage<ResourceCapacitySelection> = /*@__PURE__*/
+  messageDesc(file_setup_v1_selection, 1);
 

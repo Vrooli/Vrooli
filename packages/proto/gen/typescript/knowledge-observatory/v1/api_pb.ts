@@ -769,6 +769,7 @@ export type DocHealthRequest = Message<"knowledge_observatory.v1.DocHealthReques
 
   /**
    * Target scope: "" or "scenario" (default; resolved from scenario_name) or
+   * "path-exact" (generic checks limited to the supplied file/directory) or
    * "path" (scan `path` directly). A path that resolves inside a scenario is
    * promoted to that scenario (all checks); a project-level path runs only
    * generic checks.

@@ -1,3 +1,5 @@
+from google.protobuf import struct_pb2 as _struct_pb2
+from program_runtime.v1.programs import programs_pb2 as _programs_pb2
 from program_runtime.v1.shared import library_pb2 as _library_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -94,3 +96,25 @@ class SetCurrentLibraryResponse(_message.Message):
     PROGRAM_FIELD_NUMBER: _ClassVar[int]
     program: _library_pb2.LibraryProgram
     def __init__(self, program: _Optional[_Union[_library_pb2.LibraryProgram, _Mapping]] = ...) -> None: ...
+
+class RunDeclaredProgramRequest(_message.Message):
+    __slots__ = ("name", "inputs", "provenance", "expected_digest")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    inputs: _struct_pb2.Struct
+    provenance: _programs_pb2.Provenance
+    expected_digest: str
+    def __init__(self, name: _Optional[str] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., provenance: _Optional[_Union[_programs_pb2.Provenance, str]] = ..., expected_digest: _Optional[str] = ...) -> None: ...
+
+class RunDeclaredProgramResponse(_message.Message):
+    __slots__ = ("program", "terminal", "waited_millis")
+    PROGRAM_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    WAITED_MILLIS_FIELD_NUMBER: _ClassVar[int]
+    program: _programs_pb2.Program
+    terminal: bool
+    waited_millis: int
+    def __init__(self, program: _Optional[_Union[_programs_pb2.Program, _Mapping]] = ..., terminal: _Optional[bool] = ..., waited_millis: _Optional[int] = ...) -> None: ...

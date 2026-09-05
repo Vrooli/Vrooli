@@ -1,0 +1,171 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "knowledge-observatory",
+  "description": "Governed agent knowledge-base read operations; legacy REST commands remain available.",
+  "groups": [
+    {
+      "name": "knowledge-base",
+      "description": "Source-grounded agent knowledge workflows",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Find documentation with stable source identity and declared applicability.",
+          "flags": [
+            {
+              "name": "query",
+              "description": "query"
+            },
+            {
+              "name": "scope",
+              "description": "scope"
+            },
+            {
+              "name": "target",
+              "description": "target"
+            },
+            {
+              "name": "mode",
+              "description": "mode"
+            },
+            {
+              "name": "limit",
+              "description": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "SearchDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Read bounded source content, revision hash, metadata, and local references.",
+          "flags": [
+            {
+              "name": "path",
+              "description": "path"
+            },
+            {
+              "name": "offset",
+              "description": "offset"
+            },
+            {
+              "name": "limit",
+              "description": "limit"
+            },
+            {
+              "name": "expected-sha256",
+              "description": "expected sha256"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "InspectDocument"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review",
+          "description": "Review selected sources for duplicate bytes, incoming references, and portability cues without editing.",
+          "flags": [
+            {
+              "name": "paths",
+              "description": "paths"
+            },
+            {
+              "name": "base-path",
+              "description": "base path"
+            },
+            {
+              "name": "max-files",
+              "description": "max files"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "ReviewDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read documentation index availability and reconcile status.",
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "KnowledgeStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Read documentation contract and reference health.",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "scope"
+            },
+            {
+              "name": "path",
+              "description": "path"
+            },
+            {
+              "name": "scenario-name",
+              "description": "scenario name"
+            },
+            {
+              "name": "checks",
+              "description": "Comma-separated checks, for example links,refs"
+            },
+            {
+              "name": "skip-external-links",
+              "description": "skip external links",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeObservatoryService",
+            "method": "DocHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

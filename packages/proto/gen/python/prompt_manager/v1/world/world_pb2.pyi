@@ -27,7 +27,7 @@ WORLD_EVENT_KIND_HEARTBEAT_CANCELLED: WorldEventKind
 WORLD_EVENT_KIND_AGENT_MESSAGE: WorldEventKind
 
 class WorldConfig(_message.Message):
-    __slots__ = ("scene", "quality_profile", "quality_auto", "period_mode", "two_d_mode", "show_diagnostics", "scale", "updated_at")
+    __slots__ = ("scene", "quality_profile", "quality_auto", "period_mode", "two_d_mode", "show_diagnostics", "scale", "updated_at", "zoom_target", "ambient_life")
     SCENE_FIELD_NUMBER: _ClassVar[int]
     QUALITY_PROFILE_FIELD_NUMBER: _ClassVar[int]
     QUALITY_AUTO_FIELD_NUMBER: _ClassVar[int]
@@ -36,6 +36,8 @@ class WorldConfig(_message.Message):
     SHOW_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     SCALE_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ZOOM_TARGET_FIELD_NUMBER: _ClassVar[int]
+    AMBIENT_LIFE_FIELD_NUMBER: _ClassVar[int]
     scene: str
     quality_profile: str
     quality_auto: bool
@@ -44,7 +46,9 @@ class WorldConfig(_message.Message):
     show_diagnostics: bool
     scale: float
     updated_at: str
-    def __init__(self, scene: _Optional[str] = ..., quality_profile: _Optional[str] = ..., quality_auto: _Optional[bool] = ..., period_mode: _Optional[str] = ..., two_d_mode: _Optional[bool] = ..., show_diagnostics: _Optional[bool] = ..., scale: _Optional[float] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    zoom_target: str
+    ambient_life: bool
+    def __init__(self, scene: _Optional[str] = ..., quality_profile: _Optional[str] = ..., quality_auto: _Optional[bool] = ..., period_mode: _Optional[str] = ..., two_d_mode: _Optional[bool] = ..., show_diagnostics: _Optional[bool] = ..., scale: _Optional[float] = ..., updated_at: _Optional[str] = ..., zoom_target: _Optional[str] = ..., ambient_life: _Optional[bool] = ...) -> None: ...
 
 class GetWorldConfigRequest(_message.Message):
     __slots__ = ()

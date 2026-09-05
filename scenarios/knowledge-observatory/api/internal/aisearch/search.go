@@ -2,6 +2,7 @@ package aisearch
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	pkg "github.com/vrooli/ai-go/search"
 )
@@ -250,7 +251,7 @@ func rerankText(h pkg.SearchResult) string {
 	b.WriteString(body)
 	text := b.String()
 	if len(text) > rerankCandidateLen {
-		text = text[:rerankCandidateLen]
+		text = utf8Prefix(text, rerankCandidateLen)
 	}
 	return text
 }
@@ -260,7 +261,18 @@ func snippet(body string) string {
 	if len(body) <= snippetLen {
 		return body
 	}
-	return strings.TrimSpace(body[:snippetLen]) + "…"
+	return strings.TrimSpace(utf8Prefix(body, snippetLen)) + "…"
+}
+
+// utf8Prefix keeps the byte budget without splitting a multi-byte character.
+func utf8Prefix(text string, budget int) string {
+	if len(text) <= budget {
+		return text
+	}
+	for budget > 0 && !utf8.RuneStart(text[budget]) {
+		budget--
+	}
+	return text[:budget]
 }
 
 func payloadString(payload map[string]any, key string) string {

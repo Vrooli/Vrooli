@@ -2385,11 +2385,12 @@ type BaselineCollection struct {
 	PathSnapshots []*PathSnapshotReference `protobuf:"bytes,8,rep,name=path_snapshots,json=pathSnapshots,proto3" json:"path_snapshots,omitempty"`
 	// True when this stable collection identity was deliberately re-anchored at
 	// a later source state after a failed immutable capture.
-	Reanchored     bool   `protobuf:"varint,9,opt,name=reanchored,proto3" json:"reanchored,omitempty"`
-	ReanchorDetail string `protobuf:"bytes,10,opt,name=reanchor_detail,json=reanchorDetail,proto3" json:"reanchor_detail,omitempty"`
-	Generation     int32  `protobuf:"varint,11,opt,name=generation,proto3" json:"generation,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Reanchored      bool   `protobuf:"varint,9,opt,name=reanchored,proto3" json:"reanchored,omitempty"`
+	ReanchorDetail  string `protobuf:"bytes,10,opt,name=reanchor_detail,json=reanchorDetail,proto3" json:"reanchor_detail,omitempty"`
+	Generation      int32  `protobuf:"varint,11,opt,name=generation,proto3" json:"generation,omitempty"`
+	ParentReceiptId string `protobuf:"bytes,12,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *BaselineCollection) Reset() {
@@ -2499,6 +2500,13 @@ func (x *BaselineCollection) GetGeneration() int32 {
 	return 0
 }
 
+func (x *BaselineCollection) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
+	}
+	return ""
+}
+
 type StartCollectionCaptureRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Name      string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -2513,7 +2521,8 @@ type StartCollectionCaptureRequest struct {
 	RetainContent  bool     `protobuf:"varint,9,opt,name=retain_content,json=retainContent,proto3" json:"retain_content,omitempty"`
 	// Explicitly accepts a new forward-only anchor generation for an existing
 	// collection whose prior capture failed because source changed.
-	AcknowledgeReanchor bool `protobuf:"varint,10,opt,name=acknowledge_reanchor,json=acknowledgeReanchor,proto3" json:"acknowledge_reanchor,omitempty"`
+	AcknowledgeReanchor bool   `protobuf:"varint,10,opt,name=acknowledge_reanchor,json=acknowledgeReanchor,proto3" json:"acknowledge_reanchor,omitempty"`
+	ParentReceiptId     string `protobuf:"bytes,11,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -2616,6 +2625,13 @@ func (x *StartCollectionCaptureRequest) GetAcknowledgeReanchor() bool {
 		return x.AcknowledgeReanchor
 	}
 	return false
+}
+
+func (x *StartCollectionCaptureRequest) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
+	}
+	return ""
 }
 
 type StartCollectionCaptureResponse struct {
@@ -3148,9 +3164,10 @@ type StartCollectionDiffRequest struct {
 	Scenarios []string               `protobuf:"bytes,3,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
 	RepoId    int64                  `protobuf:"varint,4,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
 	// Required caller-supplied idempotency key for the durable aggregate.
-	OperationId   string `protobuf:"bytes,5,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	OperationId     string `protobuf:"bytes,5,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	ParentReceiptId string `protobuf:"bytes,6,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StartCollectionDiffRequest) Reset() {
@@ -3218,14 +3235,22 @@ func (x *StartCollectionDiffRequest) GetOperationId() string {
 	return ""
 }
 
+func (x *StartCollectionDiffRequest) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
+	}
+	return ""
+}
+
 type StartCollectionDiffResponse struct {
-	state          protoimpl.MessageState  `protogen:"open.v1"`
-	Collection     *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
-	Members        []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
-	Classification string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
-	OperationId    string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState  `protogen:"open.v1"`
+	Collection      *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Members         []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
+	Classification  string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
+	OperationId     string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	ParentReceiptId string                  `protobuf:"bytes,5,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StartCollectionDiffResponse) Reset() {
@@ -3282,6 +3307,13 @@ func (x *StartCollectionDiffResponse) GetClassification() string {
 func (x *StartCollectionDiffResponse) GetOperationId() string {
 	if x != nil {
 		return x.OperationId
+	}
+	return ""
+}
+
+func (x *StartCollectionDiffResponse) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
 	}
 	return ""
 }
@@ -3355,14 +3387,15 @@ func (x *GetCollectionDiffStatusRequest) GetRepoId() int64 {
 }
 
 type GetCollectionDiffStatusResponse struct {
-	state          protoimpl.MessageState  `protogen:"open.v1"`
-	Collection     *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
-	Members        []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
-	Classification string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
-	OperationId    string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	Standing       *v1.OperationStanding   `protobuf:"bytes,5,opt,name=standing,proto3" json:"standing,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState  `protogen:"open.v1"`
+	Collection      *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Members         []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
+	Classification  string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
+	OperationId     string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Standing        *v1.OperationStanding   `protobuf:"bytes,5,opt,name=standing,proto3" json:"standing,omitempty"`
+	ParentReceiptId string                  `protobuf:"bytes,6,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetCollectionDiffStatusResponse) Reset() {
@@ -3428,6 +3461,13 @@ func (x *GetCollectionDiffStatusResponse) GetStanding() *v1.OperationStanding {
 		return x.Standing
 	}
 	return nil
+}
+
+func (x *GetCollectionDiffStatusResponse) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
+	}
+	return ""
 }
 
 type WaitCollectionDiffRequest struct {
@@ -3509,15 +3549,16 @@ func (x *WaitCollectionDiffRequest) GetTimeoutSeconds() int32 {
 }
 
 type WaitCollectionDiffResponse struct {
-	state          protoimpl.MessageState  `protogen:"open.v1"`
-	Collection     *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
-	Members        []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
-	Classification string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
-	OperationId    string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	Standing       *v1.OperationStanding   `protobuf:"bytes,5,opt,name=standing,proto3" json:"standing,omitempty"`
-	Detached       bool                    `protobuf:"varint,6,opt,name=detached,proto3" json:"detached,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState  `protogen:"open.v1"`
+	Collection      *BaselineCollection     `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Members         []*CollectionDiffMember `protobuf:"bytes,2,rep,name=members,proto3" json:"members,omitempty"`
+	Classification  string                  `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
+	OperationId     string                  `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Standing        *v1.OperationStanding   `protobuf:"bytes,5,opt,name=standing,proto3" json:"standing,omitempty"`
+	Detached        bool                    `protobuf:"varint,6,opt,name=detached,proto3" json:"detached,omitempty"`
+	ParentReceiptId string                  `protobuf:"bytes,7,opt,name=parent_receipt_id,json=parentReceiptId,proto3" json:"parent_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *WaitCollectionDiffResponse) Reset() {
@@ -3590,6 +3631,13 @@ func (x *WaitCollectionDiffResponse) GetDetached() bool {
 		return x.Detached
 	}
 	return false
+}
+
+func (x *WaitCollectionDiffResponse) GetParentReceiptId() string {
+	if x != nil {
+		return x.ParentReceiptId
+	}
+	return ""
 }
 
 type DeleteCollectionRequest struct {
@@ -5238,7 +5286,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06failed\x18\x04 \x01(\x05R\x06failed\x12\x18\n" +
 	"\askipped\x18\x05 \x01(\x05R\askipped\x12\x14\n" +
 	"\x05stale\x18\x06 \x01(\x05R\x05stale\x12\x1a\n" +
-	"\bcomplete\x18\a \x01(\bR\bcomplete\"\x9d\x04\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\"\xc9\x04\n" +
 	"\x12BaselineCollection\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1d\n" +
@@ -5257,7 +5305,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	" \x01(\tR\x0ereanchorDetail\x12\x1e\n" +
 	"\n" +
 	"generation\x18\v \x01(\x05R\n" +
-	"generation\"\x9a\x03\n" +
+	"generation\x12*\n" +
+	"\x11parent_receipt_id\x18\f \x01(\tR\x0fparentReceiptId\"\xc6\x03\n" +
 	"\x1dStartCollectionCaptureRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12Q\n" +
@@ -5270,7 +5319,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x0finclude_ignored\x18\b \x01(\bR\x0eincludeIgnored\x12%\n" +
 	"\x0eretain_content\x18\t \x01(\bR\rretainContent\x121\n" +
 	"\x14acknowledge_reanchor\x18\n" +
-	" \x01(\bR\x13acknowledgeReanchor\"\x95\x01\n" +
+	" \x01(\bR\x13acknowledgeReanchor\x12*\n" +
+	"\x11parent_receipt_id\x18\v \x01(\tR\x0fparentReceiptId\"\x95\x01\n" +
 	"\x1eStartCollectionCaptureResponse\x12Y\n" +
 	"\n" +
 	"collection\x18\x01 \x01(\v29.vrooli.git_control_tower.v1.baselines.BaselineCollectionR\n" +
@@ -5316,25 +5366,27 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12\x15\n" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x18\n" +
 	"\averdict\x18\x05 \x01(\tR\averdict\x12\x16\n" +
-	"\x06detail\x18\x06 \x01(\tR\x06detail\"\xa2\x01\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\"\xce\x01\n" +
 	"\x1aStartCollectionDiffRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1c\n" +
 	"\tscenarios\x18\x03 \x03(\tR\tscenarios\x12\x17\n" +
 	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\x12!\n" +
-	"\foperation_id\x18\x05 \x01(\tR\voperationId\"\x9a\x02\n" +
+	"\foperation_id\x18\x05 \x01(\tR\voperationId\x12*\n" +
+	"\x11parent_receipt_id\x18\x06 \x01(\tR\x0fparentReceiptId\"\xc6\x02\n" +
 	"\x1bStartCollectionDiffResponse\x12Y\n" +
 	"\n" +
 	"collection\x18\x01 \x01(\v29.vrooli.git_control_tower.v1.baselines.BaselineCollectionR\n" +
 	"collection\x12U\n" +
 	"\amembers\x18\x02 \x03(\v2;.vrooli.git_control_tower.v1.baselines.CollectionDiffMemberR\amembers\x12&\n" +
 	"\x0eclassification\x18\x03 \x01(\tR\x0eclassification\x12!\n" +
-	"\foperation_id\x18\x04 \x01(\tR\voperationId\"\x88\x01\n" +
+	"\foperation_id\x18\x04 \x01(\tR\voperationId\x12*\n" +
+	"\x11parent_receipt_id\x18\x05 \x01(\tR\x0fparentReceiptId\"\x88\x01\n" +
 	"\x1eGetCollectionDiffStatusRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12!\n" +
 	"\foperation_id\x18\x03 \x01(\tR\voperationId\x12\x17\n" +
-	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\"\xd8\x02\n" +
+	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\"\x84\x03\n" +
 	"\x1fGetCollectionDiffStatusResponse\x12Y\n" +
 	"\n" +
 	"collection\x18\x01 \x01(\v29.vrooli.git_control_tower.v1.baselines.BaselineCollectionR\n" +
@@ -5342,13 +5394,14 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\amembers\x18\x02 \x03(\v2;.vrooli.git_control_tower.v1.baselines.CollectionDiffMemberR\amembers\x12&\n" +
 	"\x0eclassification\x18\x03 \x01(\tR\x0eclassification\x12!\n" +
 	"\foperation_id\x18\x04 \x01(\tR\voperationId\x128\n" +
-	"\bstanding\x18\x05 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\"\xac\x01\n" +
+	"\bstanding\x18\x05 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\x12*\n" +
+	"\x11parent_receipt_id\x18\x06 \x01(\tR\x0fparentReceiptId\"\xac\x01\n" +
 	"\x19WaitCollectionDiffRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12!\n" +
 	"\foperation_id\x18\x03 \x01(\tR\voperationId\x12\x17\n" +
 	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\x12'\n" +
-	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\xef\x02\n" +
+	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\x9b\x03\n" +
 	"\x1aWaitCollectionDiffResponse\x12Y\n" +
 	"\n" +
 	"collection\x18\x01 \x01(\v29.vrooli.git_control_tower.v1.baselines.BaselineCollectionR\n" +
@@ -5357,7 +5410,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x0eclassification\x18\x03 \x01(\tR\x0eclassification\x12!\n" +
 	"\foperation_id\x18\x04 \x01(\tR\voperationId\x128\n" +
 	"\bstanding\x18\x05 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\x12\x1a\n" +
-	"\bdetached\x18\x06 \x01(\bR\bdetached\"^\n" +
+	"\bdetached\x18\x06 \x01(\bR\bdetached\x12*\n" +
+	"\x11parent_receipt_id\x18\a \x01(\tR\x0fparentReceiptId\"^\n" +
 	"\x17DeleteCollectionRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x17\n" +

@@ -7,6 +7,7 @@ import (
 
 	pkg "github.com/vrooli/ai-go/search"
 
+	"knowledge-observatory/internal/doccontract"
 	"knowledge-observatory/internal/services/docsearch"
 )
 
@@ -41,20 +42,26 @@ func NewDocsearchFallback(svc *docsearch.Service) TextFallback {
 			body := strings.TrimSpace(strings.Join([]string{m.ContextBefore, m.Content, m.ContextAfter}, "\n"))
 			hits = append(hits, pkg.SearchResult{
 				ID:           grepID(m.Path, m.LineNumber),
-				RelativePath: m.RelativePath,
+				RelativePath: m.Path,
 				// Grep has no relevance score; preserve match order with a
 				// gently decreasing synthetic score so downstream sorts are stable.
 				Score:   1.0 - float64(i)*0.001,
 				Snippet: snippet(body),
 				Path:    m.Path,
 				Payload: map[string]any{
-					MetaRelativePath: m.RelativePath,
+					MetaRelativePath: m.Path,
 					MetaPath:         m.Path,
 					MetaScenario:     m.Scenario,
 					"body":           body,
 					"line_number":    m.LineNumber,
 				},
 			})
+		}
+		for i := range hits {
+			meta := doccontract.ReadKnowledgeMetadata(svc.RepoRoot(), hits[i].Path)
+			for k, v := range meta {
+				hits[i].Payload[k] = v
+			}
 		}
 		return hits, nil
 	}

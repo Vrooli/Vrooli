@@ -64,22 +64,6 @@ class ComputeStalenessResponse(_message.Message):
     degraded: bool
     def __init__(self, overall: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ..., degraded: _Optional[bool] = ...) -> None: ...
 
-class DeriveBaselineScopeRequest(_message.Message):
-    __slots__ = ("plan_id", "phase_id")
-    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
-    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
-    plan_id: str
-    phase_id: str
-    def __init__(self, plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
-
-class DeriveBaselineScopeResponse(_message.Message):
-    __slots__ = ("commands", "locations")
-    COMMANDS_FIELD_NUMBER: _ClassVar[int]
-    LOCATIONS_FIELD_NUMBER: _ClassVar[int]
-    commands: _containers.RepeatedScalarFieldContainer[str]
-    locations: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, commands: _Optional[_Iterable[str]] = ..., locations: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class ValidationOperationError(_message.Message):
     __slots__ = ("code", "detail")
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -221,12 +205,10 @@ class StartValidationResponse(_message.Message):
     def __init__(self, operation: _Optional[_Union[ValidationOperation, _Mapping]] = ..., deduplicated: _Optional[bool] = ...) -> None: ...
 
 class GetValidationOperationRequest(_message.Message):
-    __slots__ = ("operation_id", "wait")
+    __slots__ = ("operation_id",)
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
-    WAIT_FIELD_NUMBER: _ClassVar[int]
     operation_id: str
-    wait: bool
-    def __init__(self, operation_id: _Optional[str] = ..., wait: _Optional[bool] = ...) -> None: ...
+    def __init__(self, operation_id: _Optional[str] = ...) -> None: ...
 
 class GetValidationOperationResponse(_message.Message):
     __slots__ = ("operation",)
@@ -245,31 +227,3 @@ class SyncValidationResponse(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     operation: ValidationOperation
     def __init__(self, operation: _Optional[_Union[ValidationOperation, _Mapping]] = ...) -> None: ...
-
-class RunValidationRequest(_message.Message):
-    __slots__ = ("plan_id", "phase_id")
-    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
-    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
-    plan_id: str
-    phase_id: str
-    def __init__(self, plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
-
-class RunValidationResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _model_pb2.ValidationResult
-    def __init__(self, result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ...) -> None: ...
-
-class VerifyDefinitionOfDoneRequest(_message.Message):
-    __slots__ = ("plan_id",)
-    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
-    plan_id: str
-    def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
-
-class VerifyDefinitionOfDoneResponse(_message.Message):
-    __slots__ = ("result", "dod_met")
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    DOD_MET_FIELD_NUMBER: _ClassVar[int]
-    result: _model_pb2.ValidationResult
-    dod_met: bool
-    def __init__(self, result: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., dod_met: _Optional[bool] = ...) -> None: ...

@@ -22,10 +22,12 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
+from program_runtime.v1.programs import programs_pb2 as program__runtime_dot_v1_dot_programs_dot_programs__pb2
 from program_runtime.v1.shared import library_pb2 as program__runtime_dot_v1_dot_shared_dot_library__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(program-runtime/v1/library/library.proto\x12!vrooli.program_runtime.v1.library\x1a\'program-runtime/v1/shared/library.proto\"X\n\x12ListLibraryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x03 \x01(\x05R\x06offset\"c\n\x13ListLibraryResponse\x12L\n\x08programs\x18\x01 \x03(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x08programs\"A\n\x11GetLibraryRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07version\x18\x02 \x01(\x03R\x07version\"\xd0\x01\n\x0c\x42indingDrift\x12\x1d\n\nbinding_id\x18\x01 \x01(\tR\tbindingId\x12!\n\x0cvalidated_at\x18\x02 \x01(\tR\x0bvalidatedAt\x12)\n\x10generation_mtime\x18\x03 \x01(\tR\x0fgenerationMtime\x12!\n\x0c\x64rift_status\x18\x04 \x01(\tR\x0b\x64riftStatus\x12\x18\n\x07\x63hanged\x18\x05 \x01(\x08R\x07\x63hanged\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\"\xa7\x01\n\x12GetLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program\x12\x45\n\x05\x64rift\x18\x02 \x03(\x0b\x32/.vrooli.program_runtime.v1.library.BindingDriftR\x05\x64rift\"\x95\x02\n\x15PromoteLibraryRequest\x12\x1d\n\nprogram_id\x18\x01 \x01(\tR\tprogramId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1f\n\x0bpromoted_by\x18\x04 \x01(\tR\npromotedBy\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1a\n\x08\x63overage\x18\x06 \x01(\tR\x08\x63overage\x12\'\n\x0f\x64\x65\x63lared_inputs\x18\x07 \x03(\tR\x0e\x64\x65\x63laredInputs\x12)\n\x10\x64\x65\x63lared_outputs\x18\x08 \x03(\tR\x0f\x64\x65\x63laredOutputs\"d\n\x16PromoteLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program\"H\n\x18SetCurrentLibraryRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07version\x18\x02 \x01(\x03R\x07version\"g\n\x19SetCurrentLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program2\xa2\x04\n\x0eLibraryService\x12|\n\x0bListLibrary\x12\x35.vrooli.program_runtime.v1.library.ListLibraryRequest\x1a\x36.vrooli.program_runtime.v1.library.ListLibraryResponse\x12y\n\nGetLibrary\x12\x34.vrooli.program_runtime.v1.library.GetLibraryRequest\x1a\x35.vrooli.program_runtime.v1.library.GetLibraryResponse\x12\x85\x01\n\x0ePromoteLibrary\x12\x38.vrooli.program_runtime.v1.library.PromoteLibraryRequest\x1a\x39.vrooli.program_runtime.v1.library.PromoteLibraryResponse\x12\x8e\x01\n\x11SetCurrentLibrary\x12;.vrooli.program_runtime.v1.library.SetCurrentLibraryRequest\x1a<.vrooli.program_runtime.v1.library.SetCurrentLibraryResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(program-runtime/v1/library/library.proto\x12!vrooli.program_runtime.v1.library\x1a\x1cgoogle/protobuf/struct.proto\x1a*program-runtime/v1/programs/programs.proto\x1a\'program-runtime/v1/shared/library.proto\"X\n\x12ListLibraryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x03 \x01(\x05R\x06offset\"c\n\x13ListLibraryResponse\x12L\n\x08programs\x18\x01 \x03(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x08programs\"A\n\x11GetLibraryRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07version\x18\x02 \x01(\x03R\x07version\"\xd0\x01\n\x0c\x42indingDrift\x12\x1d\n\nbinding_id\x18\x01 \x01(\tR\tbindingId\x12!\n\x0cvalidated_at\x18\x02 \x01(\tR\x0bvalidatedAt\x12)\n\x10generation_mtime\x18\x03 \x01(\tR\x0fgenerationMtime\x12!\n\x0c\x64rift_status\x18\x04 \x01(\tR\x0b\x64riftStatus\x12\x18\n\x07\x63hanged\x18\x05 \x01(\x08R\x07\x63hanged\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\"\xa7\x01\n\x12GetLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program\x12\x45\n\x05\x64rift\x18\x02 \x03(\x0b\x32/.vrooli.program_runtime.v1.library.BindingDriftR\x05\x64rift\"\x95\x02\n\x15PromoteLibraryRequest\x12\x1d\n\nprogram_id\x18\x01 \x01(\tR\tprogramId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1f\n\x0bpromoted_by\x18\x04 \x01(\tR\npromotedBy\x12\x16\n\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1a\n\x08\x63overage\x18\x06 \x01(\tR\x08\x63overage\x12\'\n\x0f\x64\x65\x63lared_inputs\x18\x07 \x03(\tR\x0e\x64\x65\x63laredInputs\x12)\n\x10\x64\x65\x63lared_outputs\x18\x08 \x03(\tR\x0f\x64\x65\x63laredOutputs\"d\n\x16PromoteLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program\"H\n\x18SetCurrentLibraryRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07version\x18\x02 \x01(\x03R\x07version\"g\n\x19SetCurrentLibraryResponse\x12J\n\x07program\x18\x01 \x01(\x0b\x32\x30.vrooli.program_runtime.v1.shared.LibraryProgramR\x07program\"\xd9\x01\n\x19RunDeclaredProgramRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12/\n\x06inputs\x18\x02 \x01(\x0b\x32\x17.google.protobuf.StructR\x06inputs\x12N\n\nprovenance\x18\x03 \x01(\x0e\x32..vrooli.program_runtime.v1.programs.ProvenanceR\nprovenance\x12\'\n\x0f\x65xpected_digest\x18\x04 \x01(\tR\x0e\x65xpectedDigest\"\xa4\x01\n\x1aRunDeclaredProgramResponse\x12\x45\n\x07program\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x07program\x12\x1a\n\x08terminal\x18\x02 \x01(\x08R\x08terminal\x12#\n\rwaited_millis\x18\x03 \x01(\x03R\x0cwaitedMillis2\xb6\x05\n\x0eLibraryService\x12|\n\x0bListLibrary\x12\x35.vrooli.program_runtime.v1.library.ListLibraryRequest\x1a\x36.vrooli.program_runtime.v1.library.ListLibraryResponse\x12y\n\nGetLibrary\x12\x34.vrooli.program_runtime.v1.library.GetLibraryRequest\x1a\x35.vrooli.program_runtime.v1.library.GetLibraryResponse\x12\x85\x01\n\x0ePromoteLibrary\x12\x38.vrooli.program_runtime.v1.library.PromoteLibraryRequest\x1a\x39.vrooli.program_runtime.v1.library.PromoteLibraryResponse\x12\x8e\x01\n\x11SetCurrentLibrary\x12;.vrooli.program_runtime.v1.library.SetCurrentLibraryRequest\x1a<.vrooli.program_runtime.v1.library.SetCurrentLibraryResponse\x12\x91\x01\n\x12RunDeclaredProgram\x12<.vrooli.program_runtime.v1.library.RunDeclaredProgramRequest\x1a=.vrooli.program_runtime.v1.library.RunDeclaredProgramResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,24 +35,28 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'program_runtime.v1.library.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1'
-  _globals['_LISTLIBRARYREQUEST']._serialized_start=120
-  _globals['_LISTLIBRARYREQUEST']._serialized_end=208
-  _globals['_LISTLIBRARYRESPONSE']._serialized_start=210
-  _globals['_LISTLIBRARYRESPONSE']._serialized_end=309
-  _globals['_GETLIBRARYREQUEST']._serialized_start=311
-  _globals['_GETLIBRARYREQUEST']._serialized_end=376
-  _globals['_BINDINGDRIFT']._serialized_start=379
-  _globals['_BINDINGDRIFT']._serialized_end=587
-  _globals['_GETLIBRARYRESPONSE']._serialized_start=590
-  _globals['_GETLIBRARYRESPONSE']._serialized_end=757
-  _globals['_PROMOTELIBRARYREQUEST']._serialized_start=760
-  _globals['_PROMOTELIBRARYREQUEST']._serialized_end=1037
-  _globals['_PROMOTELIBRARYRESPONSE']._serialized_start=1039
-  _globals['_PROMOTELIBRARYRESPONSE']._serialized_end=1139
-  _globals['_SETCURRENTLIBRARYREQUEST']._serialized_start=1141
-  _globals['_SETCURRENTLIBRARYREQUEST']._serialized_end=1213
-  _globals['_SETCURRENTLIBRARYRESPONSE']._serialized_start=1215
-  _globals['_SETCURRENTLIBRARYRESPONSE']._serialized_end=1318
-  _globals['_LIBRARYSERVICE']._serialized_start=1321
-  _globals['_LIBRARYSERVICE']._serialized_end=1867
+  _globals['_LISTLIBRARYREQUEST']._serialized_start=194
+  _globals['_LISTLIBRARYREQUEST']._serialized_end=282
+  _globals['_LISTLIBRARYRESPONSE']._serialized_start=284
+  _globals['_LISTLIBRARYRESPONSE']._serialized_end=383
+  _globals['_GETLIBRARYREQUEST']._serialized_start=385
+  _globals['_GETLIBRARYREQUEST']._serialized_end=450
+  _globals['_BINDINGDRIFT']._serialized_start=453
+  _globals['_BINDINGDRIFT']._serialized_end=661
+  _globals['_GETLIBRARYRESPONSE']._serialized_start=664
+  _globals['_GETLIBRARYRESPONSE']._serialized_end=831
+  _globals['_PROMOTELIBRARYREQUEST']._serialized_start=834
+  _globals['_PROMOTELIBRARYREQUEST']._serialized_end=1111
+  _globals['_PROMOTELIBRARYRESPONSE']._serialized_start=1113
+  _globals['_PROMOTELIBRARYRESPONSE']._serialized_end=1213
+  _globals['_SETCURRENTLIBRARYREQUEST']._serialized_start=1215
+  _globals['_SETCURRENTLIBRARYREQUEST']._serialized_end=1287
+  _globals['_SETCURRENTLIBRARYRESPONSE']._serialized_start=1289
+  _globals['_SETCURRENTLIBRARYRESPONSE']._serialized_end=1392
+  _globals['_RUNDECLAREDPROGRAMREQUEST']._serialized_start=1395
+  _globals['_RUNDECLAREDPROGRAMREQUEST']._serialized_end=1612
+  _globals['_RUNDECLAREDPROGRAMRESPONSE']._serialized_start=1615
+  _globals['_RUNDECLAREDPROGRAMRESPONSE']._serialized_end=1779
+  _globals['_LIBRARYSERVICE']._serialized_start=1782
+  _globals['_LIBRARYSERVICE']._serialized_end=2476
 # @@protoc_insertion_point(module_scope)

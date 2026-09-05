@@ -1,11 +1,12 @@
 {
   "schema_version": 1,
   "scenario": "knowledge-observatory",
-  "input_digest": "sha256:ff0816776373e701f4b52c72b63ea2032131ee6b31c5ed8344bfcbd86e78a2a3",
+  "input_digest": "sha256:6fa477c761e67c2d775cac2027bc0650b7b60c9382f71dea1b3f76577c9b043a",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
     "schemas/knowledge-observatory/v1/api.proto",
+    "schemas/knowledge-observatory/v1/knowledge_base.proto",
     "vendor/protovalidate/buf/validate/validate.proto"
   ],
   "toolchain": {
@@ -19,12 +20,17 @@
     }
   },
   "outputs": {
-    "gen/go/knowledge-observatory/v1/api.pb.go": "sha256:fe35914aa29f939ec8849d72246c38f8a60fed1b1f8f85ed3aa853d77ef91437",
+    "gen/go/knowledge-observatory/v1/api.pb.go": "sha256:60396d155ff08b6631f06da407fe00ab20106e1b88052b0b57ee9e144e8d4cb5",
+    "gen/go/knowledge-observatory/v1/knowledge_base.pb.go": "sha256:e89057770c5405fbb392e927440595242c12a449c7ac7e6c8b2bc531c4a31d2c",
     "gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect/api.connect.go": "sha256:916cceec5745968966905443ffc4f263f3f29ac33c09b1a22cf8c39b6dc2e1e9",
+    "gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect/knowledge_base.connect.go": "sha256:0b6672cafa84f0f72f4b4612bec1d1f89d3c63a057365306b65921aa8c4dd224",
     "gen/python/knowledge_observatory/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/knowledge_observatory/v1/api_pb2.py": "sha256:81528dab1a04a4794be86b955a00b210d7a75456ac74c917e71e3e52724bc3fc",
     "gen/python/knowledge_observatory/v1/api_pb2.pyi": "sha256:1e7693709227c615b7525b7b2ea771db1c8f4953ea7ee2d3197145cf03f94dfb",
+    "gen/python/knowledge_observatory/v1/knowledge_base_pb2.py": "sha256:4bff50e2afc9b75abc4ceb04f94523f9b97ac5cd6e5c7a28f481089cb713affa",
+    "gen/python/knowledge_observatory/v1/knowledge_base_pb2.pyi": "sha256:42d7d164d955f20883a5c1f656ea0285fd601c5c5edbdace4509e3f998ad0136",
     "gen/python/knowledge_observatory/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/knowledge-observatory/v1/api_pb.ts": "sha256:eef8928b009b1d0a2a5438e8d44fba7729252de6c4f9536d5b7d3f252ed9311f"
+    "gen/typescript/knowledge-observatory/v1/api_pb.ts": "sha256:0aab9a461bceeeb511794d0a9b9b04aeb1c9ddaa79263ae0b0316f84099a6d56",
+    "gen/typescript/knowledge-observatory/v1/knowledge_base_pb.ts": "sha256:201392bd0a5822761361431f80c1cb973ea5cac1e5d25830bffffd68bb0a72e1"
   }
 }

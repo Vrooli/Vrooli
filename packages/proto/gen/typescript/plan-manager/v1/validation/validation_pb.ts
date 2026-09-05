@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/validation/validation.proto.
  */
 export const file_plan_manager_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("CitwbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24iPQoYUmVzb2x2ZVJlZmVyZW5jZXNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiawoZUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRI8CgpyZWZlcmVuY2VzGAEgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAIgASgIIjwKF0NvbXB1dGVTdGFsZW5lc3NSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiqQEKGENvbXB1dGVTdGFsZW5lc3NSZXNwb25zZRI9CgdvdmVyYWxsGAEgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchI8CgpyZWZlcmVuY2VzGAIgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAMgASgIIj8KGkRlcml2ZUJhc2VsaW5lU2NvcGVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiQgobRGVyaXZlQmFzZWxpbmVTY29wZVJlc3BvbnNlEhAKCGNvbW1hbmRzGAEgAygJEhEKCWxvY2F0aW9ucxgCIAMoCSI4ChhWYWxpZGF0aW9uT3BlcmF0aW9uRXJyb3ISDAoEY29kZRgBIAEoCRIOCgZkZXRhaWwYAiABKAkikgMKGFZhbGlkYXRpb25DaGlsZE9wZXJhdGlvbhIKCgJpZBgBIAEoCRIPCgdjb21tYW5kGAIgASgJEg4KBm9yYWNsZRgDIAEoCBJICgZzdGF0dXMYBCABKA4yOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkNoaWxkU3RhdHVzEg8KB2F0dGVtcHQYBSABKAUSEwoLZXh0ZXJuYWxfaWQYBiABKAkSQQoHdmVyZGljdBgHIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Eg4KBmRldGFpbBgIIAEoCRJKCgVlcnJvchgJIAEoCzI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uT3BlcmF0aW9uRXJyb3ISEQoJcXVldWVkX2F0GAogASgJEhIKCnN0YXJ0ZWRfYXQYCyABKAkSEwoLdGVybWluYWxfYXQYDCABKAkixAcKE1ZhbGlkYXRpb25PcGVyYXRpb24SCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIQCghwaGFzZV9pZBgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkSTAoGc3RhdHVzGAUgASgOMjwudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb25TdGF0dXMSDwoHYXR0ZW1wdBgGIAEoBRJNCghjaGlsZHJlbhgHIAMoCzI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uQ2hpbGRPcGVyYXRpb24SPwoGcmVzdWx0GAggASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBISCgpyZXN1bHRfcmVmGAkgASgJEkoKBWVycm9yGAogASgLMjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb25FcnJvchIRCglxdWV1ZWRfYXQYCyABKAkSEgoKc3RhcnRlZF9hdBgMIAEoCRITCgt0ZXJtaW5hbF9hdBgNIAEoCRIcChRxdWV1ZV9idWRnZXRfc2Vjb25kcxgOIAEoBRIgChhleGVjdXRpb25fYnVkZ2V0X3NlY29uZHMYDyABKAUSJQoddHJhbnNwb3J0X3dhaXRfYnVkZ2V0X3NlY29uZHMYECABKAUSIAoYcmVjb21tZW5kZWRfd2FpdF9zZWNvbmRzGBEgASgFEhYKDnNjaGVtYV92ZXJzaW9uGBIgASgFEhkKEXNjb3BlX2ZpbmdlcnByaW50GBMgASgJEhQKDHF1ZXVlX3JlYXNvbhgUIAEoCRIaChJwcm9kdWNlcl93YWl0X2FyZ3YYFSADKAkSEQoJc3luY19hcmd2GBYgAygJEhYKDmxhc3Rfc3luY2VkX2F0GBcgASgJEhQKDGV4ZWN1dGlvbl9pZBgYIAEoCRIYChBzY29wZV9nZW5lcmF0aW9uGBkgASgFEhgKEHJlcXVpcmVkX21lbWJlcnMYGiADKAkSGAoQc2VsZWN0ZWRfbWVtYmVycxgbIAMoCRIWCg5mdWxsX2ludmVudG9yeRgcIAEoCBJFCgl0ZXN0X3J1bnMYHSADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVGVzdFJ1bkV2aWRlbmNlIn0KD1Rlc3RSdW5FdmlkZW5jZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhMKC2ZpbmdlcnByaW50GAQgASgJEhMKC3Rlcm1pbmFsX2F0GAUgASgJEg4KBmRldGFpbBgGIAEoCSLbAQoWU3RhcnRWYWxpZGF0aW9uUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCRIUCgxleGVjdXRpb25faWQYBCABKAkSGAoQc2NvcGVfZ2VuZXJhdGlvbhgFIAEoBRIOCgZtZW1iZXIYBiADKAkSRQoJdGVzdF9ydW5zGAcgAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlRlc3RSdW5FdmlkZW5jZSJ6ChdTdGFydFZhbGlkYXRpb25SZXNwb25zZRJJCglvcGVyYXRpb24YASABKAsyNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvbhIUCgxkZWR1cGxpY2F0ZWQYAiABKAgiQwodR2V0VmFsaWRhdGlvbk9wZXJhdGlvblJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEgwKBHdhaXQYAiABKAgiawoeR2V0VmFsaWRhdGlvbk9wZXJhdGlvblJlc3BvbnNlEkkKCW9wZXJhdGlvbhgBIAEoCzI2LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uT3BlcmF0aW9uIi0KFVN5bmNWYWxpZGF0aW9uUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkiYwoWU3luY1ZhbGlkYXRpb25SZXNwb25zZRJJCglvcGVyYXRpb24YASABKAsyNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvbiI5ChRSdW5WYWxpZGF0aW9uUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJIlgKFVJ1blZhbGlkYXRpb25SZXNwb25zZRI/CgZyZXN1bHQYASABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0IjAKHVZlcmlmeURlZmluaXRpb25PZkRvbmVSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkicgoeVmVyaWZ5RGVmaW5pdGlvbk9mRG9uZVJlc3BvbnNlEj8KBnJlc3VsdBgBIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSDwoHZG9kX21ldBgCIAEoCCrDAQoZVmFsaWRhdGlvbk9wZXJhdGlvblN0YXR1cxIrCidWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABImCiJWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfUVVFVUVEEAESJwojVkFMSURBVElPTl9PUEVSQVRJT05fU1RBVFVTX1JVTk5JTkcQAhIoCiRWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVEVSTUlOQUwQAyqvAQoVVmFsaWRhdGlvbkNoaWxkU3RhdHVzEicKI1ZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUVVFVUVEEAESIwofVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUlVOTklORxACEiQKIFZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1RFUk1JTkFMEAMy5QsKEVZhbGlkYXRpb25TZXJ2aWNlEo4BChFSZXNvbHZlUmVmZXJlbmNlcxI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5SZXNvbHZlUmVmZXJlbmNlc1JlcXVlc3QaPC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRKLAQoQQ29tcHV0ZVN0YWxlbmVzcxI6LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVzcG9uc2USlAEKE0Rlcml2ZUJhc2VsaW5lU2NvcGUSPS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uRGVyaXZlQmFzZWxpbmVTY29wZVJlcXVlc3QaPi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uRGVyaXZlQmFzZWxpbmVTY29wZVJlc3BvbnNlEogBCg9TdGFydFZhbGlkYXRpb24SOS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uU3RhcnRWYWxpZGF0aW9uUmVxdWVzdBo6LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5TdGFydFZhbGlkYXRpb25SZXNwb25zZRKdAQoWR2V0VmFsaWRhdGlvbk9wZXJhdGlvbhJALnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVxdWVzdBpBLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVzcG9uc2USngEKF1dhaXRWYWxpZGF0aW9uT3BlcmF0aW9uEkAudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXF1ZXN0GkEudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXNwb25zZRKgAQoZUmVzdW1lVmFsaWRhdGlvbk9wZXJhdGlvbhJALnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVxdWVzdBpBLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVzcG9uc2UShQEKDlN5bmNWYWxpZGF0aW9uEjgudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlN5bmNWYWxpZGF0aW9uUmVxdWVzdBo5LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5TeW5jVmFsaWRhdGlvblJlc3BvbnNlEoIBCg1SdW5WYWxpZGF0aW9uEjcudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlJ1blZhbGlkYXRpb25SZXF1ZXN0GjgudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlJ1blZhbGlkYXRpb25SZXNwb25zZRKdAQoWVmVyaWZ5RGVmaW5pdGlvbk9mRG9uZRJALnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WZXJpZnlEZWZpbml0aW9uT2ZEb25lUmVxdWVzdBpBLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WZXJpZnlEZWZpbml0aW9uT2ZEb25lUmVzcG9uc2VCWVpXZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbjt2YWxpZGF0aW9uX3YxYgZwcm90bzM", [file_plan_manager_v1_shared_model]);
+  fileDesc("CitwbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24iPQoYUmVzb2x2ZVJlZmVyZW5jZXNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiawoZUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRI8CgpyZWZlcmVuY2VzGAEgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAIgASgIIjwKF0NvbXB1dGVTdGFsZW5lc3NSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiqQEKGENvbXB1dGVTdGFsZW5lc3NSZXNwb25zZRI9CgdvdmVyYWxsGAEgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchI8CgpyZWZlcmVuY2VzGAIgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEhAKCGRlZ3JhZGVkGAMgASgIIjgKGFZhbGlkYXRpb25PcGVyYXRpb25FcnJvchIMCgRjb2RlGAEgASgJEg4KBmRldGFpbBgCIAEoCSKSAwoYVmFsaWRhdGlvbkNoaWxkT3BlcmF0aW9uEgoKAmlkGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSDgoGb3JhY2xlGAMgASgIEkgKBnN0YXR1cxgEIAEoDjI4LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uQ2hpbGRTdGF0dXMSDwoHYXR0ZW1wdBgFIAEoBRITCgtleHRlcm5hbF9pZBgGIAEoCRJBCgd2ZXJkaWN0GAcgASgOMjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblZlcmRpY3QSDgoGZGV0YWlsGAggASgJEkoKBWVycm9yGAkgASgLMjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25PcGVyYXRpb25FcnJvchIRCglxdWV1ZWRfYXQYCiABKAkSEgoKc3RhcnRlZF9hdBgLIAEoCRITCgt0ZXJtaW5hbF9hdBgMIAEoCSLEBwoTVmFsaWRhdGlvbk9wZXJhdGlvbhIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhAKCHBoYXNlX2lkGAMgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgEIAEoCRJMCgZzdGF0dXMYBSABKA4yPC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvblN0YXR1cxIPCgdhdHRlbXB0GAYgASgFEk0KCGNoaWxkcmVuGAcgAygLMjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25DaGlsZE9wZXJhdGlvbhI/CgZyZXN1bHQYCCABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0EhIKCnJlc3VsdF9yZWYYCSABKAkSSgoFZXJyb3IYCiABKAsyOy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvbkVycm9yEhEKCXF1ZXVlZF9hdBgLIAEoCRISCgpzdGFydGVkX2F0GAwgASgJEhMKC3Rlcm1pbmFsX2F0GA0gASgJEhwKFHF1ZXVlX2J1ZGdldF9zZWNvbmRzGA4gASgFEiAKGGV4ZWN1dGlvbl9idWRnZXRfc2Vjb25kcxgPIAEoBRIlCh10cmFuc3BvcnRfd2FpdF9idWRnZXRfc2Vjb25kcxgQIAEoBRIgChhyZWNvbW1lbmRlZF93YWl0X3NlY29uZHMYESABKAUSFgoOc2NoZW1hX3ZlcnNpb24YEiABKAUSGQoRc2NvcGVfZmluZ2VycHJpbnQYEyABKAkSFAoMcXVldWVfcmVhc29uGBQgASgJEhoKEnByb2R1Y2VyX3dhaXRfYXJndhgVIAMoCRIRCglzeW5jX2FyZ3YYFiADKAkSFgoObGFzdF9zeW5jZWRfYXQYFyABKAkSFAoMZXhlY3V0aW9uX2lkGBggASgJEhgKEHNjb3BlX2dlbmVyYXRpb24YGSABKAUSGAoQcmVxdWlyZWRfbWVtYmVycxgaIAMoCRIYChBzZWxlY3RlZF9tZW1iZXJzGBsgAygJEhYKDmZ1bGxfaW52ZW50b3J5GBwgASgIEkUKCXRlc3RfcnVucxgdIAMoCzIyLnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5UZXN0UnVuRXZpZGVuY2UifQoPVGVzdFJ1bkV2aWRlbmNlEhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEwoLZmluZ2VycHJpbnQYBCABKAkSEwoLdGVybWluYWxfYXQYBSABKAkSDgoGZGV0YWlsGAYgASgJItsBChZTdGFydFZhbGlkYXRpb25SZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRIYChBzY29wZV9nZW5lcmF0aW9uGAUgASgFEg4KBm1lbWJlchgGIAMoCRJFCgl0ZXN0X3J1bnMYByADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVGVzdFJ1bkV2aWRlbmNlInoKF1N0YXJ0VmFsaWRhdGlvblJlc3BvbnNlEkkKCW9wZXJhdGlvbhgBIAEoCzI2LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uT3BlcmF0aW9uEhQKDGRlZHVwbGljYXRlZBgCIAEoCCI1Ch1HZXRWYWxpZGF0aW9uT3BlcmF0aW9uUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkiawoeR2V0VmFsaWRhdGlvbk9wZXJhdGlvblJlc3BvbnNlEkkKCW9wZXJhdGlvbhgBIAEoCzI2LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uT3BlcmF0aW9uIi0KFVN5bmNWYWxpZGF0aW9uUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkiYwoWU3luY1ZhbGlkYXRpb25SZXNwb25zZRJJCglvcGVyYXRpb24YASABKAsyNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbk9wZXJhdGlvbirDAQoZVmFsaWRhdGlvbk9wZXJhdGlvblN0YXR1cxIrCidWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABImCiJWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfUVVFVUVEEAESJwojVkFMSURBVElPTl9PUEVSQVRJT05fU1RBVFVTX1JVTk5JTkcQAhIoCiRWQUxJREFUSU9OX09QRVJBVElPTl9TVEFUVVNfVEVSTUlOQUwQAyqvAQoVVmFsaWRhdGlvbkNoaWxkU3RhdHVzEicKI1ZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUVVFVUVEEAESIwofVkFMSURBVElPTl9DSElMRF9TVEFUVVNfUlVOTklORxACEiQKIFZBTElEQVRJT05fQ0hJTERfU1RBVFVTX1RFUk1JTkFMEAMy5QUKEVZhbGlkYXRpb25TZXJ2aWNlEo4BChFSZXNvbHZlUmVmZXJlbmNlcxI7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5SZXNvbHZlUmVmZXJlbmNlc1JlcXVlc3QaPC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uUmVzb2x2ZVJlZmVyZW5jZXNSZXNwb25zZRKLAQoQQ29tcHV0ZVN0YWxlbmVzcxI6LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5Db21wdXRlU3RhbGVuZXNzUmVzcG9uc2USiAEKD1N0YXJ0VmFsaWRhdGlvbhI5LnZyb29saS5wbGFuX21hbmFnZXIudjEudmFsaWRhdGlvbi5TdGFydFZhbGlkYXRpb25SZXF1ZXN0GjoudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlN0YXJ0VmFsaWRhdGlvblJlc3BvbnNlEp0BChZHZXRWYWxpZGF0aW9uT3BlcmF0aW9uEkAudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXF1ZXN0GkEudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLkdldFZhbGlkYXRpb25PcGVyYXRpb25SZXNwb25zZRKFAQoOU3luY1ZhbGlkYXRpb24SOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnZhbGlkYXRpb24uU3luY1ZhbGlkYXRpb25SZXF1ZXN0GjkudnJvb2xpLnBsYW5fbWFuYWdlci52MS52YWxpZGF0aW9uLlN5bmNWYWxpZGF0aW9uUmVzcG9uc2VCWVpXZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvdmFsaWRhdGlvbjt2YWxpZGF0aW9uX3YxYgZwcm90bzM", [file_plan_manager_v1_shared_model]);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.ResolveReferencesRequest
@@ -114,54 +114,6 @@ export const ComputeStalenessResponseSchema: GenMessage<ComputeStalenessResponse
   messageDesc(file_plan_manager_v1_validation_validation, 3);
 
 /**
- * @generated from message vrooli.plan_manager.v1.validation.DeriveBaselineScopeRequest
- */
-export type DeriveBaselineScopeRequest = Message<"vrooli.plan_manager.v1.validation.DeriveBaselineScopeRequest"> & {
-  /**
-   * @generated from field: string plan_id = 1;
-   */
-  planId: string;
-
-  /**
-   * @generated from field: string phase_id = 2;
-   */
-  phaseId: string;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.DeriveBaselineScopeRequest.
- * Use `create(DeriveBaselineScopeRequestSchema)` to create a new message.
- */
-export const DeriveBaselineScopeRequestSchema: GenMessage<DeriveBaselineScopeRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 4);
-
-/**
- * @generated from message vrooli.plan_manager.v1.validation.DeriveBaselineScopeResponse
- */
-export type DeriveBaselineScopeResponse = Message<"vrooli.plan_manager.v1.validation.DeriveBaselineScopeResponse"> & {
-  /**
-   * The exact baseline/diff command set across all affected locations.
-   *
-   * @generated from field: repeated string commands = 1;
-   */
-  commands: string[];
-
-  /**
-   * The distinct affected locations the commands cover (scenarios + paths).
-   *
-   * @generated from field: repeated string locations = 2;
-   */
-  locations: string[];
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.DeriveBaselineScopeResponse.
- * Use `create(DeriveBaselineScopeResponseSchema)` to create a new message.
- */
-export const DeriveBaselineScopeResponseSchema: GenMessage<DeriveBaselineScopeResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 5);
-
-/**
  * @generated from message vrooli.plan_manager.v1.validation.ValidationOperationError
  */
 export type ValidationOperationError = Message<"vrooli.plan_manager.v1.validation.ValidationOperationError"> & {
@@ -181,7 +133,7 @@ export type ValidationOperationError = Message<"vrooli.plan_manager.v1.validatio
  * Use `create(ValidationOperationErrorSchema)` to create a new message.
  */
 export const ValidationOperationErrorSchema: GenMessage<ValidationOperationError> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 6);
+  messageDesc(file_plan_manager_v1_validation_validation, 4);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.ValidationChildOperation
@@ -253,7 +205,7 @@ export type ValidationChildOperation = Message<"vrooli.plan_manager.v1.validatio
  * Use `create(ValidationChildOperationSchema)` to create a new message.
  */
 export const ValidationChildOperationSchema: GenMessage<ValidationChildOperation> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 7);
+  messageDesc(file_plan_manager_v1_validation_validation, 5);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.ValidationOperation
@@ -410,7 +362,7 @@ export type ValidationOperation = Message<"vrooli.plan_manager.v1.validation.Val
  * Use `create(ValidationOperationSchema)` to create a new message.
  */
 export const ValidationOperationSchema: GenMessage<ValidationOperation> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 8);
+  messageDesc(file_plan_manager_v1_validation_validation, 6);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.TestRunEvidence
@@ -452,7 +404,7 @@ export type TestRunEvidence = Message<"vrooli.plan_manager.v1.validation.TestRun
  * Use `create(TestRunEvidenceSchema)` to create a new message.
  */
 export const TestRunEvidenceSchema: GenMessage<TestRunEvidence> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 9);
+  messageDesc(file_plan_manager_v1_validation_validation, 7);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.StartValidationRequest
@@ -499,7 +451,7 @@ export type StartValidationRequest = Message<"vrooli.plan_manager.v1.validation.
  * Use `create(StartValidationRequestSchema)` to create a new message.
  */
 export const StartValidationRequestSchema: GenMessage<StartValidationRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 10);
+  messageDesc(file_plan_manager_v1_validation_validation, 8);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.StartValidationResponse
@@ -521,7 +473,7 @@ export type StartValidationResponse = Message<"vrooli.plan_manager.v1.validation
  * Use `create(StartValidationResponseSchema)` to create a new message.
  */
 export const StartValidationResponseSchema: GenMessage<StartValidationResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 11);
+  messageDesc(file_plan_manager_v1_validation_validation, 9);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.GetValidationOperationRequest
@@ -531,11 +483,6 @@ export type GetValidationOperationRequest = Message<"vrooli.plan_manager.v1.vali
    * @generated from field: string operation_id = 1;
    */
   operationId: string;
-
-  /**
-   * @generated from field: bool wait = 2;
-   */
-  wait: boolean;
 };
 
 /**
@@ -543,7 +490,7 @@ export type GetValidationOperationRequest = Message<"vrooli.plan_manager.v1.vali
  * Use `create(GetValidationOperationRequestSchema)` to create a new message.
  */
 export const GetValidationOperationRequestSchema: GenMessage<GetValidationOperationRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 12);
+  messageDesc(file_plan_manager_v1_validation_validation, 10);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.GetValidationOperationResponse
@@ -560,7 +507,7 @@ export type GetValidationOperationResponse = Message<"vrooli.plan_manager.v1.val
  * Use `create(GetValidationOperationResponseSchema)` to create a new message.
  */
 export const GetValidationOperationResponseSchema: GenMessage<GetValidationOperationResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 13);
+  messageDesc(file_plan_manager_v1_validation_validation, 11);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.SyncValidationRequest
@@ -577,7 +524,7 @@ export type SyncValidationRequest = Message<"vrooli.plan_manager.v1.validation.S
  * Use `create(SyncValidationRequestSchema)` to create a new message.
  */
 export const SyncValidationRequestSchema: GenMessage<SyncValidationRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 14);
+  messageDesc(file_plan_manager_v1_validation_validation, 12);
 
 /**
  * @generated from message vrooli.plan_manager.v1.validation.SyncValidationResponse
@@ -594,88 +541,7 @@ export type SyncValidationResponse = Message<"vrooli.plan_manager.v1.validation.
  * Use `create(SyncValidationResponseSchema)` to create a new message.
  */
 export const SyncValidationResponseSchema: GenMessage<SyncValidationResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 15);
-
-/**
- * @generated from message vrooli.plan_manager.v1.validation.RunValidationRequest
- */
-export type RunValidationRequest = Message<"vrooli.plan_manager.v1.validation.RunValidationRequest"> & {
-  /**
-   * @generated from field: string plan_id = 1;
-   */
-  planId: string;
-
-  /**
-   * @generated from field: string phase_id = 2;
-   */
-  phaseId: string;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.RunValidationRequest.
- * Use `create(RunValidationRequestSchema)` to create a new message.
- */
-export const RunValidationRequestSchema: GenMessage<RunValidationRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 16);
-
-/**
- * @generated from message vrooli.plan_manager.v1.validation.RunValidationResponse
- */
-export type RunValidationResponse = Message<"vrooli.plan_manager.v1.validation.RunValidationResponse"> & {
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.ValidationResult result = 1;
-   */
-  result?: ValidationResult | undefined;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.RunValidationResponse.
- * Use `create(RunValidationResponseSchema)` to create a new message.
- */
-export const RunValidationResponseSchema: GenMessage<RunValidationResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 17);
-
-/**
- * @generated from message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest
- */
-export type VerifyDefinitionOfDoneRequest = Message<"vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest"> & {
-  /**
-   * @generated from field: string plan_id = 1;
-   */
-  planId: string;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneRequest.
- * Use `create(VerifyDefinitionOfDoneRequestSchema)` to create a new message.
- */
-export const VerifyDefinitionOfDoneRequestSchema: GenMessage<VerifyDefinitionOfDoneRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 18);
-
-/**
- * @generated from message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse
- */
-export type VerifyDefinitionOfDoneResponse = Message<"vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse"> & {
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.ValidationResult result = 1;
-   */
-  result?: ValidationResult | undefined;
-
-  /**
-   * True only when the regression-anchor oracle returned exit-0; false on FAIL;
-   * unset semantics carried by result.verdict == UNKNOWN when degraded.
-   *
-   * @generated from field: bool dod_met = 2;
-   */
-  dodMet: boolean;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.validation.VerifyDefinitionOfDoneResponse.
- * Use `create(VerifyDefinitionOfDoneResponseSchema)` to create a new message.
- */
-export const VerifyDefinitionOfDoneResponseSchema: GenMessage<VerifyDefinitionOfDoneResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_validation_validation, 19);
+  messageDesc(file_plan_manager_v1_validation_validation, 13);
 
 /**
  * @generated from enum vrooli.plan_manager.v1.validation.ValidationOperationStatus
@@ -767,17 +633,6 @@ export const ValidationService: GenService<{
     output: typeof ComputeStalenessResponseSchema;
   },
   /**
-   * DeriveBaselineScope derives the exact baseline/validation command set across
-   * all affected locations for a phase (OT-P0-005).
-   *
-   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.DeriveBaselineScope
-   */
-  deriveBaselineScope: {
-    methodKind: "unary";
-    input: typeof DeriveBaselineScopeRequestSchema;
-    output: typeof DeriveBaselineScopeResponseSchema;
-  },
-  /**
    * StartValidation persists a durable producer ticket and exact action argv.
    * It never dispatches or waits for producer work.
    *
@@ -789,28 +644,11 @@ export const ValidationService: GenService<{
     output: typeof StartValidationResponseSchema;
   },
   /**
-   * GetValidationOperation inspects a durable operation or waits once. A
-   * transport timeout detaches without canceling server-owned work.
+   * GetValidationOperation inspects a durable operation without waiting.
    *
    * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.GetValidationOperation
    */
   getValidationOperation: {
-    methodKind: "unary";
-    input: typeof GetValidationOperationRequestSchema;
-    output: typeof GetValidationOperationResponseSchema;
-  },
-  /**
-   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.WaitValidationOperation
-   */
-  waitValidationOperation: {
-    methodKind: "unary";
-    input: typeof GetValidationOperationRequestSchema;
-    output: typeof GetValidationOperationResponseSchema;
-  },
-  /**
-   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.ResumeValidationOperation
-   */
-  resumeValidationOperation: {
     methodKind: "unary";
     input: typeof GetValidationOperationRequestSchema;
     output: typeof GetValidationOperationResponseSchema;
@@ -822,30 +660,6 @@ export const ValidationService: GenService<{
     methodKind: "unary";
     input: typeof SyncValidationRequestSchema;
     output: typeof SyncValidationResponseSchema;
-  },
-  /**
-   * RunValidation runs the derived baseline/check set on request and returns the
-   * result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
-   * exec failure — degrades to UNKNOWN.
-   *
-   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.RunValidation
-   */
-  runValidation: {
-    methodKind: "unary";
-    input: typeof RunValidationRequestSchema;
-    output: typeof RunValidationResponseSchema;
-  },
-  /**
-   * VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
-   * an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
-   * PM-VALID-002).
-   *
-   * @generated from rpc vrooli.plan_manager.v1.validation.ValidationService.VerifyDefinitionOfDone
-   */
-  verifyDefinitionOfDone: {
-    methodKind: "unary";
-    input: typeof VerifyDefinitionOfDoneRequestSchema;
-    output: typeof VerifyDefinitionOfDoneResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_plan_manager_v1_validation_validation, 0);

@@ -52,8 +52,10 @@ type LibraryProgram struct {
 	ValidationError string   `protobuf:"bytes,23,opt,name=validation_error,json=validationError,proto3" json:"validation_error,omitempty"`
 	Path            string   `protobuf:"bytes,24,opt,name=path,proto3" json:"path,omitempty"`
 	Score           float64  `protobuf:"fixed64,25,opt,name=score,proto3" json:"score,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// SHA-256 of the declared contract bytes and sibling executable source.
+	ContentDigest string `protobuf:"bytes,26,opt,name=content_digest,json=contentDigest,proto3" json:"content_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LibraryProgram) Reset() {
@@ -261,11 +263,18 @@ func (x *LibraryProgram) GetScore() float64 {
 	return 0
 }
 
+func (x *LibraryProgram) GetContentDigest() string {
+	if x != nil {
+		return x.ContentDigest
+	}
+	return ""
+}
+
 var File_program_runtime_v1_shared_library_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\n" +
-	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xfa\x05\n" +
+	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xa1\x06\n" +
 	"\x0eLibraryProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -295,7 +304,8 @@ const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"ownerSkill\x12)\n" +
 	"\x10validation_error\x18\x17 \x01(\tR\x0fvalidationError\x12\x12\n" +
 	"\x04path\x18\x18 \x01(\tR\x04path\x12\x14\n" +
-	"\x05score\x18\x19 \x01(\x01R\x05scoreBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
+	"\x05score\x18\x19 \x01(\x01R\x05score\x12%\n" +
+	"\x0econtent_digest\x18\x1a \x01(\tR\rcontentDigestBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_shared_library_proto_rawDescOnce sync.Once

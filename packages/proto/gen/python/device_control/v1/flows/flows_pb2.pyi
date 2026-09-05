@@ -8,12 +8,18 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ValidateFlowRequest(_message.Message):
-    __slots__ = ("flow", "strategy_id")
+    __slots__ = ("flow", "strategy_id", "baseline_id", "expected_version", "require_assertion")
     FLOW_FIELD_NUMBER: _ClassVar[int]
     STRATEGY_ID_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_ASSERTION_FIELD_NUMBER: _ClassVar[int]
     flow: Flow
     strategy_id: str
-    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ...) -> None: ...
+    baseline_id: str
+    expected_version: int
+    require_assertion: bool
+    def __init__(self, flow: _Optional[_Union[Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ..., baseline_id: _Optional[str] = ..., expected_version: _Optional[int] = ..., require_assertion: _Optional[bool] = ...) -> None: ...
 
 class RunFlowRequest(_message.Message):
     __slots__ = ("flow", "device_id", "actor", "lease_token")
@@ -146,3 +152,71 @@ class EvidenceReference(_message.Message):
     disposition: str
     disposition_reason: str
     def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ..., claim_class: _Optional[str] = ..., minimum_useful_fps: _Optional[float] = ..., disposition: _Optional[str] = ..., disposition_reason: _Optional[str] = ...) -> None: ...
+
+class SavedFlow(_message.Message):
+    __slots__ = ("id", "version", "device_id", "context_key", "source_run_id", "flow", "created_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    FLOW_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    version: int
+    device_id: str
+    context_key: str
+    source_run_id: str
+    flow: Flow
+    created_at: str
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., device_id: _Optional[str] = ..., context_key: _Optional[str] = ..., source_run_id: _Optional[str] = ..., flow: _Optional[_Union[Flow, _Mapping]] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class ListSavedFlowsRequest(_message.Message):
+    __slots__ = ("device_id", "context_key")
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    context_key: str
+    def __init__(self, device_id: _Optional[str] = ..., context_key: _Optional[str] = ...) -> None: ...
+
+class ListSavedFlowsResponse(_message.Message):
+    __slots__ = ("flows",)
+    FLOWS_FIELD_NUMBER: _ClassVar[int]
+    flows: _containers.RepeatedCompositeFieldContainer[SavedFlow]
+    def __init__(self, flows: _Optional[_Iterable[_Union[SavedFlow, _Mapping]]] = ...) -> None: ...
+
+class GetSavedFlowRequest(_message.Message):
+    __slots__ = ("id", "version")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    version: int
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ...) -> None: ...
+
+class SaveValidatedFlowRequest(_message.Message):
+    __slots__ = ("run_id", "device_id", "context_key", "id", "expected_version")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    device_id: str
+    context_key: str
+    id: str
+    expected_version: int
+    def __init__(self, run_id: _Optional[str] = ..., device_id: _Optional[str] = ..., context_key: _Optional[str] = ..., id: _Optional[str] = ..., expected_version: _Optional[int] = ...) -> None: ...
+
+class RunSavedFlowRequest(_message.Message):
+    __slots__ = ("id", "version", "device_id", "context_key", "actor")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    version: int
+    device_id: str
+    context_key: str
+    actor: str
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[int] = ..., device_id: _Optional[str] = ..., context_key: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...

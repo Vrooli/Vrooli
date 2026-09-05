@@ -7,8 +7,8 @@
     {
       "id": "KO-HD-001",
       "title": "Dashboard UI framework",
-      "status": "complete",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "description": "React + Vite UI with Matrix-style mission control aesthetic per PRD style guidelines",
       "validation": [
         {
@@ -17,13 +17,14 @@
           "phase": "integration",
           "status": "implemented"
         }
-      ]
+      ],
+      "notes": "Prior complete claim had no passing validation receipt; retain implementation and tests while the server-owned suite establishes evidence."
     },
     {
       "id": "KO-HD-002",
       "title": "Health metrics visualization",
-      "status": "complete",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "description": "Real-time display of knowledge quality metrics with visual indicators and trends",
       "validation": [
         {
@@ -32,13 +33,14 @@
           "phase": "integration",
           "status": "implemented"
         }
-      ]
+      ],
+      "notes": "Prior complete claim had no passing validation receipt; retain implementation and tests while the server-owned suite establishes evidence."
     },
     {
       "id": "KO-HD-003",
       "title": "Interactive knowledge graph",
-      "status": "complete",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "description": "Visual graph component showing concept relationships with interactivity (zoom, pan, click)",
       "validation": [
         {
@@ -47,13 +49,14 @@
           "phase": "integration",
           "status": "implemented"
         }
-      ]
+      ],
+      "notes": "Prior complete claim had no passing validation receipt; retain implementation and tests while the server-owned suite establishes evidence."
     },
     {
       "id": "KO-HD-004",
       "title": "Search interface",
-      "status": "complete",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "description": "Search input with real-time results display and semantic similarity scores",
       "validation": [
         {
@@ -62,13 +65,14 @@
           "phase": "integration",
           "status": "implemented"
         }
-      ]
+      ],
+      "notes": "Prior complete claim had no passing validation receipt; retain implementation and tests while the server-owned suite establishes evidence."
     },
     {
       "id": "KO-HD-005",
       "title": "Dashboard accessibility",
-      "status": "complete",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "description": "WCAG AA compliance with keyboard navigation support",
       "validation": [
         {
@@ -77,13 +81,14 @@
           "phase": "integration",
           "status": "implemented"
         }
-      ]
+      ],
+      "notes": "Prior complete claim had no passing validation receipt; retain implementation and tests while the server-owned suite establishes evidence."
     },
     {
       "id": "KO-HD-006",
       "title": "UI smoke test",
       "status": "in_progress",
-      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "prd_ref": "OT-P0-006",
       "description": "Production bundle loads successfully with iframe bridge ready",
       "validation": [
         {

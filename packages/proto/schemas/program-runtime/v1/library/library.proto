@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.program_runtime.v1.library;
 
+import "google/protobuf/struct.proto";
+import "program-runtime/v1/programs/programs.proto";
 import "program-runtime/v1/shared/library.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1";
@@ -39,9 +41,26 @@ message PromoteLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram
 message SetCurrentLibraryRequest { string name = 1; int64 version = 2; }
 message SetCurrentLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram program = 1; }
 
+// RunDeclaredProgram executes one scenario-owned contract in a fresh bounded
+// session. The server validates names/defaults, waits once, and reclaims the
+// session; callers never coordinate low-level session and program RPCs.
+message RunDeclaredProgramRequest {
+  string name = 1;
+  google.protobuf.Struct inputs = 2;
+  vrooli.program_runtime.v1.programs.Provenance provenance = 3;
+  // Optional content identity from GetLibrary. Refuse drift before creating a session.
+  string expected_digest = 4;
+}
+message RunDeclaredProgramResponse {
+  vrooli.program_runtime.v1.programs.Program program = 1;
+  bool terminal = 2;
+  int64 waited_millis = 3;
+}
+
 service LibraryService {
   rpc ListLibrary(ListLibraryRequest) returns (ListLibraryResponse);
   rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
   rpc PromoteLibrary(PromoteLibraryRequest) returns (PromoteLibraryResponse);
   rpc SetCurrentLibrary(SetCurrentLibraryRequest) returns (SetCurrentLibraryResponse);
+  rpc RunDeclaredProgram(RunDeclaredProgramRequest) returns (RunDeclaredProgramResponse);
 }

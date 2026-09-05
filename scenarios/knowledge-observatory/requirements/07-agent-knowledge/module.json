@@ -1,0 +1,71 @@
+{
+  "_metadata": {
+    "description": "Agent knowledge workflows, source authority/applicability, and outcome-linked improvement."
+  },
+  "requirements": [
+    {
+      "id": "KO-KB-001",
+      "title": "Bounded source context and document family review",
+      "description": "Bounded source context and document family review",
+      "prd_ref": "OT-P0-007",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/knowledgebase/documents_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "KO-KB-002",
+      "title": "Usage and improvement skills with outcome-linked learning",
+      "description": "Usage and improvement skills with outcome-linked learning",
+      "prd_ref": "OT-P0-008",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/tests/test_knowledge_workflows.py",
+          "phase": "programs",
+          "status": "pending"
+        }
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "KO-KB-003",
+      "title": "Stable retrieval identity and declared authority/applicability",
+      "description": "Stable retrieval identity and declared authority/applicability",
+      "prd_ref": "OT-P0-009",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/aisearch/textfallback_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ],
+      "criticality": "P0"
+    },
+    {
+      "id": "KO-KB-004",
+      "title": "Targeted documentation reference validation",
+      "description": "Targeted documentation reference validation",
+      "prd_ref": "OT-P0-010",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/services/dochealth/knowledge_workflow_test.go",
+          "phase": "unit",
+          "status": "pending"
+        }
+      ],
+      "criticality": "P0"
+    }
+  ]
+}

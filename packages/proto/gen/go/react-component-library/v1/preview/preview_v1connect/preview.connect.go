@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// PreviewServiceRenderCompositionProcedure is the fully-qualified name of the PreviewService's
+	// RenderComposition RPC.
+	PreviewServiceRenderCompositionProcedure = "/vrooli.react_component_library.v1.preview.PreviewService/RenderComposition"
+	// PreviewServiceGetCompositionBundleProcedure is the fully-qualified name of the PreviewService's
+	// GetCompositionBundle RPC.
+	PreviewServiceGetCompositionBundleProcedure = "/vrooli.react_component_library.v1.preview.PreviewService/GetCompositionBundle"
 	// PreviewServiceGetPreviewBundleProcedure is the fully-qualified name of the PreviewService's
 	// GetPreviewBundle RPC.
 	PreviewServiceGetPreviewBundleProcedure = "/vrooli.react_component_library.v1.preview.PreviewService/GetPreviewBundle"
@@ -41,6 +47,8 @@ const (
 // PreviewServiceClient is a client for the vrooli.react_component_library.v1.preview.PreviewService
 // service.
 type PreviewServiceClient interface {
+	RenderComposition(context.Context, *connect.Request[preview.RenderCompositionRequest]) (*connect.Response[preview.RenderCompositionResponse], error)
+	GetCompositionBundle(context.Context, *connect.Request[preview.GetCompositionBundleRequest]) (*connect.Response[preview.GetCompositionBundleResponse], error)
 	// GetPreviewBundle transpiles the component's source file into an
 	// ES module and returns the JS text. The handler is read-only with
 	// respect to the registry — it does NOT mutate component rows.
@@ -59,6 +67,18 @@ func NewPreviewServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	previewServiceMethods := preview.File_react_component_library_v1_preview_preview_proto.Services().ByName("PreviewService").Methods()
 	return &previewServiceClient{
+		renderComposition: connect.NewClient[preview.RenderCompositionRequest, preview.RenderCompositionResponse](
+			httpClient,
+			baseURL+PreviewServiceRenderCompositionProcedure,
+			connect.WithSchema(previewServiceMethods.ByName("RenderComposition")),
+			connect.WithClientOptions(opts...),
+		),
+		getCompositionBundle: connect.NewClient[preview.GetCompositionBundleRequest, preview.GetCompositionBundleResponse](
+			httpClient,
+			baseURL+PreviewServiceGetCompositionBundleProcedure,
+			connect.WithSchema(previewServiceMethods.ByName("GetCompositionBundle")),
+			connect.WithClientOptions(opts...),
+		),
 		getPreviewBundle: connect.NewClient[preview.GetPreviewBundleRequest, preview.GetPreviewBundleResponse](
 			httpClient,
 			baseURL+PreviewServiceGetPreviewBundleProcedure,
@@ -70,7 +90,21 @@ func NewPreviewServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // previewServiceClient implements PreviewServiceClient.
 type previewServiceClient struct {
-	getPreviewBundle *connect.Client[preview.GetPreviewBundleRequest, preview.GetPreviewBundleResponse]
+	renderComposition    *connect.Client[preview.RenderCompositionRequest, preview.RenderCompositionResponse]
+	getCompositionBundle *connect.Client[preview.GetCompositionBundleRequest, preview.GetCompositionBundleResponse]
+	getPreviewBundle     *connect.Client[preview.GetPreviewBundleRequest, preview.GetPreviewBundleResponse]
+}
+
+// RenderComposition calls
+// vrooli.react_component_library.v1.preview.PreviewService.RenderComposition.
+func (c *previewServiceClient) RenderComposition(ctx context.Context, req *connect.Request[preview.RenderCompositionRequest]) (*connect.Response[preview.RenderCompositionResponse], error) {
+	return c.renderComposition.CallUnary(ctx, req)
+}
+
+// GetCompositionBundle calls
+// vrooli.react_component_library.v1.preview.PreviewService.GetCompositionBundle.
+func (c *previewServiceClient) GetCompositionBundle(ctx context.Context, req *connect.Request[preview.GetCompositionBundleRequest]) (*connect.Response[preview.GetCompositionBundleResponse], error) {
+	return c.getCompositionBundle.CallUnary(ctx, req)
 }
 
 // GetPreviewBundle calls vrooli.react_component_library.v1.preview.PreviewService.GetPreviewBundle.
@@ -81,6 +115,8 @@ func (c *previewServiceClient) GetPreviewBundle(ctx context.Context, req *connec
 // PreviewServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.preview.PreviewService service.
 type PreviewServiceHandler interface {
+	RenderComposition(context.Context, *connect.Request[preview.RenderCompositionRequest]) (*connect.Response[preview.RenderCompositionResponse], error)
+	GetCompositionBundle(context.Context, *connect.Request[preview.GetCompositionBundleRequest]) (*connect.Response[preview.GetCompositionBundleResponse], error)
 	// GetPreviewBundle transpiles the component's source file into an
 	// ES module and returns the JS text. The handler is read-only with
 	// respect to the registry — it does NOT mutate component rows.
@@ -94,6 +130,18 @@ type PreviewServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewPreviewServiceHandler(svc PreviewServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	previewServiceMethods := preview.File_react_component_library_v1_preview_preview_proto.Services().ByName("PreviewService").Methods()
+	previewServiceRenderCompositionHandler := connect.NewUnaryHandler(
+		PreviewServiceRenderCompositionProcedure,
+		svc.RenderComposition,
+		connect.WithSchema(previewServiceMethods.ByName("RenderComposition")),
+		connect.WithHandlerOptions(opts...),
+	)
+	previewServiceGetCompositionBundleHandler := connect.NewUnaryHandler(
+		PreviewServiceGetCompositionBundleProcedure,
+		svc.GetCompositionBundle,
+		connect.WithSchema(previewServiceMethods.ByName("GetCompositionBundle")),
+		connect.WithHandlerOptions(opts...),
+	)
 	previewServiceGetPreviewBundleHandler := connect.NewUnaryHandler(
 		PreviewServiceGetPreviewBundleProcedure,
 		svc.GetPreviewBundle,
@@ -102,6 +150,10 @@ func NewPreviewServiceHandler(svc PreviewServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.react_component_library.v1.preview.PreviewService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case PreviewServiceRenderCompositionProcedure:
+			previewServiceRenderCompositionHandler.ServeHTTP(w, r)
+		case PreviewServiceGetCompositionBundleProcedure:
+			previewServiceGetCompositionBundleHandler.ServeHTTP(w, r)
 		case PreviewServiceGetPreviewBundleProcedure:
 			previewServiceGetPreviewBundleHandler.ServeHTTP(w, r)
 		default:
@@ -112,6 +164,14 @@ func NewPreviewServiceHandler(svc PreviewServiceHandler, opts ...connect.Handler
 
 // UnimplementedPreviewServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedPreviewServiceHandler struct{}
+
+func (UnimplementedPreviewServiceHandler) RenderComposition(context.Context, *connect.Request[preview.RenderCompositionRequest]) (*connect.Response[preview.RenderCompositionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.preview.PreviewService.RenderComposition is not implemented"))
+}
+
+func (UnimplementedPreviewServiceHandler) GetCompositionBundle(context.Context, *connect.Request[preview.GetCompositionBundleRequest]) (*connect.Response[preview.GetCompositionBundleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.preview.PreviewService.GetCompositionBundle is not implemented"))
+}
 
 func (UnimplementedPreviewServiceHandler) GetPreviewBundle(context.Context, *connect.Request[preview.GetPreviewBundleRequest]) (*connect.Response[preview.GetPreviewBundleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.preview.PreviewService.GetPreviewBundle is not implemented"))

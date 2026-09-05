@@ -34,6 +34,10 @@ message WorldConfig {
   // Global scale multiplier for props relative to actors.
   double scale = 7;
   string updated_at = 8;
+  // Zoom anchor: cursor or center. Empty preserves the legacy cursor default.
+  string zoom_target = 9;
+  // Decorative movement. Absent preserves the enabled default for older clients.
+  optional bool ambient_life = 10;
 }
 
 message GetWorldConfigRequest {}

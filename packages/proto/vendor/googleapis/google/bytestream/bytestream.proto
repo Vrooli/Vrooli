@@ -87,8 +87,7 @@ service ByteStream {
   // evicted. For any sequence of `QueryWriteStatus()` calls for a given
   // resource name, the sequence of returned `committed_size` values will be
   // non-decreasing.
-  rpc QueryWriteStatus(QueryWriteStatusRequest)
-      returns (QueryWriteStatusResponse);
+  rpc QueryWriteStatus(QueryWriteStatusRequest) returns (QueryWriteStatusResponse);
 }
 
 // Request object for ByteStream.Read.

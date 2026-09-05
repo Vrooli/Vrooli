@@ -344,6 +344,9 @@ message ValidationScope {
   ValidationScopeMode mode = 1;
   ChangeBoundary boundary = 2;
   string rationale = 3;
+  repeated string test_phases = 4;
+  // Phase-specific behavioral comparison; final certification retains plan policy.
+  bool compare_behavior = 5;
 }
 
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED

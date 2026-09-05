@@ -267,7 +267,7 @@ func (s *Server) setupServices() {
 		if maxEmbeds <= 0 {
 			// The documentation corpus is large (~6k chunks); cap embeds per
 			// reconcile tick so the first full index never starves Ollama
-			// (plan §4.2). A one-shot `reindex run` still applies uncapped.
+			// (plan §4.2). A one-shot `reindex run` uses this cap too.
 			maxEmbeds = defaultDocEmbedsPerTick
 		}
 		// The scenario-owned `.vrooli/search.json` is the SSOT for the docs search
@@ -483,7 +483,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/docs/templates", s.handleDocsTemplateList).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/templates/{doc_type}", s.handleDocsTemplateGet).Methods("GET")
 
-	// Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
+	s.registerKnowledgeBase()
+
+ // Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
 	if s.docHealthService != nil {
 		handler := dochealthhandler.NewWithDeps(dochealthhandler.Deps{
 			Service:      s.docHealthService,

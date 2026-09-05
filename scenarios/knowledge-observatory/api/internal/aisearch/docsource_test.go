@@ -266,3 +266,50 @@ func TestInferHelpers(t *testing.T) {
 		t.Errorf("firstHeading should ignore headings after prose start? got %q", got)
 	}
 }
+
+// [REQ:KO-KB-003]
+func TestKnowledgeMetadataChangesInvalidateSourceAndSurviveChunks(t *testing.T) {
+	root := t.TempDir()
+	scenarios := filepath.Join(root, "scenarios")
+	if err := os.MkdirAll(scenarios, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "docs", "rule.md"), "# Rule\nHistorical observation only.")
+	manifest := filepath.Join(root, "docs", "manifest.json")
+	writeFile(t, manifest, `{"sections":[{"documents":[{"path":"rule.md","knowledgeStatus":"historical","operatingSystems":["linux","windows"],"verifiedOperatingSystems":["linux"],"supersededBy":["docs/current.md"]}]}]}`)
+	source, err := NewDocSource(scenarios)
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs, err := source.LoadAll(context.Background())
+	if err != nil || len(docs) != 1 {
+		t.Fatalf("%v %+v", err, docs)
+	}
+	if docs[0].Meta["knowledge_status"] != "historical" {
+		t.Fatal("lost status")
+	}
+	chunks, err := pkg.NewMarkdownChunker().Chunk(docs[0])
+	if err != nil || len(chunks) == 0 {
+		t.Fatalf("chunking: %v", err)
+	}
+	for _, chunk := range chunks {
+		if chunk.Meta["knowledge_status"] != "historical" {
+			t.Fatal("chunk lost authority")
+		}
+		if len(chunk.Meta["verified_operating_systems"].([]string)) != 1 {
+			t.Fatal("chunk lost applicability")
+		}
+	}
+	oldHash := docs[0].ContentHash
+	writeFile(t, manifest, `{"sections":[{"documents":[{"path":"rule.md","knowledgeStatus":"superseded","operatingSystems":["linux","windows"],"verifiedOperatingSystems":["linux"],"supersededBy":["docs/current.md"]}]}]}`)
+	docs, err = source.LoadAll(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if docs[0].ContentHash == oldHash {
+		t.Fatal("metadata edit did not invalidate indexing")
+	}
+	if docs[0].Meta["knowledge_status"] != "superseded" {
+		t.Fatal("supersession lost")
+	}
+}

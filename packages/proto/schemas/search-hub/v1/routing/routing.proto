@@ -4,6 +4,7 @@ package vrooli.search_hub.v1.routing;
 
 import "common/v1/attestation.proto";
 import "common/v1/confidence.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "search-hub/v1/registry/registry.proto";
 import "search-hub/v1/shared/routing_trace.proto";
@@ -120,6 +121,40 @@ message SearchHit {
   // value greater than one means duplicate chunks were folded into the
   // highest-scoring representative; one means no folding occurred.
   int32 merged_count = 14;
+  // Provider-declared structured metadata. The descriptor selects fields; the
+  // router transports them without interpreting provider-specific values.
+  google.protobuf.Struct metadata = 15;
+  // Provider-native rank evidence retained for explainability.
+  repeated ProviderRankEvidence rank_evidence = 16;
+}
+
+message ProviderRankEvidence {
+  string leg = 1;
+  int32 rank = 2;
+  double score = 3;
+  string explanation = 4;
+}
+
+message ProviderCoverage {
+  uint64 canonical_visible_messages = 1;
+  uint64 catalog_documents = 2;
+  uint64 lexical_documents = 3;
+  uint64 semantic_documents = 4;
+  uint64 pending_documents = 5;
+  uint64 deleted_documents = 6;
+  double lexical_ratio = 7;
+  double semantic_ratio = 8;
+  google.protobuf.Timestamp last_reconciled_at = 9;
+  string source_checkpoint = 10;
+  uint64 orphan_documents = 11;
+  uint64 freshness_lag_ms = 12;
+}
+
+message ProviderDegradation {
+  string reason = 1;
+  string leg = 2;
+  string detail = 3;
+  bool retryable = 4;
 }
 
 // MeasureHit is the structured payload of a measure match: the resolved measure,
@@ -175,6 +210,9 @@ message ProviderResultGroup {
   string note = 5;
   // Per-provider fan-out leg latency in milliseconds, including degraded legs.
   int64 latency_ms = 6;
+  ProviderCoverage coverage = 7;
+  repeated ProviderDegradation degradations = 8;
+  string next_cursor = 9;
 }
 
 message QueryResponse {

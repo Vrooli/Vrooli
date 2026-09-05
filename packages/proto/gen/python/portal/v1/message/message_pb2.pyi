@@ -193,3 +193,45 @@ class CompletionEvent(_message.Message):
     error_code: str
     error_message: str
     def __init__(self, kind: _Optional[_Union[CompletionEventKind, str]] = ..., message_id: _Optional[str] = ..., text: _Optional[str] = ..., search_attachment: _Optional[_Union[SearchAttachment, _Mapping]] = ..., usage: _Optional[_Union[UsageRecord, _Mapping]] = ..., error_code: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class AgentRunRequest(_message.Message):
+    __slots__ = ("chat_id", "message_id")
+    CHAT_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    chat_id: str
+    message_id: str
+    def __init__(self, chat_id: _Optional[str] = ..., message_id: _Optional[str] = ...) -> None: ...
+
+class AgentRunResponse(_message.Message):
+    __slots__ = ("run_id", "status", "terminal")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    terminal: bool
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., terminal: _Optional[bool] = ...) -> None: ...
+
+class ListAgentAdmissionsRequest(_message.Message):
+    __slots__ = ("page_token", "page_size")
+    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    page_token: str
+    page_size: int
+    def __init__(self, page_token: _Optional[str] = ..., page_size: _Optional[int] = ...) -> None: ...
+
+class AgentAdmission(_message.Message):
+    __slots__ = ("chat_id", "message_id")
+    CHAT_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    chat_id: str
+    message_id: str
+    def __init__(self, chat_id: _Optional[str] = ..., message_id: _Optional[str] = ...) -> None: ...
+
+class ListAgentAdmissionsResponse(_message.Message):
+    __slots__ = ("admissions", "next_page_token")
+    ADMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    admissions: _containers.RepeatedCompositeFieldContainer[AgentAdmission]
+    next_page_token: str
+    def __init__(self, admissions: _Optional[_Iterable[_Union[AgentAdmission, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...

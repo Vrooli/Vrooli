@@ -33,7 +33,10 @@ type ScenarioFreshnessResponse struct {
 	// Per-artifact freshness verdicts (binaries/ui-bundle checks).
 	Checks []*ScenarioFreshnessCheck `protobuf:"bytes,4,rep,name=checks,proto3" json:"checks,omitempty"`
 	// Resolved freshness_policy of each declared scenario dependency.
-	Dependencies  []*ScenarioFreshnessDependency `protobuf:"bytes,5,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	Dependencies []*ScenarioFreshnessDependency `protobuf:"bytes,5,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	// Present only for --inputs. This resolves the same input closure and build
+	// keys as lifecycle freshness, without evaluating or stamping artifacts.
+	Inputs        *ScenarioFreshnessInputs `protobuf:"bytes,6,opt,name=inputs,proto3" json:"inputs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,6 +106,65 @@ func (x *ScenarioFreshnessResponse) GetDependencies() []*ScenarioFreshnessDepend
 	return nil
 }
 
+func (x *ScenarioFreshnessResponse) GetInputs() *ScenarioFreshnessInputs {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+type ScenarioFreshnessInputs struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Paths         []string               `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	BuildKeys     map[string]string      `protobuf:"bytes,2,rep,name=build_keys,json=buildKeys,proto3" json:"build_keys,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioFreshnessInputs) Reset() {
+	*x = ScenarioFreshnessInputs{}
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioFreshnessInputs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioFreshnessInputs) ProtoMessage() {}
+
+func (x *ScenarioFreshnessInputs) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioFreshnessInputs.ProtoReflect.Descriptor instead.
+func (*ScenarioFreshnessInputs) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_freshness_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ScenarioFreshnessInputs) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *ScenarioFreshnessInputs) GetBuildKeys() map[string]string {
+	if x != nil {
+		return x.BuildKeys
+	}
+	return nil
+}
+
 // ScenarioFreshnessCheck is one artifact's freshness verdict.
 type ScenarioFreshnessCheck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -124,7 +186,7 @@ type ScenarioFreshnessCheck struct {
 
 func (x *ScenarioFreshnessCheck) Reset() {
 	*x = ScenarioFreshnessCheck{}
-	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[1]
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -136,7 +198,7 @@ func (x *ScenarioFreshnessCheck) String() string {
 func (*ScenarioFreshnessCheck) ProtoMessage() {}
 
 func (x *ScenarioFreshnessCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[1]
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -149,7 +211,7 @@ func (x *ScenarioFreshnessCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioFreshnessCheck.ProtoReflect.Descriptor instead.
 func (*ScenarioFreshnessCheck) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_freshness_proto_rawDescGZIP(), []int{1}
+	return file_cli_v1_scenario_freshness_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ScenarioFreshnessCheck) GetCheckType() string {
@@ -204,7 +266,7 @@ type ScenarioFreshnessDependency struct {
 
 func (x *ScenarioFreshnessDependency) Reset() {
 	*x = ScenarioFreshnessDependency{}
-	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[2]
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +278,7 @@ func (x *ScenarioFreshnessDependency) String() string {
 func (*ScenarioFreshnessDependency) ProtoMessage() {}
 
 func (x *ScenarioFreshnessDependency) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[2]
+	mi := &file_cli_v1_scenario_freshness_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +291,7 @@ func (x *ScenarioFreshnessDependency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioFreshnessDependency.ProtoReflect.Descriptor instead.
 func (*ScenarioFreshnessDependency) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_freshness_proto_rawDescGZIP(), []int{2}
+	return file_cli_v1_scenario_freshness_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ScenarioFreshnessDependency) GetName() string {
@@ -250,13 +312,21 @@ var File_cli_v1_scenario_freshness_proto protoreflect.FileDescriptor
 
 const file_cli_v1_scenario_freshness_proto_rawDesc = "" +
 	"\n" +
-	"\x1fcli/v1/scenario_freshness.proto\x12\rvrooli.cli.v1\"\xf6\x01\n" +
+	"\x1fcli/v1/scenario_freshness.proto\x12\rvrooli.cli.v1\"\xb6\x02\n" +
 	"\x19ScenarioFreshnessResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05stale\x18\x03 \x01(\bR\x05stale\x12=\n" +
 	"\x06checks\x18\x04 \x03(\v2%.vrooli.cli.v1.ScenarioFreshnessCheckR\x06checks\x12N\n" +
-	"\fdependencies\x18\x05 \x03(\v2*.vrooli.cli.v1.ScenarioFreshnessDependencyR\fdependencies\"\x8f\x01\n" +
+	"\fdependencies\x18\x05 \x03(\v2*.vrooli.cli.v1.ScenarioFreshnessDependencyR\fdependencies\x12>\n" +
+	"\x06inputs\x18\x06 \x01(\v2&.vrooli.cli.v1.ScenarioFreshnessInputsR\x06inputs\"\xc3\x01\n" +
+	"\x17ScenarioFreshnessInputs\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\x12T\n" +
+	"\n" +
+	"build_keys\x18\x02 \x03(\v25.vrooli.cli.v1.ScenarioFreshnessInputs.BuildKeysEntryR\tbuildKeys\x1a<\n" +
+	"\x0eBuildKeysEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +
 	"\x16ScenarioFreshnessCheck\x12\x1d\n" +
 	"\n" +
 	"check_type\x18\x01 \x01(\tR\tcheckType\x12\x16\n" +
@@ -280,20 +350,24 @@ func file_cli_v1_scenario_freshness_proto_rawDescGZIP() []byte {
 	return file_cli_v1_scenario_freshness_proto_rawDescData
 }
 
-var file_cli_v1_scenario_freshness_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_cli_v1_scenario_freshness_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_cli_v1_scenario_freshness_proto_goTypes = []any{
 	(*ScenarioFreshnessResponse)(nil),   // 0: vrooli.cli.v1.ScenarioFreshnessResponse
-	(*ScenarioFreshnessCheck)(nil),      // 1: vrooli.cli.v1.ScenarioFreshnessCheck
-	(*ScenarioFreshnessDependency)(nil), // 2: vrooli.cli.v1.ScenarioFreshnessDependency
+	(*ScenarioFreshnessInputs)(nil),     // 1: vrooli.cli.v1.ScenarioFreshnessInputs
+	(*ScenarioFreshnessCheck)(nil),      // 2: vrooli.cli.v1.ScenarioFreshnessCheck
+	(*ScenarioFreshnessDependency)(nil), // 3: vrooli.cli.v1.ScenarioFreshnessDependency
+	nil,                                 // 4: vrooli.cli.v1.ScenarioFreshnessInputs.BuildKeysEntry
 }
 var file_cli_v1_scenario_freshness_proto_depIdxs = []int32{
-	1, // 0: vrooli.cli.v1.ScenarioFreshnessResponse.checks:type_name -> vrooli.cli.v1.ScenarioFreshnessCheck
-	2, // 1: vrooli.cli.v1.ScenarioFreshnessResponse.dependencies:type_name -> vrooli.cli.v1.ScenarioFreshnessDependency
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2, // 0: vrooli.cli.v1.ScenarioFreshnessResponse.checks:type_name -> vrooli.cli.v1.ScenarioFreshnessCheck
+	3, // 1: vrooli.cli.v1.ScenarioFreshnessResponse.dependencies:type_name -> vrooli.cli.v1.ScenarioFreshnessDependency
+	1, // 2: vrooli.cli.v1.ScenarioFreshnessResponse.inputs:type_name -> vrooli.cli.v1.ScenarioFreshnessInputs
+	4, // 3: vrooli.cli.v1.ScenarioFreshnessInputs.build_keys:type_name -> vrooli.cli.v1.ScenarioFreshnessInputs.BuildKeysEntry
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_scenario_freshness_proto_init() }
@@ -307,7 +381,7 @@ func file_cli_v1_scenario_freshness_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_scenario_freshness_proto_rawDesc), len(file_cli_v1_scenario_freshness_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -10,15 +10,38 @@
       "type": "doc",
       "description": "Project documentation across every scenario and the repo root — READMEs, guides, concept docs, runbooks, plans — searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
       "routing_profile": {
-        "answer_spaces": ["documentation", "guide", "runbook", "reference"],
-        "intents": ["understand", "explain", "locate_reference", "follow_runbook"],
-        "positive_examples": ["how does this subsystem work", "where is the guide for this operation", "find the architecture reference"],
-        "exclusions": ["live implementation source", "service contract ownership", "current health state"]
+        "answer_spaces": [
+          "documentation",
+          "guide",
+          "runbook",
+          "reference"
+        ],
+        "intents": [
+          "understand",
+          "explain",
+          "locate_reference",
+          "follow_runbook"
+        ],
+        "positive_examples": [
+          "how does this subsystem work",
+          "where is the guide for this operation",
+          "find the architecture reference"
+        ],
+        "exclusions": [
+          "live implementation source",
+          "service contract ownership",
+          "current health state"
+        ]
       },
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
       "index_timestamp_field": "last_reconcile_at",
-      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
       "endpoint": {
         "http_json": {
           "scenario_id": "knowledge-observatory",
@@ -58,7 +81,24 @@
         "score_field": "score",
         "snippet_field": "snippet",
         "path_field": "path",
-        "score_scale": "SCORE_SCALE_COSINE_0_1"
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "metadata_fields": {
+          "knowledge_status": "metadata.knowledge_status",
+          "operating_systems": "metadata.operating_systems",
+          "verified_operating_systems": "metadata.verified_operating_systems",
+          "machine_scope": "metadata.machine_scope",
+          "superseded_by": "metadata.superseded_by",
+          "aliases": "metadata.aliases",
+          "owner_skills": "metadata.owner_skills",
+          "canonical_for": "metadata.canonical_for",
+          "maturity": "metadata.maturity",
+          "file_sha256": "metadata.file_sha256",
+          "content_hash": "metadata.content_hash",
+          "heading_path": "metadata.heading_path",
+          "manifest_path": "metadata.manifest_path",
+          "manifest_sha256": "metadata.manifest_sha256",
+          "knowledge_metadata_basis": "metadata.knowledge_metadata_basis"
+        }
       },
       "tuning": {
         "engine": "hybrid",
@@ -79,7 +119,10 @@
         "deep_k": 50
       },
       "tests": {
-        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        },
         "suite_id": "knowledge-observatory.docs.starter",
         "name": "Knowledge-observatory docs — primary golden corpus",
         "description": "Hand-labeled documentation search corpus migrated from the old standalone testdata/search_queries.json into the provider search.json SSOT. Cases assert stable document paths (the provider id_field is relative_path) within recall_at; scoped cases preserve their scenario:path query scope through the shared GradeSuite harness.",
@@ -410,6 +453,49 @@
             "expect_no_strong_hit": true,
             "expect_max_score": 0.55,
             "note": "Junk rejection: nonsense must not surface a confident hit."
+          },
+          {
+            "id": "agent-knowledge-usage",
+            "query": "How should agents collect trustworthy documentation context and record learning from the task?",
+            "scope": "scenario:knowledge-observatory",
+            "tags": [
+              "agent-knowledge",
+              "reviewed"
+            ],
+            "expect_ids": [
+              "scenarios/knowledge-observatory/docs/guides/getting-started.md",
+              "scenarios/knowledge-observatory/README.md"
+            ],
+            "expect_within_top_k": 5,
+            "note": "The operator-approved scenario usage contract is explained in the guide and routed by README; successful retrieval is not task success."
+          },
+          {
+            "id": "knowledge-artifact-authority",
+            "query": "Are generated plan HTML reports official documentation and where should their useful knowledge go?",
+            "scope": "scenario:knowledge-observatory",
+            "tags": [
+              "authority",
+              "reviewed"
+            ],
+            "expect_ids": [
+              "scenarios/knowledge-observatory/docs/guides/getting-started.md"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Unique accepted knowledge is promoted; Plan Manager retains needed plan evidence. HTML itself is not a semantic documentation source."
+          },
+          {
+            "id": "knowledge-os-applicability",
+            "query": "How do documentation agents distinguish intended operating system support from verified support and observations on one machine?",
+            "scope": "scenario:knowledge-observatory",
+            "tags": [
+              "portability",
+              "reviewed"
+            ],
+            "expect_ids": [
+              "scenarios/knowledge-observatory/docs/guides/getting-started.md"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Applicability is OS/machine independence; cross-compilation is not native runtime verification."
           }
         ],
         "coverage": {

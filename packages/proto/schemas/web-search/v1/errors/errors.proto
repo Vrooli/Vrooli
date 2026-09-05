@@ -8,8 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v
 // ERROR ENVELOPE — canonical REST-exception non-2xx body
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain errors
 // @stability stable
 //
 // Connect-RPC methods use Connect's canonical error envelope and code set.

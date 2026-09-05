@@ -449,7 +449,7 @@ class CollectionCoverage(_message.Message):
     def __init__(self, required: _Optional[int] = ..., ready: _Optional[int] = ..., pending: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., stale: _Optional[int] = ..., complete: _Optional[bool] = ...) -> None: ...
 
 class BaselineCollection(_message.Message):
-    __slots__ = ("name", "branch", "created_at", "updated_at", "schema_version", "members", "coverage", "path_snapshots", "reanchored", "reanchor_detail", "generation")
+    __slots__ = ("name", "branch", "created_at", "updated_at", "schema_version", "members", "coverage", "path_snapshots", "reanchored", "reanchor_detail", "generation", "parent_receipt_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -461,6 +461,7 @@ class BaselineCollection(_message.Message):
     REANCHORED_FIELD_NUMBER: _ClassVar[int]
     REANCHOR_DETAIL_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     created_at: str
@@ -472,10 +473,11 @@ class BaselineCollection(_message.Message):
     reanchored: bool
     reanchor_detail: str
     generation: int
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ..., reanchored: _Optional[bool] = ..., reanchor_detail: _Optional[str] = ..., generation: _Optional[int] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., schema_version: _Optional[int] = ..., members: _Optional[_Iterable[_Union[CollectionMember, _Mapping]]] = ..., coverage: _Optional[_Union[CollectionCoverage, _Mapping]] = ..., path_snapshots: _Optional[_Iterable[_Union[PathSnapshotReference, _Mapping]]] = ..., reanchored: _Optional[bool] = ..., reanchor_detail: _Optional[str] = ..., generation: _Optional[int] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class StartCollectionCaptureRequest(_message.Message):
-    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections", "include_ignored", "retain_content", "acknowledge_reanchor")
+    __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id", "path_selections", "include_ignored", "retain_content", "acknowledge_reanchor", "parent_receipt_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     TARGETS_FIELD_NUMBER: _ClassVar[int]
@@ -486,6 +488,7 @@ class StartCollectionCaptureRequest(_message.Message):
     INCLUDE_IGNORED_FIELD_NUMBER: _ClassVar[int]
     RETAIN_CONTENT_FIELD_NUMBER: _ClassVar[int]
     ACKNOWLEDGE_REANCHOR_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     targets: _containers.RepeatedCompositeFieldContainer[CollectionTarget]
@@ -496,7 +499,8 @@ class StartCollectionCaptureRequest(_message.Message):
     include_ignored: bool
     retain_content: bool
     acknowledge_reanchor: bool
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ..., acknowledge_reanchor: _Optional[bool] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[CollectionTarget, _Mapping]]] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ..., path_selections: _Optional[_Iterable[str]] = ..., include_ignored: _Optional[bool] = ..., retain_content: _Optional[bool] = ..., acknowledge_reanchor: _Optional[bool] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class StartCollectionCaptureResponse(_message.Message):
     __slots__ = ("collection", "resumed")
@@ -589,30 +593,34 @@ class CollectionDiffMember(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[str] = ..., run_id: _Optional[str] = ..., verdict: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class StartCollectionDiffRequest(_message.Message):
-    __slots__ = ("name", "branch", "scenarios", "repo_id", "operation_id")
+    __slots__ = ("name", "branch", "scenarios", "repo_id", "operation_id", "parent_receipt_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     scenarios: _containers.RepeatedScalarFieldContainer[str]
     repo_id: int
     operation_id: str
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., operation_id: _Optional[str] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., repo_id: _Optional[int] = ..., operation_id: _Optional[str] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class StartCollectionDiffResponse(_message.Message):
-    __slots__ = ("collection", "members", "classification", "operation_id")
+    __slots__ = ("collection", "members", "classification", "operation_id", "parent_receipt_id")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
     classification: str
     operation_id: str
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class GetCollectionDiffStatusRequest(_message.Message):
     __slots__ = ("name", "branch", "operation_id", "repo_id")
@@ -627,18 +635,20 @@ class GetCollectionDiffStatusRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class GetCollectionDiffStatusResponse(_message.Message):
-    __slots__ = ("collection", "members", "classification", "operation_id", "standing")
+    __slots__ = ("collection", "members", "classification", "operation_id", "standing", "parent_receipt_id")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     STANDING_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
     classification: str
     operation_id: str
     standing: _operations_pb2.OperationStanding
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class WaitCollectionDiffRequest(_message.Message):
     __slots__ = ("name", "branch", "operation_id", "repo_id", "timeout_seconds")
@@ -655,20 +665,22 @@ class WaitCollectionDiffRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class WaitCollectionDiffResponse(_message.Message):
-    __slots__ = ("collection", "members", "classification", "operation_id", "standing", "detached")
+    __slots__ = ("collection", "members", "classification", "operation_id", "standing", "detached", "parent_receipt_id")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     STANDING_FIELD_NUMBER: _ClassVar[int]
     DETACHED_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
     classification: str
     operation_id: str
     standing: _operations_pb2.OperationStanding
     detached: bool
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., detached: _Optional[bool] = ...) -> None: ...
+    parent_receipt_id: str
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., detached: _Optional[bool] = ..., parent_receipt_id: _Optional[str] = ...) -> None: ...
 
 class DeleteCollectionRequest(_message.Message):
     __slots__ = ("name", "branch", "repo_id")

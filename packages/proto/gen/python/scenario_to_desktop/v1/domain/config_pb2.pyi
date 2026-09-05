@@ -111,7 +111,7 @@ class WindowConfig(_message.Message):
     def __init__(self, width: _Optional[int] = ..., height: _Optional[int] = ..., min_width: _Optional[int] = ..., min_height: _Optional[int] = ..., resizable: _Optional[bool] = ..., frame: _Optional[bool] = ..., dev_tools: _Optional[bool] = ...) -> None: ...
 
 class DesktopConfig(_message.Message):
-    __slots__ = ("app", "server", "bundle", "update", "window", "framework", "template_type", "platforms", "output_path", "features", "styling", "signing_enabled")
+    __slots__ = ("app", "server", "bundle", "update", "window", "framework", "template_type", "platforms", "output_path", "features", "styling", "signing_enabled", "native_extension")
     class FeaturesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -138,6 +138,7 @@ class DesktopConfig(_message.Message):
     FEATURES_FIELD_NUMBER: _ClassVar[int]
     STYLING_FIELD_NUMBER: _ClassVar[int]
     SIGNING_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_EXTENSION_FIELD_NUMBER: _ClassVar[int]
     app: AppIdentity
     server: ServerConfig
     bundle: BundleConfig
@@ -150,7 +151,8 @@ class DesktopConfig(_message.Message):
     features: _containers.ScalarMap[str, bool]
     styling: _containers.ScalarMap[str, str]
     signing_enabled: bool
-    def __init__(self, app: _Optional[_Union[AppIdentity, _Mapping]] = ..., server: _Optional[_Union[ServerConfig, _Mapping]] = ..., bundle: _Optional[_Union[BundleConfig, _Mapping]] = ..., update: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., window: _Optional[_Union[WindowConfig, _Mapping]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., output_path: _Optional[str] = ..., features: _Optional[_Mapping[str, bool]] = ..., styling: _Optional[_Mapping[str, str]] = ..., signing_enabled: _Optional[bool] = ...) -> None: ...
+    native_extension: NativeExtension
+    def __init__(self, app: _Optional[_Union[AppIdentity, _Mapping]] = ..., server: _Optional[_Union[ServerConfig, _Mapping]] = ..., bundle: _Optional[_Union[BundleConfig, _Mapping]] = ..., update: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., window: _Optional[_Union[WindowConfig, _Mapping]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., output_path: _Optional[str] = ..., features: _Optional[_Mapping[str, bool]] = ..., styling: _Optional[_Mapping[str, str]] = ..., signing_enabled: _Optional[bool] = ..., native_extension: _Optional[_Union[NativeExtension, _Mapping]] = ...) -> None: ...
 
 class ConnectionConfig(_message.Message):
     __slots__ = ("proxy_url", "server_type", "auto_manage_vrooli", "vrooli_binary_path", "deployment_mode", "bundle_manifest_path", "app_display_name", "app_description", "icon")
@@ -351,3 +353,17 @@ class WineInstallStatusResponse(_message.Message):
     log: _containers.RepeatedScalarFieldContainer[str]
     error_log: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, install_id: _Optional[str] = ..., status: _Optional[str] = ..., method: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Iterable[str]] = ..., error_log: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class NativeExtension(_message.Message):
+    __slots__ = ("version", "module", "permissions", "platforms", "activation_shortcut")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    MODULE_FIELD_NUMBER: _ClassVar[int]
+    PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    PLATFORMS_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATION_SHORTCUT_FIELD_NUMBER: _ClassVar[int]
+    version: int
+    module: str
+    permissions: _containers.RepeatedScalarFieldContainer[str]
+    platforms: _containers.RepeatedScalarFieldContainer[str]
+    activation_shortcut: str
+    def __init__(self, version: _Optional[int] = ..., module: _Optional[str] = ..., permissions: _Optional[_Iterable[str]] = ..., platforms: _Optional[_Iterable[str]] = ..., activation_shortcut: _Optional[str] = ...) -> None: ...

@@ -9,18 +9,18 @@ import { file_common_v1_attestation } from "../../../common/v1/attestation_pb";
 import type { Confidence } from "../../../common/v1/confidence_pb";
 import { file_common_v1_confidence } from "../../../common/v1/confidence_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { IncubatingProvider } from "../registry/registry_pb";
 import { file_search_hub_v1_registry_registry } from "../registry/registry_pb";
 import type { RoutingTrace } from "../shared/routing_trace_pb";
 import { file_search_hub_v1_shared_routing_trace } from "../shared/routing_trace_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file search-hub/v1/routing/routing.proto.
  */
 export const file_search_hub_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLnAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkSDQoFc2NvcGUYCSABKAkSFQoNc3RyYXRlZ3lfbmFtZRgKIAEoCSKxAgoPU2VhcmNoT3ZlcnJpZGVzEhsKDnJlcmFua19lbmFibGVkGAEgASgISACIAQESGQoMcmVyYW5rX2JsZW5kGAIgASgISAGIAQESHQoQcmVyYW5rX3Nob3J0bGlzdBgDIAEoBUgCiAEBEhoKDWZsb29yX21heF9nYXAYBCABKAFIA4gBARIdChBmbG9vcl9oYXJkX2Zsb29yGAUgASgBSASIAQESGgoNaHlicmlkX2Z1c2lvbhgGIAEoCUgFiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yQhAKDl9oeWJyaWRfZnVzaW9uIuQCCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQSLgoLYXR0ZXN0YXRpb24YCyABKAsyGS5jb21tb24udjEuQXR0ZXN0ZWRBbnN3ZXISKQoKY29uZmlkZW5jZRgMIAEoCzIVLmNvbW1vbi52MS5Db25maWRlbmNlEhEKCWxvY2F0aW9ucxgNIAMoCRIUCgxtZXJnZWRfY291bnQYDiABKAUiggIKCk1lYXN1cmVIaXQSEgoKbWVhc3VyZV9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRJECgZwYXJhbXMYAyADKAsyNC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQuUGFyYW1zRW50cnkSDgoGYW5zd2VyGAQgASgJEg0KBW5lZWRzGAUgAygJEg4KBmVmZmVjdBgGIAEoCRIWCg5leGVjdXRlZF9xdWVyeRgHIAEoCRISCgpjb25maWRlbmNlGAggASgBGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEipAEKE1Byb3ZpZGVyUmVzdWx0R3JvdXASEwoLcHJvdmlkZXJfaWQYASABKAkSNQoEaGl0cxgCIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0Eg0KBWNvdW50GAMgASgFEhAKCGRlZ3JhZGVkGAQgASgIEgwKBG5vdGUYBSABKAkSEgoKbGF0ZW5jeV9tcxgGIAEoAyLIAwoNUXVlcnlSZXNwb25zZRI3CgZyYW5rZWQYASADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBJBCgZncm91cHMYAiADKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVyUmVzdWx0R3JvdXASGAoQY29ycG9yYV9zZWFyY2hlZBgDIAMoCRIbChNyb3V0aW5nX2V4cGxhbmF0aW9uGAQgAygJEhAKCHJlcmFua2VkGAUgASgIEhAKCGRlZ3JhZGVkGAYgASgIEhIKCmxhdGVuY3lfbXMYByABKAMSDwoHcGFydGlhbBgIIAEoCBIZChFwZW5kaW5nX3Byb3ZpZGVycxgJIAEoBRIUCgxyZXJhbmtlcl9sZWcYCiABKAkSHgoWcm91dGluZ19kZWdyYWRlX3JlYXNvbhgLIAEoCRISCgpvcmRlcmVkX2J5GAwgASgJEhQKDHNlbGVjdG9yX2xlZxgNIAEoCRJACg1yb3V0aW5nX3RyYWNlGA4gASgLMikudnJvb2xpLnNlYXJjaF9odWIudjEuc2hhcmVkLlJvdXRpbmdUcmFjZSIPCg1TdGF0dXNSZXF1ZXN0IicKEFJlcHJvbW90ZVJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkiSAoRUmVwcm9tb3RlUmVzcG9uc2USEwoLcHJvdmlkZXJfaWQYASABKAkSDQoFcmVzZXQYAiABKAgSDwoHbWVzc2FnZRgDIAEoCSK9BgoOUHJvdmlkZXJIZWFsdGgSEwoLcHJvdmlkZXJfaWQYASABKAkSEQoJcmVhY2hhYmxlGAIgASgIEhMKC3BvaW50X2NvdW50GAQgASgDEhAKCGRlZ3JhZGVkGAUgASgIEg8KB2RlbW90ZWQYBiABKAgSFwoPZGVtb3Rpb25fcmVhc29uGAcgASgJEhQKDHRpbWVzX3JvdXRlZBgIIAEoAxISCgp0b3RhbF9oaXRzGAkgASgDEhQKDHJlYWNoYWJpbGl0eRgKIAEoCRIRCglpbmRleF9hZ2UYCyABKAkSGgoSYXV0b21hdGljX2VsaWdpYmxlGAwgASgIEiIKGmF1dG9tYXRpY19leGNsdXNpb25fcmVhc29uGA0gASgJEhUKDWNpcmN1aXRfc3RhdGUYDiABKAkSGAoQcXVhbGl0eV93aXRoaGVsZBgPIAEoCBIfChdxdWFsaXR5X3dpdGhoZWxkX3JlYXNvbhgQIAEoCRIfChdxdWFsaXR5X2V2aWRlbmNlX3J1bl9pZBgRIAEoCRIeChZxdWFsaXR5X2dhdGVfb3B0ZWRfb3V0GBIgASgIEiMKG3F1YWxpdHlfZ2F0ZV9vcHRfb3V0X3JlYXNvbhgTIAEoCRIzCg9sYXN0X2luZGV4ZWRfYXQYFCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKBXN0dWNrGBUgASgISACIAQESFgoOcmVjb3Zlcnlfc3RhdGUYFiABKAkSEQoJbGlmZWN5Y2xlGBcgASgJEhMKC2RlY2xhcmVkX2F0GBggASgJEhcKD2VtYmVkZGluZ19tb2RlbBgZIAEoCRIYChBmcmVzaG5lc3NfYnVkZ2V0GBogASgJEhkKEWFjdGl2ZV9nZW5lcmF0aW9uGBsgASgJEhQKDHNvdXJjZV9maWxlcxgcIAEoAxIWCg5zZW1hbnRpY19jYXJkcxgdIAEoAxITCgtncmFwaF9mYWN0cxgeIAEoAxITCgtpbmRleF9zdGF0ZRgfIAEoCRIXCg9kZWdyYWRlZF9zdGFnZXMYICADKAkSDwoHZHJpZnRlZBghIAEoCEIICgZfc3R1Y2tKBAgDEAQi5wMKDlN0YXR1c1Jlc3BvbnNlEj8KCXByb3ZpZGVycxgBIAMoCzIsLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJIZWFsdGgSRQoPYXVkaXRfcHJvdmlkZXJzGAsgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBIcChRjbGFzc2lmaWVyX2F2YWlsYWJsZRgCIAEoCBIaChJyZXJhbmtlcl9hdmFpbGFibGUYAyABKAgSGgoSY2lyY3VpdF9vcGVuX3NoYXJlGAQgASgBEhsKE2NpcmN1aXRfb3Blbl9xdW9ydW0YBSABKAESGwoTZmVkZXJhdGlvbl9kZWdyYWRlZBgGIAEoCBJFCgppbmN1YmF0aW5nGAggAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucmVnaXN0cnkuSW5jdWJhdGluZ1Byb3ZpZGVyEhQKDHJlcmFua2VyX2xlZxgHIAEoCRIXCg9hY3RpdmVfc3RyYXRlZ3kYCSABKAkSRwoKc3RyYXRlZ2llcxgKIAMoCzIzLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUmV0cmlldmFsU3RyYXRlZ3lJbmZvInwKFVJldHJpZXZhbFN0cmF0ZWd5SW5mbxIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEkAKBnN0YWdlcxgDIAMoCzIwLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUmV0cmlldmFsU3RhZ2VJbmZvIjcKElJldHJpZXZhbFN0YWdlSW5mbxIMCgRraW5kGAEgASgJEhMKC3BhcmFtc19qc29uGAIgASgJMsUCCg5Sb3V0aW5nU2VydmljZRJgCgVRdWVyeRIqLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXF1ZXN0GisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlc3BvbnNlEmMKBlN0YXR1cxIrLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVxdWVzdBosLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3RhdHVzUmVzcG9uc2USbAoJUmVwcm9tb3RlEi4udnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5SZXByb21vdGVSZXF1ZXN0Gi8udnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5SZXByb21vdGVSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM", [file_common_v1_attestation, file_common_v1_confidence, file_google_protobuf_timestamp, file_search_hub_v1_registry_registry, file_search_hub_v1_shared_routing_trace]);
+  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLnAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkSDQoFc2NvcGUYCSABKAkSFQoNc3RyYXRlZ3lfbmFtZRgKIAEoCSKxAgoPU2VhcmNoT3ZlcnJpZGVzEhsKDnJlcmFua19lbmFibGVkGAEgASgISACIAQESGQoMcmVyYW5rX2JsZW5kGAIgASgISAGIAQESHQoQcmVyYW5rX3Nob3J0bGlzdBgDIAEoBUgCiAEBEhoKDWZsb29yX21heF9nYXAYBCABKAFIA4gBARIdChBmbG9vcl9oYXJkX2Zsb29yGAUgASgBSASIAQESGgoNaHlicmlkX2Z1c2lvbhgGIAEoCUgFiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yQhAKDl9oeWJyaWRfZnVzaW9uItoDCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQSLgoLYXR0ZXN0YXRpb24YCyABKAsyGS5jb21tb24udjEuQXR0ZXN0ZWRBbnN3ZXISKQoKY29uZmlkZW5jZRgMIAEoCzIVLmNvbW1vbi52MS5Db25maWRlbmNlEhEKCWxvY2F0aW9ucxgNIAMoCRIUCgxtZXJnZWRfY291bnQYDiABKAUSKQoIbWV0YWRhdGEYDyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkkKDXJhbmtfZXZpZGVuY2UYECADKAsyMi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVyUmFua0V2aWRlbmNlIlUKFFByb3ZpZGVyUmFua0V2aWRlbmNlEgsKA2xlZxgBIAEoCRIMCgRyYW5rGAIgASgFEg0KBXNjb3JlGAMgASgBEhMKC2V4cGxhbmF0aW9uGAQgASgJIvQCChBQcm92aWRlckNvdmVyYWdlEiIKGmNhbm9uaWNhbF92aXNpYmxlX21lc3NhZ2VzGAEgASgEEhkKEWNhdGFsb2dfZG9jdW1lbnRzGAIgASgEEhkKEWxleGljYWxfZG9jdW1lbnRzGAMgASgEEhoKEnNlbWFudGljX2RvY3VtZW50cxgEIAEoBBIZChFwZW5kaW5nX2RvY3VtZW50cxgFIAEoBBIZChFkZWxldGVkX2RvY3VtZW50cxgGIAEoBBIVCg1sZXhpY2FsX3JhdGlvGAcgASgBEhYKDnNlbWFudGljX3JhdGlvGAggASgBEjYKEmxhc3RfcmVjb25jaWxlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc291cmNlX2NoZWNrcG9pbnQYCiABKAkSGAoQb3JwaGFuX2RvY3VtZW50cxgLIAEoBBIYChBmcmVzaG5lc3NfbGFnX21zGAwgASgEIlUKE1Byb3ZpZGVyRGVncmFkYXRpb24SDgoGcmVhc29uGAEgASgJEgsKA2xlZxgCIAEoCRIOCgZkZXRhaWwYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIIoICCgpNZWFzdXJlSGl0EhIKCm1lYXN1cmVfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSRAoGcGFyYW1zGAMgAygLMjQudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5NZWFzdXJlSGl0LlBhcmFtc0VudHJ5Eg4KBmFuc3dlchgEIAEoCRINCgVuZWVkcxgFIAMoCRIOCgZlZmZlY3QYBiABKAkSFgoOZXhlY3V0ZWRfcXVlcnkYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoARotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIsQCChNQcm92aWRlclJlc3VsdEdyb3VwEhMKC3Byb3ZpZGVyX2lkGAEgASgJEjUKBGhpdHMYAiADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBINCgVjb3VudBgDIAEoBRIQCghkZWdyYWRlZBgEIAEoCBIMCgRub3RlGAUgASgJEhIKCmxhdGVuY3lfbXMYBiABKAMSQAoIY292ZXJhZ2UYByABKAsyLi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVyQ292ZXJhZ2USRwoMZGVncmFkYXRpb25zGAggAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckRlZ3JhZGF0aW9uEhMKC25leHRfY3Vyc29yGAkgASgJIsgDCg1RdWVyeVJlc3BvbnNlEjcKBnJhbmtlZBgBIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0EkEKBmdyb3VwcxgCIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUHJvdmlkZXJSZXN1bHRHcm91cBIYChBjb3Jwb3JhX3NlYXJjaGVkGAMgAygJEhsKE3JvdXRpbmdfZXhwbGFuYXRpb24YBCADKAkSEAoIcmVyYW5rZWQYBSABKAgSEAoIZGVncmFkZWQYBiABKAgSEgoKbGF0ZW5jeV9tcxgHIAEoAxIPCgdwYXJ0aWFsGAggASgIEhkKEXBlbmRpbmdfcHJvdmlkZXJzGAkgASgFEhQKDHJlcmFua2VyX2xlZxgKIAEoCRIeChZyb3V0aW5nX2RlZ3JhZGVfcmVhc29uGAsgASgJEhIKCm9yZGVyZWRfYnkYDCABKAkSFAoMc2VsZWN0b3JfbGVnGA0gASgJEkAKDXJvdXRpbmdfdHJhY2UYDiABKAsyKS52cm9vbGkuc2VhcmNoX2h1Yi52MS5zaGFyZWQuUm91dGluZ1RyYWNlIg8KDVN0YXR1c1JlcXVlc3QiJwoQUmVwcm9tb3RlUmVxdWVzdBITCgtwcm92aWRlcl9pZBgBIAEoCSJIChFSZXByb21vdGVSZXNwb25zZRITCgtwcm92aWRlcl9pZBgBIAEoCRINCgVyZXNldBgCIAEoCBIPCgdtZXNzYWdlGAMgASgJIr0GCg5Qcm92aWRlckhlYWx0aBITCgtwcm92aWRlcl9pZBgBIAEoCRIRCglyZWFjaGFibGUYAiABKAgSEwoLcG9pbnRfY291bnQYBCABKAMSEAoIZGVncmFkZWQYBSABKAgSDwoHZGVtb3RlZBgGIAEoCBIXCg9kZW1vdGlvbl9yZWFzb24YByABKAkSFAoMdGltZXNfcm91dGVkGAggASgDEhIKCnRvdGFsX2hpdHMYCSABKAMSFAoMcmVhY2hhYmlsaXR5GAogASgJEhEKCWluZGV4X2FnZRgLIAEoCRIaChJhdXRvbWF0aWNfZWxpZ2libGUYDCABKAgSIgoaYXV0b21hdGljX2V4Y2x1c2lvbl9yZWFzb24YDSABKAkSFQoNY2lyY3VpdF9zdGF0ZRgOIAEoCRIYChBxdWFsaXR5X3dpdGhoZWxkGA8gASgIEh8KF3F1YWxpdHlfd2l0aGhlbGRfcmVhc29uGBAgASgJEh8KF3F1YWxpdHlfZXZpZGVuY2VfcnVuX2lkGBEgASgJEh4KFnF1YWxpdHlfZ2F0ZV9vcHRlZF9vdXQYEiABKAgSIwobcXVhbGl0eV9nYXRlX29wdF9vdXRfcmVhc29uGBMgASgJEjMKD2xhc3RfaW5kZXhlZF9hdBgUIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFc3R1Y2sYFSABKAhIAIgBARIWCg5yZWNvdmVyeV9zdGF0ZRgWIAEoCRIRCglsaWZlY3ljbGUYFyABKAkSEwoLZGVjbGFyZWRfYXQYGCABKAkSFwoPZW1iZWRkaW5nX21vZGVsGBkgASgJEhgKEGZyZXNobmVzc19idWRnZXQYGiABKAkSGQoRYWN0aXZlX2dlbmVyYXRpb24YGyABKAkSFAoMc291cmNlX2ZpbGVzGBwgASgDEhYKDnNlbWFudGljX2NhcmRzGB0gASgDEhMKC2dyYXBoX2ZhY3RzGB4gASgDEhMKC2luZGV4X3N0YXRlGB8gASgJEhcKD2RlZ3JhZGVkX3N0YWdlcxggIAMoCRIPCgdkcmlmdGVkGCEgASgIQggKBl9zdHVja0oECAMQBCLnAwoOU3RhdHVzUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBJFCg9hdWRpdF9wcm92aWRlcnMYCyADKAsyLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVySGVhbHRoEhwKFGNsYXNzaWZpZXJfYXZhaWxhYmxlGAIgASgIEhoKEnJlcmFua2VyX2F2YWlsYWJsZRgDIAEoCBIaChJjaXJjdWl0X29wZW5fc2hhcmUYBCABKAESGwoTY2lyY3VpdF9vcGVuX3F1b3J1bRgFIAEoARIbChNmZWRlcmF0aW9uX2RlZ3JhZGVkGAYgASgIEkUKCmluY3ViYXRpbmcYCCADKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yZWdpc3RyeS5JbmN1YmF0aW5nUHJvdmlkZXISFAoMcmVyYW5rZXJfbGVnGAcgASgJEhcKD2FjdGl2ZV9zdHJhdGVneRgJIAEoCRJHCgpzdHJhdGVnaWVzGAogAygLMjMudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5SZXRyaWV2YWxTdHJhdGVneUluZm8ifAoVUmV0cmlldmFsU3RyYXRlZ3lJbmZvEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSQAoGc3RhZ2VzGAMgAygLMjAudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5SZXRyaWV2YWxTdGFnZUluZm8iNwoSUmV0cmlldmFsU3RhZ2VJbmZvEgwKBGtpbmQYASABKAkSEwoLcGFyYW1zX2pzb24YAiABKAkyxQIKDlJvdXRpbmdTZXJ2aWNlEmAKBVF1ZXJ5EioudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVzcG9uc2USYwoGU3RhdHVzEisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXF1ZXN0GiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXNwb25zZRJsCglSZXByb21vdGUSLi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlJlcHJvbW90ZVJlcXVlc3QaLy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlJlcHJvbW90ZVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw", [file_common_v1_attestation, file_common_v1_confidence, file_google_protobuf_struct, file_google_protobuf_timestamp, file_search_hub_v1_registry_registry, file_search_hub_v1_shared_routing_trace]);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryRequest
@@ -268,6 +268,21 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
    * @generated from field: int32 merged_count = 14;
    */
   mergedCount: number;
+
+  /**
+   * Provider-declared structured metadata. The descriptor selects fields; the
+   * router transports them without interpreting provider-specific values.
+   *
+   * @generated from field: google.protobuf.Struct metadata = 15;
+   */
+  metadata?: JsonObject | undefined;
+
+  /**
+   * Provider-native rank evidence retained for explainability.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.routing.ProviderRankEvidence rank_evidence = 16;
+   */
+  rankEvidence: ProviderRankEvidence[];
 };
 
 /**
@@ -276,6 +291,142 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
  */
 export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 2);
+
+/**
+ * @generated from message vrooli.search_hub.v1.routing.ProviderRankEvidence
+ */
+export type ProviderRankEvidence = Message<"vrooli.search_hub.v1.routing.ProviderRankEvidence"> & {
+  /**
+   * @generated from field: string leg = 1;
+   */
+  leg: string;
+
+  /**
+   * @generated from field: int32 rank = 2;
+   */
+  rank: number;
+
+  /**
+   * @generated from field: double score = 3;
+   */
+  score: number;
+
+  /**
+   * @generated from field: string explanation = 4;
+   */
+  explanation: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.ProviderRankEvidence.
+ * Use `create(ProviderRankEvidenceSchema)` to create a new message.
+ */
+export const ProviderRankEvidenceSchema: GenMessage<ProviderRankEvidence> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 3);
+
+/**
+ * @generated from message vrooli.search_hub.v1.routing.ProviderCoverage
+ */
+export type ProviderCoverage = Message<"vrooli.search_hub.v1.routing.ProviderCoverage"> & {
+  /**
+   * @generated from field: uint64 canonical_visible_messages = 1;
+   */
+  canonicalVisibleMessages: bigint;
+
+  /**
+   * @generated from field: uint64 catalog_documents = 2;
+   */
+  catalogDocuments: bigint;
+
+  /**
+   * @generated from field: uint64 lexical_documents = 3;
+   */
+  lexicalDocuments: bigint;
+
+  /**
+   * @generated from field: uint64 semantic_documents = 4;
+   */
+  semanticDocuments: bigint;
+
+  /**
+   * @generated from field: uint64 pending_documents = 5;
+   */
+  pendingDocuments: bigint;
+
+  /**
+   * @generated from field: uint64 deleted_documents = 6;
+   */
+  deletedDocuments: bigint;
+
+  /**
+   * @generated from field: double lexical_ratio = 7;
+   */
+  lexicalRatio: number;
+
+  /**
+   * @generated from field: double semantic_ratio = 8;
+   */
+  semanticRatio: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_reconciled_at = 9;
+   */
+  lastReconciledAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string source_checkpoint = 10;
+   */
+  sourceCheckpoint: string;
+
+  /**
+   * @generated from field: uint64 orphan_documents = 11;
+   */
+  orphanDocuments: bigint;
+
+  /**
+   * @generated from field: uint64 freshness_lag_ms = 12;
+   */
+  freshnessLagMs: bigint;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.ProviderCoverage.
+ * Use `create(ProviderCoverageSchema)` to create a new message.
+ */
+export const ProviderCoverageSchema: GenMessage<ProviderCoverage> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 4);
+
+/**
+ * @generated from message vrooli.search_hub.v1.routing.ProviderDegradation
+ */
+export type ProviderDegradation = Message<"vrooli.search_hub.v1.routing.ProviderDegradation"> & {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string leg = 2;
+   */
+  leg: string;
+
+  /**
+   * @generated from field: string detail = 3;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: bool retryable = 4;
+   */
+  retryable: boolean;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.ProviderDegradation.
+ * Use `create(ProviderDegradationSchema)` to create a new message.
+ */
+export const ProviderDegradationSchema: GenMessage<ProviderDegradation> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 5);
 
 /**
  * MeasureHit is the structured payload of a measure match: the resolved measure,
@@ -367,7 +518,7 @@ export type MeasureHit = Message<"vrooli.search_hub.v1.routing.MeasureHit"> & {
  * Use `create(MeasureHitSchema)` to create a new message.
  */
 export const MeasureHitSchema: GenMessage<MeasureHit> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 3);
+  messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
  * Phase-4 honest grouping (pre-rerank): candidates kept per provider.
@@ -410,6 +561,21 @@ export type ProviderResultGroup = Message<"vrooli.search_hub.v1.routing.Provider
    * @generated from field: int64 latency_ms = 6;
    */
   latencyMs: bigint;
+
+  /**
+   * @generated from field: vrooli.search_hub.v1.routing.ProviderCoverage coverage = 7;
+   */
+  coverage?: ProviderCoverage | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.search_hub.v1.routing.ProviderDegradation degradations = 8;
+   */
+  degradations: ProviderDegradation[];
+
+  /**
+   * @generated from field: string next_cursor = 9;
+   */
+  nextCursor: string;
 };
 
 /**
@@ -417,7 +583,7 @@ export type ProviderResultGroup = Message<"vrooli.search_hub.v1.routing.Provider
  * Use `create(ProviderResultGroupSchema)` to create a new message.
  */
 export const ProviderResultGroupSchema: GenMessage<ProviderResultGroup> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 4);
+  messageDesc(file_search_hub_v1_routing_routing, 7);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryResponse
@@ -531,7 +697,7 @@ export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"
  * Use `create(QueryResponseSchema)` to create a new message.
  */
 export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 5);
+  messageDesc(file_search_hub_v1_routing_routing, 8);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusRequest
@@ -544,7 +710,7 @@ export type StatusRequest = Message<"vrooli.search_hub.v1.routing.StatusRequest"
  * Use `create(StatusRequestSchema)` to create a new message.
  */
 export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 6);
+  messageDesc(file_search_hub_v1_routing_routing, 9);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.RepromoteRequest
@@ -561,7 +727,7 @@ export type RepromoteRequest = Message<"vrooli.search_hub.v1.routing.RepromoteRe
  * Use `create(RepromoteRequestSchema)` to create a new message.
  */
 export const RepromoteRequestSchema: GenMessage<RepromoteRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 7);
+  messageDesc(file_search_hub_v1_routing_routing, 10);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.RepromoteResponse
@@ -588,7 +754,7 @@ export type RepromoteResponse = Message<"vrooli.search_hub.v1.routing.RepromoteR
  * Use `create(RepromoteResponseSchema)` to create a new message.
  */
 export const RepromoteResponseSchema: GenMessage<RepromoteResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 8);
+  messageDesc(file_search_hub_v1_routing_routing, 11);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.ProviderHealth
@@ -799,7 +965,7 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 9);
+  messageDesc(file_search_hub_v1_routing_routing, 12);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusResponse
@@ -875,7 +1041,7 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 10);
+  messageDesc(file_search_hub_v1_routing_routing, 13);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.RetrievalStrategyInfo
@@ -902,7 +1068,7 @@ export type RetrievalStrategyInfo = Message<"vrooli.search_hub.v1.routing.Retrie
  * Use `create(RetrievalStrategyInfoSchema)` to create a new message.
  */
 export const RetrievalStrategyInfoSchema: GenMessage<RetrievalStrategyInfo> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 11);
+  messageDesc(file_search_hub_v1_routing_routing, 14);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.RetrievalStageInfo
@@ -926,7 +1092,7 @@ export type RetrievalStageInfo = Message<"vrooli.search_hub.v1.routing.Retrieval
  * Use `create(RetrievalStageInfoSchema)` to create a new message.
  */
 export const RetrievalStageInfoSchema: GenMessage<RetrievalStageInfo> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 12);
+  messageDesc(file_search_hub_v1_routing_routing, 15);
 
 /**
  * @generated from service vrooli.search_hub.v1.routing.RoutingService

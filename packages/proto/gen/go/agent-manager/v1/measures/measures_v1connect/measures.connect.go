@@ -110,6 +110,9 @@ const (
 	// MeasuresServiceCapabilityEfficacyProcedure is the fully-qualified name of the MeasuresService's
 	// CapabilityEfficacy RPC.
 	MeasuresServiceCapabilityEfficacyProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityEfficacy"
+	// MeasuresServiceConversationSearchQualityProcedure is the fully-qualified name of the
+	// MeasuresService's ConversationSearchQuality RPC.
+	MeasuresServiceConversationSearchQualityProcedure = "/agent_manager.v1.measures.MeasuresService/ConversationSearchQuality"
 	// MeasuresServiceAllMeasureDefinitionsProcedure is the fully-qualified name of the
 	// MeasuresService's AllMeasureDefinitions RPC.
 	MeasuresServiceAllMeasureDefinitionsProcedure = "/agent_manager.v1.measures.MeasuresService/AllMeasureDefinitions"
@@ -146,6 +149,7 @@ type MeasuresServiceClient interface {
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
 	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
+	ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error)
 	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
@@ -319,6 +323,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
 			connect.WithClientOptions(opts...),
 		),
+		conversationSearchQuality: connect.NewClient[measures.ConversationSearchQualityRequest, measures.ConversationSearchQualityResponse](
+			httpClient,
+			baseURL+MeasuresServiceConversationSearchQualityProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ConversationSearchQuality")),
+			connect.WithClientOptions(opts...),
+		),
 		allMeasureDefinitions: connect.NewClient[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse](
 			httpClient,
 			baseURL+MeasuresServiceAllMeasureDefinitionsProcedure,
@@ -336,34 +346,35 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // measuresServiceClient implements MeasuresServiceClient.
 type measuresServiceClient struct {
-	externalToolShare     *connect.Client[measures.ExternalToolShareRequest, measures.ExternalToolShareResponse]
-	retryRate             *connect.Client[measures.RetryRateRequest, measures.RetryRateResponse]
-	helpRecoveryRate      *connect.Client[measures.HelpRecoveryRateRequest, measures.HelpRecoveryRateResponse]
-	repeatedWorkRate      *connect.Client[measures.RepeatedWorkRateRequest, measures.RepeatedWorkRateResponse]
-	toolFailureRate       *connect.Client[measures.ToolFailureRateRequest, measures.ToolFailureRateResponse]
-	runSuccessRate        *connect.Client[measures.RunSuccessRateRequest, measures.RunSuccessRateResponse]
-	runCycleTime          *connect.Client[measures.RunCycleTimeRequest, measures.RunCycleTimeResponse]
-	runDurationStatistics *connect.Client[measures.RunDurationStatisticsRequest, measures.RunDurationStatisticsResponse]
-	runCost               *connect.Client[measures.RunCostRequest, measures.RunCostResponse]
-	runVolume             *connect.Client[measures.RunVolumeRequest, measures.RunVolumeResponse]
-	runStatusDistribution *connect.Client[measures.RunStatusDistributionRequest, measures.RunStatusDistributionResponse]
-	runnerBreakdown       *connect.Client[measures.RunnerBreakdownRequest, measures.RunnerBreakdownResponse]
-	modelBreakdown        *connect.Client[measures.ModelBreakdownRequest, measures.ModelBreakdownResponse]
-	profileBreakdown      *connect.Client[measures.ProfileBreakdownRequest, measures.ProfileBreakdownResponse]
-	workloadBreakdown     *connect.Client[measures.WorkloadBreakdownRequest, measures.WorkloadBreakdownResponse]
-	workloadEfficiency    *connect.Client[measures.WorkloadEfficiencyRequest, measures.WorkloadEfficiencyResponse]
-	terminalRunTrend      *connect.Client[measures.TerminalRunTrendRequest, measures.TerminalRunTrendResponse]
-	toolUsage             *connect.Client[measures.ToolUsageRequest, measures.ToolUsageResponse]
-	toolCommandBreakdown  *connect.Client[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse]
-	tokenAttribution      *connect.Client[measures.TokenAttributionRequest, measures.TokenAttributionResponse]
-	errorPatterns         *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
-	fileRereadRate        *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
-	findingRecurrenceRate *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
-	episodeCohort         *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
-	capabilityUsage       *connect.Client[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse]
-	capabilityEfficacy    *connect.Client[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse]
-	allMeasureDefinitions *connect.Client[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse]
-	selectCohort          *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
+	externalToolShare         *connect.Client[measures.ExternalToolShareRequest, measures.ExternalToolShareResponse]
+	retryRate                 *connect.Client[measures.RetryRateRequest, measures.RetryRateResponse]
+	helpRecoveryRate          *connect.Client[measures.HelpRecoveryRateRequest, measures.HelpRecoveryRateResponse]
+	repeatedWorkRate          *connect.Client[measures.RepeatedWorkRateRequest, measures.RepeatedWorkRateResponse]
+	toolFailureRate           *connect.Client[measures.ToolFailureRateRequest, measures.ToolFailureRateResponse]
+	runSuccessRate            *connect.Client[measures.RunSuccessRateRequest, measures.RunSuccessRateResponse]
+	runCycleTime              *connect.Client[measures.RunCycleTimeRequest, measures.RunCycleTimeResponse]
+	runDurationStatistics     *connect.Client[measures.RunDurationStatisticsRequest, measures.RunDurationStatisticsResponse]
+	runCost                   *connect.Client[measures.RunCostRequest, measures.RunCostResponse]
+	runVolume                 *connect.Client[measures.RunVolumeRequest, measures.RunVolumeResponse]
+	runStatusDistribution     *connect.Client[measures.RunStatusDistributionRequest, measures.RunStatusDistributionResponse]
+	runnerBreakdown           *connect.Client[measures.RunnerBreakdownRequest, measures.RunnerBreakdownResponse]
+	modelBreakdown            *connect.Client[measures.ModelBreakdownRequest, measures.ModelBreakdownResponse]
+	profileBreakdown          *connect.Client[measures.ProfileBreakdownRequest, measures.ProfileBreakdownResponse]
+	workloadBreakdown         *connect.Client[measures.WorkloadBreakdownRequest, measures.WorkloadBreakdownResponse]
+	workloadEfficiency        *connect.Client[measures.WorkloadEfficiencyRequest, measures.WorkloadEfficiencyResponse]
+	terminalRunTrend          *connect.Client[measures.TerminalRunTrendRequest, measures.TerminalRunTrendResponse]
+	toolUsage                 *connect.Client[measures.ToolUsageRequest, measures.ToolUsageResponse]
+	toolCommandBreakdown      *connect.Client[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse]
+	tokenAttribution          *connect.Client[measures.TokenAttributionRequest, measures.TokenAttributionResponse]
+	errorPatterns             *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
+	fileRereadRate            *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
+	findingRecurrenceRate     *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
+	episodeCohort             *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
+	capabilityUsage           *connect.Client[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse]
+	capabilityEfficacy        *connect.Client[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse]
+	conversationSearchQuality *connect.Client[measures.ConversationSearchQualityRequest, measures.ConversationSearchQualityResponse]
+	allMeasureDefinitions     *connect.Client[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse]
+	selectCohort              *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
 }
 
 // ExternalToolShare calls agent_manager.v1.measures.MeasuresService.ExternalToolShare.
@@ -496,6 +507,12 @@ func (c *measuresServiceClient) CapabilityEfficacy(ctx context.Context, req *con
 	return c.capabilityEfficacy.CallUnary(ctx, req)
 }
 
+// ConversationSearchQuality calls
+// agent_manager.v1.measures.MeasuresService.ConversationSearchQuality.
+func (c *measuresServiceClient) ConversationSearchQuality(ctx context.Context, req *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error) {
+	return c.conversationSearchQuality.CallUnary(ctx, req)
+}
+
 // AllMeasureDefinitions calls agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions.
 func (c *measuresServiceClient) AllMeasureDefinitions(ctx context.Context, req *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error) {
 	return c.allMeasureDefinitions.CallUnary(ctx, req)
@@ -535,6 +552,7 @@ type MeasuresServiceHandler interface {
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
 	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
+	ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error)
 	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
@@ -704,6 +722,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceConversationSearchQualityHandler := connect.NewUnaryHandler(
+		MeasuresServiceConversationSearchQualityProcedure,
+		svc.ConversationSearchQuality,
+		connect.WithSchema(measuresServiceMethods.ByName("ConversationSearchQuality")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceAllMeasureDefinitionsHandler := connect.NewUnaryHandler(
 		MeasuresServiceAllMeasureDefinitionsProcedure,
 		svc.AllMeasureDefinitions,
@@ -770,6 +794,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceCapabilityUsageHandler.ServeHTTP(w, r)
 		case MeasuresServiceCapabilityEfficacyProcedure:
 			measuresServiceCapabilityEfficacyHandler.ServeHTTP(w, r)
+		case MeasuresServiceConversationSearchQualityProcedure:
+			measuresServiceConversationSearchQualityHandler.ServeHTTP(w, r)
 		case MeasuresServiceAllMeasureDefinitionsProcedure:
 			measuresServiceAllMeasureDefinitionsHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
@@ -885,6 +911,10 @@ func (UnimplementedMeasuresServiceHandler) CapabilityUsage(context.Context, *con
 
 func (UnimplementedMeasuresServiceHandler) CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityEfficacy is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ConversationSearchQuality is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error) {

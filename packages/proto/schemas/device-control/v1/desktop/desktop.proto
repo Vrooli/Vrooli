@@ -1,0 +1,244 @@
+syntax = "proto3";
+package vrooli.device_control.v1.desktop;
+import "common/v1/surface.proto";
+import "device-control/v1/flows/flows.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop;desktopv1";
+// @stability experimental
+// Local user-session helper protocol. Grants travel only in authenticated
+// transport metadata; references and this service do not confer authority.
+service DesktopHelperService {
+ rpc CaptureCompanionActivation(CompanionActivationRequest) returns (ActivationReference);
+ rpc CaptureActivation(StopRequest) returns (ActivationReference);
+ rpc ReadActivation(ReadActivationRequest) returns (ActivationReference);
+ rpc ReadActivationImage(ReadActivationRequest) returns (ActivationImage);
+ rpc DeleteActivation(ReadActivationRequest) returns (StopResponse);
+ // Read exact historical cleanup evidence using a read-only signed credential.
+ rpc ReadCleanup(StopRequest) returns (CleanupResponse);
+ rpc ClaimFlow(ClaimFlowRequest) returns (ClaimFlowResponse);
+ rpc FinishFlow(FinishFlowRequest) returns (FlowRecord);
+ rpc Open(OpenRequest) returns (OpenResponse);
+ rpc Resolve(ResolveRequest) returns (ResolveResponse);
+ rpc Applications(ApplicationsRequest) returns (ApplicationsResponse);
+ rpc Observe(ObserveRequest) returns (ObserveResponse);
+ rpc Act(ActRequest) returns (ActResponse);
+ rpc Stop(StopRequest) returns (StopResponse);
+}
+// @stability experimental
+// Local owner IPC. Kernel peer identity authorizes requests. Helper grants and
+// lease tokens remain in the owner; safe references alone carry no authority.
+service DesktopOwnerService {
+ rpc CaptureCompanionActivation(OwnerCompanionActivationRequest) returns (ActivationReference);
+ rpc CaptureActivation(OwnerStopRequest) returns (ActivationReference);
+ rpc ReadActivation(OwnerReadActivationRequest) returns (ActivationReference);
+ rpc ReadActivationImage(OwnerReadActivationRequest) returns (ActivationImage);
+ rpc DeleteActivation(OwnerReadActivationRequest) returns (StopResponse);
+ rpc ReconcileOpen(OwnerOpenRequest) returns (OwnerOpenDisposition);
+ rpc ListAdmissions(OwnerListAdmissionsRequest) returns (OwnerListAdmissionsResponse);
+ rpc ReadCleanup(OwnerStopRequest) returns (OwnerCleanupResponse);
+ rpc RunFlow(OwnerRunFlowRequest) returns (FlowRecord);
+ rpc PromoteFlow(OwnerPromoteFlowRequest) returns (SavedDesktopFlow);
+ rpc GetSavedFlow(OwnerGetSavedFlowRequest) returns (SavedDesktopFlow);
+ rpc RunSavedFlow(OwnerRunSavedFlowRequest) returns (FlowRecord);
+ rpc Describe(OwnerDescribeRequest) returns (OwnerDescribeResponse);
+ rpc Open(OwnerOpenRequest) returns (OwnerOpenResponse);
+ rpc Resolve(OwnerResolveRequest) returns (ResolveResponse);
+ rpc Applications(OwnerApplicationsRequest) returns (ApplicationsResponse);
+ rpc Observe(OwnerObserveRequest) returns (ObserveResponse);
+ rpc Act(OwnerActRequest) returns (ActResponse);
+ rpc Stop(OwnerStopRequest) returns (StopResponse);
+}
+message OwnerDescribeRequest {}
+// @stability experimental
+// Separate method namespace prevents older local-only owners from accepting
+// account-mediated requests under the calling process's Unix authority.
+service DesktopAccountService {
+ rpc CaptureActivation(OwnerStopRequest) returns (ActivationReference);
+ rpc ReadActivation(OwnerReadActivationRequest) returns (ActivationReference);
+ rpc ReadActivationImage(OwnerReadActivationRequest) returns (ActivationImage);
+ rpc DeleteActivation(OwnerReadActivationRequest) returns (StopResponse);
+ rpc ReconcileOpen(OwnerOpenRequest) returns (OwnerOpenDisposition);
+ rpc ListAdmissions(OwnerListAdmissionsRequest) returns (OwnerListAdmissionsResponse);
+ rpc ReadCleanup(OwnerStopRequest) returns (OwnerCleanupResponse);
+ rpc RunFlow(OwnerRunFlowRequest) returns (FlowRecord);
+ rpc PromoteFlow(OwnerPromoteFlowRequest) returns (SavedDesktopFlow);
+ rpc GetSavedFlow(OwnerGetSavedFlowRequest) returns (SavedDesktopFlow);
+ rpc RunSavedFlow(OwnerRunSavedFlowRequest) returns (FlowRecord);
+ rpc Open(OwnerOpenRequest) returns (OwnerOpenResponse);
+ rpc Resolve(OwnerResolveRequest) returns (ResolveResponse);
+ rpc Applications(OwnerApplicationsRequest) returns (ApplicationsResponse);
+ rpc Observe(OwnerObserveRequest) returns (ObserveResponse);
+ rpc Act(OwnerActRequest) returns (ActResponse);
+ rpc Stop(OwnerStopRequest) returns (StopResponse);
+}
+message OwnerDescribeResponse { common.v1.SurfaceDescriptor surface = 1; }
+message OwnerOpenRequest { common.v1.SurfaceRef surface = 1; uint32 ttl_seconds = 2; bool control = 3; string request_id = 4; }
+message OwnerOpenResponse { common.v1.SessionRef session = 1; google.protobuf.Timestamp expires_at = 2; bool control = 3; }
+message OwnerObserveRequest { common.v1.SessionRef session = 1; uint32 process_id = 2; string application_id = 3; string application_revision = 4; }
+message OwnerActRequest { common.v1.SessionRef session = 1; string command_id = 2; string geometry_revision = 3; Action action = 4; }
+message OwnerStopRequest { common.v1.SessionRef session = 1; }
+message Lease {
+ common.v1.SessionRef ref = 1;
+ string actor = 2;
+ string helper_id = 3;
+ uint64 epoch = 4;
+ google.protobuf.Timestamp expires_at = 5;
+ bool control = 6;
+}
+message OpenRequest { Lease lease = 1; uint64 expected_epoch = 2; bool takeover = 3; }
+message OpenResponse { Lease lease = 1; }
+message PointerAction {
+ enum Kind { KIND_UNSPECIFIED = 0; KIND_MOVE = 1; KIND_DOWN = 2; KIND_UP = 3; KIND_CLICK = 4; }
+ enum Button { BUTTON_UNSPECIFIED = 0; BUTTON_PRIMARY = 1; BUTTON_SECONDARY = 2; BUTTON_MIDDLE = 3; }
+ Kind kind = 1;
+ string display_id = 2;
+ double x = 3;
+ double y = 4;
+ Button button = 5;
+}
+message KeyAction {
+ enum Kind { KIND_UNSPECIFIED = 0; KIND_DOWN = 1; KIND_UP = 2; KIND_PRESS = 3; }
+ Kind kind = 1;
+ string key = 2;
+}
+// Inserts text into an element from a current semantic observation. Element IDs
+// are opaque, helper-issued and lease-scoped; they are never raw OS object paths.
+message TextAction {
+ string text = 1;
+ string element_id = 2;
+ string observation_revision = 3;
+ int32 position = 4; // Unicode character offset, not UTF-8 byte offset.
+}
+// Checks exact current text without exposing it in a response or mutating it.
+// Uses the same opaque, lease-scoped references as text insertion.
+message AssertTextAction {
+ string expected_text = 1;
+ string element_id = 2;
+ string observation_revision = 3;
+}
+message SemanticElement { string element_id = 1; string name = 2; bool editable = 3; string parent_id = 4; string window_id = 5; uint32 role = 6; }
+message SemanticObservation {
+ string revision = 1;
+ google.protobuf.Timestamp expires_at = 2;
+ uint32 process_id = 3;
+ repeated SemanticElement elements = 4;
+}
+// Discrete wheel detents at an observed desktop position. Positive horizontal
+// ticks scroll right; positive vertical ticks scroll down. Each action permits
+// at most 20 total absolute ticks; zero movement is invalid.
+message WheelAction {
+ string display_id = 1;
+ double x = 2;
+ double y = 3;
+ sint32 horizontal_ticks = 4;
+ sint32 vertical_ticks = 5;
+}
+message Action {
+ oneof action { PointerAction pointer = 1; KeyAction key = 2; TextAction text = 3; WheelAction wheel = 4; AssertTextAction assert_text = 5; }
+}
+message ActRequest { Lease lease = 1; string command_id = 2; string geometry_revision = 3; Action action = 4; }
+message Receipt { string command_id = 1; string digest = 2; string outcome = 3; }
+message ActResponse { Receipt receipt = 1; }
+message StopRequest { Lease lease = 1; }
+message StopResponse {}
+
+message ObserveRequest { Lease lease = 1; uint32 process_id = 2; string application_id = 3; string application_revision = 4; }
+message ObserveResponse {
+ bytes png = 1;
+ string display_id = 2;
+ string geometry_revision = 3;
+ google.protobuf.Timestamp captured_at = 4;
+ uint32 width = 5;
+ uint32 height = 6;
+ SemanticObservation semantic = 7;
+}
+
+// Discovery names are presentation only. IDs expire with this catalog and lease.
+message Application { string application_id = 1; string name = 2; uint32 process_id = 3; }
+message ApplicationsRequest { Lease lease = 1; }
+message OwnerApplicationsRequest { common.v1.SessionRef session = 1; }
+message ApplicationsResponse { string revision = 1; google.protobuf.Timestamp expires_at = 2; repeated Application applications = 3; }
+
+// Exact match within a window from the caller's current semantic observation.
+message SemanticSelector { string observation_revision = 1; string window_id = 2; string name = 3; bool editable_only = 4; }
+message ResolveRequest { Lease lease = 1; SemanticSelector selector = 2; }
+message OwnerResolveRequest { common.v1.SessionRef session = 1; SemanticSelector selector = 2; }
+message ResolveResponse {
+ enum Disposition { DISPOSITION_UNSPECIFIED = 0; DISPOSITION_ABSENT = 1; DISPOSITION_UNIQUE = 2; DISPOSITION_AMBIGUOUS = 3; }
+ Disposition disposition = 1;
+ string observation_revision = 2;
+ string geometry_revision = 3;
+ google.protobuf.Timestamp expires_at = 4;
+ repeated string element_ids = 5;
+}
+
+// Internal owner-to-helper run journal operations require signed control grants.
+message ClaimFlowRequest { Lease lease = 1; string run_id = 2; string digest = 3; uint32 steps = 4; }
+message ClaimFlowResponse { FlowRecord record = 1; bool fresh = 2; }
+message FinishFlowRequest { Lease lease = 1; string run_id = 2; string digest = 3; string disposition = 4; }
+message FlowRecord {
+ string run_id = 1;
+ string digest = 2;
+ uint32 steps = 3;
+ string disposition = 4;
+ uint32 confirmed = 5;
+ google.protobuf.Timestamp claimed_at = 6;
+ google.protobuf.Timestamp finished_at = 7;
+}
+
+message OwnerRunFlowRequest { common.v1.SessionRef session = 1; string run_id = 2; string application_id = 3; string application_revision = 4; vrooli.device_control.v1.flows.Flow flow = 5; }
+
+// Every library operation requires current owner admission. A source session is
+// provenance only; it cannot grant access to another actor or surface.
+message OwnerPromoteFlowRequest { common.v1.SessionRef session = 1; common.v1.SessionRef source_session = 2; string source_run_id = 3; string context_key = 4; string id = 5; int32 expected_version = 6; }
+message OwnerGetSavedFlowRequest { common.v1.SessionRef session = 1; string id = 2; int32 version = 3; string context_key = 4; }
+message OwnerRunSavedFlowRequest { common.v1.SessionRef session = 1; string id = 2; int32 version = 3; string context_key = 4; string run_id = 5; string application_id = 6; string application_revision = 7; }
+message SavedDesktopFlow { string id = 1; int32 version = 2; string context_key = 3; vrooli.device_control.v1.flows.Flow flow = 4; string source_run_id = 5; string source_digest = 6; string created_at = 7; }
+
+// Missing or failed reads are unknown, never confirmed release.
+message CleanupResponse {
+ Lease lease = 1;
+ bool released = 2;
+ google.protobuf.Timestamp observed_at = 3;
+}
+
+message OwnerCleanupResponse { common.v1.SessionRef session = 1; bool released = 2; google.protobuf.Timestamp observed_at = 3; }
+
+// Historical admission discovery is read-only and actor-scoped by owner context.
+// Entries do not prove a live session or successful cleanup.
+message OwnerListAdmissionsRequest { string page_token = 1; int32 page_size = 2; }
+message OwnerAdmission { common.v1.SessionRef session = 1; google.protobuf.Timestamp expires_at = 2; bool control = 3; }
+message OwnerListAdmissionsResponse { repeated OwnerAdmission admissions = 1; string next_page_token = 2; }
+
+// Reconciliation cancels unforwarded admission. A forwarding binding remains
+// uncertain until exact helper cleanup is confirmed. It does not restore input.
+message OwnerOpenDisposition {
+ string request_id = 1;
+ string state = 2; // not_admitted or forwarding
+ common.v1.SessionRef session = 3;
+ google.protobuf.Timestamp expires_at = 4;
+ bool control = 5;
+}
+
+// Ephemeral observation reference. It confers no input or focus authority.
+message DesktopBounds { sint32 x = 1; sint32 y = 2; uint32 width = 3; uint32 height = 4; }
+message ActivationImage { ActivationReference reference = 1; bytes png = 2; }
+message ActivationReference {
+ bool has_image = 9;
+ DesktopBounds source_bounds = 8;
+ string context_id = 1;
+ string display_id = 2;
+ string geometry_revision = 3;
+ sint32 pointer_x = 4;
+ sint32 pointer_y = 5;
+ google.protobuf.Timestamp captured_at = 6;
+ google.protobuf.Timestamp expires_at = 7;
+}
+message ReadActivationRequest { Lease lease = 1; string context_id = 2; }
+
+message OwnerReadActivationRequest { common.v1.SessionRef session = 1; string context_id = 2; }
+
+// Only the authenticated owner supplies companion_pid from kernel IPC credentials.
+message CompanionActivationRequest { Lease lease = 1; uint64 companion_window = 2; uint32 companion_pid = 3; bool include_image = 4; }
+// No PID field: native owner derives process identity from the Unix connection.
+message OwnerCompanionActivationRequest { common.v1.SessionRef session = 1; uint64 companion_window = 2; bool include_image = 3; }

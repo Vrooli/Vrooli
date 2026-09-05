@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "prompt-manager",
-  "input_digest": "sha256:abb1b2655f8ddb4682d0a0776db87aa5b4592fc13eac65363e464e39970f08ed",
+  "input_digest": "sha256:0fcf87d657fd5c9716406698ec36e63543fa05cefbfe6c68cba2942279a5c00b",
   "input_files": [
     "schemas/prompt-manager/v1/actions/actions.proto",
     "schemas/prompt-manager/v1/agents/agents.proto",
@@ -64,7 +64,7 @@
     "gen/go/prompt-manager/v1/testing/testing_v1connect/testing.connect.go": "sha256:9c675e3a096cd6a45ae83549eb143efb9755b5e9ffc797124f5a4fc95a4db2df",
     "gen/go/prompt-manager/v1/topics/topics.pb.go": "sha256:3e2c1e3bcca58a216fa285f4cbe3976df045c3d3d6da24b1ebd58400b94810e1",
     "gen/go/prompt-manager/v1/topics/topics_v1connect/topics.connect.go": "sha256:591586bb8f9c7b4281dd90cc67f25134535b80930873c0a41d190e113ddbc810",
-    "gen/go/prompt-manager/v1/world/world.pb.go": "sha256:9faffa1aad70d24fba7f367e321668f72b2b09daa47dc8e9b62aef2efb4fd22f",
+    "gen/go/prompt-manager/v1/world/world.pb.go": "sha256:e74afc9cc725e7e7bd950a144144cb3c197e54b66bc69186a86555cd59c5e287",
     "gen/go/prompt-manager/v1/world/world_v1connect/world.connect.go": "sha256:098ed0c23fcc87f6c3e4ff4bad44a5b114d77b4bea3113cbfc27431e3be7fe9b",
     "gen/python/prompt_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prompt_manager/v1/actions/actions_pb2.py": "sha256:605a33754036ea50f8e992f4a07224d79c158d07d12b98fe650bfc061d9385f2",
@@ -117,8 +117,8 @@
     "gen/python/prompt_manager/v1/topics/topics_pb2.py": "sha256:e8d69aa40f9bad328f3434777dcac2fa6ed804aca6a7365a9379a120a552f084",
     "gen/python/prompt_manager/v1/topics/topics_pb2.pyi": "sha256:a9192a9778ab04163bda7164864afcee4a4d5d551fbd150d114d92a252096cb0",
     "gen/python/prompt_manager/v1/world/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/prompt_manager/v1/world/world_pb2.py": "sha256:95bb7c2058d549e97f2f012166dead1bafe8ebfdae38a4a1d5bc15e687d0cc87",
-    "gen/python/prompt_manager/v1/world/world_pb2.pyi": "sha256:094139be045bf87e9f34d94fac71480c45d3c573e93b627f4880142137fd5e83",
+    "gen/python/prompt_manager/v1/world/world_pb2.py": "sha256:0b03aa483ad0409a1a72c6623a2d96fcc95bef20a4c6c70716d9678e57f61c0a",
+    "gen/python/prompt_manager/v1/world/world_pb2.pyi": "sha256:50b0fbd8072b8b2df550964f597eff6f41d858566c4a2f8a6fce5767d46aeea5",
     "gen/typescript/prompt-manager/v1/actions/actions_pb.ts": "sha256:de2efe556de86d058b4821fc581001fca36c484646dfcc3e328dc6cac579b619",
     "gen/typescript/prompt-manager/v1/agents/agents_pb.ts": "sha256:d61e36b55d38f3d2795e88f45e25dc8b67fa00db419c77aff0b3ac444c883c24",
     "gen/typescript/prompt-manager/v1/aisearch/aisearch_pb.ts": "sha256:03191641b9f9618a758cc84a032d2473b1d8cc49193a553c8b67d009b94bb50c",
@@ -135,6 +135,6 @@
     "gen/typescript/prompt-manager/v1/templates/templates_pb.ts": "sha256:629b16abb95a20fc0276ec1e7a1b97a41b063b8d449cb87265d66e5cb172be2d",
     "gen/typescript/prompt-manager/v1/testing/testing_pb.ts": "sha256:6715d5d9f57aae942c25f8d457dc7747a1c34d3168000ac29ca36400bb2b2d3e",
     "gen/typescript/prompt-manager/v1/topics/topics_pb.ts": "sha256:a61611b10d42df047499c3257e8ae9b2e9dee86044a9a9ea40456b159a04a30e",
-    "gen/typescript/prompt-manager/v1/world/world_pb.ts": "sha256:add0492e4a8953143d83b2d11dfa25066ba316ed31eee67a227a0d768d216f70"
+    "gen/typescript/prompt-manager/v1/world/world_pb.ts": "sha256:3fa043303278a50ddfa1d62cef5c5fa270d4b7f7078860b866f18fa2b12cc818"
   }
 }
