@@ -59,6 +59,28 @@ func TestScenarioPackSkillsResolveThroughReadIndex(t *testing.T) {
 	}
 }
 
+func TestSkillIDHasOneAuthoritativeSource(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	patterns := []string{
+		filepath.Join(repoRoot, "scenarios", "*", "skills", "*", "SKILL.md"),
+		filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "packs", "*", "*", "SKILL.md"),
+	}
+	sources := make(map[string]string)
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			t.Fatalf("glob skill sources: %v", err)
+		}
+		for _, match := range matches {
+			id := filepath.Base(filepath.Dir(match))
+			if previous, exists := sources[id]; exists {
+				t.Fatalf("skill %q has duplicate authoritative sources: %s and %s", id, previous, match)
+			}
+			sources[id] = match
+		}
+	}
+}
+
 func TestAgentsDocumentHasOneHeadingAndAllCriticalRules(t *testing.T) {
 	root := findRepoRoot(t)
 	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))

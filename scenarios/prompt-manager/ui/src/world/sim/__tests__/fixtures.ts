@@ -2,8 +2,51 @@ import { tuning, type WorldTuning } from '../../config'
 import type { AgentInput, CreateWorldInput, Signal, TeamInput } from '../model'
 import { createWorld } from '../world'
 import { step } from '../tick'
+import { createWorldStore } from '../store'
 
 export const NOW = 1_700_000_000
+
+export interface WorldFixtureOptions extends Omit<Partial<CreateWorldInput>, 'teams' | 'agents'> {
+  teams?: number | TeamInput[]
+  /** Total agents, not agents per team. Arrays preserve test-specific identities. */
+  agents?: number | AgentInput[]
+  tuning?: WorldTuning
+  treeVariants?: number
+}
+
+/** Shared input construction for state and store fixtures. */
+export function makeWorldInput({ teams = 2, agents = 6, seed = 7, now = NOW, scene = 'park', tuning: _tuning, treeVariants: _treeVariants, ...extra }: WorldFixtureOptions = {}): CreateWorldInput {
+  for (const value of [teams, agents]) {
+    if (typeof value === 'number' && (!Number.isInteger(value) || value < 0)) throw new Error('Fixture roster counts must be nonnegative integers')
+  }
+  const teamCount = typeof teams === 'number' ? teams : teams.length
+  const generatedTeams: TeamInput[] = []
+  const generatedAgents: AgentInput[] = []
+  const agentCount = typeof agents === 'number' ? agents : agents.length
+  let cursor = 0
+  for (let team = 0; team < Math.max(1, teamCount); team += 1) {
+    const count = Math.floor(agentCount / Math.max(1, teamCount)) + (team < agentCount % Math.max(1, teamCount) ? 1 : 0)
+    const memberIds: string[] = []
+    for (let member = 0; member < count; member += 1) {
+      const agent = typeof agents === 'number' ? { id: `agent-${team}-${member}`, name: `Agent ${team}.${member}`, skillCount: cursor } : agents[cursor]
+      if (!agent) throw new Error('Fixture roster length mismatch')
+      generatedAgents.push(agent)
+      memberIds.push(agent.id)
+      cursor += 1
+    }
+    if (teamCount > 0) generatedTeams.push({ id: `team-${team}`, name: `Team ${team}`, memberIds })
+  }
+  return { seed, now, scene, teams: typeof teams === 'number' ? generatedTeams : teams, agents: generatedAgents, ...extra }
+}
+
+/** Fully generated world; specify only the properties the test exercises. */
+export function makeWorld(options: WorldFixtureOptions = {}) {
+  return createWorld(makeWorldInput(options), options.tuning ?? tuning, options.treeVariants ?? 0)
+}
+
+export function makeWorldStore(options: WorldFixtureOptions = {}) {
+  return createWorldStore(makeWorldInput(options), options.tuning ?? tuning, options.treeVariants ?? 0)
+}
 
 export function makeTeams(teamCount: number, membersPerTeam: number): { teams: TeamInput[]; agents: AgentInput[] } {
   const teams: TeamInput[] = []
@@ -18,15 +61,6 @@ export function makeTeams(teamCount: number, membersPerTeam: number): { teams: T
     teams.push({ id: `team-${t}`, name: `Team ${t}`, memberIds })
   }
   return { teams, agents }
-}
-
-export function makeInput(teamCount = 2, membersPerTeam = 3, extra: Partial<CreateWorldInput> = {}): CreateWorldInput {
-  const { teams, agents } = makeTeams(teamCount, membersPerTeam)
-  return { seed: 7, now: NOW, teams, agents, scene: 'park', ...extra }
-}
-
-export function world(teamCount = 2, membersPerTeam = 3, extra: Partial<CreateWorldInput> = {}, t: WorldTuning = tuning) {
-  return createWorld(makeInput(teamCount, membersPerTeam, extra), t, 3)
 }
 
 /** Run n ticks with an optional signal script keyed by tick index. */

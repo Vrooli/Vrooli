@@ -2,13 +2,15 @@ import { CameraControls, useProgress } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
-import { Box3, Vector3 } from 'three'
+import { Box3, MathUtils, Vector3 } from 'three'
 import type CameraControlsImpl from 'camera-controls'
 import type { CameraPose, CameraTuning, Scene } from '../../config'
 import { updateDiagnostics } from '../diagnostics/store'
 import type { WorldBounds } from '../types'
 import { decideIntro } from './intro'
-import { frameDistance, orbitClamps, poseToPosition } from './pose'
+import { shouldFollow } from './follow'
+import { applyInputMap } from './input'
+import { frameDistance, orbitClamps, poseForBox, poseToPosition, type FocusedPose } from './pose'
 
 export interface CameraRigHandle {
   /** Return to the scene's hero pose. */
@@ -34,11 +36,9 @@ interface CameraRigProps {
   intro: boolean
   /** Reduced motion skips every transition. */
   reducedMotion: boolean
+  /** Apply the current selection after controls have mounted and the start pose exists. */
+  onReady?: () => void
 }
-
-const BOUNDARY_HEIGHT = 30
-/** Height of the framed box above the ground: walls, actors and their labels. */
-const FRAME_HEIGHT = 2
 
 /**
  * drei CameraControls configured as a diorama camera: clamped polar, azimuth
@@ -46,27 +46,30 @@ const FRAME_HEIGHT = 2
  * eased intro dolly and
  * imperative home / focus / setPose for the HUD and the editor.
  */
-export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: CameraRigProps) {
+export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion, onReady }: CameraRigProps) {
   const controls = useRef<CameraControlsImpl | null>(null)
   const aspect = useThree((s) => s.viewport.aspect)
   const { active } = useProgress()
   const introStarted = useRef(false)
   const followRef = useRef<(() => [number, number, number]) | null>(null)
+  const lastFollowTarget = useRef<[number, number, number] | null>(null)
   const keys = useRef(new Set<string>())
   const clamps = useMemo(() => orbitClamps(camera, scene.camera.hero.azimuthDeg), [camera, scene.camera.hero.azimuthDeg])
   const animate = !reducedMotion
 
+  useEffect(() => {
+    if (controls.current) applyInputMap(controls.current, camera.input)
+  }, [camera.input])
+
   // Poses are multiples of the distance at which the layout outline fills
   // camera.frameFill of the viewport from that pose, so a world that grows
   // with the team graph keeps the same framing.
-  const applyPose = (pose: CameraPose, transition: boolean) => {
+  const applyPose = (pose: CameraPose | FocusedPose, transition: boolean) => {
     const c = controls.current
     if (!c) return
-    const fit = frameDistance(
-      { points: bounds.outline, center: bounds.footprint.center, height: FRAME_HEIGHT, polarDeg: pose.polarDeg, azimuthDeg: pose.azimuthDeg, targetY: pose.targetY, fovDeg: camera.fov, aspect },
-      camera.frameFill,
-    )
-    const { position, target } = poseToPosition(pose, bounds.footprint.center, fit)
+    const frame = 'frame' in pose ? pose.frame : { points: bounds.outline, center: bounds.footprint.center, height: camera.frameHeight, polarDeg: pose.polarDeg, azimuthDeg: pose.azimuthDeg, targetY: pose.targetY, fovDeg: camera.fov, aspect, minimumProjectionAspect: camera.minimumProjectionAspect, minimumFrameFill: camera.minimumFrameFill }
+    const fit = Math.max(frameDistance(frame, 'fill' in pose ? pose.fill : camera.frameFill), Number.EPSILON)
+    const { position, target } = poseToPosition(pose, frame.center, fit)
     void c.setLookAt(position[0], position[1], position[2], target[0], target[1], target[2], transition && animate)
   }
 
@@ -76,15 +79,16 @@ export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: 
     focus: (box, a = true) => {
       const c = controls.current
       if (!c) return
-      void c.fitToBox(box, a && animate, {
-        paddingTop: camera.focusPadding,
-        paddingBottom: camera.focusPadding,
-        paddingLeft: camera.focusPadding,
-        paddingRight: camera.focusPadding,
-      })
+      // Explicit selection supersedes an establishing shot, including initial URL focus.
+      introStarted.current = true
+      updateDiagnostics({ introDone: true })
+      applyPose(poseForBox(box, { polarDeg: MathUtils.radToDeg(c.polarAngle), azimuthDeg: MathUtils.radToDeg(c.azimuthAngle) }, camera, aspect, clamps), a)
     },
     follow: (target) => {
       followRef.current = target
+      // focus() already commands this initial target; a resting actor needs no updates.
+      lastFollowTarget.current = target?.() ?? null
+      if (controls.current) controls.current.smoothTime = target ? camera.followSmoothTime : camera.smoothTime
     },
     target: () => {
       const c = controls.current
@@ -103,7 +107,7 @@ export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: 
     if (!c) return
     const box = new Box3(
       new Vector3(bounds.center[0] - bounds.width / 2, -1, bounds.center[1] - bounds.depth / 2),
-      new Vector3(bounds.center[0] + bounds.width / 2, BOUNDARY_HEIGHT, bounds.center[1] + bounds.depth / 2),
+      new Vector3(bounds.center[0] + bounds.width / 2, camera.boundaryHeight, bounds.center[1] + bounds.depth / 2),
     )
     c.setBoundary(box)
     c.smoothTime = camera.smoothTime
@@ -127,7 +131,7 @@ export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: 
     c.smoothTime = camera.introSeconds / 3
     const onRest = () => {
       c.removeEventListener('rest', onRest)
-      c.smoothTime = camera.smoothTime
+      c.smoothTime = followRef.current ? camera.followSmoothTime : camera.smoothTime
       updateDiagnostics({ introDone: true })
     }
     c.addEventListener('rest', onRest)
@@ -135,18 +139,27 @@ export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, scene.id])
 
+  useEffect(() => {
+    if (controls.current) onReady?.()
+  }, [onReady, scene.id])
+
   // Follow mode and keyboard orbit / dolly, applied per frame.
   useFrame((_, dt) => {
     const c = controls.current
     if (!c) return
     const follow = followRef.current
     if (follow) {
-      const [x, y, z] = follow()
-      void c.moveTo(x, y, z, true)
+      const next = follow()
+      if (shouldFollow(lastFollowTarget.current, next, camera.followEpsilon)) {
+        // Immediate translation preserves the user's orbit/dolly endpoints.
+        // setTarget would keep camera position fixed and recompute those endpoints.
+        void c.moveTo(next[0], next[1], next[2], false)
+        lastFollowTarget.current = next
+      }
     }
     const pressed = keys.current
     if (pressed.size === 0) return
-    const orbit = (camera.keyOrbitDegPerSec * Math.PI) / 180 * dt
+    const orbit = MathUtils.degToRad(camera.keyOrbitDegPerSec) * dt
     if (pressed.has('ArrowLeft')) void c.rotate(-orbit, 0, true)
     if (pressed.has('ArrowRight')) void c.rotate(orbit, 0, true)
     if (pressed.has('ArrowUp')) void c.rotate(0, -orbit, true)
@@ -184,9 +197,10 @@ export function CameraRig({ ref, scene, camera, bounds, intro, reducedMotion }: 
       maxAzimuthAngle={clamps.maxAzimuth}
       minDistance={clamps.minDistance}
       maxDistance={clamps.maxDistance}
-      smoothTime={camera.smoothTime}
-      dollyToCursor={false}
-      truckSpeed={1.5}
+      smoothTime={followRef.current ? camera.followSmoothTime : camera.smoothTime}
+      dollyToCursor={camera.dollyToCursor}
+      truckSpeed={camera.truckSpeed}
+      dollySpeed={camera.dollySpeed}
     />
   )
 }

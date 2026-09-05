@@ -20,13 +20,18 @@ describe('prop registry', () => {
         p.board,
         ...(p.door ? [p.door] : []),
         ...p.filler,
-        ...biomeSet.biomes.flatMap((biome) => [...Object.keys(biome.vegetation), ...Object.keys(biome.decor)]),
       ]
       for (const id of ids) {
         const record = propRecord(scene.assetSet, id)
         expect(record, `${scene.id}/${id} missing from registry; run pnpm world:assets`).toBeDefined()
         expect(record?.triangles ?? Infinity).toBeLessThanOrEqual(tuning.budgets.propTriangles)
         expect(record?.materials ?? 0).toBeLessThanOrEqual(MAX_PARTS)
+      }
+      for (const biome of biomeSet.biomes) for (const id of [...Object.keys(biome.vegetation), ...Object.keys(biome.decor)]) {
+        const record = propRecord(biomeSet.assetSet, id)
+        expect(record, `${biomeSet.assetSet}/${id} missing landscape asset`).toBeDefined()
+        expect(record?.triangles ?? Infinity).toBeLessThanOrEqual(tuning.budgets.propTriangles)
+        expect(record?.materials ?? Infinity).toBeLessThanOrEqual(MAX_PARTS)
       }
     }
   })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { tuning, type WorldTuning } from '../../config'
 import { GATHERING_ID } from '../layout/generate'
 import { atHome, insideCommons } from '../idle/behaviors'
-import { NOW, run, world } from './fixtures'
+import { NOW, run, makeWorld, makeWorldInput } from './fixtures'
 
 function withWeights(weights: WorldTuning['sim']['idle']['weights'], extra: Partial<WorldTuning['sim']['idle']> = {}): WorldTuning {
   return { ...tuning, sim: { ...tuning.sim, idle: { ...tuning.sim.idle, weights, ...extra } } }
@@ -12,7 +12,8 @@ const MINUTES = 60 / tuning.sim.tickSeconds
 
 describe('idle layer', () => {
   it('spawns every member at its desk and every unassigned agent in the commons', () => {
-    const s = world(2, 3, { agents: [...world(2, 3).actorOrder.map((id) => ({ id, name: id })), { id: 'free', name: 'Free' }] })
+    const input = makeWorldInput({ teams: 2, agents: 6 })
+    const s = makeWorld({ ...input, agents: [...input.agents.map(({ id }) => ({ id, name: id })), { id: 'free', name: 'Free' }], treeVariants: 3 })
     for (const id of s.actorOrder) {
       const actor = s.actors[id]
       if (!actor) throw new Error('missing actor')
@@ -24,7 +25,7 @@ describe('idle layer', () => {
 
   it('never lets more than maxMoversRatio of idle actors walk at once', () => {
     const t = withWeights({ rest: 0, wander: 100, socialize: 0, sit: 0 }, { maxMoversRatio: 0.2, rollIntervalSeconds: 0.5 })
-    let s = world(2, 10)
+    let s = makeWorld({ teams: 2, agents: 20, treeVariants: 3 })
     let worst = 0
     for (let i = 0; i < 3000; i += 1) {
       s = run(s, 1, {}, t)
@@ -37,7 +38,7 @@ describe('idle layer', () => {
 
   it('sitting actors take a free campfire seat and hold it', () => {
     const t = withWeights({ rest: 0, wander: 0, socialize: 0, sit: 100 })
-    let s = world(1, 4)
+    let s = makeWorld({ teams: 1, agents: 4, treeVariants: 3 })
     let seated = 0
     for (let i = 0; i < 3000 && seated === 0; i += 1) {
       s = run(s, 1, {}, t)
@@ -50,7 +51,7 @@ describe('idle layer', () => {
 
   it('wander outings target the commons and keep their spacing from everyone else', () => {
     const t = withWeights({ rest: 0, wander: 100, socialize: 0, sit: 0 }, { maxMoversRatio: 1 })
-    let s = world(1, 6)
+    let s = makeWorld({ teams: 1, agents: 6, treeVariants: 3 })
     const commons = s.places[GATHERING_ID]
     if (!commons) throw new Error('no commons')
     let outings = 0
@@ -71,7 +72,7 @@ describe('idle layer', () => {
   })
 
   it('with the shipped weights most members are home at any moment and some are out', () => {
-    let s = run(world(4, 5), MINUTES * 3)
+    let s = run(makeWorld({ teams: 4, agents: 20, treeVariants: 3 }), MINUTES * 3)
     let homeShare = 0
     let outSeen = false
     const samples = 30
@@ -89,7 +90,7 @@ describe('idle layer', () => {
   it('an actor finishing a run stays at its desk; a socializer walks home afterwards', () => {
     const t = withWeights({ rest: 100, wander: 0, socialize: 0, sit: 0 })
     const a = 'agent-0-0'
-    let s = run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: a, runId: 'r', at: NOW }] }, t)
+    let s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: a, runId: 'r', at: NOW }] }, t)
     for (let i = 0; i < 2000 && s.actors[a]?.state !== 'working'; i += 1) s = run(s, 1, {}, t)
     s = run(s, MINUTES, { 0: [{ kind: 'run.finished', agentId: a, runId: 'r', at: NOW }] }, t)
     const finished = s.actors[a]
@@ -98,7 +99,7 @@ describe('idle layer', () => {
     expect(atHome(s, finished, tuning.layout)).toBe(true)
 
     const social = withWeights({ rest: 0, wander: 0, socialize: 100, sit: 0 }, { socializeSeconds: { min: 2, max: 3 } })
-    let w = world(1, 2)
+    let w = makeWorld({ teams: 1, agents: 2, treeVariants: 3 })
     for (let i = 0; i < 3000 && !Object.values(w.actors).some((x) => x.state === 'socializing'); i += 1) w = run(w, 1, {}, social)
     expect(Object.values(w.actors).some((x) => x.state === 'socializing')).toBe(true)
     let home = false
@@ -111,7 +112,7 @@ describe('idle layer', () => {
 
   it('an unassigned agent rests in the commons after its run', () => {
     const t = withWeights({ rest: 100, wander: 0, socialize: 0, sit: 0 })
-    let s = world(1, 1, { agents: [{ id: 'agent-0-0', name: 'A' }, { id: 'free', name: 'Free' }] })
+    let s = makeWorld({ ...makeWorldInput({ teams: 1, agents: 1 }), agents: [{ id: 'agent-0-0', name: 'A' }, { id: 'free', name: 'Free' }], treeVariants: 3 })
     s = run(s, 1, { 0: [{ kind: 'run.started', agentId: 'free', runId: 'r', at: NOW }] }, t)
     expect(s.actors.free?.state).toBe('working')
     s = run(s, MINUTES, { 0: [{ kind: 'run.finished', agentId: 'free', runId: 'r', at: NOW }] }, t)

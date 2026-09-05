@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
 import { hashState } from '../hash'
 import type { Signal, WorldState } from '../model'
-import { NOW, awayFromHome, quietTuning, run, world } from './fixtures'
+import { NOW, awayFromHome, quietTuning, run, makeWorld } from './fixtures'
 
 const T = quietTuning()
 const A = 'agent-0-0'
@@ -24,21 +24,21 @@ const actor = (s: WorldState) => {
 
 describe('actor state machine', () => {
   it('Idle → WalkingToDesk on run.started when away from the desk', () => {
-    const s = run(awayFromHome(world(1, 2), A), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
+    const s = run(awayFromHome(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), A), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('walkingToDesk')
     expect(actor(s).path.length).toBeGreaterThan(0)
     expect(actor(s).hurrying).toBe(true)
   })
 
   it('Idle → Working at once on run.started when already at the desk', () => {
-    const s = run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
+    const s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('working')
     expect(actor(s).path).toEqual([])
     expect(actor(s).seatId).toBe(actor(s).deskSeatId)
   })
 
   it('WalkingToDesk → Working on arrival at the desk seat', () => {
-    let s = run(awayFromHome(world(1, 2), A), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
+    let s = run(awayFromHome(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), A), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     s = until(s, (x) => actor(x).state === 'working')
     expect(actor(s).state).toBe('working')
     const seat = s.seats[actor(s).seatId ?? '']
@@ -48,14 +48,14 @@ describe('actor state machine', () => {
   })
 
   it('Working → Idle on run.finished', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     s = run(s, 1, { 0: [{ kind: 'run.finished', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('idle')
     expect(actor(s).lastRun?.status).toBe('completed')
   })
 
   it('Working → Failed on run.failed with the error kept', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     s = run(s, 1, { 0: [{ kind: 'run.failed', agentId: A, runId: 'r', error: 'exit 1', at: NOW }] }, T)
     expect(actor(s).state).toBe('failed')
     expect(actor(s).failedError).toBe('exit 1')
@@ -63,7 +63,7 @@ describe('actor state machine', () => {
   })
 
   it('Failed → Idle on failed.acknowledged', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     s = run(s, 1, { 0: [{ kind: 'run.failed', agentId: A, runId: 'r', error: 'x', at: NOW }] }, T)
     s = run(s, 1, { 0: [{ kind: 'failed.acknowledged', agentId: A, at: NOW }] }, T)
     expect(actor(s).state).toBe('idle')
@@ -71,7 +71,7 @@ describe('actor state machine', () => {
   })
 
   it('Failed → Idle after failedAckSeconds on its own', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     s = run(s, 1, { 0: [{ kind: 'run.failed', agentId: A, runId: 'r', error: 'x', at: NOW }] }, T)
     const ticks = Math.ceil(T.sim.failedAckSeconds / T.sim.tickSeconds) + 2
     s = run(s, ticks, {}, T)
@@ -79,7 +79,7 @@ describe('actor state machine', () => {
   })
 
   it('Failed → WalkingToDesk on the next run.started', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     s = run(s, 1, { 0: [{ kind: 'run.failed', agentId: A, runId: 'r', error: 'x', at: NOW }] }, T)
     s = run(s, 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r2', at: NOW }] }, T)
     expect(['walkingToDesk', 'working']).toContain(actor(s).state)
@@ -88,18 +88,18 @@ describe('actor state machine', () => {
 
   it('Idle → WalkingToTable when a heartbeat is within the gather lead', () => {
     const at = NOW + T.sim.gatherLeadSeconds - 1
-    const s = run(world(1, 2), 2, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: at, at: NOW }] }, T)
+    const s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 2, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: at, at: NOW }] }, T)
     expect(actor(s).state).toBe('walkingToTable')
   })
 
   it('Idle stays Idle when the heartbeat is beyond the gather lead', () => {
     const at = NOW + T.sim.gatherLeadSeconds + 100
-    const s = run(world(1, 2), 2, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: at, at: NOW }] }, T)
+    const s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 2, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: at, at: NOW }] }, T)
     expect(actor(s).state).toBe('idle')
   })
 
   it('WalkingToTable → Gathered on arrival, seated at the team table', () => {
-    let s = run(world(1, 2), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
+    let s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
     s = until(s, (x) => actor(x).state === 'gathered')
     expect(actor(s).state).toBe('gathered')
     expect(actor(s).seatId?.startsWith('seat:table:team-0')).toBe(true)
@@ -107,7 +107,7 @@ describe('actor state machine', () => {
   })
 
   it('Gathered → WalkingToDesk on run.started', () => {
-    let s = run(world(1, 2), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
+    let s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
     s = until(s, (x) => actor(x).state === 'gathered')
     s = run(s, 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('walkingToDesk')
@@ -115,7 +115,7 @@ describe('actor state machine', () => {
   })
 
   it('Gathered → Idle on heartbeat.cancelled', () => {
-    let s = run(world(1, 2), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
+    let s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 10, at: NOW }] }, T)
     s = until(s, (x) => actor(x).state === 'gathered')
     s = run(s, 1, { 0: [{ kind: 'heartbeat.cancelled', teamId: 'team-0', at: NOW }] }, T)
     expect(actor(s).state).toBe('idle')
@@ -123,7 +123,7 @@ describe('actor state machine', () => {
   })
 
   it('Gathered → Idle once the gather window passes', () => {
-    let s = run(world(1, 2), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 1, at: NOW }] }, T)
+    let s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 1, at: NOW }] }, T)
     s = until(s, (x) => actor(x).state === 'gathered')
     s = run(s, Math.ceil(T.sim.gatherWindowSeconds / T.sim.tickSeconds) + 5, {}, T)
     expect(actor(s).state).toBe('idle')
@@ -131,7 +131,7 @@ describe('actor state machine', () => {
 
   it('Idle → Socializing → Idle through the idle roll and duration', () => {
     const social = { ...tuning, sim: { ...tuning.sim, idle: { ...tuning.sim.idle, weights: { rest: 0, wander: 0, socialize: 100, sit: 0 }, maxMoversRatio: 1 } } }
-    let s = world(1, 4)
+    let s = makeWorld({ teams: 1, agents: 4, treeVariants: 3 })
     let sawSocial = false
     for (let i = 0; i < 4000 && !sawSocial; i += 1) {
       s = run(s, 1, {}, social)
@@ -147,7 +147,7 @@ describe('actor state machine', () => {
   })
 
   it('agent.message stores the bubble and emote; unknown agents are ignored', () => {
-    const s = run(world(1, 2), 1, { 0: [
+    const s = run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [
       { kind: 'agent.message', agentId: A, message: 'hello', at: NOW },
       { kind: 'agent.message', agentId: 'nobody', message: 'x', at: NOW },
     ] }, T)
@@ -157,12 +157,12 @@ describe('actor state machine', () => {
   })
 
   it('an unassigned agent works in place with no desk', () => {
-    const s = run(world(1, 1, { agents: [{ id: 'solo', name: 'Solo' }], teams: [] }), 1, { 0: [{ kind: 'run.started', agentId: 'solo', runId: 'r', at: NOW }] }, T)
+    const s = run(makeWorld({ teams: [], agents: [{ id: 'solo', name: 'Solo' }], treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: 'solo', runId: 'r', at: NOW }] }, T)
     expect(s.actors.solo?.state).toBe('working')
   })
 
   it('every discrete change bumps the revision and lands in the ring', () => {
-    const start = world(1, 2)
+    const start = makeWorld({ teams: 1, agents: 2, treeVariants: 3 })
     const s = run(start, 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(s.revision).toBeGreaterThan(start.revision)
     expect(s.events.map((e) => e.kind)).toEqual(['run.started', 'actor.state'])
@@ -171,7 +171,7 @@ describe('actor state machine', () => {
   })
 
   it('a repeated run.started for the same run while working is a no-op', () => {
-    let s = until(run(world(1, 2), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
+    let s = until(run(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T), (x) => actor(x).state === 'working')
     const before = hashState(s)
     s = run(s, 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('working')

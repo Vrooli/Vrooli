@@ -3,7 +3,7 @@ import { expectNoA11yViolations } from '@/test-utils/a11y'
 import { describe, expect, it, vi } from 'vitest'
 import { tuning } from '../../config'
 import type { WorldActions } from '../../data'
-import { createWorldStore } from '../../sim'
+import { makeWorldStore, NOW } from '../../sim/__tests__/fixtures'
 import { AgentCard } from '../AgentCard'
 import { EMPTY_FILTERS, matchesFilters } from '../filterState'
 import { WorldHud } from '../Hud'
@@ -11,12 +11,10 @@ import { SummaryStrip } from '../SummaryStrip'
 import { TwoDMode } from '../TwoDMode'
 import { formatCountdown, formatDuration } from '../format'
 
-const NOW = 1_700_000_000
-
 function makeStore(actors = 4) {
   const teams = [{ id: 'team-a', name: 'Alpha', memberIds: ['a1', 'a2'] }, { id: 'team-b', name: 'Beta', memberIds: ['b1', 'b2'] }]
   const agents = ['a1', 'a2', 'b1', 'b2'].slice(0, actors).map((id) => ({ id, name: id.toUpperCase(), skillCount: 3 }))
-  return createWorldStore({ seed: 1, now: NOW, teams, agents, scene: 'office' }, tuning, 0)
+  return makeWorldStore({ seed: 1, teams, agents, scene: 'office' })
 }
 
 type FakeActions = WorldActions & {
@@ -201,7 +199,7 @@ describe('WorldHud', () => {
 
 describe('TwoDMode', () => {
   it('groups unassigned agents under the commons', () => {
-    const store = createWorldStore({ seed: 1, now: NOW, teams: [], agents: [{ id: 'solo', name: 'Solo' }], scene: 'office' }, tuning, 0)
+    const store = makeWorldStore({ seed: 1, teams: [], agents: [{ id: 'solo', name: 'Solo' }], scene: 'office' })
     render(<TwoDMode actors={store.getView().actors} teams={[]} now={NOW} focusedId={null} onFocus={vi.fn()} />)
     expect(screen.getByText('Commons')).toBeInTheDocument()
     expect(screen.getByTestId('world-hud-actor-list-solo')).toBeInTheDocument()

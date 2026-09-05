@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { tuning } from '../../config'
 import { roomId } from '../layout/generate'
 import { canRedo, canUndo, commit, emptyHistory, redo, removeOverride, snapPosition, undo, upsertOverride } from '../layout/overrides'
-import { createWorld } from '../world'
-import { makeInput } from './fixtures'
+import { makeWorld } from './fixtures'
 
 describe('override history', () => {
   it('commit, undo and redo round trip and the stack is bounded', () => {
@@ -40,8 +38,7 @@ describe('override history', () => {
   })
 
   it('a removed room sends its members home to the commons on the next tick', () => {
-    const input = makeInput(2, 2, { overrides: [{ placeId: roomId('team-0'), removed: true }] })
-    const state = createWorld(input, tuning, 0)
+    const state = makeWorld({ teams: 2, agents: 4, overrides: [{ placeId: roomId('team-0'), removed: true }] })
     expect(state.places[roomId('team-0')]).toBeUndefined()
     const member = state.actors['agent-0-0']
     expect(member?.deskSeatId).toBeUndefined()

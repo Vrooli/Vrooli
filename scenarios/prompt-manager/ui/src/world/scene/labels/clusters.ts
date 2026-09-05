@@ -3,6 +3,8 @@
  * into one label carrying the count and the room name.
  */
 
+import { MathUtils } from 'three'
+
 export interface ClusterMember {
   id: string
   roomId?: string
@@ -58,6 +60,6 @@ export function clusterLabels(members: readonly ClusterMember[], cameraDistance:
  */
 export function labelWorldSize(distance: number, fovDeg: number, heightPx: number, basePx: number, minPx: number, maxPx: number): number {
   const px = Math.min(maxPx, Math.max(minPx, basePx))
-  const worldPerPx = (2 * distance * Math.tan((fovDeg * Math.PI) / 360)) / Math.max(1, heightPx)
+  const worldPerPx = (2 * distance * Math.tan(MathUtils.degToRad(fovDeg) / 2)) / Math.max(1, heightPx)
   return px * worldPerPx
 }

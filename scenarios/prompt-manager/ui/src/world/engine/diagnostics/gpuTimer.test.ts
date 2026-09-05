@@ -23,6 +23,20 @@ function fakeContext(options: { extension?: boolean; disjoint?: boolean; results
 }
 
 describe('GpuTimer', () => {
+  it('bounds pending queries and retains only the configured recent samples', () => {
+    const { gl, queries } = fakeContext({ results: [1_000_000, 2_000_000, 3_000_000] })
+    const timer = new GpuTimer(gl, { gpuMaxInFlight: 1, gpuSampleWindow: 2 })
+    timer.begin()
+    timer.end()
+    timer.begin()
+    expect(queries).toHaveLength(1)
+    timer.drain()
+    for (let i = 0; i < 2; i += 1) { timer.begin(); timer.end(); timer.drain() }
+    expect(timer.stats()).toMatchObject({ samples: 2, p50: 2, p95: 2 })
+    timer.dispose()
+    expect(gl.deleteQuery).toHaveBeenCalledTimes(3)
+  })
+
   it('labels an unavailable extension', () => {
     const timer = new GpuTimer(fakeContext({ extension: false }).gl)
     expect(timer.stats()).toMatchObject({ available: false, samples: 0, reason: 'EXT_disjoint_timer_query_webgl2 unavailable' })

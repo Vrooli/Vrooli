@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
+import { Box3, Vector3 } from 'three'
 import { tuning } from '../../config'
-import { clampPose, extentPoints, fitDistance, footprintFill, frameDistance, orbitClamps, poseToPosition } from './pose'
+import { clampPose, extentPoints, poseForBox, footprintFill, frameDistance, orbitClamps, poseToPosition } from './pose'
 
 describe('poseToPosition', () => {
+  it('uses configured projection and fill floors for degenerate framing requests', () => {
+    const frame = { points: extentPoints({ width: 4, depth: 4, center: [0, 0] }), center: [0, 0] as const, height: 2, polarDeg: 45, azimuthDeg: 0, targetY: 1, fovDeg: 60, aspect: 0.001 }
+    expect(frameDistance(frame, 0.5)).toBe(frameDistance({ ...frame, aspect: 0.01 }, 0.5))
+    expect(frameDistance({ ...frame, minimumProjectionAspect: 0.1 }, 0.5)).toBe(frameDistance({ ...frame, aspect: 0.1 }, 0.5))
+    expect(frameDistance(frame, 0)).toBe(frameDistance(frame, 0.05))
+    expect(frameDistance({ ...frame, minimumFrameFill: 0.2 }, 0)).toBe(frameDistance(frame, 0.2))
+  })
+
   it('places the camera at factor × fit distance from the target', () => {
     const { position, target, distance } = poseToPosition({ azimuthDeg: 30, polarDeg: 45, distanceFactor: 2, targetY: 1 }, [2, -3], 10)
     const d = Math.hypot(position[0] - target[0], position[1] - target[1], position[2] - target[2])
@@ -19,16 +28,6 @@ describe('poseToPosition', () => {
     expect(level.position[2]).toBeCloseTo(10, 6)
   })
 
-  it('fitDistance grows with the slab and uses the narrower field of view', () => {
-    const small = fitDistance({ width: 20, depth: 20, fovDeg: 32, aspect: 1.6 })
-    const large = fitDistance({ width: 40, depth: 40, fovDeg: 32, aspect: 1.6 })
-    expect(large).toBeCloseTo(small * 2, 6)
-    const portrait = fitDistance({ width: 20, depth: 20, fovDeg: 32, aspect: 0.6 })
-    expect(portrait).toBeGreaterThan(small)
-    // At the fit distance the enclosing sphere just touches the frustum edge.
-    const radius = 0.5 * Math.hypot(20, 20)
-    expect(small * Math.sin((32 * Math.PI) / 360)).toBeCloseTo(radius, 6)
-  })
 })
 
 describe('orbit clamps', () => {
@@ -83,5 +82,39 @@ describe('footprint framing', () => {
     // A cross shape: same extent as the box, nothing in the corners.
     const cross: Array<readonly [number, number]> = [[-20, -3], [20, -3], [-20, 3], [20, 3], [-3, -13], [3, -13], [-3, 13], [3, 13]]
     expect(frameDistance({ ...base, points: cross }, 0.8)).toBeLessThan(frameDistance(base, 0.8))
+  })
+})
+
+describe('box focus', () => {
+  const current = { polarDeg: 52, azimuthDeg: 20 }
+  const clamps = orbitClamps(tuning.camera, 20)
+  for (const size of [1, 40]) {
+    for (const aspect of [0.6, 1, 1.6]) {
+      it(`frames a ${size}-metre box at aspect ${aspect} within configured distance and fill bounds`, () => {
+        const box = new Box3(new Vector3(10, 7, -20), new Vector3(10 + size, 7 + (size === 1 ? 1 : 3), -20 + size))
+        const pose = poseForBox(box, current, tuning.camera, aspect, clamps)
+        const fit = frameDistance(pose.frame, pose.fill)
+        const result = poseToPosition(pose, pose.frame.center, fit)
+        expect(result.distance).toBeGreaterThanOrEqual(tuning.camera.minDistance)
+        expect(result.distance).toBeLessThanOrEqual(tuning.camera.maxDistance)
+        const fill = footprintFill(pose.frame, result.distance)
+        expect(fill).toBeGreaterThanOrEqual(tuning.budgets.framing.minFill)
+        expect(fill).toBeLessThanOrEqual(tuning.budgets.framing.maxFill)
+        expect(pose.polarDeg).toBe(current.polarDeg)
+        expect(pose.azimuthDeg).toBe(current.azimuthDeg)
+        expect(result.target).toEqual([10 + size / 2, 7 + (size === 1 ? 1 : 3) / 2, -20 + size / 2])
+      })
+    }
+  }
+  it('keeps focus padding live and scale independent', () => {
+    const box = new Box3(new Vector3(-10, 0, -10), new Vector3(10, 3, 10))
+    const normal = poseForBox(box, current, tuning.camera, 1.6, clamps)
+    const padded = poseForBox(box, current, { ...tuning.camera, focusPadding: 2 }, 1.6, clamps)
+    expect(frameDistance(padded.frame, padded.fill)).toBeGreaterThan(frameDistance(normal.frame, normal.fill))
+  })
+  it('rejects empty boxes and clamps degenerate point boxes safely', () => {
+    expect(() => poseForBox(new Box3(), current, tuning.camera, 1, clamps)).toThrow('empty')
+    const pose = poseForBox(new Box3(new Vector3(), new Vector3()), current, tuning.camera, 1, clamps)
+    expect(pose.distanceFactor * Number.EPSILON).toBe(tuning.camera.minDistance)
   })
 })

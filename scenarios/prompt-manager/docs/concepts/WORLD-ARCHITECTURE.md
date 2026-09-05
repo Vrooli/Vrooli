@@ -89,6 +89,19 @@ the terrain, an eased establishing-to-hero dolly on load (skipped for
 `prefers-reduced-motion` and `?intro=0`), and imperative `home`, `focus` and
 `setPose` for the HUD and the editor.
 
+Home and focus share `frameDistance`; `poseForBox` converts focus bounds without
+changing the user's viewing angles. The complete `camera.input` map is declared
+in tuning, rather than inherited from library defaults:
+
+| Gesture | Action |
+| --- | --- |
+| Left mouse drag | Rotate |
+| Middle or right mouse drag | Truck (pan) |
+| Mouse wheel | Dolly toward cursor |
+| One-finger touch | Rotate |
+| Two-finger touch | Dolly and truck |
+| Three-finger touch | Truck |
+
 Quality is one `QualityProfile` (DPR, shadows, AO, bloom, labels, frame cap,
 terrain resolution, vegetation density, water, weather particles, and instance budget). drei
 `PerformanceMonitor` moves between profiles only while auto is on, with bounds
@@ -102,7 +115,8 @@ stable desk-seat mapping. Rendering and navigation consume the same
 `GeneratedLayout`, so neither knows which strategy produced it.
 
 The canvas uses demand rendering. Store revisions, active actors, camera input,
-asset progress and weather request frames; capture sessions remain continuous.
+asset progress and weather request frames. Capture sessions remain continuous
+during live performance measurement, then freeze animation for a canvas snapshot.
 Vegetation is one instanced batch per prop/material and CPU-frustum-compacts its
 matrices before rendering.
 
@@ -126,8 +140,17 @@ Numbers first. Every verdict is a counter or an invariant; the golden diff is
 a regression tripwire, never a quality judgement. When a look is needed,
 `pnpm world:sheet` composes the last run's frames and their counters into one
 `contact-sheet.png`, so a review costs one image per batch of work, not one
-per scene, profile and period. `pnpm world:goldens` rewrites the goldens;
-`--gpu` records host-GPU frame times and gates p95.
+per scene, profile and period. `pnpm world:goldens` requests the complete hardware
+scene/profile/period/weather matrix. Publication waits for every requested capture
+and contrast to pass. Day/clear aliases share the canonical capture pixels.
+`--gpu` records host-GPU frame times and gates p95; `--exact-goldens` requires zero
+changed RGBA pixels rather than the normal perceptual tolerance.
+
+The golden image is the rendered canvas at a fixed animation time, through the
+same scene and post-processing pipeline used live. Timing is measured before
+freezing. Full-page `*.page.png` images preserve UI evidence separately. Browser
+errors, failed requests, loading overlays, and missing snapshot hooks fail the run.
+Use `--evidence-dir <folder>` on smoke and sheet commands to isolate each batch.
 
 Budgets are ceilings chosen from the design, not readings copied from a run.
 Terrain contributes one draw per visible tile. Water contributes one draw.

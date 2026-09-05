@@ -24,29 +24,22 @@ export interface SlimeMaterial extends MeshPhysicalMaterial {
   slime: SlimeUniforms
 }
 
-const WOBBLE_SCALE = 3
-const WOBBLE_SPEED = 1.5
-const CLEARCOAT = 0.6
-const CLEARCOAT_ROUGHNESS = 0.35
-const ROUGHNESS = 0.55
-const SHEEN = 0.4
-
 /** Build the material once per world; call `setSlimeWobble` when the profile changes. */
 export function createSlimeMaterial(actor: ActorTuning, wobbleEnabled: boolean): SlimeMaterial {
   const material = new MeshPhysicalMaterial({
-    color: new Color('#ffffff'),
-    roughness: ROUGHNESS,
+    color: new Color(actor.material.color),
+    roughness: actor.material.roughness,
     metalness: 0,
-    clearcoat: CLEARCOAT,
-    clearcoatRoughness: CLEARCOAT_ROUGHNESS,
-    sheen: SHEEN,
-    sheenColor: new Color('#ffffff'),
+    clearcoat: actor.material.clearcoat,
+    clearcoatRoughness: actor.material.clearcoatRoughness,
+    sheen: actor.material.sheen,
+    sheenColor: new Color(actor.material.sheenColor),
   }) as SlimeMaterial
   material.slime = {
     uTime: { value: 0 },
     uWobbleIntensity: { value: wobbleEnabled ? actor.wobbleIntensity : 0 },
-    uWobbleScale: { value: WOBBLE_SCALE },
-    uWobbleSpeed: { value: WOBBLE_SPEED },
+    uWobbleScale: { value: actor.material.wobbleScale },
+    uWobbleSpeed: { value: actor.material.wobbleSpeed },
   }
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
     if (shader.vertexShader.includes(SLIME_SHADER_MARKER)) return

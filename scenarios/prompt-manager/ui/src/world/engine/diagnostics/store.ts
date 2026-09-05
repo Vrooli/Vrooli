@@ -4,6 +4,7 @@
  * `window.__worldDiagnostics`.
  */
 import type { PeriodId, QualityProfileId, SceneId, WeatherId } from '../../config'
+import { tuning } from '../../config'
 import type { WebGLProbeResult } from '../webgl'
 import type { QualityVerdictRecord } from '../quality/governor'
 
@@ -12,10 +13,14 @@ export interface WorldDiagnostics {
   /** Run expensive scene-graph, raycast, and framing measurements on demand. */
   measure: () => void
   ready: boolean
+  /** Readiness FPS floor, separate from the smoke tool's cumulative settled frames. */
+  minimumReadyFps: number
   assetsLoaded: boolean
   introDone: boolean
   /** Rendered frames in the most recent wall-clock second. */
   framesRendered: number
+  /** Monotonic rendered-frame counter for capture settling; never an FPS gauge. */
+  totalFrames: number
   scene: SceneId
   profile: QualityProfileId
   auto: boolean
@@ -53,20 +58,24 @@ export interface WorldDiagnostics {
   drawCallsUnattributed: number
   trianglesUnattributed: number
   shadowRefreshes: number
+  vegetationCullRuns: number
+  vegetationCullSkips: number
+  lampLightsMounted: number
+  lampLightSelections: number
   qualityHistory: QualityVerdictRecord[]
   /** Top-level scene groups with child counts and the world-space bounds of their content (debugging). */
   sceneGraph: Array<{ name: string; type: string; visible: boolean; children: number; minY: number; maxY: number; instances: number }>
 }
 
-const FRAME_WINDOW = 120
-
 const initial: WorldDiagnostics = {
   webgl: null,
   measure: () => undefined,
   ready: false,
+  minimumReadyFps: tuning.quality.diagnostics.minimumReadyFps,
   assetsLoaded: false,
   introDone: false,
   framesRendered: 0,
+  totalFrames: 0,
   scene: 'park',
   profile: 'high',
   auto: true,
@@ -100,6 +109,10 @@ const initial: WorldDiagnostics = {
   drawCallsUnattributed: 0,
   trianglesUnattributed: 0,
   shadowRefreshes: 0,
+  vegetationCullRuns: 0,
+  vegetationCullSkips: 0,
+  lampLightsMounted: 0,
+  lampLightSelections: 0,
   qualityHistory: [],
   sceneGraph: [],
 }
@@ -113,6 +126,16 @@ declare global {
 type Listener = () => void
 
 let state: WorldDiagnostics = { ...initial }
+
+/** Mutate counters without allocating a diagnostic snapshot on each frame. */
+export function recordVegetationCull(ran: boolean): void {
+  if (ran) state.vegetationCullRuns += 1
+  else state.vegetationCullSkips += 1
+}
+
+export function recordLampSelection(): void {
+  state.lampLightSelections += 1
+}
 const listeners = new Set<Listener>()
 const frameTimes: number[] = []
 
@@ -143,9 +166,10 @@ function percentile(sorted: number[], p: number): number {
 }
 
 /** Record one frame's delta (seconds) and recompute the timing percentiles. */
-export function recordFrame(deltaSeconds: number): void {
+export function recordFrame(deltaSeconds: number, windowSize = tuning.quality.diagnostics.frameWindow): void {
+  state.totalFrames += 1
   frameTimes.push(deltaSeconds * 1000)
-  if (frameTimes.length > FRAME_WINDOW) frameTimes.shift()
+  if (frameTimes.length > windowSize) frameTimes.splice(0, frameTimes.length - windowSize)
 }
 
 export function frameStats(): { p50: number; p95: number } {
@@ -153,16 +177,12 @@ export function frameStats(): { p50: number; p95: number } {
   return { p50: percentile(sorted, 0.5), p95: percentile(sorted, 0.95) }
 }
 
-export const READY_FRAMES = 12
-
 export function updateDiagnostics(patch: Partial<WorldDiagnostics>): void {
   const next = { ...state, ...patch }
-  next.ready = next.assetsLoaded && next.introDone && next.framesRendered >= READY_FRAMES
+  next.ready = next.assetsLoaded && next.introDone && next.framesRendered >= next.minimumReadyFps
   state = next
   publish()
 }
 
 // Publish immediately so 2D fallback pages expose diagnostic state without a Canvas.
 publish()
-
-/** Frames that must render after assets and intro settle before `ready` flips. */

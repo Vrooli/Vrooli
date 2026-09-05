@@ -13,11 +13,13 @@
  *   separation          two standing actors are never closer than a body width
  *   resting-in-place    an idle actor that is not walking stands somewhere meaningful
  */
-import type { ActorTuning, LayoutTuning, TerrainTuning } from '../config'
+import { scenes, type TerrainResolver, type ActorTuning, type LayoutTuning, type TerrainTuning } from '../config'
+import { centreWeight, regionForBounds, terrainForBounds } from './layout/centre'
 import type { Actor, Place, Vec2, WorldState } from './model'
 import { GATHERING_ID } from './layout/generate'
 import { interiorFor } from './layout/interior'
 import { heightAt } from './terrain'
+import { isWater, shoreDistance } from './terrain/water'
 import { findPath } from './nav/astar'
 import { isWalkable, nearestWalkable } from './nav/grid'
 
@@ -30,12 +32,14 @@ export type InvariantRule =
   | 'separation'
   | 'resting-in-place'
   | 'above-water'
+  | 'vegetation-dry'
   | 'site-level'
   | 'every-team-sited'
   | 'commons-reachable'
   | 'weather-defined'
   | 'indoor-has-no-water'
   | 'indoor-is-flat'
+  | 'indoor-has-landscape'
   | 'floorplan-rooms-inside-plate'
   | 'floorplan-every-room-has-a-door'
   | 'floorplan-corridors-connect'
@@ -202,25 +206,37 @@ export function checkRestingInPlace(state: WorldState, layout: LayoutTuning): Vi
   return out
 }
 
-export function checkAboveWater(state: WorldState, terrain: TerrainTuning): Violation[] {
+export function checkAboveWater(state: WorldState, terrain: TerrainResolver): Violation[] {
   const out: Violation[] = []
   const places = state.placeOrder.map((id) => state.places[id]).filter((value): value is Place => Boolean(value))
   for (const place of places) {
     const points: Array<{ id: string; point: Vec2 }> = [{ id: place.id, point: place.position }]
     for (const seat of place.seats) points.push({ id: seat.id, point: seat.position })
     for (const { id, point } of points) {
-      if (heightAt(state.terrain, point[0], point[1]) < terrain.waterLevel) out.push({ rule: 'above-water', ids: [id], detail: `${id} lies below the water surface` })
+      if (heightAt(state.terrain, point[0], point[1]) < terrain.at(point[0], point[1]).waterLevel) out.push({ rule: 'above-water', ids: [id], detail: `${id} lies below the water surface` })
     }
   }
   for (const actor of actors(state)) {
     actor.path.forEach((point, index) => {
-      if (heightAt(state.terrain, point[0], point[1]) < terrain.waterLevel) out.push({ rule: 'above-water', ids: [actor.id, String(index)], detail: `${actor.id} path waypoint ${index} lies below the water surface` })
+      if (heightAt(state.terrain, point[0], point[1]) < terrain.at(point[0], point[1]).waterLevel) out.push({ rule: 'above-water', ids: [actor.id, String(index)], detail: `${actor.id} path waypoint ${index} lies below the water surface` })
     })
   }
   return out
 }
 
-export function checkSites(state: WorldState, terrain: TerrainTuning): Violation[] {
+export function checkVegetationDry(state: WorldState, terrain: TerrainResolver, layout: LayoutTuning): Violation[] {
+  const out: Violation[] = []
+  for (const spot of state.decor) {
+    const [x, z] = spot.position
+    const shore = shoreDistance(state.terrain, terrain, x, z)
+    if (isWater(state.terrain, terrain, x, z) || shore < layout.shoreClearance) {
+      out.push({ rule: 'vegetation-dry', ids: [spot.id], detail: `${spot.id} at (${x}, ${z}) has shore distance ${shore} m; requires ${layout.shoreClearance} m` })
+    }
+  }
+  return out
+}
+
+export function checkSites(state: WorldState, terrain: TerrainResolver): Violation[] {
   const out: Violation[] = []
   const rooms = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'room')
   const roomTeams = new Map<string, number>()
@@ -246,7 +262,7 @@ export function checkSites(state: WorldState, terrain: TerrainTuning): Violation
       minimum = Math.min(minimum, height)
       maximum = Math.max(maximum, height)
     }
-    if (maximum - minimum > terrain.siteLevelTolerance) out.push({ rule: 'site-level', ids: [room.id], detail: `${room.id} varies ${(maximum - minimum).toFixed(3)} m across its pad` })
+    if (maximum - minimum > terrain.at(room.position[0], room.position[1]).siteLevelTolerance) out.push({ rule: 'site-level', ids: [room.id], detail: `${room.id} varies ${(maximum - minimum).toFixed(3)} m across its pad` })
   }
   const commons = state.places[GATHERING_ID]
   if (commons) {
@@ -266,20 +282,28 @@ export function checkWeather(state: WorldState): Violation[] {
     : [{ rule: 'weather-defined', ids: [state.weather.state], detail: `unknown weather state ${state.weather.state}` }]
 }
 
-export function checkIndoorTerrain(state: WorldState, terrain: TerrainTuning): Violation[] {
+export function checkIndoorTerrain(state: WorldState, terrain: TerrainResolver): Violation[] {
   if (state.scene !== 'office') return []
+  const region = regionForBounds(scenes[state.scene], state.bounds)
   const heights = state.terrain.height
   let min = Number.POSITIVE_INFINITY
   let max = Number.NEGATIVE_INFINITY
   let wet = false
-  for (const height of heights) {
+  for (let index = 0; index < heights.length; index += 1) {
+    const height = heights[index] ?? 0
+    const x = state.terrain.originX + (index % state.terrain.cols) * state.terrain.cellSize
+    const z = state.terrain.originZ + Math.floor(index / state.terrain.cols) * state.terrain.cellSize
+    if (region && centreWeight(region, x, z) !== 1) continue
     min = Math.min(min, height)
     max = Math.max(max, height)
-    if (height < terrain.waterLevel) wet = true
+    if (isWater(state.terrain, terrain, x, z)) wet = true
   }
   const out: Violation[] = []
   if (wet) out.push({ rule: 'indoor-has-no-water', ids: [state.scene], detail: 'indoor terrain contains cells below its water level' })
   if (max - min > Number.EPSILON) out.push({ rule: 'indoor-is-flat', ids: [state.scene], detail: `indoor terrain relief is ${(max - min).toFixed(4)} m` })
+  if (region && !state.decor.some((spot) => !spot.roomId && centreWeight(region, spot.position[0], spot.position[1]) === 0)) {
+    out.push({ rule: 'indoor-has-landscape', ids: [state.scene], detail: 'office has no vegetation beyond its centre transition' })
+  }
   return out
 }
 
@@ -329,15 +353,17 @@ export function checkInteriors(state: WorldState, layout: LayoutTuning): Violati
 
 /** Every rule at once. Empty means the state is well formed. */
 export function checkWorldInvariants(state: WorldState, tuning: InvariantTuning): Violation[] {
+  const terrain = tuning.terrain ? terrainForBounds(scenes[state.scene], tuning.terrain, state.bounds) : null
   return [
     ...checkSeats(state),
     ...checkBounds(state),
     ...checkPlaces(state, tuning.layout),
     ...checkSeparation(state, tuning),
     ...checkRestingInPlace(state, tuning.layout),
-    ...(tuning.terrain ? checkAboveWater(state, tuning.terrain) : []),
-    ...(tuning.terrain ? checkSites(state, tuning.terrain) : []),
-    ...(tuning.terrain ? checkIndoorTerrain(state, tuning.terrain) : []),
+    ...(terrain ? checkAboveWater(state, terrain) : []),
+    ...(terrain ? checkVegetationDry(state, terrain, tuning.layout) : []),
+    ...(terrain ? checkSites(state, terrain) : []),
+    ...(terrain ? checkIndoorTerrain(state, terrain) : []),
     ...checkFloorplan(state),
     ...checkInteriors(state, tuning.layout),
     ...checkWeather(state),

@@ -20,7 +20,7 @@ export function QualityGovernor({ auto, profile, profileId, quality, onVerdict }
   if (!auto) return null
   const emit = (verdict: 'decline' | 'incline', fps: number, refreshRate: number, fallback = false) => {
     const bounds = governorBounds(profile, quality, refreshRate)
-    const to = verdict === 'decline' ? stepDown(profileId) : profileId === 'high' && refreshRate < 90 ? profileId : stepUp(profileId)
+    const to = verdict === 'decline' ? stepDown(profileId) : profileId === 'high' && refreshRate < quality.ultraMinRefreshRate ? profileId : stepUp(profileId)
     onVerdict({ verdict, measuredFps: fps, boundFps: verdict === 'decline' ? bounds[0] : bounds[1], from: profileId, to, reason: `${fps.toFixed(1)} fps ${verdict === 'decline' ? 'below' : 'above'} ${bounds[verdict === 'decline' ? 0 : 1].toFixed(1)} fps${fallback ? ' (monitor fallback)' : ''}`, at: new Date().toISOString() })
   }
   return (

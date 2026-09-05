@@ -1,22 +1,23 @@
-import type { TerrainTuning } from '../../config'
+import type { TerrainResolver } from '../../config'
 import { heightAt, moistureAt, slopeAt, type TerrainField } from './field'
 
-export function wetHeight(field: TerrainField, tuning: TerrainTuning, x: number, z: number): number {
-  return heightAt(field, x, z) - moistureAt(field, x, z) * tuning.moistureBasinDepth
+export function wetHeight(field: TerrainField, tuning: TerrainResolver, x: number, z: number): number {
+  return heightAt(field, x, z) - moistureAt(field, x, z) * tuning.at(x, z).moistureBasinDepth
 }
 
-export function isWater(field: TerrainField, tuning: TerrainTuning, x: number, z: number): boolean {
-  return Math.hypot(x, z) < field.radius && wetHeight(field, tuning, x, z) < tuning.waterLevel
+export function isWater(field: TerrainField, tuning: TerrainResolver, x: number, z: number): boolean {
+  return Math.hypot(x, z) < field.radius && wetHeight(field, tuning, x, z) < tuning.at(x, z).waterLevel
 }
 
 /** Approximate signed horizontal distance to shore: negative in water. */
-export function shoreDistance(field: TerrainField, tuning: TerrainTuning, x: number, z: number): number {
-  const vertical = wetHeight(field, tuning, x, z) - tuning.waterLevel
-  const grade = Math.max(tuning.shoreMinGrade, Math.tan(slopeAt(field, x, z)))
+export function shoreDistance(field: TerrainField, tuning: TerrainResolver, x: number, z: number): number {
+  const local = tuning.at(x, z)
+  const vertical = wetHeight(field, tuning, x, z) - local.waterLevel
+  const grade = Math.max(local.shoreMinGrade, Math.tan(slopeAt(field, x, z)))
   return vertical / grade
 }
 
-export function waterComponentLabels(field: TerrainField, tuning: TerrainTuning): { wetCount: number; components: number; labels: Int32Array } {
+export function waterComponentLabels(field: TerrainField, tuning: TerrainResolver): { wetCount: number; components: number; labels: Int32Array } {
   const wet = new Uint8Array(field.cols * field.rows)
   const labels = new Int32Array(wet.length)
   labels.fill(-1)
@@ -59,7 +60,7 @@ export function waterComponentLabels(field: TerrainField, tuning: TerrainTuning)
   return { wetCount: count, components, labels }
 }
 
-export function waterCells(field: TerrainField, tuning: TerrainTuning): { count: number; components: number } {
+export function waterCells(field: TerrainField, tuning: TerrainResolver): { count: number; components: number } {
   const result = waterComponentLabels(field, tuning)
   return { count: result.wetCount, components: result.components }
 }

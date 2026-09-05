@@ -7,7 +7,22 @@
     "scenario": {
       "type": "string",
       "default": "program-runtime",
-      "description": "Scenario whose skill set is read; usage id is <scenario>, improve id is <scenario>-improve."
+      "description": "Scenario whose skill set is read."
+    },
+    "usage_id": {
+      "type": "string",
+      "default": "",
+      "description": "Declared usage skill id; defaults to <scenario>."
+    },
+    "improve_id": {
+      "type": "string",
+      "default": "",
+      "description": "Declared improve skill id; defaults to <scenario>-improve."
+    },
+    "feature_ids": {
+      "type": "string",
+      "default": "",
+      "description": "Pipe-separated declared feature skill ids; empty means none."
     }
   },
   "assumptions": [
@@ -59,8 +74,8 @@
       "readable": "count of rows read",
       "unavailable": "count of rows not readable in-program (permanent and transient)",
       "registered": "skill ids the registry attributes to the scenario",
-      "usage_present": "true when <scenario> is registered",
-      "improve_present": "true when <scenario>-improve is registered"
+      "usage_present": "true when the declared or conventional usage id is registered",
+      "improve_present": "true when the declared or conventional improve id is registered"
     },
     "errors": {
       "classes": [
@@ -115,6 +130,29 @@
           "failed"
         ]
       }
+    },
+    {
+      "id": "stable-plan-skill-ownership",
+      "inputs": {
+        "scenario": "plan-manager",
+        "usage_id": "implementation-plan-authoring",
+        "improve_id": "plan-manager-improve",
+        "feature_ids": "implementation-plan-execution|plan-family-orchestration"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "usage_present": true,
+          "improve_present": true
+        }
+      },
+      "requires": [
+        "prompt-manager"
+      ],
+      "note": "Pins stable public plan skill names while their authoritative sources remain Plan Manager-owned."
     }
   ],
   "rung": "S3",

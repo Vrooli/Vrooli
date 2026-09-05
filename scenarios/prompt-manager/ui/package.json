@@ -136,9 +136,9 @@
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "world:assets": "node ./scripts/world-assets/build.mjs",
-    "world:calibrate": "node ./scripts/world-smoke/calibrate.mjs \u0026\u0026 node ./scripts/world-tuning-docs/run.mjs",
+    "world:calibrate": "node ./scripts/world-smoke/calibrate.mjs",
     "world:compare": "node ./scripts/world-smoke/compare.mjs",
-    "world:goldens": "node ./scripts/world-smoke/run.mjs --update-goldens --actors 25",
+    "world:goldens": "node ./scripts/world-smoke/run.mjs --gpu --all-periods --weather-matrix --update-goldens --actors 25",
     "world:sheet": "node ./scripts/world-smoke/sheet.mjs",
     "world:smoke": "node ./scripts/world-smoke/run.mjs --actors 25",
     "world:tuning-docs": "node ./scripts/world-tuning-docs/run.mjs"

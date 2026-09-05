@@ -8,10 +8,12 @@ Rolling audit of agent files (AGENTS.md, SOUL.md, TOOLS.md, agent.json) maintain
 - `Disposition` is the heartbeat's conclusion: `no-action`, `improve`, `prune`, or `restructure-implication`.
 
 ## Rotation state
-- Last visited: `outcome-strategist` (director-swarm, 2026-08-30)
-- Coverage: 5/21 unique agents visited since audit start.
+- Last visited: `agent-26-1788553015431` (graph-only outlier, 2026-09-04)
+- Coverage: 6/22 unique graph/registry targets visited since audit start.
 
 ## Recent entries
+
+| 2026-09-04 | agent-26-1788553015431 | 0.23 | 1 | prune (graph/index reconciliation) | `prompt-manager graph health --type agent` reports an active node with zero inbound/outbound edges and low discoverability/connectivity. `prompt-manager agent show agent-26-1788553015431` returns `not_found`; repository-wide `rg` finds no matching registry files or references. This is an orphan graph projection, not an auditable live member. Filed `fix/fixremove-stale-agent-26-graph-node`; acceptance requests removal/reconciliation and a registry-backing regression check. Capability architecture layers are not applicable until registry identity exists. |
 
 | 2026-08-29 | agent-25-1787997185458 | 0.23 | 1 | prune (graph/index reconciliation) | `prompt-manager graph health --type agent` reports an active node with zero inbound/outbound edges and low discoverability/connectivity. `prompt-manager agent show agent-25-1787997185458` returns `not_found`; repository-wide `rg` found no matching agent files or references. This is an orphan graph projection, not an auditable live member. Filed `fix/remove-stale-agent-graph-node`; acceptance requests removal/reconciliation and a regression check requiring active graph nodes to have registry backing. Capability architecture layers are not applicable until registry identity exists; strongest evidence is the missing identity/ownership surface and the broken graph-to-registry feedback loop. Framework-health Action was non-runnable because its command is absent from the CLI Health catalog, so graph health was used as the documented manual fallback. |
 

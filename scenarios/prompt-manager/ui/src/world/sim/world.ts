@@ -1,7 +1,7 @@
 /**
  * createWorld: build the initial state from the team graph.
  */
-import { biomeSets, resolveTerrain, scenes, type LayoutTuning, type SimTuning, type TerrainTuning } from '../config'
+import { biomeSets, resolveTerrain, overrideTerrain, scenes, type LayoutTuning, type SimTuning, type TerrainTuning } from '../config'
 import { layoutStrategies } from './layout/strategy'
 import { pathMask as buildPathMask } from './layout/terrace'
 import { buildNavGrid, nearestWalkable } from './nav/grid'
@@ -9,6 +9,9 @@ import type { Actor, ActorColors, ActorVariant, CreateWorldInput, Seat, WorldSta
 import { Rng, hashString, seedRng } from './rng'
 import { biomeGrid, buildTerrain } from './terrain'
 import { initialWeather } from './weather'
+import { sceneBiomes } from '../config/biomes'
+import { centreLevel, centreWeight, levelCentre, regionForBounds, terrainForBounds } from './layout/centre'
+import { scatterDecor } from './layout/scatter'
 
 const DEFAULT_COLORS: ActorColors = { body: '#6366f1', head: '#818cf8', accent: '#fbbf24' }
 const HALF = 0.5
@@ -34,10 +37,10 @@ export function variantFor(id: string): ActorVariant {
 
 export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, treeVariants = 0): WorldState {
   const scene = scenes[input.scene]
-  const terrainTuning = resolveTerrain(scene, tuning)
+  let terrainTuning = resolveTerrain(scene, tuning)
   const terrain = buildTerrain({ seed: input.seed, tuning: terrainTuning })
-  const biomeSet = biomeSets[scene.biomeSet]
-  const biomes = biomeGrid(terrain, terrainTuning, biomeSet)
+  const biomeSet = sceneBiomes(scene)
+  let biomes = biomeGrid(terrain, terrainTuning, biomeSets[scene.biomeSet])
   const strategy = layoutStrategies[scene.layoutStrategy]
   if (!strategy) throw new Error(`layout strategy ${scene.layoutStrategy} is not registered`)
   const layout = strategy.generate({ teams: input.teams, agents: input.agents, tuning: tuning.layout, options: {
@@ -50,10 +53,25 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
     terrainTuning,
     biomes,
     biomeSet,
-    treePropIds: [...new Set(biomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation)))],
     gatheringLabel: scene.gatheringLabel,
     fillerIds: scene.props.filler,
   } })
+  const region = regionForBounds(scene, layout.bounds)
+  if (region) {
+    const level = centreLevel(terrain, scene, layout.bounds, tuning.terrain)
+    terrainTuning = terrainForBounds(scene, tuning.terrain, layout.bounds)
+    Object.assign(terrain, buildTerrain({ seed: input.seed, tuning: terrainTuning }))
+    if (level !== undefined) levelCentre(terrain, region, level)
+    biomes = biomeGrid(terrain, terrainTuning, biomeSet, (x, z) => biomeSets[
+      scene.centre?.biomeSet && centreWeight(region, x, z) === 1 ? scene.centre.biomeSet : scene.biomeSet
+    ])
+    layout.decor.push(...scatterDecor({
+      field: terrain, tuning: terrainTuning, biomes, biomeSet,
+      places: layout.places, bounds: layout.bounds, layout: tuning.layout,
+      seed: input.seed, clearPoints: input.clearPoints ?? [],
+      exclude: (x, z) => centreWeight(region, x, z) === 1,
+    }))
+  }
   const places: WorldState['places'] = {}
   const seats: Record<string, Seat> = {}
   for (const place of layout.places) {
@@ -73,7 +91,7 @@ export function createWorld(input: CreateWorldInput, tuning: WorldTuningSlice, t
   // Route paths over dry ground before the terrace kerbs apply the normal
   // walking-slope gate. The final nav admits those explicit paths, then stamps
   // walls and props over them so a path never cuts through a place.
-  const routingNav = buildNavGrid(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, { ...terrainTuning, maxWalkSlope: Math.PI / 2 })
+  const routingNav = buildNavGrid(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, overrideTerrain(terrainTuning, { maxWalkSlope: Math.PI / 2 }))
   const commonsCenter = commonsPlace?.position ?? [0, 0]
   const commonsPathTarget = [commonsCenter[0], commonsCenter[1] + tuning.layout.commonsSeatRadius] as const
   const paintedPaths = buildPathMask(terrain, terrainTuning, routingNav, roomSites, commonsPathTarget)
@@ -188,9 +206,9 @@ export function rebuildLayout(state: WorldState, input: CreateWorldInput, tuning
   }
   return {
     ...fresh,
-    terrain: input.seed === state.seed ? state.terrain : fresh.terrain,
-    biomes: input.seed === state.seed ? state.biomes : fresh.biomes,
-    biomeSetId: input.seed === state.seed ? state.biomeSetId : fresh.biomeSetId,
+    terrain: input.seed === state.seed && !scenes[input.scene].centre ? state.terrain : fresh.terrain,
+    biomes: input.seed === state.seed && !scenes[input.scene].centre ? state.biomes : fresh.biomes,
+    biomeSetId: fresh.biomeSetId,
     pathMask: fresh.pathMask,
     weather: state.weather,
     rngState: state.rngState,

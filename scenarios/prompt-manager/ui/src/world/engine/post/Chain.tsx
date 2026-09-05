@@ -7,20 +7,14 @@ interface AoPass {
   configuration: { autoDetectTransparency: boolean }
 }
 import { AgXToneMapping } from 'three'
-import type { QualityProfile } from '../../config'
+import type { PostTuning, QualityProfile } from '../../config'
 import { passTimerFor } from '../diagnostics/passTimer'
 
 interface PostChainProps {
   profile: QualityProfile
+  settings: PostTuning
   diagnosticsEnabled?: boolean
 }
-
-const AO_RADIUS = 1.6
-const AO_INTENSITY = 2.2
-const AO_FALLOFF = 1.0
-const BLOOM_THRESHOLD = 1.0
-const BLOOM_INTENSITY = 0.55
-const BLOOM_RADIUS = 0.65
 
 function TimedPostPasses() {
   const gl = useThree((state) => state.gl)
@@ -57,7 +51,7 @@ function TimedPostPasses() {
  * composer's own ToneMapping pass was dropped because it rendered the sky
  * background flat grey.
  */
-export function PostChain({ profile, diagnosticsEnabled = false }: PostChainProps) {
+export function PostChain({ profile, settings, diagnosticsEnabled = false }: PostChainProps) {
   const gl = useThree((s) => s.gl)
   const enabled = profile.ao || profile.bloom
   const ao = useRef<AoPass | null>(null)
@@ -78,10 +72,10 @@ export function PostChain({ profile, diagnosticsEnabled = false }: PostChainProp
   return (
     <EffectComposer multisampling={profile.msaa} enableNormalPass={false}>
       {profile.ao ? (
-        <N8AO ref={ao as never} halfRes aoRadius={AO_RADIUS} intensity={AO_INTENSITY} distanceFalloff={AO_FALLOFF} quality={aoRenderQuality} />
+        <N8AO ref={ao as never} halfRes aoRadius={settings.aoRadius} intensity={settings.aoIntensity} distanceFalloff={settings.aoFalloff} quality={aoRenderQuality} />
       ) : <></>}
       {profile.bloom ? (
-        <Bloom mipmapBlur luminanceThreshold={BLOOM_THRESHOLD} intensity={BLOOM_INTENSITY} radius={BLOOM_RADIUS} />
+        <Bloom mipmapBlur luminanceThreshold={settings.bloomThreshold} intensity={settings.bloomIntensity} radius={settings.bloomRadius} />
       ) : <></>}
       {diagnosticsEnabled ? <TimedPostPasses /> : null}
     </EffectComposer>

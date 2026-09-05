@@ -8,6 +8,10 @@
 import { z } from 'zod'
 import { WorldTuningSchema } from './tuning.schema'
 import { tuning } from './tuning'
+import { SceneSchema } from './scenes.schema'
+import { scenes } from './scenes'
+import { BiomeSetSchema, VegetationEntrySchema } from './biomes.schema'
+import { biomeSets } from './biomes'
 
 export const TUNING_DOC_BEGIN = '<!-- world-tuning:begin -->'
 export const TUNING_DOC_END = '<!-- world-tuning:end -->'
@@ -70,12 +74,25 @@ export function collectLevers(root: unknown = z.toJSONSchema(WorldTuningSchema),
       path: path.join('.'),
       type: describeType(node),
       bounds: describeBounds(node),
-      value: JSON.stringify(value),
+      value: value === undefined ? '—' : JSON.stringify(value),
       description: node.description ?? '',
     })
   }
   walk(root as JsonSchemaNode, [])
   return rows
+}
+
+/** Composition lives in scene/biome data, not world.tuning.json. Keep those new
+ * levers in the same generated reference without inventing absent overrides. */
+export function collectCompositionLevers(): LeverRow[] {
+  const sceneSchema = z.toJSONSchema(SceneSchema.pick({ centre: true, emissive: true, biomeSet: true, assetSet: true }))
+  const { assetSet, propScale, treeScale } = BiomeSetSchema.shape
+  const landscapeSchema = z.toJSONSchema(z.object({ assetSet, propScale, treeScale }))
+  return [
+    ...Object.entries(scenes).flatMap(([id, scene]) => collectLevers(sceneSchema, scene).map((row) => ({ ...row, path: `scenes.${id}.${row.path}` }))),
+    ...Object.entries(biomeSets).flatMap(([id, set]) => collectLevers(landscapeSchema, set).map((row) => ({ ...row, path: `biomes.${id}.${row.path}` }))),
+    ...collectLevers(z.toJSONSchema(VegetationEntrySchema), {}).map((row) => ({ ...row, path: `vegetationEntry.${row.path}` })),
+  ]
 }
 
 /** Every leaf lever must carry a description; returns the offenders. */
@@ -87,7 +104,7 @@ function escapeCell(text: string): string {
   return text.replace(/\|/g, '\\|').replace(/\n/g, ' ')
 }
 
-export function renderTuningDocs(rows: LeverRow[] = collectLevers()): string {
+export function renderTuningDocs(rows: LeverRow[] = [...collectLevers(), ...collectCompositionLevers()]): string {
   const groups = new Map<string, LeverRow[]>()
   for (const row of rows) {
     const group = row.path.split('.')[0] ?? row.path
@@ -100,8 +117,9 @@ export function renderTuningDocs(rows: LeverRow[] = collectLevers()): string {
     '## World tuning levers',
     '',
     'Source: `ui/src/world/config/world.tuning.json`, validated by `tuning.schema.ts`.',
-    'Every behaviour number the world uses is one of these levers; the sim and scene',
-    'code carry no literals. Edit the JSON, keep the value inside its bounds, and run',
+    'Composition rows also come from `scenes/*.json` and `biomes.json`; vegetation-entry',
+    'rows define each per-prop record. An em dash means no override or no shared default.',
+    'Structural constants are separately reviewed by the literal gate. Edit the JSON, keep values inside their bounds, and run',
     '`pnpm world:tuning-docs` to refresh this table (a test fails when it is stale).',
     'In development the HUD settings panel has a Levers tab that edits these live.',
     '',

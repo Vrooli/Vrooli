@@ -4,9 +4,6 @@ import type { LayoutTuning, Scene } from '../config'
 import { heightAt, type Place, type Vec2 } from '../sim'
 import { useWorldStore } from './WorldStoreContext'
 
-const WALL_THICKNESS = 0.18
-const COMMONS_SEGMENTS = 48
-
 interface Slab {
   key: string
   position: [number, number, number]
@@ -22,6 +19,7 @@ function rotate([x, z]: Vec2, yaw: number): Vec2 {
 }
 
 export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: LayoutTuning, height: (point: Vec2) => number, enclosed: boolean): { walls: Slab[]; floors: Slab[] } {
+  const { wallThickness, floorLift, floorThickness, doorFrameScale } = layout.surfaces
   const walls: Slab[] = []
   const floors: Slab[] = []
   for (const room of rooms) {
@@ -29,12 +27,12 @@ export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: LayoutTun
     const [x, z] = room.position
     const yaw = room.rotation
     const wallY = height(room.position) + layout.wallHeight / 2
-    floors.push({ key: `${room.id}:floor`, position: [x, height(room.position) + 0.012, z], rotation: yaw, scale: [w, 0.02, d] })
+    floors.push({ key: `${room.id}:floor`, position: [x, height(room.position) + floorLift, z], rotation: yaw, scale: [w, floorThickness, d] })
     // Three low walls; the front (toward +z locally) stays open.
     const sides: Array<{ id: string; local: Vec2; scale: [number, number, number] }> = [
-      { id: 'back', local: [0, -d / 2], scale: [w + WALL_THICKNESS, layout.wallHeight, WALL_THICKNESS] },
-      { id: 'left', local: [-w / 2, 0], scale: [WALL_THICKNESS, layout.wallHeight, d] },
-      { id: 'right', local: [w / 2, 0], scale: [WALL_THICKNESS, layout.wallHeight, d] },
+      { id: 'back', local: [0, -d / 2], scale: [w + wallThickness, layout.wallHeight, wallThickness] },
+      { id: 'left', local: [-w / 2, 0], scale: [wallThickness, layout.wallHeight, d] },
+      { id: 'right', local: [w / 2, 0], scale: [wallThickness, layout.wallHeight, d] },
     ]
     for (const side of sides) {
       const [dx, dz] = rotate(side.local, yaw)
@@ -42,14 +40,14 @@ export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: LayoutTun
     }
     if (enclosed) {
       const door = doors.find((candidate) => candidate.parentId === room.id)
-      const gap = Math.min(w - WALL_THICKNESS * 2, door?.size[0] ?? layout.floorplan.doorWidth)
+      const gap = Math.min(w - wallThickness * 2, door?.size[0] ?? layout.floorplan.doorWidth)
       const segment = (w - gap) / 2
       for (const sign of [-1, 1]) {
         const local: Vec2 = [sign * (gap / 2 + segment / 2), d / 2]
         const [dx, dz] = rotate(local, yaw)
-        walls.push({ key: `${room.id}:front:${sign}`, position: [x + dx, wallY, z + dz], rotation: yaw, scale: [segment, layout.wallHeight, WALL_THICKNESS] })
+        walls.push({ key: `${room.id}:front:${sign}`, position: [x + dx, wallY, z + dz], rotation: yaw, scale: [segment, layout.wallHeight, wallThickness] })
       }
-      const frameThickness = WALL_THICKNESS * 1.5
+      const frameThickness = wallThickness * doorFrameScale
       for (const sign of [-1, 1]) {
         const local: Vec2 = [sign * gap / 2, d / 2]
         const [dx, dz] = rotate(local, yaw)
@@ -80,6 +78,7 @@ function SlabInstances({ slabs, color, roughness, castShadow = false }: { slabs:
  * level pads and baked path mask; props and actors are separate layers.
  */
 export function Places({ scene, layout }: { scene: Scene; layout: LayoutTuning }) {
+  const surfaces = layout.surfaces
   const store = useWorldStore()
   const state = store.getState()
   const commons = state.placeOrder.map((id) => state.places[id]).find((place) => place?.kind === 'gathering')
@@ -87,18 +86,18 @@ export function Places({ scene, layout }: { scene: Scene; layout: LayoutTuning }
     const rooms = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'room')
     const doors = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'door')
     const result = buildRoomSlabs(rooms, doors, layout, (point) => heightAt(state.terrain, point[0], point[1]), scene.environment === 'indoor')
-    const corridorSlabs = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'corridor').map((place) => ({ key: `${place.id}:floor`, position: [place.position[0], 0.011, place.position[1]] as [number, number, number], rotation: place.rotation, scale: [place.size[0], 0.02, place.size[1]] as [number, number, number] }))
+    const corridorSlabs = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'corridor').map((place) => ({ key: `${place.id}:floor`, position: [place.position[0], heightAt(state.terrain, place.position[0], place.position[1]) + surfaces.corridorLift, place.position[1]] as [number, number, number], rotation: place.rotation, scale: [place.size[0], surfaces.floorThickness, place.size[1]] as [number, number, number] }))
     return { ...result, corridors: corridorSlabs }
-  }, [state.placeOrder, state.places, state.terrain, layout, scene.environment])
+  }, [state.placeOrder, state.places, state.terrain, layout, surfaces, scene.environment])
   return (
     <group name="places">
-      <SlabInstances slabs={walls} color={scene.palette.roomWall} roughness={0.85} castShadow />
-      <SlabInstances slabs={floors} color={scene.palette.roomFloor} roughness={0.95} />
-      <SlabInstances slabs={corridors} color={scene.palette.path} roughness={0.9} />
+      <SlabInstances slabs={walls} color={scene.palette.roomWall} roughness={surfaces.wallRoughness} castShadow />
+      <SlabInstances slabs={floors} color={scene.palette.roomFloor} roughness={surfaces.floorRoughness} />
+      <SlabInstances slabs={corridors} color={scene.palette.path} roughness={surfaces.corridorRoughness} />
       {commons && (
-        <mesh position={[commons.position[0], heightAt(state.terrain, commons.position[0], commons.position[1]) + 0.01, commons.position[1]]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <circleGeometry args={[commons.size[0] / 2, COMMONS_SEGMENTS]} />
-          <meshStandardMaterial color={scene.palette.commons} roughness={1} />
+        <mesh position={[commons.position[0], heightAt(state.terrain, commons.position[0], commons.position[1]) + surfaces.commonsLift, commons.position[1]]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <circleGeometry args={[commons.size[0] / 2, surfaces.commonsSegments]} />
+          <meshStandardMaterial color={scene.palette.commons} roughness={surfaces.commonsRoughness} />
         </mesh>
       )}
     </group>

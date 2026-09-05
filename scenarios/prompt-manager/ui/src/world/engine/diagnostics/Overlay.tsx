@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { tuning } from '../../config'
 import { readDiagnostics, subscribeDiagnostics, type WorldDiagnostics } from './store'
 
-const REFRESH_MS = 250
-
 /** DOM overlay with the renderer counters. Throttled so it never re-renders per frame. */
-export function DiagnosticsOverlay({ seed, seedDigest, testId = 'world-diagnostics' }: { seed: number; seedDigest: string; testId?: string }) {
+export function DiagnosticsOverlay({ seed, seedDigest, refreshMs, testId = 'world-diagnostics' }: { seed: number; seedDigest: string; refreshMs: number; testId?: string }) {
   const [snapshot, setSnapshot] = useState<WorldDiagnostics>(() => readDiagnostics())
 
   useEffect(() => {
@@ -15,12 +13,12 @@ export function DiagnosticsOverlay({ seed, seedDigest, testId = 'world-diagnosti
       if (!dirty) return
       dirty = false
       setSnapshot(readDiagnostics())
-    }, REFRESH_MS)
+    }, refreshMs)
     return () => {
       off()
       window.clearInterval(timer)
     }
-  }, [])
+  }, [refreshMs])
 
   const rows: Array<[string, string]> = [
     ['scene', `${snapshot.scene} · ${snapshot.period}`],

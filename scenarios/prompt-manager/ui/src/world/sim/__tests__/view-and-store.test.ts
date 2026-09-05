@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
-import { createWorldStore } from '../store'
 import { buildView, createViewSelector, equipmentTier } from '../view/select'
-import { NOW, makeInput, run, world } from './fixtures'
+import { NOW, run, makeWorld, makeWorldStore } from './fixtures'
 
 describe('view', () => {
   it('summarises states and exposes team rooms', () => {
-    const s = run(world(2, 2), 1, { 0: [{ kind: 'run.started', agentId: 'agent-0-0', runId: 'r', at: NOW }] })
+    const s = run(makeWorld({ teams: 2, agents: 4, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: 'agent-0-0', runId: 'r', at: NOW }] })
     const v = buildView(s, tuning.actor)
     expect(v.summary.total).toBe(4)
     expect(v.summary.running).toBe(1)
@@ -17,7 +16,7 @@ describe('view', () => {
   })
 
   it('reports the next heartbeat and equipment tiers', () => {
-    const s = run(world(1, 1), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 500, at: NOW }] })
+    const s = run(makeWorld({ teams: 1, agents: 1, treeVariants: 3 }), 1, { 0: [{ kind: 'heartbeat.upcoming', teamId: 'team-0', scheduledAt: NOW + 500, at: NOW }] })
     expect(buildView(s, tuning.actor).summary.nextHeartbeat).toEqual({ teamId: 'team-0', scheduledAt: NOW + 500 })
     const tiers = tuning.actor.equipmentTiers
     expect(equipmentTier(0, tiers)).toBe(0)
@@ -27,7 +26,7 @@ describe('view', () => {
 
   it('the selector returns the same object until the revision changes', () => {
     const select = createViewSelector(tuning.actor)
-    const s = world(1, 1)
+    const s = makeWorld({ teams: 1, agents: 1, treeVariants: 3 })
     expect(select(s)).toBe(select(s))
     const moved = run(s, 1)
     expect(select({ ...moved, revision: s.revision })).toBe(select(s))
@@ -37,7 +36,7 @@ describe('view', () => {
 
 describe('store', () => {
   it('advances in fixed ticks with carry-over and notifies only on discrete change', () => {
-    const store = createWorldStore(makeInput(1, 2), tuning, 3)
+    const store = makeWorldStore({ teams: 1, agents: 2, treeVariants: 3 })
     let notified = 0
     store.subscribe(() => { notified += 1 })
     store.advance(tuning.sim.tickSeconds * 2.5)
@@ -52,7 +51,7 @@ describe('store', () => {
   })
 
   it('setTuning swaps levers live and bumps the view', () => {
-    const store = createWorldStore(makeInput(1, 1), tuning, 3)
+    const store = makeWorldStore({ teams: 1, agents: 1, treeVariants: 3 })
     const v1 = store.getView()
     store.setTuning({ ...tuning, sim: { ...tuning.sim, walkSpeed: 9 } })
     expect(store.tuning().sim.walkSpeed).toBe(9)
@@ -62,7 +61,7 @@ describe('store', () => {
 
 describe('applyOverrides', () => {
   it('moves a room live while every actor keeps its position and state', () => {
-    const store = createWorldStore(makeInput(2, 2), tuning, 3)
+    const store = makeWorldStore({ teams: 2, agents: 4, treeVariants: 3 })
     store.dispatch([{ kind: 'run.started', agentId: 'agent-0-0', runId: 'r', at: NOW }])
     store.advance(tuning.sim.tickSeconds * 5)
     const before = store.getState()

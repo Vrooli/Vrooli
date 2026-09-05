@@ -1,4 +1,7 @@
+import { tuning, type QualityTuning } from '../../config'
+
 export type PassLabel = 'shadow' | 'post' | 'total'
+type PassSettings = Pick<QualityTuning['diagnostics'], 'passSampleWindow' | 'passMaxPending'>
 
 interface TimerQueryExtension {
   TIMESTAMP_EXT: number
@@ -12,9 +15,6 @@ interface PendingSpan {
   start: WebGLQuery
   end: WebGLQuery
 }
-
-const SAMPLE_WINDOW = 120
-const MAX_PENDING = 64
 
 /** Non-blocking timestamp-query spans that may nest inside the total frame span. */
 export class PassTimer {
@@ -30,10 +30,17 @@ export class PassTimer {
   private frame = 0
   private failureReason = ''
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
+  constructor(private readonly gl: WebGL2RenderingContext, private settings: PassSettings = tuning.quality.diagnostics) {
     const extension = gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerQueryExtension | null
     this.extension = extension?.queryCounterEXT ? extension : null
     if (!this.extension) this.failureReason = 'GPU timestamp queries unavailable'
+  }
+
+  configure(settings: PassSettings): void {
+    this.settings = settings
+    for (const samples of Object.values(this.frameSamples)) {
+      while (samples.size > settings.passSampleWindow) samples.delete(samples.keys().next().value as number)
+    }
   }
 
   beginFrame(): void {
@@ -85,7 +92,7 @@ export class PassTimer {
       }
       const samples = this.frameSamples[span.label]
       samples.set(span.frame, (samples.get(span.frame) ?? 0) + milliseconds)
-      while (samples.size > SAMPLE_WINDOW) samples.delete(samples.keys().next().value as number)
+      while (samples.size > this.settings.passSampleWindow) samples.delete(samples.keys().next().value as number)
       this.failureReason = ''
     }
   }
@@ -99,7 +106,7 @@ export class PassTimer {
   }
 
   private markBegin(label: PassLabel): void {
-    if (!this.extension || this.open.has(label) || this.pending.length >= MAX_PENDING) return
+    if (!this.extension || this.open.has(label) || this.pending.length >= this.settings.passMaxPending) return
     const query = this.take()
     this.extension.queryCounterEXT(query, this.extension.TIMESTAMP_EXT)
     this.open.set(label, { frame: this.frame, query })
@@ -160,10 +167,13 @@ export function passDrawsFor(renderer: object): PassDrawCounts {
   return drawCounts.get(renderer) ?? { shadow: { calls: 0, triangles: 0 }, post: { calls: 0, triangles: 0 } }
 }
 
-export function passTimerFor(renderer: object, gl: WebGL2RenderingContext): PassTimer {
+export function passTimerFor(renderer: object, gl: WebGL2RenderingContext, settings?: PassSettings): PassTimer {
   const existing = timers.get(renderer)
-  if (existing) return existing
-  const timer = new PassTimer(gl)
+  if (existing) {
+    if (settings) existing.configure(settings)
+    return existing
+  }
+  const timer = new PassTimer(gl, settings)
   timers.set(renderer, timer)
   return timer
 }

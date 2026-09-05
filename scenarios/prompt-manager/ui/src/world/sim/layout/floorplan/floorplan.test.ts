@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../../config'
 import { checkWorldInvariants } from '../../invariants'
-import { createWorld } from '../../world'
+import { makeWorld } from '../../__tests__/fixtures'
 
 describe('floorplan strategy', () => {
   it('is deterministic and produces connected invariant-safe office state', () => {
@@ -14,8 +14,8 @@ describe('floorplan strategy', () => {
       ],
     }
     const input = { ...roster, seed: 7, now: 1, scene: 'office' as const }
-    const first = createWorld(input, tuning)
-    const again = createWorld(input, tuning)
+    const first = makeWorld(input)
+    const again = makeWorld(input)
     expect(first.placeOrder.map((id) => first.places[id])).toEqual(again.placeOrder.map((id) => again.places[id]))
     const corridors = first.placeOrder.filter((id) => first.places[id]?.kind === 'corridor')
     expect(corridors.length).toBeGreaterThanOrEqual(1 + tuning.layout.floorplan.secondaryCorridors.min)
@@ -31,7 +31,7 @@ describe('floorplan strategy', () => {
     const renamed = { ...original, teams: [{ ...team, name: 'Renamed' }] }
     const reidentified = { ...original, teams: [{ ...team, id: 'beta' }] }
     const geometry = (input: typeof original) => {
-      const state = createWorld(input, tuning)
+      const state = makeWorld(input)
       return state.placeOrder.map((id) => state.places[id]).map((place) => place ? { ...place, label: '' } : place)
     }
     expect(geometry(renamed)).toEqual(geometry(original))
@@ -47,7 +47,7 @@ describe('floorplan strategy', () => {
           name: `Team ${teamIndex}`,
           memberIds: agents.filter((_, index) => index % 5 === teamIndex).map((agent) => agent.id),
         }))
-        const state = createWorld({ agents, teams, seed, now: 1, scene: 'office' }, tuning)
+        const state = makeWorld({ agents, teams, seed, now: 1, scene: 'office' })
         const rooms = state.placeOrder.map((id) => state.places[id]).filter((place) => place?.kind === 'room')
         const doors = state.placeOrder.map((id) => state.places[id]).filter((place) => place?.kind === 'door')
         expect(doors).toHaveLength(rooms.length)

@@ -1,26 +1,15 @@
 import { Text } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
-import { Vector3, type Mesh } from 'three'
+import { MathUtils, Vector3, type Mesh } from 'three'
 import type { LabelsTuning, QualityProfile } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../../engine/assets'
-import type { Actor, Place } from '../../sim'
+import type { Place } from '../../sim'
 import { useWorldStore } from '../WorldStoreContext'
 import type { BodyPose } from '../actors/pose'
 import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from '../actors/PoseBuffer'
 import { clusterLabels, labelWorldSize } from './clusters'
 import { resolveCollisions, type LabelRect } from './collision'
-
-const LABEL_COLOR = '#ffffff'
-// Stroke instead of outline: troika's outline path builds a second material
-// through a prototype chain that three 0.185 materials no longer support.
-const LABEL_STROKE = '#101423'
-const STROKE_WIDTH = '10%'
-const CHAR_WIDTH_FACTOR = 0.58
-const REFRESH_EVERY_FRAMES = 3
-const BASE_PX_PER_UNIT = 40
-const PRIORITY: Record<Actor['state'], number> = { failed: 5, working: 4, walkingToDesk: 4, gathered: 3, walkingToTable: 3, socializing: 2, idle: 1 }
-const PINNED_BONUS = 10
 
 interface LabelsProps {
   labels: LabelsTuning
@@ -68,7 +57,7 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
     frames.current += 1
     // Billboard every frame; recompute visibility every few frames.
     for (const mesh of pool.current) if (mesh?.visible) mesh.quaternion.copy(camera.quaternion)
-    if (frames.current % REFRESH_EVERY_FRAMES !== 0) return
+    if (frames.current % labels.refreshEveryFrames !== 0) return
     const state = store.getState()
     const t = store.tuning()
     const actorIndices = new Map(state.actorOrder.map((id, index) => [id, index]))
@@ -93,13 +82,13 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       projected.copy(anchor).project(camera)
       if (projected.z > 1) return
       const distance = camera.position.distanceTo(anchor)
-      const worldSize = labelWorldSize(distance, fovDeg, size.height, labels.fontSize * BASE_PX_PER_UNIT, labels.minScreenPx, labels.maxScreenPx)
-      const heightPx = (worldSize / (2 * distance * Math.tan((fovDeg * Math.PI) / 360))) * size.height
+      const worldSize = labelWorldSize(distance, fovDeg, size.height, labels.fontSize * labels.basePxPerUnit, labels.minScreenPx, labels.maxScreenPx)
+      const heightPx = (worldSize / (2 * distance * Math.tan(MathUtils.degToRad(fovDeg) / 2))) * size.height
       rects.push({
         id,
         x: ((projected.x + 1) / 2) * size.width,
         y: ((1 - projected.y) / 2) * size.height,
-        width: heightPx * CHAR_WIDTH_FACTOR * text.length,
+        width: heightPx * labels.charWidthFactor * text.length,
         height: heightPx,
         priority,
         distance,
@@ -112,11 +101,11 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       const poseIndex = actorIndices.get(id)
       if (poseIndex === undefined || (poses.data[poseIndex * POSE_STRIDE + POSE.visible] ?? 0) === 0) continue
       readPose(poses, poseIndex, pose)
-      consider(id, actor.name, pose.x, pose.y + t.labels.offsetY, pose.z, PRIORITY[actor.state] + (pinned.has(id) ? PINNED_BONUS : 0))
+      consider(id, actor.name, pose.x, pose.y + t.labels.offsetY, pose.z, labels.priorities[actor.state] + (pinned.has(id) ? labels.pinnedBonus : 0))
     }
     for (const cluster of clustered.clusters) {
       const room = state.places[cluster.roomId]
-      consider(`cluster:${cluster.roomId}`, `${room?.label ?? cluster.roomId} · ${cluster.count}`, cluster.x, t.labels.roomOffsetY, cluster.z, PRIORITY.working)
+      consider(`cluster:${cluster.roomId}`, `${room?.label ?? cluster.roomId} · ${cluster.count}`, cluster.x, t.labels.roomOffsetY, cluster.z, labels.priorities.working)
     }
     const visible = [...resolveCollisions(rects, { paddingPx: labels.paddingPx, budget, pinned })]
     // Keep stable slots for ids already shown so text does not jump between meshes.
@@ -144,7 +133,7 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       }
       mesh.visible = true
       mesh.position.set(candidate.x, candidate.y, candidate.z)
-      if (mesh.text !== candidate.text || Math.abs(mesh.fontSize - candidate.size) > 1e-4) {
+      if (mesh.text !== candidate.text || Math.abs(mesh.fontSize - candidate.size) > labels.syncSizeEpsilon) {
         mesh.text = candidate.text
         mesh.fontSize = candidate.size
         mesh.sync()
@@ -162,12 +151,12 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
           }}
           font={fontUrl}
           fontSize={labels.fontSize}
-          color={LABEL_COLOR}
-          strokeColor={LABEL_STROKE}
-          strokeWidth={STROKE_WIDTH}
+          color={labels.color}
+          strokeColor={labels.strokeColor}
+          strokeWidth={`${labels.strokePercent}%`}
           anchorX="center"
           anchorY="bottom"
-          renderOrder={10}
+          renderOrder={labels.renderOrder}
           visible={false}
         >
           {' '}

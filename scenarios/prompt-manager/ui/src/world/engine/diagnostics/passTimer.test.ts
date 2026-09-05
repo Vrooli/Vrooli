@@ -21,6 +21,19 @@ class FakeGL {
 }
 
 describe('PassTimer', () => {
+  it('trims retained frames immediately when the configured sample window shrinks', () => {
+    const timer = new PassTimer(new FakeGL() as unknown as WebGL2RenderingContext, { passSampleWindow: 4, passMaxPending: 64 })
+    for (const spans of [4, 3, 0, 0]) {
+      timer.beginFrame()
+      for (let i = 0; i < spans; i += 1) { timer.begin('post'); timer.end('post') }
+      timer.endFrame()
+      timer.drain()
+    }
+    expect(timer.stats().total).toBe(7)
+    timer.configure({ passSampleWindow: 2, passMaxPending: 1 })
+    expect(timer.stats().total).toBe(1)
+  })
+
   it('reports nested shadow and post spans with the remainder as main', () => {
     const gl = new FakeGL()
     const timer = new PassTimer(gl as unknown as WebGL2RenderingContext)

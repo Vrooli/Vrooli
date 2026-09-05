@@ -22,11 +22,11 @@ export function governorBounds(profile: QualityProfile, quality: QualityTuning, 
 }
 
 /** Choose a conservative first profile from sustained display-relative FPS. */
-export function chooseInitialProfile(measuredFps: number, refreshRate: number): QualityProfileId {
+export function chooseInitialProfile(measuredFps: number, refreshRate: number, quality: QualityTuning): QualityProfileId {
   const ratio = measuredFps / Math.max(1, refreshRate)
-  if (refreshRate >= 90 && ratio >= 0.92) return 'ultra'
-  if (ratio >= 0.92) return 'high'
-  if (ratio >= 0.72) return 'medium'
+  if (refreshRate >= quality.ultraMinRefreshRate && ratio >= quality.recoverRatio) return 'ultra'
+  if (ratio >= quality.recoverRatio) return 'high'
+  if (ratio >= quality.degradedRatio) return 'medium'
   return 'low'
 }
 

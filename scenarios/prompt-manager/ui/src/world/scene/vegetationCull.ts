@@ -1,78 +1,128 @@
-import { Frustum, Sphere, Vector3 } from 'three'
+import { Camera, Frustum, InstancedMesh, Matrix4, Sphere, Vector3 } from 'three'
+import { CameraMotionGate } from '../engine/camera/motion'
+
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- Array indices are bounded by their owning lengths; heap indices are bounded by size. */
 
 export const MATRIX_ELEMENTS = 16
-
 export interface VegetationCullItem {
   key: string
+  group: number
   center: readonly [number, number, number]
   radius: number
   matrix: Float32Array
   color?: readonly [number, number, number]
 }
 
-interface VisibleItem {
-  item: VegetationCullItem
-  distanceSq: number
-  order: number
-}
-
-/**
- * Compact the visible vegetation matrices into `target`, nearest first when a
- * budget applies. Equal-distance items retain layout order so the budget edge
- * cannot flicker between frames.
- */
-export function cullVegetation(
-  items: readonly VegetationCullItem[],
-  frustum: Frustum,
-  cameraPosition: Vector3,
-  target: Float32Array,
-  budget: number,
-  allowedKeys?: ReadonlySet<string>,
-  targetColors?: Float32Array,
-): number {
-  const sphere = new Sphere()
-  const center = sphere.center
-  const visible: VisibleItem[] = []
-  for (let order = 0; order < items.length; order += 1) {
-    const item = items[order]
-    if (!item) continue
-    if (allowedKeys && !allowedKeys.has(item.key)) continue
-    center.set(item.center[0], item.center[1], item.center[2])
-    sphere.radius = item.radius
-    if (!frustum.intersectsSphere(sphere)) continue
-    visible.push({ item, distanceSq: cameraPosition.distanceToSquared(center), order })
+/** The global driver owns buffers; mesh components only register consumers. */
+export class VegetationBuffer {
+  readonly matrices: Float32Array
+  readonly colors: Float32Array
+  readonly meshes: Array<InstancedMesh | null> = []
+  count = 0
+  constructor(readonly capacity: number) {
+    this.matrices = new Float32Array(capacity * MATRIX_ELEMENTS)
+    this.colors = new Float32Array(capacity * 3)
   }
-  if (visible.length > budget) visible.sort((a, b) => a.distanceSq - b.distanceSq || a.order - b.order)
-  const count = Math.min(visible.length, Math.max(0, budget), Math.floor(target.length / MATRIX_ELEMENTS))
-  for (let index = 0; index < count; index += 1) {
-    const item = visible[index]?.item
-    if (item) {
-      target.set(item.matrix, index * MATRIX_ELEMENTS)
-      if (targetColors) targetColors.set(item.color ?? [1, 1, 1], index * 3)
+  upload(mesh: InstancedMesh): void {
+    mesh.count = this.count
+    mesh.instanceMatrix.array.set(this.matrices)
+    mesh.instanceMatrix.needsUpdate = true
+    if (mesh.instanceColor) {
+      mesh.instanceColor.array.set(this.colors)
+      mesh.instanceColor.needsUpdate = true
     }
   }
-  return count
 }
 
-/** Select the nearest visible instances once across all prop groups. */
-export function visibleVegetationKeys(items: readonly VegetationCullItem[], frustum: Frustum, cameraPosition: Vector3, budget: number): ReadonlySet<string> {
-  const sphere = new Sphere()
-  const visible: VisibleItem[] = []
-  for (let order = 0; order < items.length; order += 1) {
-    const item = items[order]
-    if (!item) continue
-    sphere.center.set(item.center[0], item.center[1], item.center[2])
-    sphere.radius = item.radius
-    if (!frustum.intersectsSphere(sphere)) continue
-    visible.push({ item, distanceSq: cameraPosition.distanceToSquared(sphere.center), order })
+/** Reusable nearest-K heap: O(N log K), no frame-path temporary collections. */
+export class VegetationCuller {
+  private readonly sphere = new Sphere()
+  private readonly frustum = new Frustum()
+  private readonly viewProjection = new Matrix4()
+  private readonly motion = new CameraMotionGate()
+  private readonly heap: Int32Array
+  private readonly candidates: Int32Array
+  private readonly distances: Float64Array
+  private readonly selected: Uint8Array
+  runs = 0
+  skips = 0
+  constructor(readonly items: readonly VegetationCullItem[], readonly buffers: readonly VegetationBuffer[], readonly budget: number) {
+    this.heap = new Int32Array(items.length)
+    this.candidates = new Int32Array(items.length)
+    this.distances = new Float64Array(items.length)
+    this.selected = new Uint8Array(items.length)
   }
-  visible.sort((a, b) => a.distanceSq - b.distanceSq || a.order - b.order)
-  return new Set(visible.slice(0, Math.max(0, budget)).map(({ item }) => item.key))
-}
-
-export function matrixBufferChanged(previous: Float32Array, next: Float32Array, count: number, previousCount: number): boolean {
-  if (count !== previousCount) return true
-  const length = count * MATRIX_ELEMENTS
-  for (let index = 0; index < length; index += 1) if (previous[index] !== next[index]) return true
-  return false
+  private farther(a: number, b: number): boolean {
+    return this.distances[a]! > this.distances[b]! || (this.distances[a] === this.distances[b] && a > b)
+  }
+  update(camera: Camera, metres: number, radians: number): boolean {
+    if (!this.motion.changed(camera, metres, radians)) {
+      this.skips += 1
+      return false
+    }
+    this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    this.frustum.setFromProjectionMatrix(this.viewProjection)
+    this.select(this.frustum, this.motion.position)
+    this.runs += 1
+    return true
+  }
+  select(frustum: Frustum, position: Vector3): void {
+    let size = 0
+    const limit = Math.max(0, Math.min(this.items.length, Math.floor(this.budget)))
+    this.selected.fill(0)
+    let visibleCount = 0
+    for (let i = 0; i < this.items.length && limit > 0; i += 1) {
+      const item = this.items[i]!
+      this.sphere.center.set(item.center[0], item.center[1], item.center[2])
+      this.sphere.radius = item.radius
+      if (!frustum.intersectsSphere(this.sphere)) continue
+      this.distances[i] = position.distanceToSquared(this.sphere.center)
+      this.candidates[visibleCount++] = i
+    }
+    if (visibleCount <= limit) {
+      for (let i = 0; i < visibleCount; i += 1) this.selected[this.candidates[i]!] = 1
+    } else {
+      for (let candidate = 0; candidate < visibleCount; candidate += 1) {
+        const i = this.candidates[candidate]!
+        if (size < limit) {
+          let child = size++
+          while (child > 0) {
+            const parent = (child - 1) >> 1
+            if (!this.farther(i, this.heap[parent]!)) break
+            this.heap[child] = this.heap[parent]!
+            child = parent
+          }
+          this.heap[child] = i
+        } else if (this.farther(this.heap[0]!, i)) {
+          let parent = 0
+          while (parent * 2 + 1 < size) {
+            let child = parent * 2 + 1
+            if (child + 1 < size && this.farther(this.heap[child + 1]!, this.heap[child]!)) child += 1
+            if (!this.farther(this.heap[child]!, i)) break
+            this.heap[parent] = this.heap[child]!
+            parent = child
+          }
+          this.heap[parent] = i
+        }
+      }
+      for (let i = 0; i < size; i += 1) this.selected[this.heap[i]!] = 1
+    }
+    for (let i = 0; i < this.buffers.length; i += 1) this.buffers[i]!.count = 0
+    for (let i = 0; i < this.items.length; i += 1) {
+      if (!this.selected[i]) continue
+      const item = this.items[i]!
+      const buffer = this.buffers[item.group]!
+      if (buffer.count >= buffer.capacity) continue
+      const slot = buffer.count++
+      buffer.matrices.set(item.matrix, slot * MATRIX_ELEMENTS)
+      for (let channel = 0; channel < 3; channel += 1) buffer.colors[slot * 3 + channel] = item.color?.[channel] ?? 1
+    }
+    for (let i = 0; i < this.buffers.length; i += 1) {
+      const buffer = this.buffers[i]!
+      for (let j = 0; j < buffer.meshes.length; j += 1) {
+        const mesh = buffer.meshes[j]
+        if (mesh) buffer.upload(mesh)
+      }
+    }
+  }
 }

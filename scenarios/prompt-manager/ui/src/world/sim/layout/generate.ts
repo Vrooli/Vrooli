@@ -7,7 +7,7 @@
  * (team id, agent id) so the world is stable across reloads and renames.
  * Operator overrides are applied on top by place id.
  */
-import type { BiomeSet, LayoutTuning, TerrainTuning } from '../../config'
+import type { BiomeSet, LayoutTuning, TerrainResolver } from '../../config'
 import type { AgentInput, DecorSpot, LayoutOverride, Place, Seat, TeamInput, Vec2, WorldBounds } from '../model'
 import type { TerrainField } from '../terrain'
 import { selectSites } from './sites'
@@ -31,10 +31,9 @@ export interface GenerateOptions {
   clearPoints?: Vec2[]
   overrides?: LayoutOverride[]
   terrain: TerrainField
-  terrainTuning: TerrainTuning
+  terrainTuning: TerrainResolver
   biomes?: Uint8Array
   biomeSet?: BiomeSet
-  treePropIds?: readonly string[]
   gatheringLabel?: string
   fillerIds?: readonly string[]
 }
@@ -230,7 +229,7 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
   const bounds: WorldBounds = { width, depth, center, footprint: { width: maxX - minX, depth: maxZ - minZ, center: footprintCenter }, outline: outlinePoints(places, layout) }
 
   const decor = options.scatterDecor && options.biomes && options.biomeSet
-    ? scatterDecor({ field: options.terrain, biomes: options.biomes, biomeSet: options.biomeSet, places, bounds, layout, seed: options.seed, clearPoints: options.clearPoints ?? [], treePropIds: options.treePropIds ?? [] })
+    ? scatterDecor({ field: options.terrain, tuning: options.terrainTuning, biomes: options.biomes, biomeSet: options.biomeSet, places, bounds, layout, seed: options.seed, clearPoints: options.clearPoints ?? [] })
     : []
   for (const room of places.filter((place) => place.kind === 'room')) {
     if (!room.teamId || !options.fillerIds?.length) continue
@@ -240,7 +239,7 @@ export function generateLayout(teams: TeamInput[], agents: AgentInput[], layout:
       const propId = options.fillerIds[filler.propIndex % options.fillerIds.length]
       if (!propId) continue
       const position = rotate(room.position, filler.local[0], filler.local[1], room.rotation)
-      decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
+      decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', scaleRef: 'prop', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
     }
   }
   return { places, bounds, decor, deskSeatByAgent: survivingDesks }

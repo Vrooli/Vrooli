@@ -1,4 +1,5 @@
-import type { TerrainTuning } from '../../config'
+import type { TerrainResolver } from '../../config'
+import { smoothstep } from '../../config/regions'
 import { hashString } from '../rng'
 import { fbm } from './noise'
 
@@ -23,15 +24,12 @@ export function groundSampler(field: TerrainField): GroundSampler {
 
 export interface BuildTerrainInput {
   seed: number
-  tuning: TerrainTuning
+  tuning: TerrainResolver
 }
 
-function smoothstep(edge0: number, edge1: number, value: number): number {
-  const t = Math.max(0, Math.min(1, (value - edge0) / Math.max(Number.EPSILON, edge1 - edge0)))
-  return t * t * (3 - 2 * t)
-}
-
-export function buildTerrain({ seed, tuning }: BuildTerrainInput): TerrainField {
+export function buildTerrain({ seed, tuning: resolver }: BuildTerrainInput): TerrainField {
+  const tuning = resolver.base()
+  const cellSize = tuning.cellSize
   const cols = Math.ceil((tuning.radius * 2) / tuning.cellSize) + 1
   const rows = cols
   const originX = -tuning.radius
@@ -42,13 +40,14 @@ export function buildTerrain({ seed, tuning }: BuildTerrainInput): TerrainField 
   const moistureSeed = hashString(`terrain-moisture:${seed}`)
   const detailSeed = hashString(`terrain-detail:${seed}`)
   const warpSeed = hashString(`terrain-warp:${seed}`)
-  const falloffRadius = tuning.radius * tuning.falloffStart
 
   for (let row = 0; row < rows; row += 1) {
     const z = originZ + row * tuning.cellSize
     for (let col = 0; col < cols; col += 1) {
-      const x = originX + col * tuning.cellSize
+      const x = originX + col * cellSize
       const index = row * cols + col
+      const tuning = resolver.at(x, z)
+      const falloffRadius = tuning.radius * tuning.falloffStart
       const radius = Math.hypot(x, z)
       if (radius >= tuning.radius) continue
       const falloff = 1 - smoothstep(falloffRadius, tuning.radius, radius)

@@ -16,10 +16,6 @@ interface RoomHandlesProps {
   onDragging: (dragging: boolean) => void
 }
 
-const HANDLE_LIFT = 0.05
-const HANDLE_OPACITY = 0.28
-const SELECTED_OPACITY = 0.45
-
 /**
  * Edit-mode drag handles over every room: a translucent plate that captures
  * the pointer, projects it onto the ground plane and snaps to the editor
@@ -53,7 +49,7 @@ export function RoomHandles({ editor, selectedRoomId, onSelectRoom, onMove, onDr
       {rooms.map((room) => (
         <mesh
           key={room.id}
-          position={[room.position[0], HANDLE_LIFT, room.position[1]]}
+          position={[room.position[0], editor.handleLift, room.position[1]]}
           rotation={[-Math.PI / 2, 0, room.rotation]}
           onPointerDown={(event) => {
             event.stopPropagation()
@@ -83,7 +79,7 @@ export function RoomHandles({ editor, selectedRoomId, onSelectRoom, onMove, onDr
           }}
         >
           <planeGeometry args={[room.size[0], room.size[1]]} />
-          <meshBasicMaterial color={selectedRoomId === room.id ? '#7c9cff' : '#ffffff'} transparent opacity={selectedRoomId === room.id ? SELECTED_OPACITY : HANDLE_OPACITY} depthWrite={false} />
+          <meshBasicMaterial color={selectedRoomId === room.id ? editor.selectedColor : editor.handleColor} transparent opacity={selectedRoomId === room.id ? editor.selectedOpacity : editor.handleOpacity} depthWrite={false} />
         </mesh>
       ))}
     </group>

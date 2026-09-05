@@ -11,6 +11,9 @@ export {
   PERIOD_IDS,
   SCENE_IDS,
   type WorldTuning,
+  type TerrainVisualTuning,
+  type WaterVisualTuning,
+  type PostTuning,
   type SimTuning,
   type LayoutTuning,
   type TerrainTuning,
@@ -30,7 +33,7 @@ export {
   type PeriodId,
   type SceneId,
 } from './tuning.schema'
-export { scenes, isSceneId, resolvePeriod, resolveTerrain } from './scenes'
+export { scenes, isSceneId, resolvePeriod, resolveTerrain, uniformTerrain, overrideTerrain, type TerrainResolver } from './scenes'
 export { SceneSchema, type Scene, type CameraPose } from './scenes.schema'
 export { BiomeSchema, BiomeSetSchema, BiomeSetsSchema, type Biome, type BiomeSet } from './biomes.schema'
 export { biomeSets } from './biomes'

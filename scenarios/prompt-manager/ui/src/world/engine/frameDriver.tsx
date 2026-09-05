@@ -1,6 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import type { QualityTuning } from '../config'
 
 interface FrameWorldStore {
   getState(): { actors: Record<string, { speed: number }> }
@@ -8,6 +9,7 @@ interface FrameWorldStore {
 }
 
 interface FrameDriverProps {
+  settings: QualityTuning['frameDriver']
   store: FrameWorldStore
   weatherActive: boolean
   diagnosticsOpen: boolean
@@ -17,10 +19,10 @@ interface FrameDriverProps {
 }
 
 /** Owns demand-render invalidation for simulation, motion, input and async assets. */
-export function FrameDriver({ store, weatherActive, diagnosticsOpen, continuous, intro, settleSeconds }: FrameDriverProps) {
+export function FrameDriver({ settings, store, weatherActive, diagnosticsOpen, continuous, intro, settleSeconds }: FrameDriverProps) {
   const invalidate = useThree((state) => state.invalidate)
   const { active, progress } = useProgress()
-  const activeUntil = useRef(performance.now() + (intro ? 5000 : 0))
+  const activeUntil = useRef(performance.now() + (intro ? settings.introMs : 0))
 
   useEffect(() => store.subscribe(invalidate), [invalidate, store])
   useEffect(() => { invalidate() }, [active, invalidate, progress])
@@ -28,14 +30,14 @@ export function FrameDriver({ store, weatherActive, diagnosticsOpen, continuous,
   useEffect(() => {
     let raf = 0
     let heartbeat = 0
-    const settleMs = Math.max(250, settleSeconds * 1000)
+    const settleMs = Math.max(settings.minimumSettleMs, settleSeconds * 1000)
     const requestSettle = () => {
-      activeUntil.current = performance.now() + settleMs
+      activeUntil.current = Math.max(activeUntil.current, performance.now() + settleMs)
       invalidate()
     }
     const animate = () => {
       raf = 0
-      const moving = Object.values(store.getState().actors).some((actor) => actor.speed > 0.001)
+      const moving = Object.values(store.getState().actors).some((actor) => actor.speed > settings.movingSpeed)
       if (continuous || weatherActive || moving || performance.now() < activeUntil.current) {
         invalidate()
         raf = requestAnimationFrame(animate)
@@ -50,7 +52,7 @@ export function FrameDriver({ store, weatherActive, diagnosticsOpen, continuous,
     window.addEventListener('pointermove', wake, { passive: true })
     window.addEventListener('wheel', wake, { passive: true })
     window.addEventListener('keydown', wake)
-    if (diagnosticsOpen) heartbeat = window.setInterval(invalidate, 250)
+    if (diagnosticsOpen) heartbeat = window.setInterval(invalidate, settings.diagnosticsHeartbeatMs)
     wake()
     return () => {
       offStore()
@@ -61,7 +63,7 @@ export function FrameDriver({ store, weatherActive, diagnosticsOpen, continuous,
       window.removeEventListener('wheel', wake)
       window.removeEventListener('keydown', wake)
     }
-  }, [continuous, diagnosticsOpen, invalidate, settleSeconds, store, weatherActive])
+  }, [continuous, diagnosticsOpen, invalidate, settleSeconds, settings, store, weatherActive])
 
   return null
 }

@@ -1,4 +1,4 @@
-import type { TerrainTuning } from '../../config'
+import type { TerrainResolver } from '../../config'
 import type { DecorSpot, NavGrid, Place, Vec2, WorldBounds } from '../model'
 import { shoreDistance, slopeAt, type TerrainField } from '../terrain'
 
@@ -91,7 +91,7 @@ function pathStrengthAt(terrain: TerrainField | undefined, mask: Float32Array | 
  * board, tree trunks and the three walls of every room (the front is open).
  * Actors themselves never block; they path around static props only.
  */
-export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, wallThickness: number, trunkRadius: number, terrain?: TerrainField, terrainTuning?: TerrainTuning, pathMask?: Float32Array): NavGrid {
+export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, wallThickness: number, trunkRadius: number, terrain?: TerrainField, terrainTuning?: TerrainResolver, pathMask?: Float32Array): NavGrid {
   const cols = Math.max(1, Math.ceil(bounds.width / cellSize))
   const rows = Math.max(1, Math.ceil(bounds.depth / cellSize))
   const grid: NavGrid = {
@@ -108,7 +108,8 @@ export function buildNavGrid(bounds: WorldBounds, places: Place[], decor: DecorS
         const [x, z] = cellToWorld(grid, col, row)
         const index = cellIndex(grid, col, row)
         const onPath = pathStrengthAt(terrain, pathMask, [x, z]) > 0
-        if (shoreDistance(terrain, terrainTuning, x, z) < terrainTuning.shoreMargin || (!onPath && slopeAt(terrain, x, z) > terrainTuning.maxWalkSlope)) grid.walkable[index] = 0
+        const local = terrainTuning.at(x, z)
+        if (shoreDistance(terrain, terrainTuning, x, z) < local.shoreMargin || (!onPath && slopeAt(terrain, x, z) > local.maxWalkSlope)) grid.walkable[index] = 0
       }
     }
   }

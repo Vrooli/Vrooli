@@ -17,6 +17,7 @@
  *   node scripts/world-smoke/run.mjs --gpu --gpu-tier igpu --scene park --profile high --period night
  *   node scripts/world-smoke/run.mjs --gpu --scene park --profile ultra --dsf 1.5 --query msaa=4
  *   node scripts/world-smoke/run.mjs --scene park --profile medium --seeds 1,7,99,12345 --sweep 25,100,400,1000
+ *   node scripts/world-smoke/run.mjs --check-goldens --evidence-dir /absolute/evidence/folder
  *
  * Hardware tiers are igpu (default) and dgpu. This host's former
  * --use-angle=vulkan path creates no WebGL context, so hardware runs use
@@ -25,27 +26,62 @@
  * Evidence: evidence/world-smoke/<scene>-<profile>[-<period>].{json,png,diff.png}
  */
 import { chromium } from 'playwright-core'
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { PNG } from 'pngjs'
 import pixelmatch from 'pixelmatch'
-
-const uiRoot = resolve(import.meta.dirname, '..', '..')
-const tuning = JSON.parse(readFileSync(resolve(uiRoot, 'src/world/config/world.tuning.json'), 'utf8'))
-const evidenceDir = resolve(uiRoot, 'evidence', 'world-smoke')
-const goldenDir = resolve(uiRoot, 'src', 'world', '__goldens__')
-mkdirSync(evidenceDir, { recursive: true })
-mkdirSync(goldenDir, { recursive: true })
+import { createServer } from 'vite'
+import { captureContrasts } from './contrast.mjs'
 
 const args = process.argv.slice(2)
 const flag = (name) => args.includes(name)
 const opt = (name, fallback) => {
   const i = args.indexOf(name)
-  return i >= 0 && args[i + 1] ? args[i + 1] : fallback
+  return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : fallback
 }
+const uiRoot = resolve(import.meta.dirname, '..', '..')
+const tuning = JSON.parse(readFileSync(resolve(uiRoot, 'src/world/config/world.tuning.json'), 'utf8'))
+const moduleLoader = await createServer({ root: uiRoot, configFile: false, server: { middlewareMode: true, hmr: false, watch: null }, logLevel: 'error', appType: 'custom' })
+let sweepSeeds
+let goldenKey
+let goldenAliases
+let axes
+let goldenCoverage
+let expectedGoldenKeys
+try {
+  const { SWEEP_SEEDS } = await moduleLoader.ssrLoadModule('/src/world/sim/__tests__/seeds.ts')
+  sweepSeeds = SWEEP_SEEDS
+  const captures = await moduleLoader.ssrLoadModule('/src/world/engine/assets/goldenKey.ts')
+  goldenKey = captures.goldenKey
+  goldenAliases = captures.goldenAliases
+  axes = captures.captureAxes(tuning)
+  goldenCoverage = captures.goldenCoverage
+  expectedGoldenKeys = captures.expectedGoldenKeys
+} finally {
+  await moduleLoader.close()
+}
+const evidenceDir = resolve(opt('--evidence-dir', resolve(uiRoot, 'evidence', 'world-smoke')))
+const goldenDir = resolve(uiRoot, 'src', 'world', '__goldens__')
+mkdirSync(evidenceDir, { recursive: true })
+mkdirSync(goldenDir, { recursive: true })
+if (flag('--check-goldens')) {
+  const expected = expectedGoldenKeys(tuning)
+  const coverage = goldenCoverage(expected, readdirSync(goldenDir))
+  const report = { expected: expected.length, ...coverage }
+  writeFileSync(resolve(evidenceDir, 'golden-coverage.json'), JSON.stringify(report, null, 2))
+  console.log(JSON.stringify(report, null, 2))
+  process.exit(coverage.missing.length || coverage.orphaned.length ? 1 : 0)
+}
+
 const updateGoldens = flag('--update-goldens')
+const exactGoldens = flag('--exact-goldens')
+const lampLightsRaw = opt('--lamp-lights', null)
+const lampLightsOverride = lampLightsRaw === null ? null : Number(lampLightsRaw)
+if (lampLightsOverride !== null && (!Number.isInteger(lampLightsOverride) || lampLightsOverride < 0 || lampLightsOverride > 32)) throw new Error('--lamp-lights must be an integer from 0 to 32')
+if (updateGoldens && lampLightsOverride !== null) throw new Error('Light-cost overrides cannot update goldens')
 const useGpu = flag('--gpu')
+if (updateGoldens && !useGpu) throw new Error('Golden updates require --gpu and a verified hardware renderer')
 const gpuTier = opt('--gpu-tier', 'igpu')
 if (!['igpu', 'dgpu'].includes(gpuTier)) throw new Error('world-smoke: --gpu-tier must be igpu or dgpu')
 const requestedDsf = opt('--dsf', null)
@@ -57,9 +93,9 @@ const noVsync = flag('--no-vsync')
 const onlyScene = opt('--scene', null)
 const onlyProfile = opt('--profile', null)
 const onlyPeriod = opt('--period', null)
-const periods = onlyPeriod ? [onlyPeriod] : (flag('--all-periods') ? ['dawn', 'day', 'dusk', 'night'] : ['day'])
+const periods = onlyPeriod ? [onlyPeriod] : (flag('--all-periods') ? axes.periods : ['day'])
 const seed = opt('--seed', '1')
-const seedsRaw = opt('--seeds', null)
+const seedsRaw = opt('--seeds', flag('--seeds') ? sweepSeeds.join(',') : null)
 const seeds = seedsRaw
   ? seedsRaw.split(',').map((value) => value.trim()).filter(Boolean)
   : [seed]
@@ -96,8 +132,11 @@ function resolveBaseUrl() {
   return 'http://localhost:21235'
 }
 
-const scenes = weatherMatrix ? [onlyScene ?? 'park'] : onlyScene ? [onlyScene] : Object.keys(tuning.budgets.scenes)
-const profiles = weatherMatrix ? [onlyProfile ?? 'high'] : onlyProfile ? [onlyProfile] : Object.keys(tuning.quality.profiles)
+const scenes = onlyScene ? [onlyScene] : axes.scenes
+const profiles = onlyProfile ? [onlyProfile] : axes.profiles
+for (const [kind, requested, available] of [['scene', onlyScene, axes.scenes], ['profile', onlyProfile, axes.profiles], ['period', onlyPeriod, axes.periods], ['weather', requestedWeather, axes.weather]]) {
+  if (requested && !available.includes(requested)) throw new Error(`world-smoke: unknown ${kind} ${requested}`)
+}
 
 const chromeArgs = useGpu
   ? ['--headless=new', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-gl=angle', '--use-angle=gl-egl', '--no-sandbox']
@@ -134,9 +173,13 @@ function comparePng(actualBuffer, goldenPath, diffPath) {
     return { pixels: -1, ratio: 1, missing: false, sizeMismatch: true }
   }
   const diff = new PNG({ width: actual.width, height: actual.height })
+  let exactPixels = 0
+  for (let offset = 0; offset < actual.data.length; offset += 4) {
+    if (actual.data[offset] !== golden.data[offset] || actual.data[offset + 1] !== golden.data[offset + 1] || actual.data[offset + 2] !== golden.data[offset + 2] || actual.data[offset + 3] !== golden.data[offset + 3]) exactPixels += 1
+  }
   const pixels = pixelmatch(actual.data, golden.data, diff.data, actual.width, actual.height, { threshold: 0.12 })
   writeFileSync(diffPath, PNG.sync.write(diff))
-  return { pixels, ratio: pixels / (actual.width * actual.height), missing: false }
+  return { pixels, exactPixels, ratio: pixels / (actual.width * actual.height), missing: false }
 }
 
 for (const scene of scenes) {
@@ -144,11 +187,11 @@ for (const scene of scenes) {
       for (const period of periods) {
         for (const worldSeed of seeds) {
         for (const actorCount of actorCounts) {
-        for (const weatherState of weatherMatrix ? ['clear', 'cloudy', 'rain', 'snow'] : [requestedWeather]) {
-        const periodName = periods.length > 1 || onlyPeriod ? `${scene}-${profile}-${period}` : `${scene}-${profile}`
-        const baseName = weatherState ? `${periodName}-weather-${weatherState}` : periodName
+        for (const weatherState of weatherMatrix ? axes.weather : [requestedWeather]) {
+        const baseName = goldenKey({ scene, profile, period: periods.length > 1 || onlyPeriod ? period : null, weather: weatherState })
         const seedName = seedsRaw ? `${baseName}-seed${worldSeed}` : baseName
-        const name = sweepActors || seedsRaw ? `${seedName}-${actorCount}actors` : seedName
+        const rowName = sweepActors || seedsRaw ? `${seedName}-${actorCount}actors` : seedName
+        const name = lampLightsOverride === null ? rowName : `${rowName}-lights${lampLightsOverride}`
         const deviceScaleFactor = dsfOverride ?? tuning.quality.profiles[profile].dpr
         // A fresh browser per case is deliberate. Mesa/ANGLE can retain released
         // WebGL resources in the GPU process after a context closes; a long matrix
@@ -157,18 +200,25 @@ for (const scene of scenes) {
         const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor, reducedMotion: 'no-preference' })
         const page = await context.newPage()
         const consoleErrors = []
+        const requestErrors = []
+        page.on('response', (response) => {
+          if (response.status() >= 400) requestErrors.push({ path: new URL(response.url()).pathname, status: response.status() })
+        })
+        page.on('requestfailed', (request) => requestErrors.push({ path: new URL(request.url()).pathname, error: request.failure()?.errorText ?? 'request failed' }))
         page.on('pageerror', (err) => consoleErrors.push(String(err)))
         page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()) })
         // Golden and budget cases pin weather so live swarm failures cannot drift evidence.
         const query = new URLSearchParams({ scene, profile, period, intro: '0', seed: worldSeed, diag: '1', capture: '1', weather: 'clear', pressure: '0' })
         query.set('actors', String(actorCount))
         query.set('dpr', String(deviceScaleFactor))
+        if (lampLightsOverride !== null) query.set('lampLights', String(lampLightsOverride))
         for (const [k, v] of new URLSearchParams(extraQuery)) query.set(k, v)
         if (weatherState) query.set('weather', weatherState)
         const url = `${baseUrl}/world?${query.toString()}`
         const started = Date.now()
         await page.goto(url, { waitUntil: 'domcontentloaded' })
         let ready = false
+        let settled = false
         try {
           await page.waitForFunction(() => {
             const diagnostics = globalThis.__worldDiagnostics
@@ -180,11 +230,13 @@ for (const scene of scenes) {
         }
         // Let the frame stats settle after ready.
         if (ready) {
-          const target = (await page.evaluate(() => globalThis.__worldDiagnostics.framesRendered)) + settleFrames
+          const target = (await page.evaluate(() => globalThis.__worldDiagnostics.totalFrames)) + settleFrames
           try {
-            await page.waitForFunction((t) => globalThis.__worldDiagnostics.framesRendered >= t, target, { timeout: 30000 })
+            if (!Number.isFinite(target)) throw new Error('Missing cumulative frame counter')
+            await page.waitForFunction((t) => globalThis.__worldDiagnostics.totalFrames >= t, target, { timeout: 30000 })
+            settled = true
           } catch {
-            // keep whatever we have
+            // Retain diagnostic evidence, but do not accept an unsettled capture.
           }
           await page.evaluate(() => globalThis.__worldDiagnostics?.measure())
         }
@@ -192,24 +244,38 @@ for (const scene of scenes) {
         const sim = await page.evaluate(() => {
           const probe = globalThis.__worldSim
           if (!probe) return null
-          return { violations: probe.violations(), actors: probe.actorCount(), revision: probe.revision() }
+          return { violations: probe.violations(), vegetationDry: probe.vegetationDry?.() ?? null, actors: probe.actorCount(), revision: probe.revision() }
         })
-        const png = await page.screenshot({ type: 'png', fullPage: false })
+        const loadingOverlay = await page.getByRole('dialog', { name: 'Loading prompt manager data', exact: true }).isVisible()
+        // Preserve app chrome evidence, but golden-test the world, not live API
+        // sidebar text or the changing performance counters. Measurements above
+        // were collected while animation was live, before this fixed-time render.
+        const pagePng = await page.screenshot({ path: resolve(evidenceDir, `${name}.page.png`), type: 'png', fullPage: false })
+        const snapshot = await page.evaluate(() => window.__worldCapture?.snapshot(5, 8) ?? null)
+        const snapshotReady = snapshot?.startsWith('data:image/png;base64,') === true
+        const png = snapshotReady ? Buffer.from(snapshot.split(',')[1], 'base64') : pagePng
         const pngPath = resolve(evidenceDir, `${name}.png`)
         writeFileSync(pngPath, png)
         const goldenPath = resolve(goldenDir, `${name}.png`)
-        if (updateGoldens) writeFileSync(goldenPath, png)
         const golden = comparePng(png, goldenPath, resolve(evidenceDir, `${name}.diff.png`))
         const budget = tuning.budgets.scenes[scene]?.[profile]
         const gated = !sweepActors && !seedsRaw
         const checks = []
         const check = (id, pass, detail) => checks.push({ id, pass, detail })
+        check('snapshot', snapshotReady, snapshotReady ? 'canvas-only; animation time 5 seconds; 8 local render passes after live measurement' : 'snapshot bridge unavailable; fallback page evidence is not a golden')
+        check('settled-frames', settled, settled ? `rendered ${settleFrames} additional frames` : 'frame settling failed or cumulative counter missing')
         const webgl = diagnostics?.webgl
         check('webgl', webgl?.ok === true, webgl?.ok ? 'available' : `webgl-unavailable: ${webgl?.reason ?? 'probe did not report'}`)
         const renderer = diagnostics?.gpu ?? ''
         if (useGpu) check('hardware-renderer', renderer.length > 0 && !/swiftshader/i.test(renderer), renderer || 'renderer was not reported')
         check('ready', ready, ready ? `ready after ${Date.now() - started} ms` : webgl && !webgl.ok ? `webgl-unavailable: ${webgl.reason}` : `not ready within ${readyTimeoutMs} ms`)
         check('no-page-errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | ') || 'none')
+        check('no-request-errors', requestErrors.length === 0, JSON.stringify(requestErrors))
+        check('app-loaded', !loadingOverlay, loadingOverlay ? 'Loading prompt manager data overlay is visible' : 'no loading overlay')
+        const sceneConfig = JSON.parse(readFileSync(resolve(uiRoot, 'src/world/config/scenes', `${scene}.json`), 'utf8'))
+        const lampEmissive = sceneConfig.lighting?.periods?.[period]?.lampEmissive ?? tuning.lighting.periods[period].lampEmissive
+        const expectedLampLights = lampEmissive > 0 && sceneConfig.emissive?.lamp ? (lampLightsOverride ?? tuning.quality.profiles[profile].lampLights) : 0
+        check('lamp-pool', diagnostics?.lampLightsMounted === expectedLampLights, `${diagnostics?.lampLightsMounted ?? 'missing'} mounted / ${expectedLampLights} configured`)
         if (diagnostics && budget && gated) {
           check('governor', diagnostics.auto === false && diagnostics.profile === profile, `auto ${diagnostics.auto}; profile ${diagnostics.profile}/${profile}`)
           const provenanceOk = budget.provenance.actors === actorCount
@@ -240,6 +306,7 @@ for (const scene of scenes) {
         if (sim) {
           const worst = sim.violations.slice(0, 3).map((v) => `${v.rule}: ${v.detail}`).join(' | ')
           check('sim-invariants', sim.violations.length === 0, sim.violations.length === 0 ? `0 violations across ${sim.actors} actors` : `${sim.violations.length} violations; ${worst}`)
+          check('vegetation-dry', sim.vegetationDry !== null && sim.vegetationDry.violations.length === 0, sim.vegetationDry ? `${sim.vegetationDry.violations.length} shore violations across ${sim.vegetationDry.checked} decor spots` : 'vegetation invariant probe missing; rebuild the UI')
         } else {
           check('sim-invariants', false, 'window.__worldSim missing')
         }
@@ -247,16 +314,18 @@ for (const scene of scenes) {
           const share = diagnostics.drawCallsUnattributed / diagnostics.drawCalls
           check('pass-attribution', passAttributionGating ? share <= 0.10 : true, `${(share * 100).toFixed(1)}% unattributed draws`)
         }
-        if (!gated) check('observability-case', true, 'sweep rows record cost without applying golden or scene-budget gates')
-        else if (periods.length > 1 && golden.missing) check('period-contrast-case', true, 'no per-period golden; the day/night pixel delta is the visual gate')
-        else if (golden.missing) check('golden', updateGoldens, updateGoldens ? 'golden written' : 'golden missing; run pnpm world:goldens')
+        if (updateGoldens) check('golden-update-eligible', gated && checks.every((c) => c.pass), 'candidate only; publication waits for all requested captures and contrasts to pass')
+        else if (!gated) check('observability-case', true, 'sweep rows record cost without applying golden or scene-budget gates')
+        else if (lampLightsOverride !== null) check('light-cost-case', true, 'explicit light-count perturbation; budget gates apply, golden gate does not')
+        else if (golden.missing) check('golden', false, 'golden missing; a passing capture is required before updating')
         else if (golden.sizeMismatch) check('golden', false, 'golden size mismatch')
+        else if (exactGoldens) check('golden', golden.exactPixels === 0, `${golden.exactPixels} exact RGBA pixels differ (required 0)`)
         else check('golden', golden.ratio <= tuning.budgets.goldenThreshold, `${(golden.ratio * 100).toFixed(2)}% pixels differ (limit ${(tuning.budgets.goldenThreshold * 100).toFixed(2)}%)`)
         const pass = checks.every((c) => c.pass)
         if (!pass) failed = true
         const timingMethod = diagnostics?.gpuTimerReason === '' && diagnostics?.gpuMsP95 > 0 ? 'gpu-timer' : useGpu && noVsync ? 'vsync-off-fallback' : useGpu ? 'unavailable' : 'swiftshader-informational'
         const waterTriangles = diagnostics?.groupCosts?.find((group) => group.name === 'water')?.triangles ?? 0
-        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, capturedAt: new Date().toISOString() }
+        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, goldenComparison: golden, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, requestErrors, capturedAt: new Date().toISOString() }
         writeFileSync(resolve(evidenceDir, `${name}.json`), JSON.stringify(record, null, 2))
         results.push(record)
         log(`${pass ? 'PASS' : 'FAIL'} ${name}  ${checks.map((c) => `${c.pass ? '✓' : '✗'} ${c.id}: ${c.detail}`).join('  ')}`)
@@ -269,47 +338,30 @@ for (const scene of scenes) {
     }
 }
 
-if (weatherMatrix) {
-  const weatherStates = ['clear', 'cloudy', 'rain', 'snow']
-  for (let left = 0; left < weatherStates.length; left += 1) for (let right = left + 1; right < weatherStates.length; right += 1) {
-    const aName = weatherStates[left]
-    const bName = weatherStates[right]
-    const prefix = `${scenes[0]}-${profiles[0]}${onlyPeriod ? `-${onlyPeriod}` : ''}-weather-`
-    const a = PNG.sync.read(readFileSync(resolve(evidenceDir, `${prefix}${aName}.png`)))
-    const b = PNG.sync.read(readFileSync(resolve(evidenceDir, `${prefix}${bName}.png`)))
-    const pixels = pixelmatch(a.data, b.data, null, a.width, a.height, { threshold: 0.12 })
-    const ratio = pixels / (a.width * a.height)
-    const pass = ratio >= tuning.budgets.periodPixelDelta
-    if (!pass) failed = true
-    const name = `${prefix}${aName}-vs-${bName}`
-    const checks = [{ id: 'weather-delta', pass, detail: `${(ratio * 100).toFixed(2)}% pixels differ (min ${(tuning.budgets.periodPixelDelta * 100).toFixed(0)}%)` }]
-    results.push({ name, pass, checks, diagnostics: null, sim: null })
-    writeFileSync(resolve(evidenceDir, `${name}.json`), JSON.stringify({ name, pass, ratio, minimum: tuning.budgets.periodPixelDelta }, null, 2))
-    log(`${pass ? 'PASS' : 'FAIL'} ${name}  ${checks[0].detail}`)
-  }
+for (const record of captureContrasts(results, {
+  weatherStates: weatherMatrix ? axes.weather : [],
+  periods,
+  budgets: tuning.budgets,
+  readImage: name => PNG.sync.read(readFileSync(resolve(evidenceDir, `${name}.png`))),
+})) {
+  if (!record.pass) failed = true
+  results.push(record)
+  writeFileSync(resolve(evidenceDir, `${record.name}.json`), JSON.stringify(record, null, 2))
+  log(`${record.pass ? 'PASS' : 'FAIL'} ${record.name}  ${record.checks[0].detail}`)
 }
 
-// Period contrast: when several periods were captured, day and night must differ by
-// more than budgets.periodPixelDelta of pixels, proving the period rig changes the world.
-if (periods.includes('day') && periods.includes('night')) {
-  for (const scene of scenes) {
-    for (const profile of profiles) {
-      const day = resolve(evidenceDir, `${scene}-${profile}-day.png`)
-      const night = resolve(evidenceDir, `${scene}-${profile}-night.png`)
-      if (!existsSync(day) || !existsSync(night)) continue
-      const a = PNG.sync.read(readFileSync(day))
-      const b = PNG.sync.read(readFileSync(night))
-      const diff = new PNG({ width: a.width, height: a.height })
-      const pixels = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold: 0.1 })
-      const ratio = pixels / (a.width * a.height)
-      const pass = ratio >= tuning.budgets.periodPixelDelta
-      if (!pass) failed = true
-      const record = { name: `${scene}-${profile}-period-delta`, pass, ratio, minimum: tuning.budgets.periodPixelDelta }
-      writeFileSync(resolve(evidenceDir, `${record.name}.json`), JSON.stringify(record, null, 2))
-      results.push({ name: record.name, pass, checks: [{ id: 'period-delta', pass, detail: `${(ratio * 100).toFixed(1)}% pixels differ day vs night (min ${(tuning.budgets.periodPixelDelta * 100).toFixed(0)}%)` }], diagnostics: null })
-      log(`${pass ? 'PASS' : 'FAIL'} ${record.name}  ${pass ? '✓' : '✗'} period-delta: ${(ratio * 100).toFixed(1)}%`)
+if (updateGoldens) {
+  const captures = results.filter((result) => result.scene)
+  if (!failed) {
+    for (const record of captures) {
+      const png = readFileSync(resolve(evidenceDir, `${record.name}.png`))
+      for (const alias of goldenAliases(record)) writeFileSync(resolve(goldenDir, `${alias}.png`), png)
     }
   }
+  const publication = { name: 'golden-publication', pass: !failed, checks: [{ id: 'golden-publication', pass: !failed, detail: failed ? 'batch failed; no goldens changed' : `${captures.length} captures published with their day/clear aliases` }] }
+  results.push(publication)
+  writeFileSync(resolve(evidenceDir, 'golden-publication.json'), JSON.stringify(publication, null, 2))
+  log(publication.checks[0].detail)
 }
 
 const rows = results.map(({ name, pass, checks, diagnostics, sim, gpuTier: resultGpuTier, renderer, deviceScaleFactor, waterTriangles }) => ({

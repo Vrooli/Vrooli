@@ -1,15 +1,17 @@
 import { useEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, Color } from 'three'
-import { biomeSets, type QualityProfile, type Scene, type TerrainTuning, type WeatherPreset } from '../config'
+import { type QualityProfile, type Scene, type TerrainResolver, type TerrainVisualTuning, type WeatherPreset } from '../config'
+import { sceneBiomes } from '../config/biomes'
 import { bakeVertexColour, heightAt, heightFieldAo, moistureAt, shoreDistance } from '../sim'
 import { useWorldStore } from './WorldStoreContext'
+import { terrainMaterialSettings, terrainTintVariation } from './terrainAppearance'
 
-export function Terrain({ scene, tuning, profile, weather }: { scene: Scene; tuning: TerrainTuning; profile: QualityProfile; weather: WeatherPreset }) {
+export function Terrain({ scene, tuning, profile, weather, visual }: { scene: Scene; tuning: TerrainResolver; profile: QualityProfile; weather: WeatherPreset; visual: TerrainVisualTuning }) {
   const store = useWorldStore()
   const state = store.getState()
   const geometry = useMemo(() => {
     const field = state.terrain
-    if (scene.environment === 'indoor') {
+    if (scene.environment === 'indoor' && !scene.centre) {
       const half = field.radius
       const result = new BufferGeometry()
       result.setAttribute('position', new BufferAttribute(new Float32Array([-half, 0, -half, -half, 0, half, half, 0, -half, half, 0, half]), 3))
@@ -20,8 +22,8 @@ export function Terrain({ scene, tuning, profile, weather }: { scene: Scene; tun
       result.computeBoundingSphere()
       return result
     }
-    const innerRadius = Math.max(field.cellSize, Math.min(tuning.innerRadius, profile.terrainInnerRadius))
-    const step = Math.max(1, Math.round(profile.terrainCellScale * tuning.innerRadius / innerRadius))
+    const innerRadius = Math.max(field.cellSize, Math.min(tuning.base().innerRadius, profile.terrainInnerRadius))
+    const step = Math.max(1, Math.round(profile.terrainCellScale * tuning.base().innerRadius / innerRadius))
     const cols = Math.floor((field.cols - 1) / step) + 1
     const rows = Math.floor((field.rows - 1) / step) + 1
     const vertices = new Float32Array(cols * rows * 3)
@@ -30,7 +32,7 @@ export function Terrain({ scene, tuning, profile, weather }: { scene: Scene; tun
     const indices: number[] = []
     const tint = new Color(weather.terrainTint)
     const shadowTint = new Color(weather.terrainShadowTint)
-    const set = biomeSets[state.biomeSetId === 'office' ? 'office' : 'park']
+    const set = sceneBiomes(scene)
     for (let row = 0; row < rows; row += 1) for (let col = 0; col < cols; col += 1) {
       const sourceRow = Math.min(field.rows - 1, row * step)
       const sourceCol = Math.min(field.cols - 1, col * step)
@@ -47,10 +49,11 @@ export function Terrain({ scene, tuning, profile, weather }: { scene: Scene; tun
       normals.set([-dx / length, 1 / length, -dz / length], index * 3)
       const biome = set.biomes[state.biomes[sourceIndex] ?? set.biomes.length - 1] ?? set.biomes[set.biomes.length - 1]
       if (biome) {
+        const local = tuning.at(x, z)
         const shore = shoreDistance(field, tuning, x, z)
-        const colour = bakeVertexColour({ moisture: moistureAt(field, x, z), path: state.pathMask[sourceIndex] ?? 0, ao: heightFieldAo(field, x, z, 3, 8), wetShore: shore < 0 ? Math.max(0, 1 + shore / tuning.wetShoreWidth) : 0, wetShoreDarkening: tuning.wetShoreDarkening }, biome)
+        const colour = bakeVertexColour({ moisture: moistureAt(field, x, z), path: state.pathMask[sourceIndex] ?? 0, ao: heightFieldAo(field, x, z, visual.aoRadius, visual.aoSamples), wetShore: shore < 0 ? Math.max(0, 1 + shore / local.wetShoreWidth) : 0, wetShoreDarkening: local.wetShoreDarkening }, biome)
         const mix = weather.terrainTintMix
-        const variation = weather.terrainTintVariation * (0.7 + Math.sin(x * 0.17 + z * 0.11) * 0.15 + Math.sin(x * 0.07 - z * 0.19) * 0.15)
+        const variation = terrainTintVariation(x, z, weather.terrainTintVariation, visual)
         const tintR = tint.r + (shadowTint.r - tint.r) * variation
         const tintG = tint.g + (shadowTint.g - tint.g) * variation
         const tintB = tint.b + (shadowTint.b - tint.b) * variation
@@ -74,11 +77,11 @@ export function Terrain({ scene, tuning, profile, weather }: { scene: Scene; tun
     result.setIndex(indices)
     result.computeBoundingSphere()
     return result
-  }, [profile.terrainCellScale, profile.terrainInnerRadius, scene.environment, scene.palette.ground, state.biomeSetId, state.biomes, state.pathMask, state.terrain, tuning, weather.terrainShadowTint, weather.terrainTint, weather.terrainTintMix, weather.terrainTintVariation])
+  }, [profile.terrainCellScale, profile.terrainInnerRadius, scene, state.biomes, state.pathMask, state.terrain, tuning, visual, weather.terrainShadowTint, weather.terrainTint, weather.terrainTintMix, weather.terrainTintVariation])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh name="terrain" geometry={geometry} receiveShadow>
-      <meshStandardMaterial vertexColors color={weather.wetness > 0 ? '#d4dce0' : '#ffffff'} roughness={Math.max(0.3, 1 - weather.wetness * 0.65)} metalness={0} />
+      <meshStandardMaterial vertexColors {...terrainMaterialSettings(weather.wetness, visual)} metalness={0} />
     </mesh>
   )
 }

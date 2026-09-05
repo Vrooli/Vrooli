@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { biomeSets, tuning } from '../../config'
+import { uniformTerrain, biomeSets, tuning } from '../../config'
 import { biomeGrid, buildTerrain } from '../terrain'
 import { generateLayout, GATHERING_ID, HEARTH_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
 import { makeTeams } from './fixtures'
 
 function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
   const seed = overrides.seed ?? 3
-  const terrain = overrides.terrain ?? buildTerrain({ seed, tuning: tuning.terrain })
+  const terrain = overrides.terrain ?? buildTerrain({ seed, tuning: uniformTerrain(tuning.terrain) })
   const biomeSet = overrides.biomeSet ?? biomeSets.park
   return {
     seed,
     scatterDecor: true,
     treeVariants: 3,
     terrain,
-    terrainTuning: tuning.terrain,
+    terrainTuning: uniformTerrain(tuning.terrain),
     biomeSet,
-    biomes: overrides.biomes ?? biomeGrid(terrain, tuning.terrain, biomeSet),
-    treePropIds: [...new Set(biomeSet.biomes.flatMap((biome) => Object.keys(biome.vegetation)))],
+    biomes: overrides.biomes ?? biomeGrid(terrain, uniformTerrain(tuning.terrain), biomeSet),
     ...overrides,
   }
 }
@@ -122,7 +121,10 @@ describe('layout generation', () => {
         expect(Math.hypot(tree.position[0] - point[0], tree.position[1] - point[1])).toBeGreaterThanOrEqual(tuning.layout.clearingRadius)
       }
       expect(Math.hypot(tree.position[0], tree.position[1])).toBeLessThanOrEqual(tuning.terrain.radius)
-      expect(tree.variant).toBeLessThan(3)
+      expect(biomeSets.park.biomes.some((biome) => {
+        const entry = [...Object.entries(biome.vegetation), ...Object.entries(biome.decor)][tree.variant]
+        return entry !== undefined && entry[0] === tree.propId && entry[1].class === tree.kind && entry[1].scaleRef === tree.scaleRef
+      })).toBe(true)
     }
   })
 

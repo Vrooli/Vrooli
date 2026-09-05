@@ -25,8 +25,9 @@ The layout is generated from the team graph and keyed by ids, never names:
 
 Terrain generation builds height and moisture, derives water and shores,
 classifies biomes, selects sites, terraces them, and connects them with paths.
-Biome vegetation and decor are scattered deterministically outside place
-clearances and inside the terrain disc. Operator overrides move, rotate, or
+Biome vegetation and decor use a seeded stand mask that consumes no RNG state.
+Final jittered placements stay outside water, shore and place clearances, and
+inside the terrain disc. Operator overrides move, rotate, or
 remove places by id after generation; a transformed room carries its desks,
 tables, seats, and rotations. Agent positions are sim
 output and are never persisted.
@@ -125,6 +126,8 @@ each corridor-facing wall, and locate the lobby at the corridor junction.
 corners and filler placements from team identity. Adding an unrelated team does
 not consume that team's random stream. Desk seat ids remain keyed by agent id.
 
-Indoor state additionally guarantees a flat height field with no wet cells.
+The office centre guarantees level, dry floorplate terrain. The surrounding park
+landscape keeps its natural terrain and water rules; the centre blends into it
+with a bounded boundary grade. `checkVegetationDry` checks the exterior scatter.
 Floorplan tests require deterministic places, one door per team room, corridor
 records and an invariant-safe navigation graph.

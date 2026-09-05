@@ -1,28 +1,10 @@
 import type { CameraPose, CameraTuning } from '../../config'
+import { tuning } from '../../config'
+import { MathUtils, type Box3 } from 'three'
 
 export type Vec3 = readonly [number, number, number]
 
-const DEG = Math.PI / 180
-
-export interface FitInput {
-  width: number
-  depth: number
-  fovDeg: number
-  aspect: number
-}
-
-/**
- * Distance at which a sphere enclosing the slab fits the narrower field of
- * view. Poses are expressed as multiples of this so the framing survives a
- * slab that grows with the team graph.
- */
-export function fitDistance({ width, depth, fovDeg, aspect }: FitInput): number {
-  const radius = 0.5 * Math.hypot(width, depth)
-  const vertical = fovDeg * DEG
-  const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * Math.max(aspect, 0.01))
-  const fov = Math.min(vertical, horizontal)
-  return radius / Math.sin(fov / 2)
-}
+const DEG = MathUtils.DEG2RAD
 
 /** Convert a scene camera pose (spherical around a target) into a world position. */
 export function poseToPosition(
@@ -49,6 +31,10 @@ export interface Footprint {
 }
 
 export interface FrameInput {
+  minimumProjectionAspect?: number
+  minimumFrameFill?: number
+  /** Bottom of an elevated box; world footprints default to ground zero. */
+  baseY?: number
   /** Ground points to frame, in world space; the box they span is centred on `center`. */
   points: ReadonlyArray<readonly [number, number]>
   /** The look-at point on the ground. */
@@ -93,9 +79,9 @@ function viewBasis(polarDeg: number, azimuthDeg: number): ViewBasis {
 }
 
 /** Every framed point at ground level and at `height`, relative to the look-at target. */
-function frameCorners({ points, center, height, targetY }: FrameInput): Vec3[] {
+function frameCorners({ points, center, height, targetY, baseY = 0 }: FrameInput): Vec3[] {
   const corners: Vec3[] = []
-  for (const [x, z] of points) for (const y of [0, height]) corners.push([x - center[0], y - targetY, z - center[1]])
+  for (const [x, z] of points) for (const y of [baseY, baseY + height]) corners.push([x - center[0], y - targetY, z - center[1]])
   return corners
 }
 
@@ -108,9 +94,9 @@ export function extentPoints(footprint: Footprint): Array<readonly [number, numb
   return points
 }
 
-function halfTangents(fovDeg: number, aspect: number): { tanV: number; tanH: number } {
+function halfTangents(fovDeg: number, aspect: number, minimumAspect: number): { tanV: number; tanH: number } {
   const tanV = Math.tan((fovDeg * DEG) / 2)
-  return { tanV, tanH: tanV * Math.max(aspect, 0.01) }
+  return { tanV, tanH: tanV * Math.max(aspect, minimumAspect) }
 }
 
 /**
@@ -121,8 +107,8 @@ function halfTangents(fovDeg: number, aspect: number): { tanV: number; tanH: num
  */
 export function frameDistance(input: FrameInput, fill: number): number {
   const { forward, right, up } = viewBasis(input.polarDeg, input.azimuthDeg)
-  const { tanV, tanH } = halfTangents(input.fovDeg, input.aspect)
-  const share = Math.max(fill, 0.05)
+  const { tanV, tanH } = halfTangents(input.fovDeg, input.aspect, input.minimumProjectionAspect ?? tuning.camera.minimumProjectionAspect)
+  const share = Math.max(fill, input.minimumFrameFill ?? tuning.camera.minimumFrameFill)
   let distance = 0
   for (const corner of frameCorners(input)) {
     const depth = dot(corner, forward)
@@ -134,7 +120,7 @@ export function frameDistance(input: FrameInput, fill: number): number {
 /** Share of the viewport the framed points occupy at `distance` (1 touches the frame edge; above 1 is cropped). */
 export function footprintFill(input: FrameInput, distance: number): number {
   const { forward, right, up } = viewBasis(input.polarDeg, input.azimuthDeg)
-  const { tanV, tanH } = halfTangents(input.fovDeg, input.aspect)
+  const { tanV, tanH } = halfTangents(input.fovDeg, input.aspect, input.minimumProjectionAspect ?? tuning.camera.minimumProjectionAspect)
   let fill = 0
   for (const corner of frameCorners(input)) {
     const depth = distance + dot(corner, forward)
@@ -177,4 +163,33 @@ export function clampPose(pose: CameraPose, clamps: OrbitClamps, fit: number): C
     azimuthDeg: clamp(pose.azimuthDeg, clamps.minAzimuth / DEG, clamps.maxAzimuth / DEG),
     distanceFactor: clamp(pose.distanceFactor * fit, clamps.minDistance, clamps.maxDistance) / fit,
   }
+}
+
+export interface FocusedPose extends CameraPose {
+  frame: FrameInput
+  fill: number
+}
+
+/** Adapt any world-space box to the same framing solver used by home. */
+export function poseForBox(
+  box: Box3,
+  current: Pick<CameraPose, 'polarDeg' | 'azimuthDeg'>,
+  camera: CameraTuning,
+  aspect: number,
+  clamps: OrbitClamps,
+): FocusedPose {
+  if (box.isEmpty()) throw new Error('Cannot focus an empty box')
+  const center: readonly [number, number] = [(box.min.x + box.max.x) / 2, (box.min.z + box.max.z) / 2]
+  const targetY = (box.min.y + box.max.y) / 2
+  const angles = clampPose({ ...current, targetY, distanceFactor: 1 }, clamps, 1)
+  const frame: FrameInput = {
+    points: extentPoints({ width: box.max.x - box.min.x, depth: box.max.z - box.min.z, center }),
+    center, baseY: box.min.y, height: box.max.y - box.min.y,
+    polarDeg: angles.polarDeg, azimuthDeg: angles.azimuthDeg, targetY,
+    fovDeg: camera.fov, aspect, minimumProjectionAspect: camera.minimumProjectionAspect, minimumFrameFill: camera.minimumFrameFill,
+  }
+  const fill = camera.frameFill / camera.focusPadding
+  // A point-sized box still respects the configured closest camera distance.
+  const fit = Math.max(frameDistance(frame, fill), Number.EPSILON)
+  return { ...clampPose({ ...angles, distanceFactor: 1 }, clamps, fit), frame, fill }
 }

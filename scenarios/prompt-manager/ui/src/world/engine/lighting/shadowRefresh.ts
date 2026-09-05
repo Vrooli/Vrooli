@@ -22,6 +22,16 @@ export interface ShadowRefreshController {
   dispose(): void
 }
 
+/** Accumulate wall-clock seconds, independent of display refresh rate. */
+export function advanceShadowClock(elapsed: number, delta: number, hz: number): { elapsed: number; refresh: boolean } {
+  if (hz <= 0) return { elapsed: 0, refresh: false }
+  const total = elapsed + Math.max(0, delta)
+  const interval = 1 / hz
+  return total + Number.EPSILON >= interval
+    ? { elapsed: Math.max(0, total - interval * Math.floor((total + Number.EPSILON) / interval)), refresh: true }
+    : { elapsed: total, refresh: false }
+}
+
 export function installShadowRefresh(shadowMap: ShadowMapState, onRefresh: () => void = () => undefined): ShadowRefreshController {
   const previousAutoUpdate = shadowMap.autoUpdate
   shadowMap.autoUpdate = false
@@ -43,7 +53,7 @@ export function useShadowRefresh(store: ShadowWorldStore, scene: Scene, profile:
   const controller = useRef<ShadowRefreshController | null>(null)
   const refreshes = useRef(0)
   const lastRevision = useRef(store.getState().revision)
-  const movingFrame = useRef(0)
+  const movingSeconds = useRef(0)
 
   useEffect(() => {
     refreshes.current = 0
@@ -68,7 +78,7 @@ export function useShadowRefresh(store: ShadowWorldStore, scene: Scene, profile:
     if (!active && progress >= 100) controller.current?.request()
   }, [active, progress])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const state = store.getState()
     if (state.revision !== lastRevision.current) {
       lastRevision.current = state.revision
@@ -77,11 +87,11 @@ export function useShadowRefresh(store: ShadowWorldStore, scene: Scene, profile:
     if (!profile.shadows || profile.shadowRefreshHz <= 0) return
     const moving = state.actorOrder.some((id) => (state.actors[id]?.speed ?? 0) > 0)
     if (!moving) {
-      movingFrame.current = 0
+      movingSeconds.current = 0
       return
     }
-    movingFrame.current += 1
-    const frameInterval = Math.max(1, Math.round(60 / profile.shadowRefreshHz))
-    if (movingFrame.current % frameInterval === 0) controller.current?.request()
+    const next = advanceShadowClock(movingSeconds.current, delta, profile.shadowRefreshHz)
+    movingSeconds.current = next.elapsed
+    if (next.refresh) controller.current?.request()
   })
 }

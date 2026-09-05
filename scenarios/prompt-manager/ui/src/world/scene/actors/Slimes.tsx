@@ -1,23 +1,20 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Object3D, SphereGeometry } from 'three'
-import type { QualityProfile } from '../../config'
+import type { ActorTuning, QualityProfile } from '../../config'
 import { createSlimeMaterial, setSlimeWobble } from '../../engine/materials/slime'
 import { useWorldStore } from '../WorldStoreContext'
 import { actorSeed, type BodyPose } from './pose'
 import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from './PoseBuffer'
 
-const BODY_WIDTH_SEGMENTS = 16
-const BODY_HEIGHT_SEGMENTS = 10
 const COLOR_STRIDE = 3
 
 /**
  * Every slime body in one instanced draw. Per frame: read the sim state,
  * write instance matrices and the squash attribute; never setState.
  */
-export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile; onSelect?: (id: string | null) => void; onHover?: (id: string | null) => void }) {
+export function Slimes({ tuning, profile, onSelect, onHover }: { tuning: ActorTuning; profile: QualityProfile; onSelect?: (id: string | null) => void; onHover?: (id: string | null) => void }) {
   const store = useWorldStore()
-  const tuning = store.tuning().actor
   const ids = store.getState().actorOrder
   const capacity = Math.max(1, ids.length)
   const meshRef = useRef<InstancedMesh | null>(null)
@@ -28,7 +25,7 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
   const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
   const geometry = useMemo(() => {
-    const geo = new SphereGeometry(1, BODY_WIDTH_SEGMENTS, BODY_HEIGHT_SEGMENTS)
+    const geo = new SphereGeometry(1, tuning.mesh.widthSegments, tuning.mesh.heightSegments)
     const state = store.getState()
     const colors = new Float32Array(capacity * COLOR_STRIDE)
     const seeds = new Float32Array(capacity)
@@ -43,21 +40,19 @@ export function Slimes({ profile, onSelect, onHover }: { profile: QualityProfile
       colors[i * COLOR_STRIDE + 2] = color.b
       const seed = actorSeed(id)
       seeds[i] = seed
-      shifts[i] = seed * BODY_WIDTH_SEGMENTS
+      shifts[i] = seed * tuning.mesh.timeShiftSeconds
     })
     geo.setAttribute('aColor', new InstancedBufferAttribute(colors, COLOR_STRIDE))
     geo.setAttribute('aSeed', new InstancedBufferAttribute(seeds, 1))
     geo.setAttribute('aTimeShift', new InstancedBufferAttribute(shifts, 1))
     geo.setAttribute('aSquash', new InstancedBufferAttribute(squash, 1))
     return geo
-  }, [store, ids, capacity, color])
+  }, [store, ids, capacity, color, tuning.mesh])
 
   const material = useMemo(() => createSlimeMaterial(tuning, profile.wobble), [tuning, profile.wobble])
   useEffect(() => setSlimeWobble(material, tuning, profile.wobble), [material, tuning, profile.wobble])
-  useEffect(() => () => {
-    geometry.dispose()
-    material.dispose()
-  }, [geometry, material])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  useEffect(() => () => material.dispose(), [material])
 
   useFrame((frame) => {
     const mesh = meshRef.current

@@ -98,7 +98,7 @@ export const floorplanStrategy: LayoutStrategy = {
         const cos = Math.cos(room.rotation)
         const sin = Math.sin(room.rotation)
         const position: Vec2 = [room.position[0] + filler.local[0] * cos + filler.local[1] * sin, room.position[1] - filler.local[0] * sin + filler.local[1] * cos]
-        decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
+        decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', scaleRef: 'prop', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
       }
     }
     const outline: Vec2[] = [[-plate.width / 2, -plate.depth / 2], [plate.width / 2, -plate.depth / 2], [plate.width / 2, plate.depth / 2], [-plate.width / 2, plate.depth / 2]]

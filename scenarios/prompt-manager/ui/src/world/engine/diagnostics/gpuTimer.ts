@@ -1,3 +1,5 @@
+import { tuning, type QualityTuning } from '../../config'
+
 export interface GpuFrameStats {
   p50: number
   p95: number
@@ -11,9 +13,6 @@ interface TimerQueryExtension {
   GPU_DISJOINT_EXT: number
 }
 
-const MAX_IN_FLIGHT = 4
-const SAMPLE_WINDOW = 120
-
 /** Non-blocking WebGL2 timer-query ring. Completed queries are drained on later frames. */
 export class GpuTimer {
   private readonly extension: TimerQueryExtension | null
@@ -22,13 +21,13 @@ export class GpuTimer {
   private active: WebGLQuery | null = null
   private failureReason = ''
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
+  constructor(private readonly gl: WebGL2RenderingContext, private readonly settings: Pick<QualityTuning['diagnostics'], 'gpuSampleWindow' | 'gpuMaxInFlight'> = tuning.quality.diagnostics) {
     this.extension = gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerQueryExtension | null
     if (!this.extension) this.failureReason = 'EXT_disjoint_timer_query_webgl2 unavailable'
   }
 
   begin(): void {
-    if (!this.extension || this.active || this.pending.length >= MAX_IN_FLIGHT) return
+    if (!this.extension || this.active || this.pending.length >= this.settings.gpuMaxInFlight) return
     const query = this.gl.createQuery()
     try {
       this.gl.beginQuery(this.extension.TIME_ELAPSED_EXT, query)
@@ -71,7 +70,7 @@ export class GpuTimer {
         continue
       }
       this.samples.push(nanoseconds / 1_000_000)
-      if (this.samples.length > SAMPLE_WINDOW) this.samples.shift()
+      if (this.samples.length > this.settings.gpuSampleWindow) this.samples.shift()
       this.failureReason = ''
     }
   }

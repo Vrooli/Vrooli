@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
 import { hashState } from '../hash'
 import type { Signal } from '../model'
-import { NOW, run, world } from './fixtures'
+import { NOW, run, makeWorld } from './fixtures'
 
 function script(): Record<number, Signal[]> {
   return {
@@ -18,27 +18,27 @@ function script(): Record<number, Signal[]> {
 
 describe('determinism', () => {
   it('two runs from seed 7 and the same signal script hash identically after 10,000 ticks', () => {
-    const a = run(world(3, 4), 10_000, script())
-    const b = run(world(3, 4), 10_000, script())
+    const a = run(makeWorld({ teams: 3, agents: 12, treeVariants: 3 }), 10_000, script())
+    const b = run(makeWorld({ teams: 3, agents: 12, treeVariants: 3 }), 10_000, script())
     expect(hashState(a)).toBe(hashState(b))
     expect(a.tick).toBe(10_000)
   })
 
   it('a different seed diverges', () => {
-    const a = run(world(3, 4), 2_000, script())
-    const b = run(world(3, 4, { seed: 8 }), 2_000, script())
+    const a = run(makeWorld({ teams: 3, agents: 12, treeVariants: 3 }), 2_000, script())
+    const b = run(makeWorld({ teams: 3, agents: 12, ...{ seed: 8 }, treeVariants: 3 }), 2_000, script())
     expect(hashState(a)).not.toBe(hashState(b))
   })
 
   it('step never mutates its input', () => {
-    const start = world(2, 2)
+    const start = makeWorld({ teams: 2, agents: 4, treeVariants: 3 })
     const snapshot = JSON.stringify({ actors: start.actors, occupancy: start.occupancy, events: start.events, rng: start.rngState })
     run(start, 500, script())
     expect(JSON.stringify({ actors: start.actors, occupancy: start.occupancy, events: start.events, rng: start.rngState })).toBe(snapshot)
   })
 
   it('actors never leave the slab over 5,000 ticks with 50 actors', () => {
-    let state = world(5, 10)
+    let state = makeWorld({ teams: 5, agents: 50, treeVariants: 3 })
     const half = { w: state.bounds.width / 2, d: state.bounds.depth / 2 }
     const [cx, cz] = state.bounds.center
     for (let i = 0; i < 5_000; i += 1) {
@@ -53,7 +53,7 @@ describe('determinism', () => {
   })
 
   it('the tick count and time advance by the tuning tick', () => {
-    const s = run(world(1, 1), 10)
+    const s = run(makeWorld({ teams: 1, agents: 1, treeVariants: 3 }), 10)
     expect(s.time).toBeCloseTo(NOW + tuning.sim.tickSeconds * 10, 4)
   })
 })

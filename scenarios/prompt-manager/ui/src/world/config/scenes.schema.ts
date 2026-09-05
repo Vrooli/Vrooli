@@ -27,6 +27,16 @@ export const SceneSchema = z.object({
   biomeSet: z.enum(['park', 'office']).describe('Biome set that supplies terrain colours and ground-bound props'),
   layoutStrategy: z.enum(['clearings', 'floorplan']),
   terrain: TerrainOverrideSchema.optional(),
+  centre: z.object({
+    source: z.enum(['floorplate']).describe('Geometry that owns the centre region'),
+    margin: z.number().min(0).max(40).default(6).describe('Centre extension past the floorplate (metres)'),
+    blend: z.number().min(0).max(40).default(4).describe('Smooth transition back to landscape (metres)'),
+    terrain: TerrainOverrideSchema.optional(),
+    biomeSet: z.enum(['park', 'office']).describe('Biome set inside the centre; the base set remains outside (identifier)').optional(),
+    levelTo: z.enum(['plateMean', 'none']).describe('Level to the natural plate mean, raised only for dry clearance, or retain relief'),
+    maxBoundaryGrade: z.number().min(0.01).max(4).default(1).describe('Maximum permitted height gradient across the centre transition (metres per metre)'),
+  }).optional(),
+  emissive: z.partialRecord(z.enum(['desk', 'chair', 'table', 'seat', 'hearth', 'lamp', 'board']), hex.describe('Emissive colour when a lighting period lights this rendered place-prop slot')).describe('Emission by rendered prop slot; omitted slots do not emit (hex colours)').optional(),
   props: z.object({
     desk: PropIdSchema,
     chair: PropIdSchema,

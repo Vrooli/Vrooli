@@ -6,21 +6,22 @@
  *
  *   pnpm world:sheet                 evidence/world-smoke/contact-sheet.png
  *   node scripts/world-smoke/sheet.mjs --tile 480 --out /tmp/sheet.png
+ *   node scripts/world-smoke/sheet.mjs --by-profile --out /tmp/profile-sheets
  *
  * Reads evidence/world-smoke/summary.json and the PNGs beside it; needs no
  * running scenario, only the Chrome the smoke tool already uses.
  */
 import { chromium } from 'playwright-core'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const uiRoot = resolve(import.meta.dirname, '..', '..')
-const evidenceDir = resolve(uiRoot, 'evidence', 'world-smoke')
 const args = process.argv.slice(2)
 const opt = (name, fallback) => {
   const i = args.indexOf(name)
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback
 }
+const evidenceDir = resolve(opt('--evidence-dir', resolve(uiRoot, 'evidence', 'world-smoke')))
 const tileWidth = Number(opt('--tile', '480'))
 const columns = Number(opt('--columns', '4'))
 const out = resolve(opt('--out', resolve(evidenceDir, 'contact-sheet.png')))
@@ -31,14 +32,16 @@ if (!existsSync(summaryPath)) {
   process.exit(2)
 }
 const summary = JSON.parse(readFileSync(summaryPath, 'utf8'))
-const frames = summary.results.filter((r) => r.drawCalls !== null)
+const prefix = opt('--prefix', '')
+const frames = summary.results.filter((r) => r.drawCalls !== null && r.name.startsWith(prefix))
 if (frames.length === 0) {
   process.stderr.write('summary has no captured frames\n')
   process.exit(2)
 }
 
 const fmt = (n, digits = 0) => (n === null || n === undefined ? '—' : Number(n).toFixed(digits))
-const tiles = frames.map((r) => {
+function renderHtml(selectedFrames) {
+const tiles = selectedFrames.map((r) => {
   const png = resolve(evidenceDir, `${r.name}.png`)
   const src = existsSync(png) ? `data:image/png;base64,${readFileSync(png).toString('base64')}` : ''
   const failing = r.checks.filter((c) => !c.pass).map((c) => c.id)
@@ -47,12 +50,12 @@ const tiles = frames.map((r) => {
       <img src="${src}" alt="${r.name}">
       <figcaption>
         <strong>${r.name}</strong><span class="verdict">${r.pass ? 'PASS' : `FAIL ${failing.join(', ')}`}</span>
-        <span>${fmt(r.drawCalls)} draws · ${fmt(r.triangles / 1000, 0)}k tris · p50 ${fmt(r.p50Ms, 1)} ms · p95 ${fmt(r.p95Ms, 1)} ms · fill ${fmt(r.fill * 100)}% · ${fmt(r.violations)} violations</span>
+        <span>${fmt(r.drawCalls)} draws · ${fmt(r.triangles / 1000, 0)}k tris · CPU95 ${fmt(r.p95Ms, 1)} ms · GPU95 ${fmt(r.gpuMsP95, 2)} ms · fill ${fmt(r.fill * 100)}% · ${fmt(r.violations)} violations</span>
       </figcaption>
     </figure>`
 })
 
-const html = `<!doctype html><meta charset="utf-8"><title>world contact sheet</title>
+return `<!doctype html><meta charset="utf-8"><title>world contact sheet</title>
 <style>
   body { margin: 0; background: #14161c; color: #e7e9ee; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
   header { padding: 10px 14px; border-bottom: 1px solid #2b2f3a; display: flex; gap: 18px; }
@@ -68,17 +71,32 @@ const html = `<!doctype html><meta charset="utf-8"><title>world contact sheet</t
 </style>
 <header>
   <span>${summary.gpu ? 'host GPU' : 'SwiftShader (frame times informational)'}</span>
-  <span>${frames.length} frames</span>
+  <span>${selectedFrames.length} frames</span>
   <span>${summary.capturedAt ?? ''}</span>
 </header>
 <main>${tiles.join('')}</main>`
+}
 
 const browser = await chromium.launch({ executablePath: process.env.WORLD_SMOKE_CHROME ?? '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] })
 try {
   const page = await browser.newPage({ viewport: { width: columns * (tileWidth + 10) + 10, height: 800 }, deviceScaleFactor: 1 })
-  await page.setContent(html, { waitUntil: 'load' })
-  await page.screenshot({ path: out, fullPage: true, type: 'png' })
-  process.stdout.write(`${out}\n`)
+  const byProfile = args.includes('--by-profile')
+  const groups = new Map()
+  if (byProfile) {
+    for (const frame of frames) {
+      const record = JSON.parse(readFileSync(resolve(evidenceDir, `${frame.name}.json`), 'utf8'))
+      const name = `${record.scene}-${record.profile}`
+      if (!groups.has(name)) groups.set(name, [])
+      groups.get(name).push(frame)
+    }
+  } else groups.set('all', frames)
+  if (byProfile) mkdirSync(out, { recursive: true })
+  for (const [name, selectedFrames] of groups) {
+    const target = byProfile ? resolve(out, `${name}.png`) : out
+    await page.setContent(renderHtml(selectedFrames), { waitUntil: 'load' })
+    await page.screenshot({ path: target, fullPage: true, type: 'png' })
+    process.stdout.write(`${target}\n`)
+  }
 } finally {
   await browser.close()
 }

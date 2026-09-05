@@ -1,13 +1,13 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useLoader, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { Color, EquirectangularReflectionMapping } from 'three'
+import { EquirectangularReflectionMapping, MathUtils } from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import type { LightingPeriod, LightingTuning, QualityProfile, Scene } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../assets/urls'
 import type { WorldBounds } from '../types'
-import { fitDistance } from '../camera/pose'
 import { useShadowRefresh, type ShadowWorldStore } from './shadowRefresh'
+import { applyPeriodBackground } from './background'
 
 interface LightingRigProps {
   scene: Scene
@@ -20,13 +20,9 @@ interface LightingRigProps {
   store: ShadowWorldStore
 }
 
-const DEG = Math.PI / 180
-const ENV_RESOLUTION = 256
-const SUN_DISTANCE = 100
-
 function sunDirection(elevationDeg: number, azimuthDeg: number): [number, number, number] {
-  const elevation = elevationDeg * DEG
-  const azimuth = azimuthDeg * DEG
+  const elevation = MathUtils.degToRad(elevationDeg)
+  const azimuth = MathUtils.degToRad(azimuthDeg)
   return [Math.cos(elevation) * Math.sin(azimuth), Math.sin(elevation), Math.cos(elevation) * Math.cos(azimuth)]
 }
 
@@ -37,6 +33,7 @@ function sunDirection(elevationDeg: number, azimuthDeg: number): [number, number
  * resolved lighting period.
  */
 export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, store }: LightingRigProps) {
+  const rig = lighting.rig
   const threeScene = useThree((s) => s.scene)
   const gl = useThree((s) => s.gl)
   // Load the HDRI before the environment portal mounts: the portal captures
@@ -50,31 +47,30 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
     () => sunDirection(Math.max(period.sunElevationDeg, lighting.keyLight.elevationDeg), lighting.keyLight.azimuthDeg),
     [period.sunElevationDeg, lighting.keyLight.elevationDeg, lighting.keyLight.azimuthDeg],
   )
-  const half = Math.max(bounds.footprint.width, bounds.footprint.depth) * 0.62 + 6
+  const half = Math.max(bounds.footprint.width, bounds.footprint.depth) * rig.shadowExtentScale + rig.shadowExtentPadding
   const shadowCenter = bounds.footprint.center
   // Fog is framed relative to the slab so a bigger world does not sink into it.
-  const fit = fitDistance({ width: bounds.width, depth: bounds.depth, fovDeg, aspect: 1 })
+  const fogExtent = Math.hypot(bounds.width, bounds.depth) / (2 * Math.sin(MathUtils.degToRad(fovDeg) / 2))
   const keyPosition: [number, number, number] = [
-    shadowCenter[0] + keyDir[0] * SUN_DISTANCE,
-    keyDir[1] * SUN_DISTANCE,
-    shadowCenter[1] + keyDir[2] * SUN_DISTANCE,
+    shadowCenter[0] + keyDir[0] * rig.sunDistance,
+    keyDir[1] * rig.sunDistance,
+    shadowCenter[1] + keyDir[2] * rig.sunDistance,
   ]
 
   useShadowRefresh(store, scene, profile, `${period.backgroundColor}:${period.keyColor}:${period.keyIntensity}:${period.exposure}`)
 
-  useEffect(() => {
-    threeScene.background = new Color(period.backgroundColor)
-    gl.toneMappingExposure = period.exposure
-  }, [threeScene, gl, period.backgroundColor, period.exposure])
-
   const outdoor = scene.environment === 'outdoor'
+
+  useEffect(() => {
+    applyPeriodBackground(threeScene, gl, outdoor, period)
+  }, [threeScene, gl, outdoor, period])
 
   return (
     <>
-      <fog attach="fog" args={[period.fogColor, fit * period.fogNear, fit * period.fogFar]} />
+      <fog attach="fog" args={[period.fogColor, fogExtent * period.fogNear, fogExtent * period.fogFar]} />
       <hemisphereLight
         args={[period.fogColor, scene.palette.ground, period.ambientIntensity]}
-        position={[0, 50, 0]}
+        position={[0, rig.hemisphereHeight, 0]}
       />
       <directionalLight
         castShadow={profile.shadows}
@@ -89,20 +85,20 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
         shadow-camera-right={half}
         shadow-camera-top={half}
         shadow-camera-bottom={-half}
-        shadow-camera-near={SUN_DISTANCE - half * 2}
-        shadow-camera-far={SUN_DISTANCE + half * 2}
+        shadow-camera-near={rig.sunDistance - half * 2}
+        shadow-camera-far={rig.sunDistance + half * 2}
       />
       <Environment
         map={sky}
-        resolution={ENV_RESOLUTION}
+        resolution={rig.environmentResolution}
         environmentIntensity={period.envIntensity}
         background={outdoor}
         backgroundIntensity={period.skyIntensity}
         backgroundBlurriness={period.skyBlur}
       >
-        <Lightformer form="rect" intensity={1.2} color={period.keyColor} position={[8, 6, -8]} scale={[8, 4, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={0.6} color={period.fogColor} position={[-9, 4, 4]} scale={[6, 3, 1]} target={[0, 0, 0]} />
-        <Lightformer form="ring" intensity={0.4} color="#ffffff" position={[0, 10, 0]} scale={6} target={[0, 0, 0]} />
+        <Lightformer form="rect" {...rig.keyPanel} color={period.keyColor} target={[0, 0, 0]} />
+        <Lightformer form="rect" {...rig.fillPanel} color={period.fogColor} target={[0, 0, 0]} />
+        <Lightformer form="ring" {...rig.topPanel} color={rig.topPanelColor} target={[0, 0, 0]} />
       </Environment>
     </>
   )

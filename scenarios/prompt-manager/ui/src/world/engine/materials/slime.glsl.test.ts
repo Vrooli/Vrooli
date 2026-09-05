@@ -34,6 +34,6 @@ describe('slime GLSL', () => {
 
   it('routes the instance colour into the fragment stage', () => {
     expect(FRAGMENT_COMMON_INJECTION).toContain('varying vec3 vSlimeColor')
-    expect(FRAGMENT_COLOR_INJECTION).toContain('diffuseColor.rgb = vSlimeColor')
+    expect(FRAGMENT_COLOR_INJECTION).toContain('diffuseColor.rgb *= vSlimeColor')
   })
 })

@@ -1,4 +1,4 @@
-import type { TerrainTuning } from '../../config'
+import type { TerrainResolver } from '../../config'
 import type { TerrainField } from './field'
 import { shoreDistance, waterComponentLabels, wetHeight } from './water'
 
@@ -34,24 +34,25 @@ function clippedPolygon(corners: readonly Point[]): Point[] {
   return polygon
 }
 
-function addPolygon(surface: WaterSurfaceData, polygon: readonly Point[], field: TerrainField, tuning: TerrainTuning): void {
+function addPolygon(surface: WaterSurfaceData, polygon: readonly Point[], field: TerrainField, tuning: TerrainResolver): void {
   if (polygon.length < 3) return
   const base = surface.positions.length / 3
   for (const point of polygon) {
-    surface.positions.push(point.x, tuning.waterLevel + tuning.waterSurfaceLift, point.z)
+    const local = tuning.at(point.x, point.z)
+    surface.positions.push(point.x, local.waterLevel + local.waterSurfaceLift, point.z)
     surface.shore.push(Math.max(0, -shoreDistance(field, tuning, point.x, point.z)))
   }
   for (let index = 1; index < polygon.length - 1; index += 1) surface.indices.push(base, base + index, base + index + 1)
 }
 
 /** Marching-squares clipping, grouped into one triangle buffer per connected pond. */
-export function waterSurfaceComponents(field: TerrainField, tuning: TerrainTuning): WaterSurfaceData[] {
+export function waterSurfaceComponents(field: TerrainField, tuning: TerrainResolver): WaterSurfaceData[] {
   const { components, labels } = waterComponentLabels(field, tuning)
   const surfaces = Array.from({ length: components }, (_, component): WaterSurfaceData => ({ component, positions: [], shore: [], indices: [] }))
   const point = (col: number, row: number): Point => {
     const x = field.originX + col * field.cellSize
     const z = field.originZ + row * field.cellSize
-    return { x, z, signed: wetHeight(field, tuning, x, z) - tuning.waterLevel, label: labels[row * field.cols + col] ?? -1 }
+    return { x, z, signed: wetHeight(field, tuning, x, z) - tuning.at(x, z).waterLevel, label: labels[row * field.cols + col] ?? -1 }
   }
   for (let row = 0; row < field.rows - 1; row += 1) {
     for (let col = 0; col < field.cols - 1; col += 1) {

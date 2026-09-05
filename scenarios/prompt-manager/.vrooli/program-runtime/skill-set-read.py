@@ -1,11 +1,11 @@
-"""prompt-manager.skill-set-read v1 — read one scenario's skill set as the registry sees it (the Guide-side sensor).
+"""prompt-manager.skill-set-read v1 — read one scenario's declared skill set as the registry sees it.
 
 Contract: skill-set-read.json (inputs, invariants, bindings, outputs).
 Skill:    prompt-manager (usage tree: "does scenario X ship a conformant skill set?").
 
 Phases: validate -> collect -> classify -> report. Read-only. Rows: registered skills under the
-scenario pack for the scenario, presence of the usage id (<scenario>) and improve id
-(<scenario>-improve), token size from skill read, and read counts from skill-usage when that
+scenario pack for the scenario, presence of the declared usage and improve ids, token size
+from skill read, and read counts from skill-usage when that
 binding answers; a row whose binding fails is reported unavailable with the reason.
 
 Status rule (program-contracts.md §"The envelope"): a row with a permanent reason never lowers
@@ -15,15 +15,21 @@ the unknown proto field `projected` (2026-09-02); that is a failed read, so the 
 until the binding is repaired.
 """
 
+import json
+
 try:
     inputs
 except NameError:
     inputs = {}
 scenario = inputs["scenario"] if "scenario" in inputs else "program-runtime"
+usage_id = str(inputs.get("usage_id") or scenario).strip()
+improve_id = str(inputs.get("improve_id") or f"{scenario}-improve").strip()
+feature_ids = [value.strip() for value in str(inputs.get("feature_ids") or "").split("|") if value.strip()]
+expected_ids = sorted(set([usage_id, improve_id] + feature_ids))
 
 envelope = {
     "program": "prompt-manager.skill-set-read", "version": "1",
-    "status": "failed", "phase": "validate", "inputs": {"scenario": scenario},
+    "status": "failed", "phase": "validate", "inputs": {"scenario": scenario, "usage_id": usage_id, "improve_id": improve_id, "feature_ids": feature_ids},
     "signals": {"rows": [], "readable": 0, "unavailable": 0, "registered": [], "usage_present": None, "improve_present": None},
     "errors": [], "evidence": [],
 }
@@ -77,12 +83,14 @@ def row(name, reading, unavailable=False, reason=None, sensor=None, target=None,
 
 def belongs(r):
     sid = r.get("id") or ""
-    return sid == scenario or sid.startswith(scenario + "-") or f"/scenarios/{scenario}/skills/" in (r.get("contentPath") or "")
+    return sid in expected_ids or sid == scenario or sid.startswith(scenario + "-") or f"/scenarios/{scenario}/skills/" in (r.get("contentPath") or "")
 
 
 def step_validate():  # VALIDATE
     if not isinstance(scenario, str) or not scenario:
         return fail("failed", "invalid_input", "scenario must be a non-empty string", "validate")
+    if not usage_id or not improve_id or len(expected_ids) > 12:
+        return fail("failed", "invalid_input", "usage_id and improve_id are required; at most 12 declared ids are allowed", "validate")
     return "collect"
 
 
@@ -107,14 +115,14 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
     ids = sorted(r.get("id") for r in mine.head(50))
     pack = sorted(r.get("id") for r in mine.filter(lambda r: r.get("folder") == "scenario").head(50))
     envelope["signals"]["registered"] = ids
-    envelope["signals"]["usage_present"] = scenario in ids
-    envelope["signals"]["improve_present"] = f"{scenario}-improve" in ids
+    envelope["signals"]["usage_present"] = usage_id in ids
+    envelope["signals"]["improve_present"] = improve_id in ids
     row("registered-under-scenario-pack", {"ids": pack, "count": len(pack)}, sensor="prompt-manager skill list (folder == scenario)")
-    row("usage-id-present", scenario in ids, sensor="prompt-manager skill list")
-    row("improve-id-present", f"{scenario}-improve" in ids, sensor="prompt-manager skill list")
+    row("usage-id-present", usage_id in ids, sensor="prompt-manager skill list")
+    row("improve-id-present", improve_id in ids, sensor="prompt-manager skill list")
     # Token size of the set, read through skill read (combined output; missing ids listed in meta).
     try:
-        meta = prompt_manager.skill.read(identifiers=[scenario, f"{scenario}-improve"], allow_missing=True, rows="missing").meta()
+        meta = prompt_manager.skill.read(identifiers=expected_ids, allow_missing=True, rows="missing").meta()
         row("set-token-size", {"total_tokens": meta.get("totalTokens"), "skill_count": meta.get("skillCount"), "missing": meta.get("missing")},
             sensor="prompt-manager skill read <usage> <improve>")
     except Exception as exc:
@@ -136,7 +144,7 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
     return None
 
 

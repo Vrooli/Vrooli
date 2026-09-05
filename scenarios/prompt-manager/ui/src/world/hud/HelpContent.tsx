@@ -1,5 +1,8 @@
-/** In-app help for the world; mirrors docs/concepts/WORLD-HUD.md. */
-export function WorldHelpContent() {
+import type { CameraTuning } from '../config'
+
+/** In-app help reads the active input map, including live lever overrides. */
+export function WorldHelpContent({ camera }: { camera: CameraTuning }) {
+  const label = (action: string) => action.replace(/-/g, ' + ')
   return (
     <div className="space-y-3 text-sm text-muted-foreground">
       <p>
@@ -13,7 +16,12 @@ export function WorldHelpContent() {
         Acknowledge, Open editor, Follow.
       </p>
       <p>
-        Drag to orbit, scroll to dolly, arrow keys orbit, <kbd className="rounded border border-border px-1 text-xs">Esc</kbd>{' '}
+        Mouse: left drag {label(camera.input.mouse.left)}, middle drag {label(camera.input.mouse.middle)},
+        right drag {label(camera.input.mouse.right)}, wheel {label(camera.input.mouse.wheel)}.
+        Touch: one finger {label(camera.input.touch.one)}, two fingers {label(camera.input.touch.two)},
+        three fingers {label(camera.input.touch.three)}. Truck means pan.
+        Zoom {camera.dollyToCursor ? 'follows the pointer' : 'uses the orbit target'}.
+        Arrow keys orbit, +/- zoom, <kbd className="rounded border border-border px-1 text-xs">Esc</kbd>{' '}
         returns home. Toggle 2D in the Swarm panel to use the same actions without the canvas.
       </p>
     </div>

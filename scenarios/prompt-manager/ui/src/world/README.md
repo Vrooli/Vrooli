@@ -16,9 +16,21 @@ fixtures in `sim/__lint__` through `__lint__/layerRule.test.ts`.
 `index.tsx` is the route component and the only module that composes `scene`
 and `hud`. Nothing outside `src/world` imports `scene` or `hud`.
 
-Architecture: `../../docs/concepts/WORLD-ARCHITECTURE.md`. Levers:
-`../../docs/reference/configuration.md` (world tuning section). Sim rules:
-`../../docs/concepts/WORLD-SIM.md`. HUD: `../../docs/concepts/WORLD-HUD.md`.
-Assets: `../../docs/guides/WORLD-ASSETS.md`.
-Terrain: `../../docs/concepts/WORLD-TERRAIN.md`. Weather:
-`../../docs/concepts/WORLD-WEATHER.md`.
+Scenes compose a base landscape with an optional floorplate-derived centre.
+The park and the office exterior share water-aware terrain and vegetation stands;
+the office centre supplies a level, dry floor. Prop slots own emission. One global
+vegetation culler owns visibility and buffers; resting cameras reuse its result.
+One framing solver serves home and focus. A focused resting actor can face the
+viewer visually while its simulation heading stays authoritative.
+
+Hardware smoke captures record live costs and invariants before producing a
+fixed-time world-canvas golden. Full-page screenshots remain separate evidence.
+Calibration proposes budgets from a fresh, complete hardware batch; applying an
+increase requires an explicit cost explanation.
+
+Architecture: `../../../docs/concepts/WORLD-ARCHITECTURE.md`. Levers:
+`../../../docs/reference/configuration.md` (world tuning section). Sim rules:
+`../../../docs/concepts/WORLD-SIM.md`. HUD: `../../../docs/concepts/WORLD-HUD.md`.
+Assets: `../../../docs/guides/WORLD-ASSETS.md`.
+Terrain: `../../../docs/concepts/WORLD-TERRAIN.md`. Weather:
+`../../../docs/concepts/WORLD-WEATHER.md`.

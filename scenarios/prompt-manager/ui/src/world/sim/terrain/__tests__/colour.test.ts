@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { biomeSets, tuning } from '../../../config'
+import { uniformTerrain, biomeSets, tuning } from '../../../config'
 import { bakeVertexColour, buildTerrain, heightFieldAo } from '..'
 
 describe('terrain colour', () => {
@@ -15,7 +15,7 @@ describe('terrain colour', () => {
   })
 
   it('returns a bounded height-field occlusion term', () => {
-    const field = buildTerrain({ seed: 7, tuning: tuning.terrain })
+    const field = buildTerrain({ seed: 7, tuning: uniformTerrain(tuning.terrain) })
     expect(heightFieldAo(field, 0, 0, 3, 8)).toBeGreaterThanOrEqual(0)
     expect(heightFieldAo(field, 0, 0, 3, 8)).toBeLessThanOrEqual(1)
   })

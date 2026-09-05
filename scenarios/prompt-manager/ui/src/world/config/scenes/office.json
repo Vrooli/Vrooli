@@ -3,13 +3,16 @@
   "title": "Office",
   "environment": "indoor",
   "assetSet": "office",
-  "biomeSet": "office",
+  "biomeSet": "park",
   "layoutStrategy": "floorplan",
-  "terrain": {
-    "amplitude": 0,
-    "detailAmplitude": 0,
-    "moistureBasinDepth": 0,
-    "waterLevel": -20
+  "centre": {
+    "source": "floorplate",
+    "margin": 6,
+    "blend": 4,
+    "terrain": { "amplitude": 0, "detailAmplitude": 0 },
+    "biomeSet": "office",
+    "levelTo": "plateMean",
+    "maxBoundaryGrade": 1
   },
   "props": {
     "desk": "desk",
@@ -21,10 +24,11 @@
     "board": "display_board",
     "filler": ["plant_small", "rug_round", "side_table", "bookcase"]
   },
+  "emissive": { "lamp": "#ffe4bc" },
   "gatheringLabel": "Lobby",
   "palette": {
-    "horizon": "#c6c0b4",
-    "ground": "#d9d3c8",
+    "horizon": "#7fa862",
+    "ground": "#6fae58",
     "roomFloor": "#e8e2d6",
     "roomWall": "#f3efe8",
     "commons": "#cfc6b8",
@@ -49,20 +53,20 @@
       "dawn": {
         "keyIntensity": 1.6,
         "envIntensity": 0.8,
-        "lampEmissive": 1.6,
+        "lampEmissive": 0.8,
         "fogNear": 3,
         "fogFar": 12
       },
       "day": {
         "keyIntensity": 2.2,
-        "lampEmissive": 0.6,
+        "lampEmissive": 0,
         "fogNear": 3,
         "fogFar": 12
       },
       "dusk": {
         "keyIntensity": 1.2,
         "envIntensity": 0.6,
-        "lampEmissive": 2.6,
+        "lampEmissive": 1.2,
         "fogNear": 3,
         "fogFar": 12
       },

@@ -1,4 +1,5 @@
-import type { TerrainTuning } from '../../config'
+import type { TerrainResolver } from '../../config'
+import { blendHeight, smoothstep } from '../../config/regions'
 import type { NavGrid, Vec2 } from '../model'
 import { findPath } from '../nav/astar'
 import { nearestWalkable } from '../nav/grid'
@@ -13,7 +14,8 @@ function local(site: Site, x: number, z: number): Vec2 {
   return [dx * cos - dz * sin, dx * sin + dz * cos]
 }
 
-export function terraceSite(field: TerrainField, tuning: TerrainTuning, site: Site): Site {
+export function terraceSite(field: TerrainField, resolver: TerrainResolver, site: Site): Site {
+  const tuning = resolver.at(site.position[0], site.position[1])
   const samples: number[] = []
   for (let row = 0; row < field.rows; row += 1) {
     for (let col = 0; col < field.cols; col += 1) {
@@ -37,17 +39,19 @@ export function terraceSite(field: TerrainField, tuning: TerrainTuning, site: Si
       const outsideX = Math.max(0, Math.abs(lx) - site.size[0] / 2 - field.cellSize)
       const outsideZ = Math.max(0, Math.abs(lz) - site.size[1] / 2 - field.cellSize)
       const distance = Math.hypot(outsideX, outsideZ)
-      if (distance > tuning.kerbWidth) continue
+      const kerbWidth = resolver.at(x, z).kerbWidth
+      if (distance > kerbWidth) continue
       const index = row * field.cols + col
-      const blend = distance === 0 ? 1 : 1 - distance / tuning.kerbWidth
-      const smooth = blend * blend * (3 - 2 * blend)
-      field.height[index] = (field.height[index] ?? 0) * (1 - smooth) + padHeight * smooth
+      const blend = distance === 0 ? 1 : 1 - distance / kerbWidth
+      const smooth = smoothstep(0, 1, blend)
+      field.height[index] = blendHeight(field.height[index] ?? 0, padHeight, smooth)
     }
   }
   return { ...site, height: padHeight }
 }
 
-export function pathMask(field: TerrainField, tuning: TerrainTuning, nav: NavGrid, sites: readonly Site[], commons: Vec2): Float32Array {
+export function pathMask(field: TerrainField, resolver: TerrainResolver, nav: NavGrid, sites: readonly Site[], commons: Vec2): Float32Array {
+  const tuning = resolver.at(commons[0], commons[1])
   const mask = new Float32Array(field.cols * field.rows)
   const searchRings = Math.ceil((tuning.kerbWidth + tuning.shoreMargin + tuning.pathWidth) / nav.cellSize)
   const goal = nearestWalkable(nav, commons, searchRings)
@@ -65,6 +69,7 @@ export function pathMask(field: TerrainField, tuning: TerrainTuning, nav: NavGri
         const t = step / steps
         const x = from[0] + (to[0] - from[0]) * t
         const z = from[1] + (to[1] - from[1]) * t
+        const tuning = resolver.at(x, z)
         const radius = Math.ceil(tuning.pathWidth / field.cellSize)
         const centerCol = Math.round((x - field.originX) / field.cellSize)
         const centerRow = Math.round((z - field.originZ) / field.cellSize)

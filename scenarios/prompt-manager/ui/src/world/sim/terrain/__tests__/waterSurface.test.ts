@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tuning } from '../../../config'
+import { uniformTerrain, tuning } from '../../../config'
 import { buildTerrain, type TerrainField } from '../field'
 import { waterCells } from '../water'
 import { waterSurfaceComponents } from '../waterSurface'
@@ -9,7 +9,7 @@ function field(heights: number[]): TerrainField {
 }
 
 describe('waterSurfaceComponents', () => {
-  const waterTuning = { ...tuning.terrain, waterLevel: 0, moistureBasinDepth: 0 }
+  const waterTuning = uniformTerrain({ ...tuning.terrain, waterLevel: 0, moistureBasinDepth: 0 })
 
   it('clips a one-corner wet cell to a shoreline triangle', () => {
     const surfaces = waterSurfaceComponents(field([-1, 1, 1, 1]), waterTuning)
@@ -25,9 +25,9 @@ describe('waterSurfaceComponents', () => {
   })
 
   it('emits one lower-triangle buffer per connected pond on generated terrain', () => {
-    const terrain = buildTerrain({ seed: 1, tuning: tuning.terrain })
-    const cells = waterCells(terrain, tuning.terrain)
-    const surfaces = waterSurfaceComponents(terrain, tuning.terrain)
+    const terrain = buildTerrain({ seed: 1, tuning: uniformTerrain(tuning.terrain) })
+    const cells = waterCells(terrain, uniformTerrain(tuning.terrain))
+    const surfaces = waterSurfaceComponents(terrain, uniformTerrain(tuning.terrain))
     const triangles = surfaces.reduce((sum, surface) => sum + surface.indices.length / 3, 0)
     expect(surfaces).toHaveLength(cells.components)
     expect(triangles).toBeLessThan(7_862)

@@ -2,13 +2,15 @@ import { addAfterEffect, addEffect, useFrame, useThree } from '@react-three/fibe
 import { useProgress } from '@react-three/drei'
 import { useCallback, useEffect, useRef } from 'react'
 import { Box3, InstancedMesh, Raycaster, Vector3, WebGLRenderTarget } from 'three'
-import type { PeriodId, QualityProfile, QualityProfileId, SceneId } from '../../config'
+import type { PeriodId, QualityProfile, QualityProfileId, QualityTuning, SceneId } from '../../config'
 import type { WorldBounds } from '../types'
 import { frameStats, readDiagnostics, recordFrame, updateDiagnostics } from './store'
 import { GpuTimer } from './gpuTimer'
 import { addPassDraws, beginPassDrawFrame, disposePassTimer, passDrawsFor, passTimerFor } from './passTimer'
 
 interface ProbeProps {
+  settings: QualityTuning['diagnostics']
+  frameHeight: number
   scene: SceneId
   profileId: QualityProfileId
   profile: QualityProfile
@@ -20,15 +22,11 @@ interface ProbeProps {
   measureEnabled: boolean
 }
 
-const PUBLISH_EVERY_FRAMES = 6
-/** Must match the camera rig's framed height so the measured fill and the requested fill agree. */
-const FRAME_HEIGHT = 2
-
 /**
  * Reads renderer.info and frame timing every frame and publishes a snapshot
  * every few frames. Lives inside the Canvas; never sets React state.
  */
-export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getTarget, bounds, measureEnabled }: ProbeProps) {
+export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, profile, auto, period, getTarget, bounds, measureEnabled }: ProbeProps) {
   const gl = useThree((s) => s.gl)
   const threeScene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
@@ -41,19 +39,23 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
   const corner = useRef(new Vector3())
   const gpuTimer = useRef<GpuTimer | null>(null)
 
+  useEffect(() => {
+    updateDiagnostics({ minimumReadyFps: settings.minimumReadyFps })
+  }, [settings.minimumReadyFps])
+
   // Outline fill as the camera actually sees it: project every framed point
   // and take the largest normalised extent. Independent of the rig's
   // closed-form framing, so the smoke tool cross-checks one against the other.
   const measureFill = useCallback(() => {
     let fill = 0
     for (const [x, z] of bounds.outline) {
-      for (const y of [0, FRAME_HEIGHT]) {
+      for (const y of [0, frameHeight]) {
         corner.current.set(x, y, z).project(camera)
         fill = Math.max(fill, Math.abs(corner.current.x), Math.abs(corner.current.y))
       }
     }
     return fill
-  }, [bounds.outline, camera])
+  }, [bounds.outline, camera, frameHeight])
 
   const measure = useCallback((attributeGroups = true) => {
     camera.getWorldDirection(direction.current)
@@ -82,12 +84,21 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
     if (attributeGroups) {
       const originalTarget = gl.getRenderTarget()
       const originalAutoReset = gl.info.autoReset
+      const originalBackground = threeScene.background
       const visibility = threeScene.children.map((child) => child.visible)
       const scratch = new WebGLRenderTarget(1, 1, { depthBuffer: false, stencilBuffer: false })
       try {
         gl.info.autoReset = false
         for (const child of threeScene.children) child.visible = false
         gl.setRenderTarget(scratch)
+        // Charge the environment cube once, not once per isolated child
+        // (including lights and empty groups that draw no geometry).
+        gl.info.reset()
+        gl.render(threeScene, camera)
+        if (gl.info.render.calls > 0 || gl.info.render.triangles > 0) {
+          groupCosts.push({ name: 'background', calls: gl.info.render.calls, triangles: gl.info.render.triangles })
+        }
+        threeScene.background = null
         threeScene.children.forEach((child, index) => {
           if (!visibility[index]) return
           child.visible = true
@@ -112,6 +123,7 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
           groupCosts.push({ name: 'compositor-pipeline', calls: pipelineCalls, triangles: pipelineTriangles })
         }
       } finally {
+        threeScene.background = originalBackground
         threeScene.children.forEach((child, index) => { child.visible = visibility[index] ?? true })
         gl.setRenderTarget(originalTarget)
         gl.info.autoReset = originalAutoReset
@@ -148,7 +160,7 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
 
   useEffect(() => {
     if (!measureEnabled) return
-    const timer = passTimerFor(gl, gl.getContext() as WebGL2RenderingContext)
+    const timer = passTimerFor(gl, gl.getContext() as WebGL2RenderingContext, settings)
     const shadowMap = gl.shadowMap
     const originalShadowRender = shadowMap.render.bind(shadowMap)
     shadowMap.render = function (...args: Parameters<typeof originalShadowRender>) {
@@ -173,10 +185,10 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
       shadowMap.render = originalShadowRender
       disposePassTimer(gl)
     }
-  }, [gl, measureEnabled])
+  }, [gl, measureEnabled, settings])
 
   useEffect(() => {
-    const timer = new GpuTimer(gl.getContext() as WebGL2RenderingContext)
+    const timer = new GpuTimer(gl.getContext() as WebGL2RenderingContext, settings)
     gpuTimer.current = timer
     const removeBefore = addEffect(() => {
       timer.drain()
@@ -192,7 +204,7 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
       timer.dispose()
       gpuTimer.current = null
     }
-  }, [gl])
+  }, [gl, settings])
 
   useEffect(() => {
     const debugInfo = gl.getContext().getExtension('WEBGL_debug_renderer_info')
@@ -209,16 +221,16 @@ export function DiagnosticsProbe({ scene, profileId, profile, auto, period, getT
   }, [scene, profileId, auto, period, profile.ao, profile.bloom, profile.msaa])
 
   useFrame((state, delta) => {
-    recordFrame(delta)
+    recordFrame(delta, settings.frameWindow)
     frames.current += 1
     frameWindow.current.frames += 1
     const now = performance.now()
     const elapsed = now - frameWindow.current.startedAt
-    if (elapsed >= 1000) {
+    if (elapsed >= settings.fpsWindowMs) {
       framesPerSecond.current = Math.round((frameWindow.current.frames * 1000) / elapsed)
       frameWindow.current = { startedAt: now, frames: 0 }
     }
-    if (frames.current % PUBLISH_EVERY_FRAMES !== 0) {
+    if (frames.current % settings.publishEveryFrames !== 0) {
       gl.info.reset()
       return
     }

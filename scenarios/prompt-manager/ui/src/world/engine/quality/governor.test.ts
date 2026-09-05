@@ -39,9 +39,17 @@ describe('quality governor', () => {
   })
 
   it('calibrates a fast 60 Hz display to high and a slow one to low', () => {
-    expect(chooseInitialProfile(59, 60)).toBe('high')
-    expect(chooseInitialProfile(35, 60)).toBe('low')
-    expect(chooseInitialProfile(116, 120)).toBe('ultra')
+    expect(chooseInitialProfile(59, 60, tuning.quality)).toBe('high')
+    expect(chooseInitialProfile(35, 60, tuning.quality)).toBe('low')
+    expect(chooseInitialProfile(116, 120, tuning.quality)).toBe('ultra')
+  })
+
+  it('uses configured display and performance thresholds for the initial profile', () => {
+    const quality = { ...tuning.quality, ultraMinRefreshRate: 144, recoverRatio: 0.8, degradedRatio: 0.6 }
+    expect(chooseInitialProfile(110, 120, quality)).toBe('high')
+    expect(chooseInitialProfile(140, 144, quality)).toBe('ultra')
+    expect(chooseInitialProfile(40, 60, quality)).toBe('medium')
+    expect(chooseInitialProfile(30, 60, quality)).toBe('low')
   })
 
   it('caps an ultra governor bound at the reachable refresh rate', () => {

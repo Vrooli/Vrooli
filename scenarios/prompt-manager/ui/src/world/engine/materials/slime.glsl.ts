@@ -101,6 +101,6 @@ vSlimeColor = aColor;`
 export const FRAGMENT_COMMON_INJECTION = `
 varying vec3 vSlimeColor;`
 
-/** Injected after `#include <color_fragment>`: per-instance colour replaces the material colour. */
+/** Per-instance colour multiplies the configurable base material colour. */
 export const FRAGMENT_COLOR_INJECTION = `
-diffuseColor.rgb = vSlimeColor;`
+diffuseColor.rgb *= vSlimeColor;`

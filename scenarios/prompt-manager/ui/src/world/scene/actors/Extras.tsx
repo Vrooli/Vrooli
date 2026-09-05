@@ -1,34 +1,21 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, SphereGeometry, TorusGeometry } from 'three'
-import type { EmoteKind } from '../../sim'
+import type { ActorTuning } from '../../config'
 import { equipmentTier } from '../../sim'
 import { useWorldStore } from '../WorldStoreContext'
 import { bodyOffset, type BodyPose } from './pose'
 import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from './PoseBuffer'
-
-/** Equipment tiers: none, paper, folder, briefcase, backpack, as relative sizes. */
-const TIER_SIZE = [0, 0.45, 0.65, 0.85, 1.1]
-const TIER_COLOR = ['#000000', '#f5f0e6', '#e0b35a', '#6b4a2b', '#3b6ea5']
-const MARK_FAILED = new Color('#ff3b3b').multiplyScalar(3)
-const MARK_GATHERED = new Color('#ffb020').multiplyScalar(2.2)
-const MARK_WORKING = new Color('#59d0ff').multiplyScalar(2.6)
-const MARK_OFF = new Color('#000000')
-const EMOTE_COLOR: Record<EmoteKind, Color> = {
-  start: new Color('#59d0ff').multiplyScalar(2),
-  done: new Color('#5ce27a').multiplyScalar(2),
-  fail: new Color('#ff3b3b').multiplyScalar(2.5),
-  message: new Color('#ffffff').multiplyScalar(1.8),
-  gather: new Color('#ffb020').multiplyScalar(2),
-}
-const SPIN_RATE = 2.4
+import { accessoryColors } from './accessoryColors'
 
 /**
  * Equipment (by skill tier), status marks (failed lamp, working spinner,
  * gathered marker) and emote bursts: three instanced draws driven by sim
  * state. Marks and emotes bypass tone mapping so bloom picks them up.
  */
-export function ActorExtras() {
+export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
+  const settings = tuning.extras
+  const colors = useMemo(() => accessoryColors(settings), [settings])
   const store = useWorldStore()
   const ids = store.getState().actorOrder
   const capacity = Math.max(1, ids.length)
@@ -38,13 +25,20 @@ export function ActorExtras() {
   const emotes = useRef<InstancedMesh | null>(null)
   const dummy = useMemo(() => new Object3D(), [])
   const color = useMemo(() => new Color(), [])
-  const gearGeometry = useMemo(() => new BoxGeometry(1, 1.2, 0.5), [])
-  const ringGeometry = useMemo(() => new TorusGeometry(1, 0.18, 8, 24), [])
-  const markGeometry = useMemo(() => new SphereGeometry(1, 10, 10), [])
+  const gearGeometry = useMemo(() => new BoxGeometry(1, settings.gearHeight, settings.gearDepth), [settings.gearHeight, settings.gearDepth])
+  const ringGeometry = useMemo(() => new TorusGeometry(1, settings.ringThickness, settings.ringRadialSegments, settings.ringTubularSegments), [settings.ringThickness, settings.ringRadialSegments, settings.ringTubularSegments])
+  const markGeometry = useMemo(() => new SphereGeometry(1, settings.markWidthSegments, settings.markHeightSegments), [settings.markWidthSegments, settings.markHeightSegments])
   const emoteGeometry = useMemo(() => new PlaneGeometry(1, 1), [])
-  const gearMaterial = useMemo(() => new MeshStandardMaterial({ roughness: 0.8 }), [])
+  const gearMaterial = useMemo(() => new MeshStandardMaterial({ roughness: settings.gearRoughness }), [settings.gearRoughness])
   const glowMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false }), [])
-  const emoteMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.9, depthWrite: false }), [])
+  const emoteMaterial = useMemo(() => new MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: settings.emoteOpacity, depthWrite: false }), [settings.emoteOpacity])
+  useEffect(() => () => gearGeometry.dispose(), [gearGeometry])
+  useEffect(() => () => ringGeometry.dispose(), [ringGeometry])
+  useEffect(() => () => markGeometry.dispose(), [markGeometry])
+  useEffect(() => () => emoteGeometry.dispose(), [emoteGeometry])
+  useEffect(() => () => gearMaterial.dispose(), [gearMaterial])
+  useEffect(() => () => glowMaterial.dispose(), [glowMaterial])
+  useEffect(() => () => emoteMaterial.dispose(), [emoteMaterial])
   const poses = usePoseBuffer()
   const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
@@ -55,9 +49,9 @@ export function ActorExtras() {
     const emoteMesh = emotes.current
     if (!gearMesh || !ringMesh || !markMesh || !emoteMesh) return
     const state = store.getState()
-    const t = store.tuning().actor
+    const t = tuning
     const look = t.look
-    const spin = frame.clock.elapsedTime * SPIN_RATE
+    const spin = frame.clock.elapsedTime * settings.spinRate
     ids.forEach((id, i) => {
       const actor = state.actors[id]
       if (!actor) return
@@ -74,14 +68,14 @@ export function ActorExtras() {
       const r = pose.scaleXZ
       // equipment
       const tier = equipmentTier(actor.skillCount, t.equipmentTiers)
-      const size = (TIER_SIZE[tier] ?? 0) * look.equipmentScale * r
+      const size = (settings.tierSizes[tier] ?? 0) * look.equipmentScale * r
       const [gx, gy, gz] = bodyOffset(pose, 0, look.equipmentHeight * pose.scaleY, -look.equipmentBack * r)
       dummy.position.set(gx, gy, gz)
       dummy.rotation.set(0, pose.facing, 0)
       dummy.scale.set(size, size, size)
       dummy.updateMatrix()
       gearMesh.setMatrixAt(i, dummy.matrix)
-      color.set(TIER_COLOR[tier] ?? TIER_COLOR[0] ?? '#000000')
+      color.set(settings.tierColors[tier] ?? settings.tierColors[0] ?? settings.offColor)
       gearMesh.setColorAt(i, color)
       // working ring
       const working = actor.state === 'working'
@@ -91,26 +85,26 @@ export function ActorExtras() {
       dummy.scale.set(ringScale, ringScale, ringScale)
       dummy.updateMatrix()
       ringMesh.setMatrixAt(i, dummy.matrix)
-      ringMesh.setColorAt(i, working ? MARK_WORKING : MARK_OFF)
+      ringMesh.setColorAt(i, working ? colors.working : colors.off)
       // failed / gathered marker
       const failed = actor.state === 'failed'
       const gathered = actor.state === 'gathered' || actor.state === 'walkingToTable'
-      const markScale = failed || gathered ? look.markerRadius * 0.6 : 0
+      const markScale = failed || gathered ? look.markerRadius * settings.markScale : 0
       dummy.position.set(pose.x, look.markerHeight, pose.z)
       dummy.rotation.set(0, 0, 0)
       dummy.scale.set(markScale, markScale, markScale)
       dummy.updateMatrix()
       markMesh.setMatrixAt(i, dummy.matrix)
-      markMesh.setColorAt(i, failed ? MARK_FAILED : gathered ? MARK_GATHERED : MARK_OFF)
+      markMesh.setColorAt(i, failed ? colors.failed : gathered ? colors.gathered : colors.off)
       // emote
       const emote = actor.anim.emote
       if (emote) {
         const progress = 1 - emote.remaining / t.emoteSeconds
         dummy.position.set(pose.x, look.emoteHeight + look.emoteRise * progress, pose.z)
         dummy.quaternion.copy(frame.camera.quaternion)
-        const s = look.emoteSize * (1 - progress * 0.5)
+        const s = look.emoteSize * (1 - progress * settings.emoteShrink)
         dummy.scale.set(s, s, s)
-        emoteMesh.setColorAt(i, EMOTE_COLOR[emote.kind])
+        emoteMesh.setColorAt(i, colors.emotes[emote.kind])
       } else {
         dummy.position.set(pose.x, 0, pose.z)
         dummy.scale.set(0, 0, 0)

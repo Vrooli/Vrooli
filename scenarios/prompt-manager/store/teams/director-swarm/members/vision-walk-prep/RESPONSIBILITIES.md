@@ -1,18 +1,10 @@
 # Standing Responsibilities: Vision Walk Prep
 
-## Primary Duties
-- Compile the morning vision-walk briefing.
-- Preserve one command-sourced fleet-health observation in each dated morning briefing, including the exact window and counts, the computed success ratio, the 90% verdict, and bounded explanations for failure streaks of two or more.
-- Surface open work items from director-swarm and relevant external teams with enough context for operator review.
-- Preserve walk checkpoints verbatim when regenerating continuity records.
-- Highlight changes and capability gaps without taking action.
-- Frame big-picture context using the ecosystem lens (interfaces, functional role, compound value, bundle fit) per `path:docs/concepts/ECOSYSTEM.md`, so walk ideation starts from how candidates fit the whole.
-- State the self-improvement loop ladder honestly in each briefing. For each active self-improvement loop (skill experiments, portfolio prediction calibration, infra-health reliability targets), name the rung it measurably operates at — **Level 0** delegation (autonomous but operator-gated), **Level 1** net-positive (measured improvement exceeds its cost), **Level 2** ignition (improvements compound without operator pushes), **Level 3** inflection — and what evidence would demonstrate the next rung. A claim above Level 0 requires measured evidence; without it, write Level 0.
+Prepare the operator's morning walk through Command Center's owned capability. Preserve evidence provenance, unknowns, and resume continuity. Surface candidates without choosing outcomes or changing upstream state.
 
 ## Available Skills
 
-| Skill | Purpose |
-|-------|---------|
-| `prompt-manager skill read morning-vision-walk` | The walk this member's continuity record is the prep deliverable for. Read it so the briefing matches what the walk consumes. |
-| `prompt-manager skill read ecosystem-fit` | The ecosystem lens (interfaces, functional role, compound value, bundle fit) this member is required to frame candidates with. |
-| `prompt-manager action run agent-system.framework-health` | Read framework-health sensors when the briefing needs current system shape rather than a claim about it. |
+- `command-center-vision-walk-prep`: the complete preparation and publication contract.
+- `morning-vision-walk`: the downstream conversation and checkpoint semantics.
+
+Scheduling and identity remain owned by Prompt Manager. Runtime handoffs remain owned by the heartbeat runtime; durable briefing/checkpoint records remain in Source Ledger.

@@ -20,9 +20,7 @@ import {
   isPeriodId,
   isQualityProfileId,
   isSceneId,
-  periodForHour,
   resolvePeriod,
-  resolveTerrain,
   scenes,
   tuning as shippedTuning,
   withTuningOverride,
@@ -57,9 +55,11 @@ import {
   type WorldBounds,
 } from './engine'
 import { ActorPoseProvider, Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Terrain, Vegetation, Water, Weather, WorldStoreContext } from './scene'
+import { useLightingPeriod } from './engine/lighting/clock'
 import { EMPTY_FILTERS, EditorToolbar, WorldHelpContent, WorldHud, WorldSettingsContent, type FilterState, type SummaryFilter } from './hud'
 import { createWorldActions, syntheticRoster, useLayoutPersistence, useWorldPreferences, useWorldRoster, useWorldRuntime } from './data'
 import { canRedo, canUndo, commit, emptyHistory, heightAt, redo, terrainDigest, undo, upsertOverride, type OverrideHistory } from './sim'
+import { terrainForBounds } from './sim/layout/centre'
 import { poseToPosition } from './engine'
 
 export interface WorldViewProps {
@@ -156,19 +156,20 @@ export function WorldView(props: WorldViewProps) {
     const off = (key: string) => params.get(key) === '0'
     const dpr = clampedNumber(params.get('dpr'), baseProfile.dpr, 0.5, 3)
     const msaa = Math.round(clampedNumber(params.get('msaa'), baseProfile.msaa, 0, 8))
-    if (!off('ao') && !off('bloom') && !off('shadows') && dpr === baseProfile.dpr && msaa === baseProfile.msaa) return baseProfile
+    const lampLights = Math.round(clampedNumber(params.get('lampLights'), baseProfile.lampLights, 0, 32))
+    if (!off('ao') && !off('bloom') && !off('shadows') && dpr === baseProfile.dpr && msaa === baseProfile.msaa && lampLights === baseProfile.lampLights) return baseProfile
     return {
       ...baseProfile,
       dpr,
       msaa,
+      lampLights,
       ao: baseProfile.ao && !off('ao'),
       bloom: baseProfile.bloom && !off('bloom'),
       shadows: baseProfile.shadows && !off('shadows'),
     }
   }, [baseProfile, params])
-  const periodId: PeriodId =
-    periodMode.kind === 'fixed' ? periodMode.period : periodForHour(new Date().getHours(), tuning.lighting)
-  const basePeriod = useMemo(() => resolvePeriod(scene, periodId), [scene, periodId])
+  const periodId = useLightingPeriod(periodMode, tuning.lighting)
+  const basePeriod = useMemo(() => resolvePeriod(scene, periodId, tuning), [scene, periodId, tuning])
 
   // Layout editing: persisted overrides applied over the generated layout by id.
   const layoutStore = useLayoutPersistence(sceneId, syntheticActors === 0, tuning.editor.saveDebounceMs)
@@ -209,7 +210,7 @@ export function WorldView(props: WorldViewProps) {
   const pressureRaw = Number(params.get('pressure'))
   const pinnedPressure = Number.isFinite(pressureRaw) && params.has('pressure') ? Math.max(0, Math.min(1, pressureRaw)) : null
   const weatherId = pinnedWeather ?? (pinnedPressure !== null && pinnedPressure >= 0.75 ? 'rain' : runtime.store.getState().weather.state)
-  const terrainTuning = useMemo(() => resolveTerrain(scene, tuning), [scene, tuning])
+  const terrainTuning = useMemo(() => terrainForBounds(scene, tuning.terrain, runtime.store.getState().bounds), [scene, tuning.terrain, runtime.store])
   const weatherPreset = tuning.weather.states[weatherId]
   const period = useMemo(() => applyWeather(basePeriod, weatherId, tuning.weather), [basePeriod, weatherId, tuning.weather])
   useEffect(() => updateDiagnostics({ weather: weatherId, weatherPressure: pinnedPressure ?? runtime.store.getState().weather.pressure }), [pinnedPressure, runtime.store, weatherId])
@@ -246,7 +247,7 @@ export function WorldView(props: WorldViewProps) {
   )
 
   // Focus: frame the actor's rest bounds; follow keeps the target on it while it walks.
-  useEffect(() => {
+  const applyFocus = useCallback(() => {
     const rig = cameraRig.current
     if (!rig) return
     if (!focusedId) {
@@ -322,7 +323,7 @@ export function WorldView(props: WorldViewProps) {
     updateDiagnostics({ qualityHistory: history })
     if (!calibrated.current && record.verdict === 'incline' && quality.auto && !isQualityProfileId(profileParam) && preferences.preferences.qualityProfile === shippedTuning.quality.defaultProfile) {
       calibrated.current = true
-      const selected = chooseInitialProfile(record.measuredFps, record.boundFps / tuning.quality.recoverRatio)
+      const selected = chooseInitialProfile(record.measuredFps, record.boundFps / tuning.quality.recoverRatio, tuning.quality)
       setQuality({ auto: true, profileId: selected })
       preferences.update({ qualityProfile: selected, qualityAuto: true })
       if (selected !== record.from) {
@@ -336,7 +337,7 @@ export function WorldView(props: WorldViewProps) {
     setQualityNotice(`Quality adjusted to ${record.to}: ${record.reason}`)
     window.setTimeout(() => setQualityNotice(null), 5000)
     preferences.update({ qualityProfile: record.to, qualityAuto: true })
-  }, [preferences, profileParam, quality.auto, tuning.quality.recoverRatio])
+  }, [preferences, profileParam, quality.auto, tuning.quality])
   const getTarget = useCallback(
     (): [number, number, number] => cameraRig.current?.target() ?? [bounds.center[0], 0, bounds.center[1]],
     [bounds],
@@ -353,17 +354,18 @@ export function WorldView(props: WorldViewProps) {
           bounds={bounds}
           intro={intro}
           reducedMotion={reducedMotion}
+          onReady={applyFocus}
         />
         <WorldStoreContext.Provider value={runtime.store}>
-          <FrameDriver store={runtime.store} weatherActive={weatherId === 'rain' || weatherId === 'snow'} diagnosticsOpen={showDiagnostics} continuous={params.get('capture') === '1'} intro={intro} settleSeconds={tuning.camera.smoothTime} />
+          <FrameDriver settings={tuning.quality.frameDriver} store={runtime.store} weatherActive={weatherId === 'rain' || weatherId === 'snow'} diagnosticsOpen={showDiagnostics} continuous={params.get('capture') === '1'} intro={intro} settleSeconds={tuning.camera.smoothTime} />
           <LightingRig scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} store={runtime.store} />
-          <Terrain scene={scene} tuning={terrainTuning} profile={profile} weather={weatherPreset} />
-          <Water scene={scene} tuning={terrainTuning} profile={profile} />
+          <Terrain scene={scene} tuning={terrainTuning} profile={profile} weather={weatherPreset} visual={tuning.visual.terrain} />
+          <Water scene={scene} tuning={terrainTuning} profile={profile} visual={tuning.visual.water} />
           <Places scene={scene} layout={tuning.layout} />
-          <Props scene={scene} period={period} tuning={tuning.layout} />
-          <Vegetation scene={scene} profile={profile} />
-          <ActorPoseProvider>
-            <Actors profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
+          <Props scene={scene} period={period} tuning={tuning.layout} lighting={tuning.lighting} profile={profile} camera={tuning.camera} />
+          <Vegetation scene={scene} profile={profile} camera={tuning.camera} />
+          <ActorPoseProvider focusedId={focusedId}>
+            <Actors tuning={tuning.actor} profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
             {editing && (
               <RoomHandles
                 editor={tuning.editor}
@@ -375,12 +377,14 @@ export function WorldView(props: WorldViewProps) {
             )}
             <Labels labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
           </ActorPoseProvider>
-          <SceneEnvironment scene={scene} profile={profile} period={period} bounds={bounds} weather={weatherPreset} altitude={tuning.weather.cloudAltitude} />
+          <SceneEnvironment tuning={tuning.weather} scene={scene} profile={profile} period={period} bounds={bounds} weather={weatherPreset} altitude={tuning.weather.cloudAltitude} />
           <Weather id={weatherId} preset={weatherPreset} tuning={tuning.weather} profile={profile} getTarget={getTarget} />
         </WorldStoreContext.Provider>
-        <PostChain profile={profile} diagnosticsEnabled={showDiagnostics} />
+        <PostChain profile={profile} settings={tuning.visual.post} diagnosticsEnabled={showDiagnostics} />
         <QualityGovernor auto={quality.auto} profile={profile} profileId={quality.profileId} quality={tuning.quality} onVerdict={onVerdict} />
         <DiagnosticsProbe
+          settings={tuning.quality.diagnostics}
+          frameHeight={tuning.camera.frameHeight}
           scene={sceneId}
           profileId={quality.profileId}
           profile={profile}
@@ -434,7 +438,7 @@ export function WorldView(props: WorldViewProps) {
         tickerLimit={TICKER_LIMIT}
         weather={pinnedWeather || pinnedPressure !== null ? { state: weatherId, pressure: pinnedPressure ?? runtime.store.getState().weather.pressure } : undefined}
       />
-      {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} />}
+      {showDiagnostics && !twoD && <DiagnosticsOverlay seed={seed} seedDigest={seedDigest} refreshMs={tuning.quality.diagnostics.overlayRefreshMs} />}
       {qualityNotice && (
         <div className="pointer-events-auto absolute right-3 top-3 z-40 max-w-sm rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-lg" role="status" data-testid="world-quality-notice">
           <span>{qualityNotice}</span>
@@ -510,7 +514,7 @@ export function WorldView(props: WorldViewProps) {
           />
         }
         helpTitle="World"
-        helpContent={<WorldHelpContent />}
+        helpContent={<WorldHelpContent camera={tuning.camera} />}
       />
     </div>
   )

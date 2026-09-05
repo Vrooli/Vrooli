@@ -4,7 +4,7 @@ import type { NavGrid } from '../model'
 import { PathCache, findPath, lineOfSight, smoothPath } from '../nav/astar'
 import { cellToWorld, isWalkable, nearestWalkable, worldToCell } from '../nav/grid'
 import { moveAlongPath, turnToward, wrapAngle } from '../motion/move'
-import { world } from './fixtures'
+import { makeWorld } from './fixtures'
 
 function openGrid(cols: number, rows: number, cellSize = 1): NavGrid {
   return { cellSize, cols, rows, originX: 0, originZ: 0, walkable: new Uint8Array(cols * rows).fill(1) }
@@ -12,7 +12,7 @@ function openGrid(cols: number, rows: number, cellSize = 1): NavGrid {
 
 describe('nav grid', () => {
   it('blocks desks, tables, the campfire, walls and trunks but leaves the room front open', () => {
-    const s = world(1, 3)
+    const s = makeWorld({ teams: 1, agents: 3, treeVariants: 3 })
     const room = Object.values(s.places).find((p) => p.kind === 'room')
     const desk = Object.values(s.places).find((p) => p.kind === 'desk')
     const fire = s.places.hearth
@@ -88,7 +88,7 @@ describe('A*', () => {
 
 describe('motion', () => {
   it('ramps speed over accelSeconds and never exceeds the target speed', () => {
-    const s = world(1, 1)
+    const s = makeWorld({ teams: 1, agents: 1, treeVariants: 3 })
     const base = s.actors['agent-0-0']
     if (!base) throw new Error('missing')
     const a = { ...base }
@@ -107,7 +107,7 @@ describe('motion', () => {
   })
 
   it('arrives exactly on the last waypoint and reports it once', () => {
-    const s = world(1, 1)
+    const s = makeWorld({ teams: 1, agents: 1, treeVariants: 3 })
     const base = s.actors['agent-0-0']
     if (!base) throw new Error('missing')
     const a = { ...base }

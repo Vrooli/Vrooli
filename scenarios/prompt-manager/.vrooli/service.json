@@ -247,7 +247,7 @@
     "feature": [],
     "waivers": {
       "usage": {
-        "reason": "Declared 2026-09-02: the usage role is served by the pack skill `skill-authoring` at store/skills/packs/core/skill-authoring/SKILL.md, whose programs are prompt-manager.skill-set-read, prompt-manager.meta-optimization-reads, and prompt-manager.vision-walk-prep; the skillRole source pattern accepts only skills/<id>/SKILL.md, which prompt-manager does not ship.",
+        "reason": "Declared 2026-09-02: the usage role is served by the pack skill `skill-authoring` at store/skills/packs/core/skill-authoring/SKILL.md, whose programs are prompt-manager.skill-set-read and prompt-manager.meta-optimization-reads; the skillRole source pattern accepts only skills/<id>/SKILL.md, which prompt-manager does not ship.",
         "declared_at": "2026-09-02"
       },
       "improve": {

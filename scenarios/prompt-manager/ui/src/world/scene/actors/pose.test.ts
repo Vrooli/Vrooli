@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
-import { createWorld } from '../../sim'
+import { makeWorld } from '../../sim/__tests__/fixtures'
 import { actorSeed, bodyOffset, bodyPose } from './pose'
 
 function actor() {
-  const state = createWorld({ seed: 1, now: 0, teams: [], agents: [{ id: 'a', name: 'A' }], scene: 'office' }, tuning)
+  const state = makeWorld({ seed: 1, now: 0, teams: [], agents: [{ id: 'a', name: 'A' }], scene: 'office' })
   const a = state.actors.a
   if (!a) throw new Error('missing')
   return a

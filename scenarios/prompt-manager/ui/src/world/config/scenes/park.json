@@ -15,6 +15,7 @@
     "board": "sign_board",
     "filler": ["stump", "rock_small", "flowers"]
   },
+  "emissive": { "hearth": "#ffab52", "lamp": "#ffd9a0" },
   "gatheringLabel": "Commons",
   "palette": {
     "horizon": "#7fa862",

@@ -34,11 +34,12 @@ export interface Place {
   label: string
 }
 
-export type DecorKind = 'tree' | 'lamp' | 'decor'
+export type DecorKind = 'tree' | 'shrub' | 'ground' | 'lamp' | 'decor'
 
 export interface DecorSpot {
   id: string
   kind: DecorKind
+  scaleRef: 'tree' | 'prop'
   /** Index into the scene's prop list for this kind. */
   variant: number
   /** Stable asset id for biome-driven vegetation and decor. */

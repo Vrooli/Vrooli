@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../../config'
 import { smoothPressure, weatherPressure } from '..'
-import { world } from '../../__tests__/fixtures'
+import { makeWorld } from '../../__tests__/fixtures'
 
 describe('weather pressure', () => {
   it('maps no failures to zero and all failures to one when all terms agree', () => {
-    const state = world(1, 4)
+    const state = makeWorld({ teams: 1, agents: 4, treeVariants: 3 })
     expect(weatherPressure(state, tuning.weather)).toBe(0)
     state.events = state.actorOrder.map((id, index) => ({ seq: index, at: state.time, kind: 'run.failed' as const, agentId: id }))
     state.actorOrder.forEach((id) => { const actor = state.actors[id]; if (actor) actor.state = 'failed' })

@@ -1,4 +1,4 @@
-import type { LayoutTuning, TerrainTuning } from '../../config'
+import type { LayoutTuning, TerrainResolver } from '../../config'
 import type { NavGrid, Vec2 } from '../model'
 import { buildNavGrid, cellIndex, isCellWalkable, isWalkable, worldToCell } from '../nav/grid'
 import { Rng, hashString } from '../rng'
@@ -13,7 +13,7 @@ export interface Site {
 
 export interface SiteTuning {
   layout: LayoutTuning
-  terrain: TerrainTuning
+  terrain: TerrainResolver
 }
 
 function clamp01(value: number): number {
@@ -21,9 +21,10 @@ function clamp01(value: number): number {
 }
 
 export function buildability(field: TerrainField, tuning: SiteTuning, nav: NavGrid | undefined, x: number, z: number, commons: Vec2 = [0, 0], selected: readonly Site[] = []): number {
-  const { layout, terrain } = tuning
+  const { layout } = tuning
+  const terrain = tuning.terrain.at(x, z)
   const flat = 1 - clamp01(slopeAt(field, x, z) / terrain.maxSiteSlope)
-  const dry = shoreDistance(field, terrain, x, z) >= terrain.shoreMargin ? 1 : 0
+  const dry = shoreDistance(field, tuning.terrain, x, z) >= terrain.shoreMargin ? 1 : 0
   const near = 1 - clamp01(Math.hypot(x - commons[0], z - commons[1]) / layout.siteRadiusMax)
   const nearest = selected.length === 0 ? layout.siteSpacing : Math.min(...selected.map((site) => Math.hypot(x - site.position[0], z - site.position[1])))
   const apart = clamp01(nearest / layout.siteSpacing)
@@ -97,7 +98,7 @@ export function selectSites(field: TerrainField, tuning: SiteTuning, sizes: read
   const rng = new Rng(hashString(`sites:${seed}`))
   const maxSiteReach = sizes.reduce((largest, size) => Math.max(largest, Math.hypot(size[0], size[1]) / 2), 0)
   const capacityRadius = maxSiteReach * 2 + tuning.layout.siteSpacing * 2
-  const insideTerrainRadius = field.radius - maxSiteReach - tuning.terrain.kerbWidth - field.cellSize
+  const insideTerrainRadius = field.radius - maxSiteReach - tuning.terrain.base().kerbWidth - field.cellSize
   const candidateRadius = Math.max(0, Math.min(insideTerrainRadius, Math.max(tuning.layout.siteRadiusMax, capacityRadius)))
   const candidates: Vec2[] = []
   const appendCandidateBatch = () => {
@@ -108,11 +109,7 @@ export function selectSites(field: TerrainField, tuning: SiteTuning, sizes: read
     }
   }
   appendCandidateBatch()
-  const buildableCandidates = candidates.filter((point) => shoreDistance(field, tuning.terrain, point[0], point[1]) >= tuning.terrain.shoreMargin && slopeAt(field, point[0], point[1]) <= tuning.terrain.maxWalkSlope)
-  const commonsPoint = [...buildableCandidates].sort((a, b) => {
-    const score = (point: Vec2) => buildability(field, tuning, undefined, point[0], point[1]) - Math.hypot(point[0], point[1]) / candidateRadius
-    return score(b) - score(a)
-  })[0] ?? [0, 0]
+  const buildableCandidates = candidates.filter((point) => shoreDistance(field, tuning.terrain, point[0], point[1]) >= tuning.terrain.at(point[0], point[1]).shoreMargin && slopeAt(field, point[0], point[1]) <= tuning.terrain.at(point[0], point[1]).maxWalkSlope)
   const terrainNav = buildNavGrid(
     { width: field.radius * 2, depth: field.radius * 2, center: [0, 0], footprint: { width: 0, depth: 0, center: [0, 0] }, outline: [] },
     [],
@@ -123,14 +120,22 @@ export function selectSites(field: TerrainField, tuning: SiteTuning, sizes: read
     field,
     tuning.terrain,
   )
+  // A dry continuous point can map to a blocked navigation cell. Select the
+  // commons from walkable candidates so its connectivity search has a root.
+  const commonsPoint = buildableCandidates.filter((point) => isWalkable(terrainNav, point)).sort((a, b) => {
+    const score = (point: Vec2) => buildability(field, tuning, undefined, point[0], point[1]) - Math.hypot(point[0], point[1]) / candidateRadius
+    return score(b) - score(a)
+  })[0]
+  if (!commonsPoint) throw new Error(`site-selection: no walkable commons at seed ${seed}`)
   const reachable = reachableFrom(terrainNav, commonsPoint)
   const commons: Site = { position: commonsPoint, rotation: 0, size: [tuning.layout.commonsRadius * 2, tuning.layout.commonsRadius * 2], height: 0 }
   // A terrace modifies samples one field cell beyond its footprint and then
   // blends across kerbWidth. Keep every later kerb outside earlier pad cores.
-  const terraceClearance = tuning.terrain.kerbWidth + field.cellSize
+  const terraceClearance = tuning.terrain.base().kerbWidth + field.cellSize
   const viableFor = (size: Vec2, placed: readonly Site[]) => candidates.filter((point) => {
-      if (shoreDistance(field, tuning.terrain, point[0], point[1]) < tuning.terrain.shoreMargin) return false
-      if (slopeAt(field, point[0], point[1]) > tuning.terrain.maxSiteSlope) return false
+      const local = tuning.terrain.at(point[0], point[1])
+      if (shoreDistance(field, tuning.terrain, point[0], point[1]) < local.shoreMargin) return false
+      if (slopeAt(field, point[0], point[1]) > local.maxSiteSlope) return false
       const rotation = snappedRotation(point, commonsPoint, tuning.layout.siteRotationSnapRad)
       const candidate: Site = { position: point, rotation, size, height: 0 }
       const exitDistance = size[1] / 2 + tuning.layout.cellSize
