@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-003",
       "title": "Research-and-Reconcile Loop — Librarian Gather and Reconcile Phases",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "core",
       "description": "Configure the L3 agent to execute a two-phase loop: (1) Gather phase reads semantically near existing findings first (bounded sweep over the findings store) before initiating any web searches, to ground the run in prior knowledge and avoid redundant external queries; (2) Reconcile phase writes new findings, supersedes outdated findings (with provenance), and flags contradictions. Budget ordering ensures the user receives an answer first, followed by a bounded post-step curation pass that reconciles the findings store.",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/research/gather_test.go::TestRunResearchCycleAnswerFirstOrdering",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Gather phase issues a semantic query against the findings store before any web search call in the controlled test fixture"
         },
         {
           "type": "test",
           "ref": "api/internal/research/gather_test.go::TestGatherRelatedFindingsConfigurableCap",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Gather phase sweep is bounded: it processes at most N semantically near findings (configurable max, default 20) before proceeding"
         },
         {
           "type": "test",
           "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Reconcile phase correctly identifies a new finding that contradicts an existing active finding and flags it as disputed"
         },
         {
           "type": "test",
           "ref": "api/internal/research/l3_test.go::TestReconcileGateConfigurable",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Reconcile phase supersedes an existing finding when the new evidence confidence exceeds the old finding's confidence by the configured threshold"
         },
         {

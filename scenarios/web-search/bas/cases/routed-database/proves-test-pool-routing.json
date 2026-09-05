@@ -1,12 +1,14 @@
 {
   "metadata": {
     "name": "routed-smoke",
-    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to a page served by the live scenario that reads from the database, and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nCustomize this for your scenario: replace the scenario_path with your DB-backed list view, the @selector/notes.list selector with your real list selector, and the slug with whatever bas/seeds/seed.go inserts into the test pool.",
-    "requirement": "REQ-ROUTED-DB-E2E",
+    "description": "Create a citation-backed finding through the routed test API, then verify it appears on the findings page. Workflow Health must install a test-storage lease before execution; its teardown counters verify no primary-storage writes.",
+    "requirement": "REQ-P0-005",
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "routed-test-db-proof"
+      "purpose": "routed-test-db-proof",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "execution_mode": "mutating"
   },
@@ -21,12 +23,42 @@
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "@scenario/self",
-          "scenario_path": "/",
+          "scenario": "web-search",
+          "scenario_path": "/findings",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to DB-backed list view" }
+        "metadata": {
+          "label": "Open findings page"
+        }
+      }
+    },
+    {
+      "id": "seed-routed-finding",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const response = await fetch('/vrooli.web_search.v1.findings.FindingsService/AddFinding', {method:'POST',headers:{'Content-Type':'application/json','X-Vrooli-Test-Mode':'1'},body:JSON.stringify({claim:'routed-smoke-001: isolated web-search finding',confidence:0.8,query:'routed browser validation',source:'FINDING_SOURCE_MANUAL',citations:[{url:'https://example.com/routed-validation',title:'Isolated test fixture'}]})}); if (!response.ok) throw new Error('Routed fixture creation failed: '+response.status); const body = await response.json(); if (!body.finding?.id) throw new Error('Fixture ID missing'); return body.finding.id; })()"
+        },
+        "metadata": {
+          "label": "Seed one finding in the leased test database"
+        }
+      }
+    },
+    {
+      "id": "reload-findings",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-search",
+          "scenario_path": "/findings",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open findings page"
+        }
       }
     },
     {
@@ -34,11 +66,13 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/findings.list",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "List container visible" }
+        "metadata": {
+          "label": "List container visible"
+        }
       }
     },
     {
@@ -46,15 +80,41 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/findings.list",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": { "stringValue": "routed-smoke-001" },
+          "expected": {
+            "stringValue": "routed-smoke-001"
+          },
           "case_sensitive": true,
           "timeout_ms": 10000,
-          "failure_message": "Seeded fixture 'routed-smoke-001' not visible in the list — the UI->API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is being attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the list's repository uses *database.RoutedDB."
+          "failure_message": "Seeded fixture 'routed-smoke-001' not visible in the list \u2014 the UI->API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is being attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the list's repository uses *database.RoutedDB."
         },
-        "metadata": { "label": "Assert seeded slug is rendered (proves routing end-to-end)" }
+        "metadata": {
+          "label": "Assert seeded slug is rendered (proves routing end-to-end)"
+        }
       }
+    }
+  ],
+  "edges": [
+    {
+      "id": "navigate-list-view-to-seed-routed-finding",
+      "source": "navigate-list-view",
+      "target": "seed-routed-finding"
+    },
+    {
+      "id": "seed-routed-finding-to-reload-findings",
+      "source": "seed-routed-finding",
+      "target": "reload-findings"
+    },
+    {
+      "id": "reload-findings-to-wait-list",
+      "source": "reload-findings",
+      "target": "wait-list"
+    },
+    {
+      "id": "wait-list-to-assert-routed-slug-present",
+      "source": "wait-list",
+      "target": "assert-routed-slug-present"
     }
   ]
 }

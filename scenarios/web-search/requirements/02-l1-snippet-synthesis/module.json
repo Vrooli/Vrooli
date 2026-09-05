@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-002",
       "title": "L1 LLM Snippet Synthesis — Cited, Additive, Non-Blocking",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "Provide an optional LLM-generated cited answer synthesized from the snippets already returned by SearXNG (no additional page fetching). The synthesis is always additive to raw hits (raw hits are never withheld pending synthesis), always includes inline citations back to source URLs, and is configured to abstain (return a structured 'insufficient/conflicting sources' response) when sources conflict or coverage is thin. Synthesis must never block or delay delivery of raw SearchHit results.",
@@ -15,35 +15,35 @@
           "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestParseSynthesisReplyAbstainsOnConflict",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Given conflicting snippets across sources, the synthesizer returns an abstain response with a conflict reason and no answer text"
         },
         {
           "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestSynthesizeAbstainsOnZeroResults",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Given fewer than the configured minimum snippet threshold, the synthesizer returns an abstain response citing thin coverage"
         },
         {
           "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestParseSynthesisReplyAbstainsWhenUncited",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Every non-abstain synthesis response contains at least one inline citation referencing a URL present in the input SearchHit set"
         },
         {
           "type": "test",
           "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisCitedWhenRequested",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Synthesis output object is structurally additive: it is appended to the existing SearchHit list and does not replace or remove any raw hit"
         },
         {
           "type": "test",
           "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisLeavesRawHitsIdentical",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Unit test asserts that the raw hits array is identical before and after synthesis is triggered"
         },
         {

@@ -39,6 +39,8 @@ func Module(svc *internalresearch.Service, logger *log.Logger) module.Module {
 // method path references the generated *Procedure constant, so renaming an RPC
 // in research.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "research_answer", Path: researchconnect.ResearchServiceAnswerProcedure, Method: "POST", Summary: "Answer with explicit evidence requirements", Description: "Reuse sufficient stored evidence before live research; return complete citations and typed gaps.", Category: "research"},
+	{ID: "research_wait", Path: researchconnect.ResearchServiceWaitResearchProcedure, Method: "POST", Summary: "Wait once for research", Description: "Attach to the durable Agent Manager workflow without polling or canceling on timeout.", Category: "research"},
 	{
 		ID:          "research_l2",
 		Path:        researchconnect.ResearchServiceRunL2Procedure,

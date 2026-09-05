@@ -19,9 +19,11 @@ import (
 // MeasureName is the canonical "<domain>.<command>" id of the findings measure.
 // It must match the manifest group + command ("findings" + "count") so the
 // measures-health behavioral probe finds the registered compute func.
-const MeasureName = "findings.count"
-const MeasureUsageRate = "findings.used-rate"
-const MeasureNeverSurfaced = "findings.never-surfaced"
+const (
+	MeasureName          = "findings.count"
+	MeasureUsageRate     = "findings.used-rate"
+	MeasureNeverSurfaced = "findings.never-surfaced"
+)
 
 func findingsCountDeclaration() measures.MeasureDeclaration {
 	return measures.MeasureDeclaration{
@@ -54,9 +56,11 @@ func findingsCountDeclaration() measures.MeasureDeclaration {
 }
 
 func usageDeclaration(name, intent, unit, field, summary string, questions []string) measures.MeasureDeclaration {
-	return measures.MeasureDeclaration{Name: name, Domain: "findings", Intent: intent, Questions: questions,
+	return measures.MeasureDeclaration{
+		Name: name, Domain: "findings", Intent: intent, Questions: questions,
 		Params: map[string]measures.Param{"window": {Name: "window", Type: measures.ParamTypeTimeWindow, Default: string(measures.TokenThisWeek)}},
-		Result: measures.Result{Kind: measures.ResultScalar, ValueField: field, Unit: unit, SummaryTemplate: summary}, Effect: measures.EffectRead, RunEligible: true, Service: "FindingsService", Method: "ListEffectiveness"}
+		Result: measures.Result{Kind: measures.ResultScalar, ValueField: field, Unit: unit, SummaryTemplate: summary}, Effect: measures.EffectRead, RunEligible: true, Service: "FindingsService", Method: "ListEffectiveness",
+	}
 }
 
 // MeasuresHandler builds the measures-go serve registry for the findings domain
@@ -96,7 +100,7 @@ func registerUsageMeasures(reg *measures.Registry, svc internalfindings.Service,
 			if decl.Name == MeasureNeverSurfaced {
 				value = strconv.FormatInt(agg.Never, 10)
 			}
-			return measures.MeasureResult{Value: value, Provenance: measures.Provenance{ExecutedQuery: "SELECT SUM(finding_usage.used_count), SUM(finding_usage.surfaced_count) FROM findings LEFT JOIN finding_usage ON finding_usage.finding_id = findings.id"}}, nil
+			return measures.MeasureResult{Value: value, Provenance: measures.Provenance{ExecutedQuery: internalfindings.UsageAggregateQuery}}, nil
 		}); err != nil {
 			return err
 		}

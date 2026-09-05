@@ -1,3 +1,5 @@
+import json
+
 """web-search.findings-curate v1 — read the effectiveness ledger and propose curation moves. Report only.
 
 Contract: findings-curate.json.
@@ -155,7 +157,7 @@ def step_classify():  # CLASSIFY · a deterministic table; no inference
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, sort_keys=True))
     return None
 
 

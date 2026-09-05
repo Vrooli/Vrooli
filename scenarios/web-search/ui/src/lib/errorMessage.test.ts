@@ -25,4 +25,13 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+  it("retains the message for an unrecognized API error code", () => {
+    expect(errorMessage(makeApiError("future_server_code", "service changed", 500), i18n.t)).toContain("service changed");
+  });
+
+  it("renders non-Error rejections without throwing again", () => {
+    expect(errorMessage("connection closed", i18n.t)).toBe("connection closed");
+    expect(errorMessage(null, i18n.t)).toBe("null");
+  });
+
 });

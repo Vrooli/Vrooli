@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004",
       "title": "Scope-Aware Federated Query Routing — Learnings-First, Live-Web Gated",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "Default federated queries must route exclusively to web-search.learnings (SCOPE_PROJECT) and must not issue any HTTP requests to SearXNG or external engines. The live-web provider (web-search.live) joins the federated set only when: (a) the query includes an explicit --type web or --all flag, or (b) fallback escalation is triggered because project-scoped results are empty or scored below the configured weakness threshold. Fallback escalation must be logged and the escalation reason surfaced in the result envelope.",
@@ -15,42 +15,42 @@
           "type": "test",
           "ref": "../search-hub/api/internal/routing/router_test.go::TestAutoRouteWithholdsExternalScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Routing decision function returns [web-search.learnings] for a default query with no flags set [the router's partitionByScope keeps SCOPE_PROJECT providers in the automatic set and withholds the SCOPE_EXTERNAL web-search.live, which is asserted absent from corpora_searched and the classifier's candidate types] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {
           "type": "test",
           "ref": "../search-hub/api/internal/routing/router_test.go::TestExplicitTypeWebReachesExternalScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Routing decision function returns [web-search.learnings, web-search.live] when --type web flag is present [an explicit --type web selector targets providers of type web, so corpora_searched is exactly [web-search.live]; project providers join via their own types or --all] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {
           "type": "test",
           "ref": "../search-hub/api/internal/routing/router_test.go::TestExplicitAllReachesExternalScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Routing decision function returns [web-search.learnings, web-search.live] when --all flag is present [--all fans out to every active provider including SCOPE_EXTERNAL; sibling TestExplicitPathUnaffectedByFlag pins that the explicit path is independent of the auto-route opt-in flag] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {
           "type": "test",
           "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestFallbackEscalationOnEmptyProject",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fallback escalation trigger fires when learnings result set is empty (zero hits) [behind the SEARCH_HUB_AUTO_ROUTE_EXTERNAL opt-in (default false; flag-off behavior pinned by TestFallbackEscalationFlagOffStaysEmpty); empty project corpus folds the withheld external provider into the fan-out via resultsWeak] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {
           "type": "test",
           "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestFallbackEscalationOnWeakScores",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fallback escalation trigger fires when all learnings hits score below the configured weakness threshold [IMPLEMENTED 2026-06-10: search-hub resultsWeakness extends the zero-hit trigger — behind the default-OFF SEARCH_HUB_AUTO_ROUTE_EXTERNAL flag, a round whose every non-degraded hit scores below SEARCH_HUB_AUTO_EXTERNAL_THRESHOLD (normalized 0..1, same regime as the auto-route confidence gate) folds the withheld external provider in via the same governor-protected path; the escalation reason line distinguishes 'below the weakness threshold' from 'empty' and telemetry records Escalated=true; flag-off parity pinned by TestFallbackEscalationFlagOffIgnoresWeakScores] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {
           "type": "test",
           "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestFallbackEscalationOnEmptyProject",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Escalation reason field is populated in the result envelope when fallback occurs [asserts the routing_explanation carries the 'escalated to 1 external provider(s) — project results were empty' reason line and the telemetry sample records Escalated=true] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
         },
         {

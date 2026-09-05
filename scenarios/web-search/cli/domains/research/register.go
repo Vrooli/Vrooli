@@ -18,6 +18,8 @@ const GroupName = "research"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
+		"ResearchService.Answer":                h.answer,
+		"ResearchService.WaitResearch":          h.wait,
 		"ResearchService.RunL2":                 h.l2,
 		"ResearchService.RunL3":                 h.l3,
 		"ResearchService.GetResearchStatus":     h.status,

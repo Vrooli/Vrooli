@@ -98,6 +98,7 @@ func (s *OllamaSynthesizer) run(ctx context.Context, args []string, stdin string
 	if s.Runner != nil {
 		return s.Runner(ctx, args, stdin)
 	}
+	// #nosec G204 -- fixed executable and argument vector; query/source text travels only on stdin, never through a shell.
 	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
 	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.Output()

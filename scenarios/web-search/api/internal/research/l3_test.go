@@ -1,10 +1,13 @@
 package research_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"web-search/internal/findings"
@@ -33,7 +36,7 @@ func TestRunL3SpawnsAndPolls(t *testing.T) {
 	require.Equal(t, "pending", res.Status)
 
 	// The L3 prompt orders GATHER before RECONCILE (gather-before-reconcile).
-	prompt := am.spawnedReq.Prompt
+	prompt := declaredPrompt(t, am.spawnedReq)
 	gatherIdx := strings.Index(prompt, "GATHER")
 	researchIdx := strings.Index(prompt, "RESEARCH")
 	reconcileIdx := strings.Index(prompt, "RECONCILE")
@@ -58,7 +61,7 @@ func TestRunL3PromptRegistersResearchTools(t *testing.T) {
 	_, err := svc.RunL3(context.Background(), "what changed about X")
 	require.NoError(t, err)
 
-	prompt := am.spawnedReq.Prompt
+	prompt := declaredPrompt(t, am.spawnedReq)
 	for _, tool := range []string{
 		"web-search research l2",     // L2 fetch + cited synthesis endpoint
 		"web-search research gather", // bounded GATHER endpoint
@@ -83,7 +86,7 @@ func TestRunL3EncodesGapIterationBeyondSingleL2(t *testing.T) {
 	_, err := svc.RunL3(context.Background(), "q")
 	require.NoError(t, err)
 
-	prompt := am.spawnedReq.Prompt
+	prompt := declaredPrompt(t, am.spawnedReq)
 	require.Contains(t, prompt, "do not already cover", "research is directed at the GAPS, not a blanket pass")
 	require.Contains(t, prompt, "focused sub-query", "gaps are pursued via focused L2 sub-queries")
 	require.Contains(t, prompt, "web-search research l2", "a single L2 call is a sub-step of the L3 loop")
@@ -101,7 +104,7 @@ func TestL3PromptMirrorsConfiguredTuning(t *testing.T) {
 	_, err := svc.RunL3(context.Background(), "q")
 	require.NoError(t, err)
 
-	prompt := am.spawnedReq.Prompt
+	prompt := declaredPrompt(t, am.spawnedReq)
 	require.Contains(t, prompt, "caps it at 5 findings", "prompt mirrors the configured gather cap")
 	require.Contains(t, prompt, "confidence >= 0.90", "prompt mirrors the configured confidence gate")
 	require.Contains(t, prompt, "at most 4 research loops", "prompt mirrors the configured iteration budget")
@@ -119,7 +122,7 @@ func TestL3PromptBoundsIterationBudget(t *testing.T) {
 	_, err := svc.RunL3(context.Background(), "q")
 	require.NoError(t, err)
 
-	prompt := am.spawnedReq.Prompt
+	prompt := declaredPrompt(t, am.spawnedReq)
 	require.Contains(t, prompt, "at most 10 research loops", "default budget is 10 loops")
 	require.Contains(t, prompt, "emit the brief from what you have", "budget exhaustion converges instead of iterating")
 }
@@ -287,4 +290,23 @@ func TestReconcileUnavailableWithoutFindings(t *testing.T) {
 	svc := research.NewService(research.Deps{})
 	_, err := svc.Reconcile(context.Background(), []research.ReconcileItem{{ExistingID: "x", Contradicts: true}})
 	require.Error(t, err)
+}
+
+// The declaration owns the prompt; tests still assert every original research obligation.
+// [REQ:REQ-P1-004] L3 captures retain their actual workflow provenance.
+func TestDeclaredInvestigationCaptureProvenance(t *testing.T) {
+	body, err := os.ReadFile("../../../skills/web-search-investigate/SKILL.md")
+	require.NoError(t, err)
+	require.Contains(t, string(body), "findings add --source l3")
+}
+
+func declaredPrompt(t *testing.T, r agentmanager.SpawnRequest) string {
+	t.Helper()
+	raw, err := os.ReadFile("../../../skills/web-search-investigate/SKILL.md")
+	require.NoError(t, err)
+	tmpl, err := template.New("research").Parse(string(raw))
+	require.NoError(t, err)
+	var b bytes.Buffer
+	require.NoError(t, tmpl.Execute(&b, map[string]any{"query": r.Query, "gather_cap": r.GatherCap, "confidence_gate": r.ConfidenceGate, "max_loops": r.MaxLoops}))
+	return b.String()
 }

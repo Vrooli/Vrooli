@@ -1,129 +1,68 @@
 # Web Search
 
-Federated web search provider with live results and a self-curating, citation-backed research knowledge store
+Web-search provides live web results, cited research, and a persistent findings ledger. Search Hub federates its live and stored-finding providers. The API, CLI, and UI share generated Connect-RPC contracts.
 
-This scenario provides
-the standard full-stack Vrooli scenario shape:
-
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
-
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
-
-## What's In This Scenario
-
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
-
-## Placeholders vs. Durable Scaffolding
-
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+## Start and validate
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+make -C scenarios/web-search start
+vrooli scenario test web-search
+# Use the run ID returned above and attach once:
+test-genie runs wait --json web-search "<run-id>"
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+Scenario lifecycle owns builds, ports, resources, and health. Use `vrooli scenario port web-search API_PORT` to discover the API. See [live validation](docs/operations/LIVE_VALIDATION.md) for attended research checks and execution-specific evidence.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute web-search --preset comprehensive` directly for
-finer-grained presets.
+## Agent capabilities
 
-## Documentation Map
+The three-speed stack keeps judgment in skills, repeated workflows in governed programs, and authoritative evidence decisions in the scenario.
 
-| Need | Start Here |
-|---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
-| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Layer | Surface | Responsibility |
+|---|---|---|
+| Skills | `web-search`, `web-search-investigate`, `web-search-improve` | Choose sources and freshness, judge coverage and contradictions, verify outcomes, improve methods |
+| Programs | `web-search.research`, `web-search.compare-sources`, `web-search.research-l3` | Bounded research, complete evidence handoff, idempotent start and one owner wait |
+| Programs | `web-search.record-attempt`, `web-search.learning-read`, `web-search.setpoint-read`, `web-search.findings-curate` | Durable outcome capture, comparable learning cohorts, diagnostic reads and curation proposals |
+| Scenario | `research answer`, findings operations, declared `web-search/research` workflow | Evidence eligibility, source-linked findings, execution ownership and structured results |
 
-## Working Rules
+Read a skill with `prompt-manager skill read <name>`. Program contracts and source live in `.vrooli/program-runtime/` and are discovered by Program Runtime from this scenario.
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
+## Research
 
-## pnpm Everywhere
+```bash
+# Complete raw hits, without synthesis:
+program-runtime library run web-search.research --input query=Python,effort=l0
 
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
+# Current page-grounded evidence:
+web-search research answer "question" --effort l2 --json
 
-## Need Inspiration?
+# Explicit stored reuse, subject to evidence eligibility:
+web-search research answer "question" --max-age-seconds 3600 --json
 
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+# A declared, bounded agent investigation:
+web-search research l3 "question" --idempotency-key "<stable-key>" --json
+web-search research wait "<run-id>" --timeout-seconds 60 --json
+```
+
+L0 returns raw URLs and snippets. L1 adds snippet-grounded synthesis. L2 fetches pages and synthesizes cited evidence. L3 decomposes a question, researches gaps, returns structured claims and unresolved issues, and captures supported findings with L3 provenance.
+
+Current evidence is the default: a request with zero maximum age bypasses the live-results cache. Stored reuse requires an explicit age budget and an eligible finding from the exact originating query, or an explicitly selected `finding_id`. Active status, known retrieval dates, confidence, citations, and source requirements still apply. Semantic similarity alone does not establish answer sufficiency.
+
+`source_domains` permits matching hosts and their subdomains. `minimum_sources` counts distinct hostnames; the skill must still judge publisher independence. Responses distinguish stored findings, cited synthesis, raw hits, and unresolved evidence. Source outages, insufficient support, capture failures, and oversized output remain explicit. L0/L1 never capture; L2 capture is opt-in.
+
+L3 IDs identify declared workflow executions, replacing legacy raw Agent Manager run IDs. A wait timeout preserves the same execution; reattach without starting a replacement. Agent Manager owns budgets and terminal state. Successful agent completion is separate from an answered, partial, or abstained research result. Structural checks reject unsupported success-shaped output; factual correctness still requires source review.
+
+## Learning and improvement
+
+Findings store external facts. The `web-search-usage` Vrooli Memory scope stores research attempts, reusable advice, and method observations. Before recording verified success, check citation support, freshness, coverage, and unresolved contradictions against referenced evidence.
+
+`web-search.record-attempt` persists the quality assessment and selected contributing findings in one idempotent Memory write. It does not increment legacy finding-use counters. Retrieval is not successful use. Failed, unavailable, and unknown attempts remain in the outcome record; test observations cannot establish an operator baseline.
+
+`web-search.learning-read` reads fixed comparable windows. Empty or truncated cohorts remain unreliable and targets remain unknown until real observations establish them. The improvement skill promotes recurring successful work into versioned programs, repairs stable evidence rules in the scenario, and removes redundant work above those operations. More captures or less live traffic alone do not prove improvement.
+
+## Dependencies and limits
+
+SearXNG supplies candidates; Ollama supplies synthesis. L2 fetches HTTP content first and can use Browser Automation Studio for pages needing browser execution. Agent Manager owns L3. Search Hub owns federation, and Vrooli Memory owns outcome storage and learning measures. Each path reports unavailable dependencies or partial evidence instead of inventing answers.
+
+Findings remain authoritative in SQLite; the regenerable vector index resolves `storage.Collection("findings")` under the lifecycle instance namespace, so live and shadow do not share a collection.
+
+Live search-engine availability changes independently of this scenario. Aggregate cache/governor measures and comparable operator learning baselines remain explicit measurement gaps; per-call degradation signals are available. See [operational targets](PRD.md), [requirements](requirements/index.json), and [live acceptance](docs/operations/LIVE_VALIDATION.md) for the evidence required before claiming maturity.

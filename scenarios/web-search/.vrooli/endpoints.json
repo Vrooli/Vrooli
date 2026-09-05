@@ -117,6 +117,22 @@
       "category": "findings"
     },
     {
+      "id": "findings_used_rate",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/UsedRate",
+      "method": "POST",
+      "summary": "Measure finding usage rate",
+      "description": "Ratio of used to surfaced findings over the declared window.",
+      "category": "findings"
+    },
+    {
+      "id": "findings_never_surfaced",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/NeverSurfaced",
+      "method": "POST",
+      "summary": "Count never-used findings",
+      "description": "Counts findings without an explicit use record over the declared creation window.",
+      "category": "findings"
+    },
+    {
       "id": "findings_effectiveness",
       "path": "/vrooli.web_search.v1.findings.FindingsService/ListEffectiveness",
       "method": "POST",
@@ -147,6 +163,22 @@
       "summary": "Live web search (L0) with optional snippet synthesis (L1)",
       "description": "Fans the query out to SearXNG and returns normalized results. With --synthesis, runs an optional always-cited LLM pass over the returned snippets (abstains rather than fabricates). Budget-governed: returns degraded without calling SearXNG when the live budget is exhausted.",
       "category": "livesearch"
+    },
+    {
+      "id": "research_answer",
+      "path": "/vrooli.web_search.v1.research.ResearchService/Answer",
+      "method": "POST",
+      "summary": "Answer with explicit evidence requirements",
+      "description": "Reuse sufficient stored evidence before live research; return complete citations and typed gaps.",
+      "category": "research"
+    },
+    {
+      "id": "research_wait",
+      "path": "/vrooli.web_search.v1.research.ResearchService/WaitResearch",
+      "method": "POST",
+      "summary": "Wait once for research",
+      "description": "Attach to the durable Agent Manager workflow without polling or canceling on timeout.",
+      "category": "research"
     },
     {
       "id": "research_l2",

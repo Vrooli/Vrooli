@@ -43,6 +43,11 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.findings)).toBeInTheDocument();
   });
 
+  it("renders the dispute review page at /disputes", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/disputes"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.disputes)).toBeInTheDocument();
+  });
+
   it("renders the ops page at /ops", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/ops"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.ops)).toBeInTheDocument();

@@ -95,6 +95,7 @@ func TestGatherRelatedFindingsConfigurableCap(t *testing.T) {
 		{"smaller request honored under configured cap", 5, 3, 3},
 		{"zero cap falls back to default 20", 0, 1000, research.MaxGatherFindings},
 		{"negative cap falls back to default 20", -3, 0, research.MaxGatherFindings},
+		{"configured cap cannot widen hard bound", 100, 1000, research.MaxGatherFindings},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

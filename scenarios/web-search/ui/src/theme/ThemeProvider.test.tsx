@@ -21,10 +21,17 @@ describe("ThemeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    document.documentElement.style.setProperty("--color-surface", "#0f172a");
+    document.head.querySelector('meta[name="theme-color"]')?.remove();
+    const chrome = document.createElement("meta");
+    chrome.name = "theme-color";
+    document.head.append(chrome);
   });
 
   afterEach(() => {
     cleanup();
+    document.documentElement.style.removeProperty("--color-surface");
+    document.documentElement.removeAttribute("data-resolved-theme");
   });
 
   it("sets data-theme on the html element for an explicit light choice", () => {
@@ -38,6 +45,7 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     expect(result.current.choice).toBe("dark");
     expect(result.current.resolved).toBe("dark");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#0f172a");
   });
 
   it("removes data-theme when the user chooses system", () => {
@@ -55,7 +63,7 @@ describe("ThemeProvider", () => {
   });
 
   it("resolves system to dark when prefers-color-scheme matches", () => {
-    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((q) => ({
+    vi.stubGlobal("matchMedia", vi.fn((q: string) => ({
       matches: q === "(prefers-color-scheme: dark)",
       media: q,
       onchange: null,
@@ -64,11 +72,41 @@ describe("ThemeProvider", () => {
       addListener: vi.fn(),
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
-    }));
+    })));
 
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
     expect(result.current.resolved).toBe("dark");
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#0f172a");
 
-    matchMediaSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
+  it.each(["light", "dark"] as const)("restores the stored %s choice", (choice) => {
+    localStorage.setItem(STORAGE_KEY, choice);
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe(choice);
+    expect(document.documentElement.getAttribute("data-resolved-theme")).toBe(choice);
+  });
+
+  it("keeps theme selection usable when persistence is denied", () => {
+    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("denied"); });
+    const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("denied"); });
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+    act(() => result.current.setTheme("dark"));
+    expect(result.current.resolved).toBe("dark");
+    get.mockRestore(); set.mockRestore();
+  });
+
+  it("follows system appearance changes and removes the listener on unmount", () => {
+    let listener: (() => void) | undefined;
+    const mq = { matches: false, addEventListener: vi.fn((_name, handler: () => void) => { listener = handler; }), removeEventListener: vi.fn() };
+    vi.stubGlobal("matchMedia", vi.fn(() => mq));
+    const { result, unmount } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    act(() => { mq.matches = true; listener?.(); });
+    expect(result.current.resolved).toBe("dark");
+    unmount();
+    expect(mq.removeEventListener).toHaveBeenCalledWith("change", listener);
+    vi.unstubAllGlobals();
+  });
+
 });

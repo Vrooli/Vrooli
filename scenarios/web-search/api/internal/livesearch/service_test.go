@@ -311,3 +311,18 @@ func TestSearchThreadsDegradedEngines(t *testing.T) {
 		t.Fatalf("expected single upstream call, got %d", client.callCount)
 	}
 }
+
+// [REQ:REQ-P0-009] A current-evidence request must bypass an unexpired cache.
+func TestCurrentEvidenceBypassesCache(t *testing.T) {
+	clk := scheduletest.New(time.Now())
+	client := &fakeClient{results: sampleRaw()}
+	svc := livesearch.NewService(livesearch.Deps{Client: client, Cache: livesearch.NewCache(time.Hour, clk)})
+	_, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "current"})
+	require.NoError(t, err)
+	client.results = []livesearch.RawResult{{URL: "https://changed.example", Title: "Changed"}}
+	out, err := svc.Search(context.Background(), livesearch.SearchInput{Query: "current", Fresh: true})
+	require.NoError(t, err)
+	require.Equal(t, 2, client.callCount)
+	require.False(t, out.Cached)
+	require.Equal(t, "https://changed.example", out.Results[0].URL)
+}

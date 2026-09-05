@@ -13,16 +13,16 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/vrooli/api-core/storage"
+
 	"web-search/internal/findings"
 
 	pkg "github.com/vrooli/ai-go/search"
 )
 
 const (
-	// DefaultCollection is the qdrant collection backing the findings index.
-	DefaultCollection = "web-search-findings"
-	findingKind       = "finding"
-	idPrefix          = "web-search-findings:"
+	findingKind = "finding"
+	idPrefix    = "web-search-findings:"
 )
 
 // Loader returns the findings eligible for indexing (active + disputed).
@@ -53,10 +53,17 @@ type Hit struct {
 }
 
 // New assembles the dense findings index from a TuningConfig.
-func New(tuning pkg.TuningConfig, opts Options) *Service {
+func New(tuning pkg.TuningConfig, opts Options) (*Service, error) {
 	deps := opts.EngineDeps
 	if deps.Collection == "" {
-		deps.Collection = DefaultCollection
+		namespace, err := storage.ResolveNamespace(storage.NamespaceConfig{FallbackScenario: "web-search"})
+		if err != nil {
+			return nil, err
+		}
+		deps.Collection, err = namespace.Collection("findings")
+		if err != nil {
+			return nil, err
+		}
 	}
 	te := pkg.NewServiceForTuning(tuning, deps)
 
@@ -80,7 +87,7 @@ func New(tuning pkg.TuningConfig, opts Options) *Service {
 		RerankText:    func(r pkg.SearchResult) string { return claimText(r.Payload) },
 	})
 
-	return &Service{svc: svc, vectorStore: te.VectorStore, spec: te.Spec, reconciler: rec, embedder: te.Embedder}
+	return &Service{svc: svc, vectorStore: te.VectorStore, spec: te.Spec, reconciler: rec, embedder: te.Embedder}, nil
 }
 
 // Embedder exposes the tuned embedder (same model + task-prefix recipe as the

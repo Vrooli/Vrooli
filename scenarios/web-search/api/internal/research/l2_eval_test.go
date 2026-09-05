@@ -9,6 +9,7 @@ import (
 	"time"
 
 	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/schedule"
 
 	"web-search/internal/livesearch"
 	"web-search/internal/research"
@@ -70,8 +71,8 @@ func TestL2AnswerQualityEval(t *testing.T) {
 	searxng := os.Getenv("SEARXNG_URL")
 	live := livesearch.NewService(livesearch.Deps{
 		Client:   livesearch.NewHTTPSearxngClient(searxng, nil),
-		Cache:    livesearch.NewCache(livesearch.DefaultCacheTTL, evalClock{}),
-		Governor: livesearch.NewGovernor(livesearch.DefaultGovernorCapacity, livesearch.DefaultGovernorWindow, evalClock{}),
+		Cache:    livesearch.NewCache(livesearch.DefaultCacheTTL, schedule.System()),
+		Governor: livesearch.NewGovernor(livesearch.DefaultGovernorCapacity, livesearch.DefaultGovernorWindow, schedule.System()),
 	})
 
 	// Excerpting mode mirrors the production lever: relevance-aware unless
@@ -138,6 +139,3 @@ func envOr(key, fallback string) string {
 }
 
 // evalClock satisfies the livesearch clock seam with real time.
-type evalClock struct{}
-
-func (evalClock) Now() time.Time { return time.Now() }

@@ -218,10 +218,32 @@ func TestL3PromptEncodesAutoCaptureByDefault(t *testing.T) {
 	_, err := svc.RunL3(context.Background(), "what changed about X")
 	require.NoError(t, err)
 
-	prompt := am.spawned.Prompt
+	require.Equal(t, "what changed about X", am.spawned.Query)
+	promptBytes, readErr := os.ReadFile("../skills/web-search-investigate/SKILL.md")
+	require.NoError(t, readErr)
+	prompt := string(promptBytes)
 	require.Contains(t, prompt, "findings add", "the L3 prompt encodes the distill-and-capture step")
 	require.Contains(t, prompt, "--source l3", "captured findings carry L3 provenance")
 	require.Contains(t, prompt, "--confidence", "distilled findings carry a confidence score")
 	require.Contains(t, prompt, "--citations", "distilled findings carry citations")
 	require.Contains(t, prompt, "RECONCILE", "capture happens in the run-end reconcile step")
+}
+
+// [REQ:REQ-P0-005] A leased findings database must be schema-complete and isolated.
+func TestScenarioSchemasInitializeLeasedDatabase(t *testing.T) {
+	ctx := context.Background()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db"), MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, initializeDatabaseSchemas(ctx, db))
+	require.NoError(t, db.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), "schema-test", 0))
+	svc := findings.NewService(findings.NewSQLiteRepository(db, schedule.System()))
+	_, err = svc.Add(apidb.WithTestMode(ctx), findings.NewFinding{Claim: "leased fixture", Confidence: 0.8, Source: findings.SourceManual})
+	require.NoError(t, err)
+	leased, err := svc.List(apidb.WithTestMode(ctx), findings.ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, leased, 1)
+	primary, err := svc.List(ctx, findings.ListFilter{})
+	require.NoError(t, err)
+	require.Empty(t, primary)
 }

@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"strings"
+	"time"
+
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"connectrpc.com/connect"
 
-	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
 	researchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared"
 
 	internalresearch "web-search/internal/research"
 	"web-search/internal/research/agentmanager"
@@ -62,7 +67,7 @@ func (h *connectHandler) RunL2(ctx context.Context, req *connect.Request[researc
 		resp.Excerpts = append(resp.Excerpts, &researchv1.DocumentExcerpt{Url: e.URL, Title: e.Title, Excerpt: e.Excerpt})
 	}
 	for _, issue := range out.DegradedEngines {
-		resp.DegradedEngines = append(resp.DegradedEngines, &livesearchv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
+		resp.DegradedEngines = append(resp.DegradedEngines, &sharedv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -74,7 +79,7 @@ func (h *connectHandler) RunL3(ctx context.Context, req *connect.Request[researc
 	if h.deps.Service == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
 	}
-	result, err := h.deps.Service.RunL3(ctx, req.Msg.GetQuery())
+	result, err := h.deps.Service.StartResearch(ctx, req.Msg.GetQuery(), req.Msg.GetIdempotencyKey())
 	if err != nil {
 		return nil, mapAgentError("research.RunL3", err, h.deps.Logger)
 	}
@@ -84,7 +89,7 @@ func (h *connectHandler) RunL3(ctx context.Context, req *connect.Request[researc
 	}), nil
 }
 
-// GetResearchStatus polls an L3 run by id.
+// GetResearchStatus reads a declared L3 execution by id.
 func (h *connectHandler) GetResearchStatus(ctx context.Context, req *connect.Request[researchv1.GetResearchStatusRequest]) (*connect.Response[researchv1.GetResearchStatusResponse], error) {
 	if h.deps.Service == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
@@ -93,14 +98,7 @@ func (h *connectHandler) GetResearchStatus(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, mapAgentError("research.GetResearchStatus", err, h.deps.Logger)
 	}
-	return connect.NewResponse(&researchv1.GetResearchStatusResponse{
-		RunId:      state.RunID,
-		Status:     state.Status,
-		Summary:    state.Summary,
-		StartedAt:  rfc3339ToProto(state.StartedAt),
-		FinishedAt: rfc3339ToProto(state.FinishedAt),
-		ErrorMsg:   state.ErrorMsg,
-	}), nil
+	return connect.NewResponse(stateToProto(state)), nil
 }
 
 // GatherRelatedFindings runs the bounded GATHER step (OT-P1-003): it returns the
@@ -125,6 +123,9 @@ func (h *connectHandler) GatherRelatedFindings(ctx context.Context, req *connect
 			Score:      g.Score,
 		})
 	}
+	if capApplied < 0 || capApplied > math.MaxInt32 {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("invalid gather cap from research service"))
+	}
 	return connect.NewResponse(&researchv1.GatherRelatedFindingsResponse{
 		Findings:   out,
 		CapApplied: int32(capApplied),
@@ -135,9 +136,65 @@ func (h *connectHandler) GatherRelatedFindings(ctx context.Context, req *connect
 // unavailable upstream becomes Unavailable (callers retry / degrade), anything
 // else Internal.
 func mapAgentError(op string, err error, logger *log.Logger) error {
+	var rpcError *connect.Error
+	if errors.As(err, &rpcError) {
+		return rpcError
+	}
+	if errors.Is(err, internalresearch.ErrInvalidInput) {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if errors.Is(err, agentmanager.ErrNotAvailable) {
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	logger.Printf("%s: %v", op, err)
 	return connect.NewError(connect.CodeInternal, err)
+}
+
+// Answer translates the wire policy; research owns all evidence decisions.
+func (h *connectHandler) Answer(ctx context.Context, req *connect.Request[researchv1.AnswerRequest]) (*connect.Response[researchv1.AnswerResponse], error) {
+	if h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
+	}
+	r := req.Msg
+	if r.MaxAgeSeconds < 0 || r.MaxAgeSeconds > 15552000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("max age exceeds 180 days"))
+	}
+	p := internalresearch.EvidencePolicy{Query: r.Query, Effort: r.Effort, MaxAge: time.Duration(r.MaxAgeSeconds) * time.Second, SourceDomains: r.SourceDomains, MinimumSources: int(r.MinimumSources), TopN: int(r.TopN), Capture: r.Capture, FindingID: r.FindingId}
+	if err := p.Validate(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out, err := h.deps.Service.Answer(ctx, p)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if out.LiveCalls < 0 || out.LiveCalls > math.MaxInt32 {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("invalid live call count from research service"))
+	}
+	result := &researchv1.AnswerResponse{Status: out.Status, AnswerKind: out.Kind, Brief: briefToProto(out.Brief), FindingIds: out.FindingIDs, Abstained: out.Abstained, Reason: out.Reason, CheckedAt: timestamppb.New(out.CheckedAt), LiveCalls: int32(out.LiveCalls), Cached: out.Cached, Gaps: out.Gaps, CapturedFindingIds: out.CapturedIDs}
+	for _, r := range out.Results {
+		result.Results = append(result.Results, &sharedv1.SearchResult{Url: r.URL, Title: r.Title, Snippet: r.Snippet, Engine: r.Engine, Score: r.Score, Category: r.Category})
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *connectHandler) WaitResearch(ctx context.Context, req *connect.Request[researchv1.WaitResearchRequest]) (*connect.Response[researchv1.GetResearchStatusResponse], error) {
+	if h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("research service not configured"))
+	}
+	if req.Msg.TimeoutSeconds < 1 || req.Msg.TimeoutSeconds > 90 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("timeout must be 1..90 seconds"))
+	}
+	state, err := h.deps.Service.WaitResearch(ctx, req.Msg.RunId, int(req.Msg.TimeoutSeconds))
+	if err != nil {
+		return nil, mapAgentError("research.WaitResearch", err, h.deps.Logger)
+	}
+	return connect.NewResponse(stateToProto(state)), nil
+}
+
+func stateToProto(state agentmanager.RunState) *researchv1.GetResearchStatusResponse {
+	out := &researchv1.GetResearchStatusResponse{RunId: state.RunID, Status: state.Status, Summary: state.Summary, StartedAt: rfc3339ToProto(state.StartedAt), FinishedAt: rfc3339ToProto(state.FinishedAt), ErrorMsg: state.ErrorMsg, TimedOut: state.TimedOut}
+	if state.Result != nil {
+		out.Result, _ = structpb.NewStruct(state.Result)
+	}
+	return out
 }

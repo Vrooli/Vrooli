@@ -84,7 +84,8 @@
             },
             {
               "name": "citations",
-              "description": "Citations as 'url|title' entries, comma-separated"
+              "description": "Citations as 'url|title' entries, comma-separated",
+              "bind_waiver": "CLI-specific CSV url|title syntax is decoded into CitationInput messages by domains/findings/handlers.go parseCitations. Governed RPC bindings accept the structured citations field directly."
             }
           ],
           "binding": {
@@ -265,7 +266,8 @@
           "flags": [
             {
               "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "The findings measure handlers decode the human time-window token through timeWindowToken into the TimeWindow message. Governed RPC bindings accept structured window fields directly."
             }
           ],
           "binding": {
@@ -304,18 +306,92 @@
         {
           "name": "used-rate",
           "description": "Measure the ratio of used findings to surfaced findings",
-          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation and latest surfacing" }],
-          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "UsedRate" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "measure": { "domain": "findings", "intent": "Ratio of used to surfaced findings; finding_usage has no independent creation timestamp, so the window limitation is explicit.", "questions": ["what fraction of surfaced findings were used", "finding utilization this week", "web search finding used rate"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} finding usage rate ({window})" } }
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Window anchored to finding creation and latest surfacing",
+              "bind_waiver": "The findings measure handlers decode the human time-window token through timeWindowToken into the TimeWindow message. Governed RPC bindings accept structured window fields directly."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "UsedRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "findings",
+            "intent": "Ratio of used to surfaced findings; finding_usage has no independent creation timestamp, so the window limitation is explicit.",
+            "questions": [
+              "what fraction of surfaced findings were used",
+              "finding utilization this week",
+              "web search finding used rate"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} finding usage rate ({window})"
+            }
+          }
         },
         {
           "name": "never-surfaced",
           "description": "Count findings without an explicit use record",
-          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation" }],
-          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "NeverSurfaced" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "measure": { "domain": "findings", "intent": "Count findings with no explicit use record in the finding-creation window; usage has no independent creation timestamp.", "questions": ["how many findings were never used", "never surfaced findings this week", "unused web findings"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "count", "unit": "findings", "summary_template": "{count} never-used findings ({window})" } }
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Window anchored to finding creation",
+              "bind_waiver": "The findings measure handlers decode the human time-window token through timeWindowToken into the TimeWindow message. Governed RPC bindings accept structured window fields directly."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "NeverSurfaced"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "findings",
+            "intent": "Count findings with no explicit use record in the finding-creation window; usage has no independent creation timestamp.",
+            "questions": [
+              "how many findings were never used",
+              "never surfaced findings this week",
+              "unused web findings"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "findings",
+              "summary_template": "{count} never-used findings ({window})"
+            }
+          }
         },
         {
           "name": "effectiveness",
@@ -475,7 +551,7 @@
         },
         {
           "name": "l3",
-          "description": "Start an L3 iterative research-and-reconcile run (returns a run handle to poll)",
+          "description": "Start a bounded declared research workflow; retain its execution identity",
           "positionals": [
             {
               "name": "query",
@@ -490,15 +566,21 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:external"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "description": "Stable request identity for retry-safe start"
+            }
+          ]
         },
         {
           "name": "status",
-          "description": "Poll an L3 research run by id",
+          "description": "Read a durable research execution and its structured result",
           "positionals": [
             {
               "name": "id",
@@ -542,6 +624,92 @@
             "kind": "connect-rpc",
             "service": "ResearchService",
             "method": "GatherRelatedFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "answer",
+          "description": "Answer with explicit freshness and source requirements",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Research question"
+            }
+          ],
+          "flags": [
+            {
+              "name": "effort",
+              "description": "l0, l1, or l2 (default)"
+            },
+            {
+              "name": "max-age-seconds",
+              "description": "Allow stored evidence up to this age; zero requires live evidence"
+            },
+            {
+              "name": "source-domains",
+              "description": "Comma-separated permitted source hostnames"
+            },
+            {
+              "name": "minimum-sources",
+              "description": "Minimum distinct source hostnames (1..10)"
+            },
+            {
+              "name": "top-n",
+              "description": "Page/result limit (1..10)"
+            },
+            {
+              "name": "capture",
+              "bool": true,
+              "description": "Capture a supported L2 answer"
+            },
+            {
+              "name": "finding-id",
+              "description": "Explicitly selected relevant stored finding"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "Answer"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once on research completion; timeout preserves execution",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Research execution ID",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-seconds",
+              "description": "Attach for 1..90 seconds (default 90)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "WaitResearch"
           },
           "governance": {
             "effect": "read",
@@ -622,10 +790,26 @@
   ],
   "measures": {
     "domains": [
-      { "domain": "findings", "stateful": true, "reason": "Findings and finding_usage are durable timestamped knowledge and effectiveness ledgers." },
-      { "domain": "research", "stateful": false, "reason": "Research commands orchestrate retrieval and synthesis; durable claims are owned by findings." },
-      { "domain": "livesearch", "stateful": false, "reason": "Live search is request-scoped and its cache is an optimization, not an analytical ledger." },
-      { "domain": "health", "stateful": false, "reason": "Health is an instantaneous service diagnostic." }
+      {
+        "domain": "findings",
+        "stateful": true,
+        "reason": "Findings and finding_usage are durable timestamped knowledge and effectiveness ledgers."
+      },
+      {
+        "domain": "research",
+        "stateful": false,
+        "reason": "Research commands orchestrate retrieval and synthesis; durable claims are owned by findings."
+      },
+      {
+        "domain": "livesearch",
+        "stateful": false,
+        "reason": "Live search is request-scoped and its cache is an optimization, not an analytical ledger."
+      },
+      {
+        "domain": "health",
+        "stateful": false,
+        "reason": "Health is an instantaneous service diagnostic."
+      }
     ]
   },
   "omitted": []

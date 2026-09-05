@@ -3,10 +3,12 @@ package livesearch
 import (
 	"context"
 	"log"
+	"math"
 
 	"connectrpc.com/connect"
 
 	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared"
 
 	internallivesearch "web-search/internal/livesearch"
 )
@@ -47,7 +49,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[livese
 	}
 
 	resp := &livesearchv1.SearchResponse{
-		Results:         make([]*livesearchv1.SearchResult, 0, len(outcome.Results)),
+		Results:         make([]*sharedv1.SearchResult, 0, len(outcome.Results)),
 		Cached:          outcome.Cached,
 		Degraded:        outcome.Degraded,
 		DegradedReason:  outcome.DegradedReason,
@@ -64,19 +66,19 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[livese
 
 // engineIssuesToProto maps the per-query engine-degradation signal onto the
 // wire shape (nil-safe: empty input yields nil, not an empty slice).
-func engineIssuesToProto(issues []internallivesearch.EngineIssue) []*livesearchv1.EngineIssue {
+func engineIssuesToProto(issues []internallivesearch.EngineIssue) []*sharedv1.EngineIssue {
 	if len(issues) == 0 {
 		return nil
 	}
-	out := make([]*livesearchv1.EngineIssue, 0, len(issues))
+	out := make([]*sharedv1.EngineIssue, 0, len(issues))
 	for _, issue := range issues {
-		out = append(out, &livesearchv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
+		out = append(out, &sharedv1.EngineIssue{Engine: issue.Engine, Reason: issue.Reason})
 	}
 	return out
 }
 
-func resultToProto(r internallivesearch.Result) *livesearchv1.SearchResult {
-	return &livesearchv1.SearchResult{
+func resultToProto(r internallivesearch.Result) *sharedv1.SearchResult {
+	return &sharedv1.SearchResult{
 		Url:      r.URL,
 		Title:    r.Title,
 		Snippet:  r.Snippet,
@@ -93,6 +95,9 @@ func synthesisToProto(s *internallivesearch.Synthesis) *livesearchv1.Synthesis {
 		Citations: make([]*livesearchv1.Citation, 0, len(s.Citations)),
 	}
 	for _, c := range s.Citations {
+		if c.ResultIndex < 0 || c.ResultIndex > math.MaxInt32 {
+			continue
+		}
 		out.Citations = append(out.Citations, &livesearchv1.Citation{
 			ResultIndex: int32(c.ResultIndex),
 			Url:         c.URL,

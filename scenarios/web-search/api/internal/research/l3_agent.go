@@ -2,6 +2,7 @@ package research
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,8 @@ import (
 // reconcile FLAGS the contested finding into DISPUTED rather than silently
 // overwriting a contested claim. Named here so the gate is a single SSOT.
 const HighConfidenceThreshold = 0.75
+
+var ErrInvalidInput = errors.New("invalid research input")
 
 const (
 	// DefaultGatherFindings is the bounded GATHER size used when a caller omits a
@@ -147,45 +150,30 @@ func (s *Service) RunResearchCycle(ctx context.Context, query string, answer Ans
 // in the task prompt; the budget order is answer-first, curate as a bounded
 // post-step.
 func (s *Service) RunL3(ctx context.Context, query string) (agentmanager.RunResult, error) {
-	if s.agentManager == nil {
-		return agentmanager.RunResult{}, fmt.Errorf("research: L3 unavailable: agent-manager not configured")
-	}
+	return s.StartResearch(ctx, query, "")
+}
+
+func (s *Service) StartResearch(ctx context.Context, query, key string) (agentmanager.RunResult, error) {
 	query = strings.TrimSpace(query)
-	if query == "" {
-		return agentmanager.RunResult{}, fmt.Errorf("research: L3 query is required")
+	if query == "" || len(query) > 4096 {
+		return agentmanager.RunResult{}, fmt.Errorf("%w: query must contain 1..4096 bytes", ErrInvalidInput)
+	}
+	if s.agentManager == nil {
+		return agentmanager.RunResult{}, fmt.Errorf("%w: agent-manager not configured", agentmanager.ErrNotAvailable)
 	}
 	return s.agentManager.Spawn(ctx, agentmanager.SpawnRequest{
-		Query:  query,
-		Title:  "L3 research: " + query,
-		Prompt: buildL3Prompt(query, s.gatherCap, s.confidenceGate, s.maxLoops),
+		Query:          query,
+		Title:          "L3 research: " + query,
+		IdempotencyKey: key, GatherCap: s.gatherCap, ConfidenceGate: s.confidenceGate, MaxLoops: s.maxLoops,
 	})
 }
 
-// GetResearchStatus polls an L3 run by id.
+// GetResearchStatus reads a declared L3 execution by id.
 func (s *Service) GetResearchStatus(ctx context.Context, runID string) (agentmanager.RunState, error) {
 	if s.agentManager == nil {
-		return agentmanager.RunState{}, fmt.Errorf("research: L3 unavailable: agent-manager not configured")
+		return agentmanager.RunState{}, fmt.Errorf("%w: agent-manager not configured", agentmanager.ErrNotAvailable)
 	}
 	return s.agentManager.GetRunState(ctx, runID)
-}
-
-// buildL3Prompt renders the L3 research-and-reconcile task prompt. It encodes
-// the GATHER -> RESEARCH -> RECONCILE loop, the iteration budget, and the
-// confidence-gated curation policy the bounded post-step must follow. The
-// tuning values are passed in so the prompt always mirrors the service's
-// effective configuration.
-func buildL3Prompt(query string, gatherCap int, confidenceGate float64, maxLoops int) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Research question: %s\n\n", query)
-	b.WriteString("You are an L3 research agent for the web-search scenario. Follow this loop:\n\n")
-	fmt.Fprintf(&b, "1. GATHER: run `web-search research gather \"<query>\"` to load the NEARBY existing findings. This is a BOUNDED sweep (the server caps it at %d findings semantically near the query) — use it instead of a free-form `findings search`; never scan the whole store.\n", gatherCap)
-	b.WriteString("2. RESEARCH the gap: use `web-search research l2 \"<focused sub-query>\"` (full-page fetch + cited synthesis) for what the existing findings do not already cover. Use `web-search search` for fresh candidate URLs.\n")
-	b.WriteString("3. RECONCILE (bounded post-step, answer first): distill what you learned into citation-backed claims and curate the store:\n")
-	fmt.Fprintf(&b, "   - When a new claim is well-supported and clearly contradicts an existing finding (confidence >= %.2f), SUPERSEDE the outdated finding via `web-search findings supersede <old-id> --replacement <new-id> --reason \"<why>\"`.\n", confidenceGate)
-	b.WriteString("   - When sources conflict and you are NOT confident, FLAG the contested finding via `web-search findings flag <id> --reason \"<contradiction>\"` (it moves to DISPUTED). NEVER silently overwrite a contested claim.\n")
-	b.WriteString("   - Write new citation-backed claims via `web-search findings add --claim \"...\" --confidence <0..1> --source l3 --citations \"url|title,...\"`.\n\n")
-	fmt.Fprintf(&b, "Ground every claim in a citation. Abstain rather than fabricate. Keep curation bounded — answer the question first, then reconcile. ITERATION BUDGET: perform at most %d research loops (search -> read -> find gaps -> re-search); when the budget is spent, emit the brief from what you have rather than iterating further.\n", maxLoops)
-	return b.String()
 }
 
 // ReconcileItem is one distilled claim the L3 reconcile post-step proposes to
@@ -271,3 +259,11 @@ func (s *Service) Reconcile(ctx context.Context, items []ReconcileItem) ([]Recon
 
 // compile-time guard: internalfindings.Service satisfies FindingsService.
 var _ FindingsService = (findings.Service)(nil)
+
+func (s *Service) WaitResearch(ctx context.Context, id string, seconds int) (agentmanager.RunState, error) {
+	w, ok := s.agentManager.(agentmanager.Waiter)
+	if !ok {
+		return agentmanager.RunState{}, fmt.Errorf("%w: owner wait is not configured", agentmanager.ErrNotAvailable)
+	}
+	return w.Wait(ctx, id, seconds)
+}

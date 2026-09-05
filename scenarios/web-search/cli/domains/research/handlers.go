@@ -3,6 +3,7 @@ package research
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,7 +95,7 @@ func (h *handlers) l2(ctx cliapp.RunContext) error {
 
 func (h *handlers) l3(ctx cliapp.RunContext) error {
 	query := ctx.Positional("query")
-	resp, err := h.client.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: query}))
+	resp, err := h.client.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: query, IdempotencyKey: ctx.Flag("idempotency-key")}))
 	if err != nil {
 		return cliapp.WrapAPIError("start L3 research", err, nil)
 	}
@@ -103,7 +104,7 @@ func (h *handlers) l3(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Started L3 run %s (status: %s).", resp.Msg.RunId, resp.Msg.Status)},
-		NextCommand: []string{fmt.Sprintf("`research status %s` — poll this run", resp.Msg.RunId)},
+		NextCommand: []string{fmt.Sprintf("`research wait %s` — attach once to this execution", resp.Msg.RunId)},
 	})
 }
 
@@ -158,4 +159,57 @@ func (h *handlers) gather(ctx cliapp.RunContext) error {
 			"`findings supersede <old-id> --replacement <new-id>` — reconcile after answering",
 		},
 	})
+}
+
+func (h *handlers) answer(ctx cliapp.RunContext) error {
+	age := int64(0)
+	if raw := ctx.Flag("max-age-seconds"); raw != "" {
+		v, e := strconv.ParseInt(raw, 10, 64)
+		if e != nil {
+			return fmt.Errorf("invalid max-age-seconds: %w", e)
+		}
+		age = v
+	}
+	var domains []string
+	if raw := ctx.Flag("source-domains"); raw != "" {
+		domains = strings.Split(raw, ",")
+	}
+	resp, err := h.client.Answer(context.Background(), connect.NewRequest(&researchv1.AnswerRequest{Query: ctx.Positional("query"), Effort: ctx.Flag("effort"), MaxAgeSeconds: age, SourceDomains: domains, MinimumSources: cliutil.ParseInt32(ctx.Flag("minimum-sources")), TopN: cliutil.ParseInt32(ctx.Flag("top-n")), Capture: ctx.BoolFlag("capture"), FindingId: ctx.Flag("finding-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("answer research", err, nil)
+	}
+	m := resp.Msg
+	results := []string{}
+	if m.Brief != nil {
+		for _, c := range m.Brief.Citations {
+			results = append(results, c.Title+" — "+c.Url)
+		}
+	}
+	for _, r := range m.Results {
+		results = append(results, r.Title+" — "+r.Url)
+	}
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: []string{m.Status + ": " + m.AnswerKind, m.GetBrief().GetSummary(), m.Reason}, ResultsHeading: "Sources", Results: results})
+}
+
+func (h *handlers) wait(ctx cliapp.RunContext) error {
+	n := int32(90)
+	if ctx.Flag("timeout-seconds") != "" {
+		n = cliutil.ParseInt32(ctx.Flag("timeout-seconds"))
+	}
+	resp, err := h.client.WaitResearch(context.Background(), connect.NewRequest(&researchv1.WaitResearchRequest{RunId: ctx.Positional("id"), TimeoutSeconds: n}))
+	if err != nil {
+		return cliapp.WrapAPIError("wait for research", err, nil)
+	}
+	m := resp.Msg
+	err = cliapp.RenderProtoList(ctx, m, cliapp.ListReport{Summary: []string{"Research " + m.RunId + ": " + m.Status, m.Summary, m.ErrorMsg}})
+	if err != nil {
+		return err
+	}
+	if m.TimedOut {
+		return fmt.Errorf("wait timed out; execution continues; reattach to research wait %s", m.RunId)
+	}
+	if m.Status != "complete" {
+		return fmt.Errorf("research execution ended as %s", m.Status)
+	}
+	return nil
 }

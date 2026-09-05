@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	livesearchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch"
 	livesearchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/livesearch/livesearch_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -81,7 +82,7 @@ func (h *handlers) search(ctx cliapp.RunContext) error {
 // formatEngineWarning renders the per-query engine-degradation signal as a
 // single warning line ("results may be partial"), or "" when every engine
 // answered.
-func formatEngineWarning(issues []*livesearchv1.EngineIssue) string {
+func formatEngineWarning(issues []*sharedv1.EngineIssue) string {
 	if len(issues) == 0 {
 		return ""
 	}
@@ -105,7 +106,7 @@ func provenanceSuffix(msg *livesearchv1.SearchResponse) string {
 	return ""
 }
 
-func formatResult(i int, r *livesearchv1.SearchResult) string {
+func formatResult(i int, r *sharedv1.SearchResult) string {
 	if r == nil {
 		return "(nil)"
 	}

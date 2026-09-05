@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -57,7 +58,7 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	if err := initializeDatabaseSchemas(context.Background(), db); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
@@ -89,19 +90,21 @@ func main() {
 	findingsTuning := loadFindingsTuning(searchJSONPath, findingsProviderID)
 
 	indexFindings := internalfindings.NewService(internalfindings.NewSQLiteRepository(db, schedule.System()))
-	searcher := findingindex.New(findingsTuning, findingindex.Options{
+	searcher, err := findingindex.New(findingsTuning, findingindex.Options{
 		Loader:           indexFindings.LoadIndexable,
 		Parallelism:      searchCfg.ReconcileParallelism,
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
 		EngineDeps: aisearchpkg.EngineDeps{
 			QdrantURL:     searchCfg.QdrantURL,
 			QdrantAPIKey:  searchCfg.QdrantAPIKey,
-			Collection:    findingindex.DefaultCollection,
 			RerankerURL:   searchCfg.RerankerURL,
 			RerankerModel: searchCfg.RerankerModel,
 			RerankRole:    searchCfg.RerankRole,
 		},
 	})
+	if err != nil {
+		log.Fatalf("findings namespace: %v", err)
+	}
 
 	if err := searcher.EnsureCollection(context.Background()); err != nil {
 		logger.Printf("[web-search] qdrant collection ensure failed (continuing with degraded search): %v", err)
@@ -175,6 +178,7 @@ func main() {
 		excerpter = internalresearch.PositionalExcerpter{Budget: tuning.SynthExcerptChars}
 	}
 	researchService := internalresearch.NewService(internalresearch.Deps{
+		EvidenceStore: researchFindings, Live: liveService,
 		Searcher:    internalresearch.LiveSearcher{Service: liveService},
 		Fetcher:     newL2Fetcher(tuning, logger),
 		Synthesizer: internalresearch.NewOllamaSynthesizer(os.Getenv("OLLAMA_SYNTHESIS_ROLE")),
@@ -246,7 +250,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler := apihttp.SecurityHeaders(apihttp.TestModeMiddleware(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
@@ -336,4 +340,13 @@ func (a findingIndexAdapter) Search(ctx context.Context, query string, limit int
 		out = append(out, internalresearch.GatherHit{FindingID: h.FindingID, Score: h.Score})
 	}
 	return out, nil
+}
+
+// initializeDatabaseSchemas uses the same domain schemas for primary and leased
+// pools. The lease is not installed until its schema initialization succeeds.
+func initializeDatabaseSchemas(ctx context.Context, db *database.RoutedDB) error {
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, modules.AllSchemas()...)
+	})
+	return database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...)
 }

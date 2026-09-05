@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
-import { SearchResultSchema } from "@vrooli/proto-types/web-search/v1/livesearch/livesearch_pb";
+import { SearchResultSchema } from "@vrooli/proto-types/web-search/v1/shared/search_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";

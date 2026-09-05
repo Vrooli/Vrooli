@@ -13,6 +13,18 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes receipts under the scenario state retention directory.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Bounded regenerable enforcement bookkeeping."
+        },
+        "subpath": "retention"
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
@@ -167,8 +179,16 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Agentic run lifecycle for L3 iterative research (OT-P1-002): web-search spawns an agent-manager run that uses L2 endpoints and web-search CLI commands as tools to plan, loop, verify, and emit a cited brief. The L3 RPC starts the run and returns a handle the caller polls via GetResearchStatus.",
-        "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable."
+        "description": "Declared workflow owner for L3 research. web-search starts web-search/research idempotently and returns a durable execution handle for one bounded WaitResearch attachment or a status read; Agent Manager owns execution budgets and results.",
+        "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "sources": [
+              ".vrooli/agent-manager/research.json"
+            ]
+          }
+        }
       }
     }
   },
@@ -208,19 +228,30 @@
     "usage": {
       "source": "skills/web-search/SKILL.md",
       "programs": [
-        "web-search.research"
+        "web-search.research",
+        "web-search.compare-sources",
+        "web-search.record-attempt",
+        "web-search.research-l3"
       ]
     },
     "improve": {
       "source": "skills/web-search-improve/SKILL.md",
       "programs": [
         "web-search.setpoint-read",
-        "web-search.findings-curate"
+        "web-search.findings-curate",
+        "web-search.learning-read"
       ]
     },
-    "feature": [],
+    "feature": [
+      {
+        "source": "skills/web-search-investigate/SKILL.md",
+        "programs": [
+          "web-search.research-l3"
+        ]
+      }
+    ],
     "learning": {
-      "ledger": "findings"
+      "scope": "web-search-usage"
     }
   }
 }

@@ -1,22 +1,4 @@
 {
-  "name": "web-search-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Web Search",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && vite build",
-    "build:profile": "pnpm strings:gen && vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "pnpm strings:check && tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -28,15 +10,16 @@
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "express": "^4.18.2",
+    "express": "^4.22.2",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.1.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^7.18.3",
     "tailwind-merge": "^2.3.0"
   },
+  "description": "React + Vite front-end for Web Search",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@testing-library/jest-dom": "^6.6.3",
@@ -47,8 +30,8 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^2.1.4",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.20",
     "axe-core": "^4.10.2",
     "eslint": "^9.9.1",
@@ -59,12 +42,35 @@
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.15.0",
     "jsdom": "^25.0.1",
-    "postcss": "^8.4.44",
+    "postcss": "^8.5.28",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.54.0",
-    "vite": "^5.4.6",
-    "vitest": "^2.1.4"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "web-search-ui",
+  "packageManager": "pnpm@9.12.1",
+  "pnpm": {
+    "overrides": {
+      "react-router-dom": "7.18.3"
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "pnpm strings:gen && pnpm selector:manifest && vite build",
+    "build:profile": "pnpm strings:gen && pnpm selector:manifest && vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "strings:gen": "node scripts/gen-strings.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "pnpm strings:check && tsc --noEmit",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-003",
       "title": "Dual Search-Hub Provider Self-Registration at Startup",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "integration",
       "description": "At service startup, web-search must self-register two providers with the search-hub federation layer: (1) web-search.live with SCOPE_EXTERNAL, rate-limited, reachable only on explicit --type web / --all flags or fallback escalation; (2) web-search.learnings with SCOPE_PROJECT, safe to query on any default federated route. Registration must use the standard .vrooli/search.json provider descriptor format and the search-hub ResultMapping and control-token contract. Both providers must be registered before the service begins accepting requests.",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/searchreg_test.go::TestSearchJSONLiveDescriptorIsExternalScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Provider descriptor for web-search.live has scope=SCOPE_EXTERNAL and explicit-only routing flag set to true [in the registry contract scope=SCOPE_EXTERNAL IS the explicit-only constraint — search-hub's partitionByScope withholds external providers from all automatic routing; the test also pins type=web, the explicit selector]"
         },
         {
           "type": "test",
           "ref": "api/searchreg_test.go::TestSearchJSONLearningsDescriptorIsProjectScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Provider descriptor for web-search.learnings has scope=SCOPE_PROJECT and is included in default routing set [SCOPE_PROJECT is what keeps a provider in the router's automatic candidate set]"
         },
         {
           "type": "test",
           "ref": "api/searchreg_test.go::TestMainWiresRegistrationBeforeServing",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Registration function is called during service initialization before the HTTP server begins accepting connections (verified via startup lifecycle order test) [registration is initiated before apiserver.Run opens the listener; it runs on a background goroutine with bounded retry because search-hub is an OPTIONAL dependency that must never block boot]"
         },
         {
           "type": "test",
           "ref": "api/searchreg_test.go::TestSearchJSONDescriptorsConformToRegistryContract",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Both provider descriptors conform to the .vrooli/search.json JSON schema (schema validation test) [conformance is enforced by the strict protojson mapping onto search-hub's registry ProviderDescriptor proto — unknown fields, bad enum values, or malformed endpoint/result_mapping sub-objects fail the load — plus assertions on every contract field registration and fan-out depend on]"
         },
         {

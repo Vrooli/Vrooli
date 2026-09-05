@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-002",
       "title": "L3 Iterative Research Agent — Agent-Manager-Managed Research Run",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "description": "Spawn a research run via the agent-manager lifecycle (no hand-rolled loop plumbing) that uses L2 endpoints and web-search CLI commands as registered tools. The agent plans and decomposes the input query, iterates through a search → read → gap-identification → re-search loop, verifies claims across multiple sources, and emits a cited brief upon completion. The agent reuses existing agentic infrastructure exclusively.",
@@ -15,21 +15,21 @@
           "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The L3 task contract directs the agent to decompose the input into focused sub-queries [criterion revised from auto-generated 'in-process decomposition function' framing: by design (DECISIONS.md — L3 is an agent-manager run, no hand-rolled loop plumbing) decomposition is delegated to the agent LLM via the task prompt; the testable surface is the prompt contract, which mandates researching gaps via focused L2 sub-queries. LLM output cardinality is validated live, not in unit tests]"
         },
         {
           "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The L3 task contract directs the agent to identify what the gathered findings do NOT cover and re-search those gaps [criterion revised from auto-generated 'in-process gap-identification step' framing: gap identification is delegated to the agent LLM via the task prompt by design (DECISIONS.md); the prompt contract mandating gap-directed iteration over the gathered set is the testable surface]"
         },
         {
           "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3PromptRegistersResearchTools",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Agent tool registry for a research run includes L2 fetch endpoint and findings CLI commands as callable tools"
         },
         {

@@ -45,16 +45,13 @@ const API_ERROR_CODE_KEYS: Record<string, ErrorKey> = {
   unauthenticated: strings.errors.unauthenticated,
 };
 
-const normalizeApiErrorCode = (code: string): ErrorKey => {
-  return API_ERROR_CODE_KEYS[code] ?? strings.errors.unknown;
-};
-
 export function errorMessage(err: unknown, t: TFunction): string {
   if (err instanceof ConnectError) {
     return t(CONNECT_ERROR_KEYS[err.code], { message: err.rawMessage });
   }
   if (err instanceof ApiError) {
-    return t(normalizeApiErrorCode(err.code), { message: err.message });
+    const key = API_ERROR_CODE_KEYS[err.code];
+    return key ? t(key, { message: err.message }) : err.message;
   }
   if (err instanceof Error) {
     return err.message;

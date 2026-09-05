@@ -31,13 +31,13 @@
  * call site so unrelated exports (constants, types, classes) keep
  * working.
  */
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 
 import { makeHealthResponse } from "../factories";
 
 export interface ApiMocks {
   /** vi.fn() resolving to a healthy default; override via vi.mocked(...). */
-  fetchHealth: ReturnType<typeof vi.fn>;
+  fetchHealth: Mock<() => Promise<ReturnType<typeof makeHealthResponse>>>;
 }
 
 /**

@@ -159,7 +159,7 @@ func newTestIndex(loader Loader) (*Service, *memStore) {
 	return &Service{
 		svc:         svc,
 		vectorStore: store,
-		spec:        pkg.CollectionSpec{Name: DefaultCollection, DenseSize: fakeDims},
+		spec:        pkg.CollectionSpec{Name: "test_findings", DenseSize: fakeDims},
 		reconciler:  rec,
 	}, store
 }
@@ -300,7 +300,7 @@ func BenchmarkSemanticSearch10k(b *testing.B) {
 		}
 	}
 	svc := pkg.NewService(pkg.ServiceOptions{Embedder: emb, VectorStore: store})
-	idx := &Service{svc: svc, vectorStore: store, spec: pkg.CollectionSpec{Name: DefaultCollection, DenseSize: fakeDims}}
+	idx := &Service{svc: svc, vectorStore: store, spec: pkg.CollectionSpec{Name: "test_findings", DenseSize: fakeDims}}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -311,5 +311,21 @@ func BenchmarkSemanticSearch10k(b *testing.B) {
 		if len(hits) == 0 {
 			b.Fatal("expected top-10 hits over the 10k index")
 		}
+	}
+}
+
+// [REQ:REQ-P0-005] Shadow indexing must never address the live vector store.
+func TestNewUsesInstanceNamespace(t *testing.T) {
+	for _, namespace := range []string{"web-search", "web-search_shadow"} {
+		t.Run(namespace, func(t *testing.T) {
+			t.Setenv("VROOLI_STORAGE_NAMESPACE", namespace)
+			service, err := New(pkg.TuningConfig{Engine: "dense"}, Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if service.spec.Name != namespace+"_findings" {
+				t.Fatalf("collection = %q", service.spec.Name)
+			}
+		})
 	}
 }

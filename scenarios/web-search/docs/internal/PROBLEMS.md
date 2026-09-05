@@ -274,3 +274,10 @@ gate). web-search now surfaces the per-query `unresponsive_engines` signal as
 `degraded_engines` (proto) + CLI warning + UI badge, so future degradation is
 visible instead of silent. Engine recovery is upstream's problem; ours is
 honesty about it.
+
+## Work ladder
+
+- Rung: W0–W3 recommendations implemented and validated; operational observations remain bounded
+- Evidence: Operator request on 2026-09-05 authorizes all research reliability and outcome-learning recommendations. OT-P0-009 through OT-P0-012 now cover those obligations. Named goals search-hub-corpus-buildout and search-hub-federation-adoption preserve existing federation and shared-search ownership.
+- Validation: Requirements linkage passes business-health and the requirements validator. Focused research, live-search, CLI and Agent Manager adapter tests pass. Declared L3 execution, stored reuse, fresh live results, comparison partials, and idempotent outcome capture have live evidence. Comprehensive run `20260905-053847-195d073b` failed and drove repairs. Follow-up `20260905-065453-6c657671` passes contracts, programs, tidiness, proto, dependencies and security; `20260905-065903-4fcbf80f` passes storage. Follow-up `20260905-071043-3130f23a` passes unit (including unchanged UI coverage thresholds), storage and UI health. Browser acceptance `20260905-072048-17d13edf` passes after initializing schemas in leased databases. Final comprehensive run `20260905-072147-42f80abd` passes all 27 phases with none skipped. All 22 requirements now report complete after repairing Test Genie qualified test-reference lookup and syncing actual execution evidence. Security still reports advisory findings, including the pinned host Go toolchain (scenario-qa `knw-1788591604850346261`); a passing gate is not a clean vulnerability inventory. Operator learning baselines remain unknown until comparable real windows exist.
+- Measured: 2026-09-05

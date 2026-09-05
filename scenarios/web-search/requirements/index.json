@@ -23,7 +23,8 @@
     "15-dispute-review-queue-ui-surface/module.json",
     "16-usage-telemetry-driven-curation/module.json",
     "17-classifier-auto-routing-to-live-web/module.json",
-    "18-periodic-full-store-consistency-gc-run/module.json"
+    "18-periodic-full-store-consistency-gc-run/module.json",
+    "19-research-maturity/module.json"
   ],
   "modules": [
     {

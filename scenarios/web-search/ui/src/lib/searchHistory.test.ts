@@ -42,4 +42,15 @@ describe("searchHistory", () => {
     expect(clearHistory()).toHaveLength(0);
     expect(loadHistory()).toHaveLength(0);
   });
+  it("discards malformed persisted history and preserves valid entries", () => {
+    const key = "web-search:history";
+    localStorage.setItem(key, "{broken");
+    expect(loadHistory()).toEqual([]);
+    localStorage.setItem(key, JSON.stringify({ query: "not an array" }));
+    expect(loadHistory()).toEqual([]);
+    const valid = { query: "verified", mode: "live", at: 100 };
+    localStorage.setItem(key, JSON.stringify([null, "bad", { query: 4 }, { query: "bad", mode: "unsupported" }, { query: "bad", mode: "live", at: null }, valid]));
+    expect(loadHistory()).toEqual([valid]);
+  });
+
 });

@@ -33,12 +33,12 @@
  * a spatial mock from production code, move the helper out of
  * test-utils into a real src/ location.
  */
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 
 /** Shape of the GamepadInputManager double; mirrors the surface the hook calls. */
 export interface MockGamepadInputManager {
-  start: ReturnType<typeof vi.fn>;
-  dispose: ReturnType<typeof vi.fn>;
+  start: Mock<(...args: unknown[]) => unknown>;
+  dispose: Mock<(...args: unknown[]) => unknown>;
   /** The latest onAction passed to the constructor (last writer wins). */
   onAction: ((a: unknown) => void) | undefined;
 }
@@ -66,19 +66,19 @@ export const makeMockGamepadInputManager = (): MockGamepadInputManager => ({
  *   }));
  */
 export const makeGamepadInputManagerCtor = (instance: MockGamepadInputManager) =>
-  vi.fn().mockImplementation((opts: { onAction?: (a: unknown) => void }) => {
+  vi.fn(function (opts: { onAction?: (a: unknown) => void }) {
     instance.onAction = opts.onAction;
     return instance;
   });
 
 /** Shape of the SpatialNavController double; mirrors the surface hooks call. */
 export interface MockSpatialNavController {
-  registerGroup: ReturnType<typeof vi.fn>;
-  pushScope: ReturnType<typeof vi.fn>;
-  popScope: ReturnType<typeof vi.fn>;
-  dispose: ReturnType<typeof vi.fn>;
+  registerGroup: Mock<(...args: unknown[]) => unknown>;
+  pushScope: Mock<(...args: unknown[]) => unknown>;
+  popScope: Mock<(...args: unknown[]) => unknown>;
+  dispose: Mock<(...args: unknown[]) => unknown>;
   /** The cleanup `vi.fn()` that `registerGroup` returns — exposed so tests can assert it was invoked on unmount. */
-  cleanup: ReturnType<typeof vi.fn>;
+  cleanup: Mock<(...args: unknown[]) => unknown>;
 }
 
 /**

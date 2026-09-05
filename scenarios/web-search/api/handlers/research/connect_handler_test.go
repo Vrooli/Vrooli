@@ -197,3 +197,14 @@ func TestRunL3UnavailableSurfacesUnavailable(t *testing.T) {
 	_, err := h.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: "q"}))
 	require.Error(t, err)
 }
+
+// [REQ:REQ-P0-010] Input and availability failures retain their public type.
+func TestL3InvalidInputAndMissingDependency(t *testing.T) {
+	h := handler.NewConnectHandler(*newHandler(internalresearch.NewService(internalresearch.Deps{})))
+	for _, query := range []string{"", strings.Repeat("x", 4097)} {
+		_, err := h.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: query}))
+		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	}
+	_, err := h.RunL3(context.Background(), connect.NewRequest(&researchv1.RunL3Request{Query: "q"}))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 
 	"web-search/internal/findingindex"
 	"web-search/internal/findings"
@@ -199,6 +200,9 @@ func (h *connectHandler) PruneFindings(ctx context.Context, req *connect.Request
 		h.logIfInternal("PruneFindings", err, connectErr)
 		return nil, connectErr
 	}
+	if len(ids) > math.MaxInt32 {
+		return nil, connect.NewError(connect.CodeOutOfRange, errors.New("pruned count exceeds protocol range"))
+	}
 	return connect.NewResponse(&findingsv1.PruneFindingsResponse{
 		Pruned:     int32(len(ids)),
 		FindingIds: ids,
@@ -328,6 +332,9 @@ func (h *connectHandler) ListEffectiveness(ctx context.Context, req *connect.Req
 	now := h.deps.Clock.Now()
 	resp := &findingsv1.ListEffectivenessResponse{}
 	for _, p := range pairs {
+		if p.Usage.SurfacedCount < 0 || p.Usage.SurfacedCount > math.MaxInt32 || p.Usage.UsedCount < 0 || p.Usage.UsedCount > math.MaxInt32 {
+			return nil, connect.NewError(connect.CodeOutOfRange, errors.New("finding usage counters exceed protocol range"))
+		}
 		item := &findingsv1.FindingEffectiveness{
 			Finding:             domainToProto(p.Finding),
 			SurfacedCount:       int32(p.Usage.SurfacedCount),

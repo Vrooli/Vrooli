@@ -1,3 +1,5 @@
+import json
+
 """web-search.setpoint-read v1 — read every improve-setpoint row in one submission.
 
 Contract: setpoint-read.json.
@@ -12,8 +14,8 @@ try:
     inputs
 except NameError:
     inputs = {}
-effectiveness_limit = int(inputs.get("effectiveness_limit", 500))
-decayed_below = float(inputs.get("decayed_below", 0.5))
+effectiveness_limit = inputs.get("effectiveness_limit", 500)
+decayed_below = inputs.get("decayed_below", 0.5)
 count_window = str(inputs.get("count_window", "TIME_WINDOW_TOKEN_LAST_30D"))
 
 envelope = {
@@ -64,7 +66,8 @@ def classify_transport(exc):
 def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=None):
     envelope["signals"]["rows"].append({
         "row": name, "reading": reading, "target": target,
-        "in_band": None if (in_band is None or unavailable) else bool(in_band),   # canon: null when the row has no band "unavailable": unavailable, "reason": reason,
+        "in_band": None if (in_band is None or unavailable) else bool(in_band),
+        "unavailable": unavailable, "reason": reason,
     })
     if sensor and sensor not in envelope["evidence"]:
         envelope["evidence"].append(sensor[:70])
@@ -80,9 +83,9 @@ def safe(fn):
 
 
 def step_validate():
-    if not (1 <= effectiveness_limit <= 1000):
+    if not isinstance(effectiveness_limit,int) or not (1 <= effectiveness_limit <= 1000):
         return fail("failed", "invalid_input", f"effectiveness_limit={effectiveness_limit} outside 1..1000", "validate")
-    if not (0.0 < decayed_below <= 1.0):
+    if not isinstance(decayed_below,(int,float)) or not (0.0 < decayed_below <= 1.0):
         return fail("failed", "invalid_input", f"decayed_below={decayed_below} outside (0, 1]", "validate")
     if count_window not in WINDOWS:
         return fail("failed", "invalid_input", f"count_window={count_window} not a TimeWindowToken name", "validate")
@@ -142,7 +145,7 @@ def step_classify():  # CLASSIFY · every reading is count/head/filter; rows in 
         # and insights has no windowed read, so a single ratio cannot be in or out of band.
         row("live-vs-local-ratio", {"live_routed": live, "learnings_routed": local, "ratio": ratio}, None, None,
             unavailable=(local == 0 and live == 0),
-            reason="pending_telemetry: insights has no windowed read; this ratio is all-time and is a reference point"
+            reason="diagnostic_only: all-time routing share is not answer quality"
                    if (local or live) else "unreliable:no routed calls recorded for web-search providers",
             sensor=ins_sensor)
 
@@ -170,6 +173,12 @@ def step_classify():  # CLASSIFY · every reading is count/head/filter; rows in 
         # pending-baseline: the band is a direction across windows, which one reading cannot decide.
         row("capture-volume", {"count": c, "window": count_window}, None, None, sensor=cnt_sensor)
 
+    if h["eff"] is not None and len(rows_) >= effectiveness_limit:
+        for reading in envelope["signals"]["rows"]:
+            if reading["row"] in ("surfaced-rate","used-rate","never-surfaced-share"):
+                reading["in_band"]=None
+                reading["reason"]="bounded_sample: ledger may exceed effectiveness_limit"
+
     # Canon (program-contracts.md): a permanent reason does not lower the status. Only a row the
     # owner failed to answer this time, or a read that failed outright, makes the board partial.
     _transient = [r for r in envelope["signals"]["rows"]
@@ -182,7 +191,7 @@ def step_classify():  # CLASSIFY · every reading is count/head/filter; rows in 
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, sort_keys=True))
     return None
 
 

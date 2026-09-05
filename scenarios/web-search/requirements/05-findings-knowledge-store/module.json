@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-005",
       "title": "Findings Knowledge Store — SQLite Schema, CRUD, and Semantic Index",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "Own a SQLite database (using api-core storage utilities) that stores two entity types: (1) Finding — atomic unit comprising a cited claim, source citations (URLs + titles), retrieval date, confidence score [0,1], status (active/disputed/superseded), originating brief ID, and audit metadata; (2) Brief — research run container holding many findings plus provenance (query, run timestamp, agent/user, L3 run ID). Semantic indexing of findings is provided via aisearch-go (nomic embeddings via Qdrant) enabling semantic recall. No writes into knowledge-observatory.",
@@ -15,42 +15,42 @@
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestFindingSchemaRequiredFields",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Finding schema validation: a finding row with missing required fields (claim, source_citations, retrieval_date) fails insertion with a descriptive error"
         },
         {
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestConfidenceConstrainedToUnitRange",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Finding confidence field accepts only values in [0,1] and rejects out-of-range values"
         },
         {
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestStatusEnumEnforced",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Finding status field accepts only the enum values {active, disputed, superseded} and rejects unknown values"
         },
         {
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestBriefSchemaRequiresQueryAndRunTimestamp",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Brief schema validation: a brief row requires query and run_timestamp fields"
         },
         {
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestFindingCRUDRoundTrip",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CRUD: create, read, update (edit fields), and soft-delete (supersede) operations each return the expected state on round-trip"
         },
         {
           "type": "test",
           "ref": "api/internal/findings/sqlite_test.go::TestAuditMetadataCarriesActorReasonAndBrief",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Audit metadata (mutated_by, mutation_reason, source_brief_id) is written on every finding mutation"
         },
         {

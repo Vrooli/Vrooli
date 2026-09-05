@@ -3,6 +3,8 @@ package research
 import (
 	"context"
 	"log"
+	"math"
+	"time"
 
 	"web-search/internal/findings"
 	"web-search/internal/research/agentmanager"
@@ -31,13 +33,16 @@ type FindingsGatherer interface {
 // down); a nil AgentManager makes L3 unavailable; a nil Findings disables
 // capture. main.go constructs the production impls from env; tests inject fakes.
 type Deps struct {
-	Searcher     Searcher
-	Fetcher      Fetcher
-	Synthesizer  Synthesizer
-	Findings     FindingsService
-	Gatherer     FindingsGatherer
-	AgentManager agentmanager.Service
-	Logger       *log.Logger
+	EvidenceStore FindingsStore
+	Live          LiveSearch
+	Now           func() time.Time
+	Searcher      Searcher
+	Fetcher       Fetcher
+	Synthesizer   Synthesizer
+	Findings      FindingsService
+	Gatherer      FindingsGatherer
+	AgentManager  agentmanager.Service
+	Logger        *log.Logger
 
 	// Excerpter selects what part of each fetched page the synthesis model
 	// reads. Nil falls back to positional truncation (the legacy behavior);
@@ -60,6 +65,9 @@ type Deps struct {
 // Service orchestrates the L2 (synchronous fetch/read/synthesize) and L3
 // (agent-manager run) research paths over its injected seams.
 type Service struct {
+	evidenceStore  FindingsStore
+	live           LiveSearch
+	now            func() time.Time
 	searcher       Searcher
 	fetcher        Fetcher
 	synthesizer    Synthesizer
@@ -80,22 +88,26 @@ func NewService(d Deps) *Service {
 		logger = log.Default()
 	}
 	gate := d.ConfidenceGate
-	if gate <= 0 || gate > 1 {
+	if math.IsNaN(gate) || gate <= 0 || gate > 1 {
 		gate = HighConfidenceThreshold
 	}
 	gatherCap := d.GatherCap
-	if gatherCap <= 0 {
+	if gatherCap <= 0 || gatherCap > MaxGatherFindings {
 		gatherCap = MaxGatherFindings
 	}
 	maxLoops := d.MaxResearchLoops
-	if maxLoops <= 0 {
+	if maxLoops <= 0 || maxLoops > DefaultMaxResearchLoops {
 		maxLoops = DefaultMaxResearchLoops
 	}
 	excerpter := d.Excerpter
 	if excerpter == nil {
 		excerpter = PositionalExcerpter{}
 	}
+	if d.Now == nil {
+		d.Now = time.Now
+	}
 	return &Service{
+		evidenceStore: d.EvidenceStore, live: d.Live, now: d.Now,
 		searcher:       d.Searcher,
 		fetcher:        d.Fetcher,
 		synthesizer:    d.Synthesizer,

@@ -17,7 +17,8 @@ const getMatchMedia = (): typeof window.matchMedia | undefined => {
 
 const readStoredChoice = (): ThemeChoice => {
   if (typeof window === "undefined") return "system";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  let stored: string | null;
+  try { stored = window.localStorage.getItem(STORAGE_KEY); } catch { return "system"; }
   if (stored === "light" || stored === "dark" || stored === "system") {
     return stored;
   }
@@ -33,6 +34,9 @@ const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-resolved-theme", resolved);
+  const chromeColor = getComputedStyle(document.documentElement).getPropertyValue("--color-surface").trim();
+  if (chromeColor) document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute("content", chromeColor);
   // `system` clears the attribute so the CSS @media fallback in tokens.css
   // owns resolution. Explicit choices write the attribute.
   if (choice === "system") {
@@ -70,7 +74,9 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
     setChoice(next);
     setResolved(resolveChoice(next));
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      try { window.localStorage.setItem(STORAGE_KEY, next); } catch {
+        // Theme changes remain usable when browser persistence is unavailable.
+      }
     }
   }, []);
 

@@ -59,6 +59,7 @@ type SearchInput struct {
 	Query      string
 	Limit      int
 	Synthesize bool
+	Fresh      bool
 }
 
 // Search runs the L0 live web search and optional L1 synthesis.
@@ -71,7 +72,7 @@ func (s *Service) Search(ctx context.Context, in SearchInput) (SearchOutcome, er
 
 	// Cache hit serves without spending budget or touching SearXNG. The
 	// engine-degradation snapshot stored with the entry rides along.
-	if s.cache != nil {
+	if s.cache != nil && !in.Fresh {
 		if cached, engineIssues, ok := s.cache.Get(query, limit); ok {
 			out := SearchOutcome{Results: cached, Cached: true, DegradedEngines: engineIssues}
 			return s.withSynthesis(ctx, query, cached, out, in.Synthesize), nil

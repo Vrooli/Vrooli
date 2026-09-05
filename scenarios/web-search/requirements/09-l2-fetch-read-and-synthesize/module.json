@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-001",
       "title": "L2 Page Fetch, Text Extraction, and Single-Pass Cited Synthesis",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "api",
       "description": "Fetch the top-N result page URLs from a prior L0 search via the L2 fetch stack (plain HTTP first, per-URL escalation to a browser-automation-studio capture for JS-shell pages), extract readable body text (stripping navigation, ads, boilerplate), and produce a single-pass cited synthesis using the LLM over the extracted content. Expose this capability as discrete API endpoints and as agent tool definitions consumable by the L3 agent. Fetched page content must not be stored as findings (auto-capture is opt-in for L2).",
@@ -15,42 +15,42 @@
           "type": "test",
           "ref": "api/internal/research/extract_test.go::TestExtractReadableTextStripsBoilerplate",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Text extraction strips known boilerplate patterns (nav, footer, cookie banners) from a set of HTML fixtures and returns only body content"
         },
         {
           "type": "test",
           "ref": "api/internal/research/extract_test.go::TestExtractReadableTextNonEmptyAcrossArticleFixtures",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Text extraction returns a non-empty string for at least 90% of real-world article HTML fixtures"
         },
         {
           "type": "test",
           "ref": "api/internal/research/synthesizer_test.go::TestParseSynthesisReplyDropsOutOfRangeCitations",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Synthesis output from L2 contains inline citations referencing only URLs from the fetched page set (no hallucinated sources)"
         },
         {
           "type": "test",
           "ref": "api/internal/research/fetch/http_test.go::TestHTTPFetcherExtractsReadableText",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "HTTP fetch leg: status/content-type gating, body-size capping, redirect following, and readable-text extraction pinned against a live httptest server"
         },
         {
           "type": "test",
           "ref": "api/internal/research/fetch/escalate_test.go::TestEscalatingFetcherThinContentEscalates",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Escalation decision matrix: good HTTP content never escalates; HTTP failure or thin (JS-shell) content escalates to the browser leg; browser-leg failure degrades to the HTTP result; no browser leg means HTTP-only"
         },
         {
           "type": "test",
           "ref": "api/internal/research/fetch/bas_test.go::TestBASFetcherExtractsReadableTextFromInlineDom",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Browser escalation leg drives browser-automation-studio CaptureService.Capture with inline_dom=true (no artifact-path/filesystem coupling) and extracts readable text from the returned DOM"
         },
         {
@@ -64,7 +64,7 @@
           "type": "test",
           "ref": "api/handlers/research/connect_handler_test.go::TestRunL2SchemaValidation",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L2 API endpoint schema validation: request must include query (empty -\u003e InvalidArgument) and top_n clamped into 1..10; response includes synthesis text, citations array, the per-document excerpts actually sent to the model (excerpts field, transport-capped), and abstain_reason on abstention [the 'raw extracted excerpts' response field landed 2026-06-10 with the L2 observability pass: proto DocumentExcerpt + abstain_reason on RunL2Response]"
         },
         {

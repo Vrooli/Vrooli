@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T14:15:16-04:00"
+    "last_validated_at": "2026-09-05T03:26:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-004",
       "title": "Finding Auto-Capture Policy — L3 Auto, L2 Opt-In, L0/L1 Never",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "core",
       "description": "Enforce a tiered finding capture policy: L3 research runs auto-capture findings by default (no opt-in required); L2 fetch+synthesize runs capture findings only when an explicit --capture flag is passed; L0 (live search) and L1 (snippet synthesis) runs never persist findings. At the end of an L3 run (or L2 with capture), an LLM distillation pass processes the run output and emits structured findings (claim + citations + confidence score) which are then written to the findings store.",
@@ -15,42 +15,42 @@
           "type": "test",
           "ref": "api/e2e_findings_test.go::TestL0AndL1PathsHaveNoFindingWritePath",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L0 live-search path has no finding-write code path (static analysis / code path test)"
         },
         {
           "type": "test",
           "ref": "api/e2e_findings_test.go::TestL0AndL1PathsHaveNoFindingWritePath",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L1 synthesis path has no finding-write code path (static analysis / code path test)"
         },
         {
           "type": "test",
           "ref": "api/e2e_findings_test.go::TestL2WithoutCaptureWritesNoFindings",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L2 without --capture flag: distillation pass is not invoked and zero findings are written"
         },
         {
           "type": "test",
           "ref": "api/internal/research/l2_test.go::TestRunL2CaptureWritesL2SourcedFinding",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L2 with --capture flag: distillation pass is invoked and findings count in database increases"
         },
         {
           "type": "test",
           "ref": "api/e2e_findings_test.go::TestL3PromptEncodesAutoCaptureByDefault",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "L3 run: distillation pass is invoked automatically at run end and at least one finding is written"
         },
         {
           "type": "test",
           "ref": "api/e2e_findings_test.go::TestL2CaptureEmitsSchemaValidFinding",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Distillation output schema validation: each emitted finding has claim (non-empty string), citations (array, min 1), and confidence (float in [0,1])"
         },
         {

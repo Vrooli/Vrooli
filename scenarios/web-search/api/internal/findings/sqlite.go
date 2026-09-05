@@ -273,20 +273,23 @@ func (s *sqliteRepository) Prune(ctx context.Context, dryRun bool, actor string)
 	if err != nil {
 		return nil, fmt.Errorf("prune scan: %w", err)
 	}
+	defer rows.Close()
 	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("prune scan id: %w", err)
+			closeErr := rows.Close()
+			return nil, fmt.Errorf("prune scan id: %w", errors.Join(err, closeErr))
 		}
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, fmt.Errorf("prune iterate: %w", err)
+		closeErr := rows.Close()
+		return nil, fmt.Errorf("prune iterate: %w", errors.Join(err, closeErr))
 	}
-	rows.Close()
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("prune close: %w", err)
+	}
 	if dryRun {
 		return ids, nil
 	}
@@ -318,14 +321,17 @@ func (s *sqliteRepository) Count(ctx context.Context, from, to time.Time) (int, 
 	return n, nil
 }
 
-func (s *sqliteRepository) UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error) {
-	var out UsageAggregate
-	err := s.db.QueryRowContext(ctx, `SELECT
+// UsageAggregateQuery is the executed query retained in measure provenance.
+const UsageAggregateQuery = `SELECT
   COALESCE(SUM(CASE WHEN u.last_surfaced_at >= ? AND u.last_surfaced_at < ? THEN u.surfaced_count ELSE 0 END), 0),
   COALESCE(SUM(CASE WHEN u.last_surfaced_at >= ? AND u.last_surfaced_at < ? THEN u.used_count ELSE 0 END), 0),
   COALESCE(SUM(CASE WHEN u.finding_id IS NULL OR u.used_count = 0 THEN 1 ELSE 0 END), 0)
 FROM findings f LEFT JOIN finding_usage u ON u.finding_id = f.id
-WHERE f.created_at >= ? AND f.created_at < ?`,
+WHERE f.created_at >= ? AND f.created_at < ?`
+
+func (s *sqliteRepository) UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error) {
+	var out UsageAggregate
+	err := s.db.QueryRowContext(ctx, UsageAggregateQuery,
 		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat),
 		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat),
 		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat)).Scan(&out.Surfaced, &out.Used, &out.Never)

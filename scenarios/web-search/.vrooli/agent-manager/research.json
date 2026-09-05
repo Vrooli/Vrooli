@@ -1,0 +1,313 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "web-search",
+  "key": "web-search/research",
+  "version": "1.0.3",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "gather_cap": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 20
+      },
+      "confidence_gate": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "max_loops": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10
+      }
+    },
+    "required": [
+      "query",
+      "gather_cap",
+      "confidence_gate",
+      "max_loops"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "partial",
+              "abstained"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "citations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                      },
+                      "title": {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      "retrieved_at": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "title",
+                      "retrieved_at"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 10
+                }
+              },
+              "required": [
+                "text",
+                "citations"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 20
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 20
+          },
+          "contradictions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 20
+          },
+          "finding_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "status",
+          "summary",
+          "claims",
+          "gaps",
+          "contradictions",
+          "finding_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "research",
+      "kind": "run",
+      "run": {
+        "roleRef": "code.default",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "answered",
+                  "partial",
+                  "abstained"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 10000
+              },
+              "claims": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2048
+                          },
+                          "title": {
+                            "type": "string",
+                            "maxLength": 300
+                          },
+                          "retrieved_at": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "title",
+                          "retrieved_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "minItems": 1,
+                      "maxItems": 10
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "citations"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 20
+              },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                "maxItems": 20
+              },
+              "contradictions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                "maxItems": 20
+              },
+              "finding_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "status",
+              "summary",
+              "claims",
+              "gaps",
+              "contradictions",
+              "finding_ids"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "query",
+            "source": "workflow_input",
+            "selector": "$.query",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "gather_cap",
+            "source": "workflow_input",
+            "selector": "$.gather_cap",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "confidence_gate",
+            "source": "workflow_input",
+            "selector": "$.confidence_gate",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "max_loops",
+            "source": "workflow_input",
+            "selector": "$.max_loops",
+            "limit": 1,
+            "maxBytes": 8192,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "promptRef": {
+          "skillId": "web-search-investigate"
+        },
+        "scopePathTemplate": "scenarios/web-search"
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 600,
+    "maxTurns": 30,
+    "maxTokens": 250000,
+    "maxChargeMicroUsd": 2000000,
+    "maxNodeAttempts": 1,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 90
+  }
+}

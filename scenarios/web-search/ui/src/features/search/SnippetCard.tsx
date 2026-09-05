@@ -3,7 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import type { SearchResult } from "@vrooli/proto-types/web-search/v1/livesearch/livesearch_pb";
+import type { SearchResult } from "@vrooli/proto-types/web-search/v1/shared/search_pb";
 
 /**
  * SnippetCard renders one live web-search result: title (linking out), snippet,

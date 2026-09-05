@@ -35,6 +35,7 @@ type Searcher interface {
 // LiveSearcher adapts the internal live-search Service to the Searcher seam.
 type LiveSearcher struct {
 	Service *livesearch.Service
+	Fresh   bool
 }
 
 // Candidates runs an L0 live search and projects the results to candidate URLs.
@@ -42,7 +43,7 @@ func (l LiveSearcher) Candidates(ctx context.Context, query string, topN int) (C
 	if l.Service == nil {
 		return CandidateSet{}, nil
 	}
-	out, err := l.Service.Search(ctx, livesearch.SearchInput{Query: query, Limit: topN})
+	out, err := l.Service.Search(ctx, livesearch.SearchInput{Query: query, Limit: topN, Fresh: l.Fresh})
 	if err != nil {
 		return CandidateSet{}, err
 	}
@@ -206,3 +207,8 @@ const l2CaptureConfidence = 0.6
 
 // Ensure LiveSearcher satisfies the seam at compile time.
 var _ Searcher = LiveSearcher{}
+
+func (l LiveSearcher) FreshCandidates(ctx context.Context, query string, n int) (CandidateSet, error) {
+	l.Fresh = true
+	return l.Candidates(ctx, query, n)
+}

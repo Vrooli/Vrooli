@@ -23,11 +23,19 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
-import { afterEach, beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, vi, type MockInstance } from "vitest";
 import { i18n } from "./i18n";
+import { createElement } from "react";
+import { I18nextProvider } from "react-i18next";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
-let consoleError: ReturnType<typeof vi.spyOn>;
-let consoleWarn: ReturnType<typeof vi.spyOn>;
+configureTestProviders((children) => createElement(I18nextProvider, { i18n },
+  createElement(ThemeProvider, null, children),
+));
+
+let consoleError: MockInstance<(...args: unknown[]) => void>;
+let consoleWarn: MockInstance<(...args: unknown[]) => void>;
 
 beforeEach(async () => {
   window.localStorage.clear();

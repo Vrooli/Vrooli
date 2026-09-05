@@ -36,17 +36,6 @@ const routes: RouteObject[] = [
 ];
 
 /**
- * React Router v7 future flags. Opting in early silences the v6 migration
- * console warnings (which the strict test-setup console guard treats as
- * failures) and makes the eventual v7 upgrade a no-op. Kept in one place so
- * every router construction site stays in sync.
- */
-const ROUTER_FUTURE = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-} as const;
-
-/**
  * Production router (uses real browser history). Built lazily so module load
  * doesn't fail in test environments where `window.location` semantics differ
  * from production.
@@ -54,8 +43,8 @@ const ROUTER_FUTURE = {
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes, { future: ROUTER_FUTURE });
-  return <RouterProvider router={router} future={ROUTER_FUTURE} />;
+  const router = createBrowserRouter(routes);
+  return <RouterProvider router={router} />;
 }
 
 /**
@@ -63,6 +52,6 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries, future: ROUTER_FUTURE });
-  return <RouterProvider router={router} future={ROUTER_FUTURE} />;
+  const router = createMemoryRouter(routes, { initialEntries });
+  return <RouterProvider router={router} />;
 }

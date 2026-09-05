@@ -1,3 +1,4 @@
+import { renderWithProviders as render } from "../../test-utils";
 /**
  * Unit tests for the Input primitive.
  *
@@ -17,7 +18,7 @@
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Input } from "./input";
