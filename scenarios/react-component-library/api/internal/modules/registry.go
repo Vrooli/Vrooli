@@ -34,6 +34,7 @@ import (
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
 	previewH "react-component-library/handlers/preview"
+	sketchH "react-component-library/handlers/sketch"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
@@ -44,6 +45,7 @@ import (
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows"
@@ -64,6 +66,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
+	out = append(out, sketchH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
 	out = append(out, workflowsH.Endpoints...)
@@ -91,6 +94,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
 		{Module: "inventory", File: inventoryv1.File_ui_health_v1_inventory_inventory_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
+		{Module: "sketch", File: sketchv1.File_react_component_library_v1_sketch_sketch_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},
 		{Module: "versions-lifecycle", File: versionsv1.File_react_component_library_v1_versions_lifecycle_proto},

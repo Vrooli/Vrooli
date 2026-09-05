@@ -103,6 +103,17 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W1 — obligations registry (regression since the 2026-09-04 record below)
+- Evidence: `business-health validate scenario react-component-library` reports FAILED with 40 `business_status_unearned` errors ("declared complete but no requirements-sync snapshot exists to earn it"). The snapshot path `scenarios/react-component-library/coverage/requirements-sync/latest.json` does not exist, and **0 of 127 scenarios** in the repo have ever produced one. The check is `scenarios/business-health/api/internal/checks/evidence.go:89`, fed by `internal/matrix/matrix.go` (modified 2026-09-02 20:56); the installed `business-health` binary was rebuilt 2026-09-04 18:27, i.e. after the prior W3 record was measured on 2026-09-04 — which is why that record shows W1 passing. The check fires only on `complete`: react-component-library declares 76 complete (40 flagged), web-console 8 complete (8 flagged), while command-center, prompt-manager and business-health flag 0.
+- Blocker: Awaiting an operator decision. The gate's own remedy is "revert the status to what evidence supports, then earn the change through a comprehensive suite run" — either downgrade the 40 statuses or produce the snapshot via a comprehensive `vrooli scenario test react-component-library` run. Gesture defect repair (W3) is held behind this rung.
+- Measured: 2026-09-05
+
+
+- Rung: W3 / R0 — executable page design implementation
+- Evidence: W0 now maps the approved plan outcome to `OT-P0-009`; `business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass after linking `requirements/24-executable-page-design/module.json`. Baseline run `20260904-033512-fa448bde` is terminal `FAIL`, and EPD-001 through EPD-004 honestly remain `not_implemented`, so implementation is the highest broken layer.
+- Blocker: None. Implement the page sketch, reconciliation, search, brief, and workbench behavior, then replace manual validation placeholders with passing test references.
+- Measured: 2026-09-04
+
 - Rung: W3 / R3 (design-token vocabulary, kit compatibility, and Settings layout contract)
 - Evidence: W0/W1 remain clean (`business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass). The live catalog now exposes calibrated blocking `fallback-parity`, `kit-compatibility`, and `affinity-compatible` gates; those gates plus `token-vocabulary` and `token-ramp-complete` report zero findings while each planted fixture is detected. The current census covers 162 components and 159 external references with zero undefined properties or affinity overclaims. Banner 1.0.12 passed focused preflight/component validation and removed the last active fallback mismatch. Browser Automation Studio executions `7b4a624d-3227-4178-9138-dcbbd9cec23d` and `445ae14d-530c-41f0-bb75-8aba52fb0379` exercised the real web-console Settings modal at 390px and 924px: narrow controls align to the trailing edge, the narrow group border is 0px, the wide border is 1px, and measured rows remain at least 48px tall.
 - Blocker: None for this plan's intent. The broad scenario baseline retains unrelated historical release-provenance/index findings and other inherited suite failures; the plan-owned deterministic gates, component contract, generator check, and real consumer layout evidence are green.

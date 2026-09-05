@@ -3716,6 +3716,12 @@
       "publishedAt": "2026-09-03T13:07:59Z"
     },
     {
+      "libraryId": "react-component-library:PlanSummary",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-04T03:53:39Z"
+    },
+    {
       "libraryId": "react-component-library:Popover",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4386,6 +4392,18 @@
       "version": "0.1.3",
       "draftVersion": "0.1.3-draft.1",
       "publishedAt": "2026-09-03T02:38:39Z"
+    },
+    {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.4",
+      "draftVersion": "0.1.4-draft.1",
+      "publishedAt": "2026-09-04T05:25:34Z"
+    },
+    {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.5",
+      "draftVersion": "0.1.5-draft.1",
+      "publishedAt": "2026-09-04T18:46:27Z"
     },
     {
       "libraryId": "react-component-library:SampleSeries",

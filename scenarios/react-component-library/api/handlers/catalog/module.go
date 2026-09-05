@@ -18,6 +18,7 @@ import (
 	"react-component-library/internal/catalogbuild"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
+	"react-component-library/internal/catalogsearch"
 	"react-component-library/internal/components"
 	componenttests "react-component-library/internal/componenttests"
 	"react-component-library/internal/gates"
@@ -48,6 +49,7 @@ type handler struct {
 	checkMu         sync.RWMutex
 	checkCache      map[string]*catalogv1.CheckAssetResponse
 	evidenceMu      sync.Mutex
+	search          *catalogsearch.Index
 }
 
 type (
@@ -63,7 +65,8 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 	if len(dbs) > 0 && dbs[0] != nil {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
-	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}, jobRunner: jobs.New(nil), checkCache: map[string]*catalogv1.CheckAssetResponse{}}
+	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}, jobRunner: jobs.New(nil), checkCache: map[string]*catalogv1.CheckAssetResponse{}, search: catalogsearch.New()}
+	_ = h.search.Reindex(filepath.Join(repoRoot, "scenarios", "react-component-library"))
 	return h.module()
 }
 
@@ -87,7 +90,9 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 		assets:     assets,
 		jobRunner:  jobs.New(db),
 		checkCache: map[string]*catalogv1.CheckAssetResponse{},
+		search:     catalogsearch.New(),
 	}
+	_ = h.search.Reindex(filepath.Join(repoRoot, "scenarios", "react-component-library"))
 	return h.module()
 }
 
@@ -113,6 +118,27 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_health", Path: catalogconnect.CatalogServiceGetHealthOverviewProcedure, Method: "POST", Summary: "Read server-computed catalog health", Category: "catalog"},
 	{ID: "catalog_readiness", Path: catalogconnect.CatalogServiceGetReadinessProcedure, Method: "POST", Summary: "Report catalog readiness and triage", Category: "catalog"},
 	{ID: "catalog_capture_evidence", Path: catalogconnect.CatalogServiceCaptureEvidenceProcedure, Method: "POST", Summary: "Capture declared visual evidence", Category: "catalog"},
+	{ID: "catalog_search", Path: catalogconnect.CatalogServiceSearchAssetsProcedure, Method: "POST", Summary: "Search authored catalog assets", Category: "catalog"},
+	{ID: "catalog_search_status", Path: catalogconnect.CatalogServiceSearchStatusProcedure, Method: "POST", Summary: "Read catalog search index status", Category: "catalog"},
+	{ID: "catalog_search_reindex", Path: catalogconnect.CatalogServiceReindexSearchProcedure, Method: "POST", Summary: "Rebuild the catalog search index", Category: "catalog"},
+}
+
+func (h *handler) SearchAssets(_ context.Context, req *connect.Request[catalogv1.SearchAssetsRequest]) (*connect.Response[catalogv1.SearchAssetsResponse], error) {
+	results := h.search.Search(req.Msg.GetQuery(), int(req.Msg.GetLimit()), req.Msg.GetKind(), req.Msg.GetDomain(), req.Msg.GetAccepts())
+	out := &catalogv1.SearchAssetsResponse{Total:int32(len(results))}
+	for _, result := range results { out.Results = append(out.Results, &catalogv1.SearchAssetResult{CatalogId:result.CatalogID, Name:result.Name, Description:result.Description, DeclarationPath:result.DeclarationPath, Score:result.Score, Layer:int32(result.Layer), Implemented:result.Implemented, Kind:result.Kind, Domain:result.Domain}) }
+	return connect.NewResponse(out), nil
+}
+
+func (h *handler) SearchStatus(context.Context, *connect.Request[catalogv1.SearchStatusRequest]) (*connect.Response[catalogv1.SearchStatusResponse], error) {
+	count, indexedAt := h.search.Status()
+	return connect.NewResponse(&catalogv1.SearchStatusResponse{IndexedCount:int32(count), IndexedAt:indexedAt.Format(time.RFC3339), Available:count > 0}), nil
+}
+
+func (h *handler) ReindexSearch(_ context.Context, _ *connect.Request[catalogv1.ReindexSearchRequest]) (*connect.Response[catalogv1.ReindexSearchResponse], error) {
+	if err := h.search.Reindex(filepath.Join(h.repoRoot,"scenarios","react-component-library")); err != nil { return nil, connect.NewError(connect.CodeInternal, err) }
+	count, indexedAt := h.search.Status()
+	return connect.NewResponse(&catalogv1.ReindexSearchResponse{IndexedCount:int32(count), IndexedAt:indexedAt.Format(time.RFC3339)}), nil
 }
 
 func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1.CheckAssetRequest]) (*connect.Response[catalogv1.CheckAssetResponse], error) {

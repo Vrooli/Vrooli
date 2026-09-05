@@ -41,7 +41,6 @@ export function PlanSummary({
     <section
       data-testid="plan-summary"
       className="plan-summary"
-      role="region"
       aria-labelledby="plan-summary-title"
     >
       <header>
@@ -82,3 +81,4 @@ export function PlanSummary({
     </section>
   );
 }
+

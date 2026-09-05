@@ -22,6 +22,7 @@
 - [x] OT-P0-006 | Safe adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; refresh computes current/behind/modified/unknown, while apply, reapply, and reconverge refuse unsafe writes unless the caller supplies the explicitly validated confirmation or override.
 - [ ] OT-P0-007 | CLI parity for headless workflows | `react-component-library {components,adoptions,versions} ...` covers list/search/get/index/create/refresh, atomic batch operations, and lifecycle operations; default human output, `--json` opt-in (per `cli-steer`).
 - [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, token-complete templates and adopting scenarios, catalog TypeScript/ESLint gates, real-browser full-catalog preview sweeps, component experience reconciliation, and BAS flows for primary user journeys.
+- [ ] OT-P0-009 | Executable page design and reconciliation | When a scenario page declares experience regions, the library shall design them from ranked catalog assets, persist the authored sketch beside the scenario, reconcile every region against observed source with a closed verdict vocabulary, and emit an ordered implementation brief whose closing gate verifies coverage and drift.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.

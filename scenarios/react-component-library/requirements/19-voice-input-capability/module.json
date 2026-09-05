@@ -52,7 +52,7 @@
         },
         {
           "type": "test",
-          "ref": "catalog build --check",
+        "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "workflow",
           "status": "failing"
         }

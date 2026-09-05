@@ -1,11 +1,13 @@
 /**
  * @libraryId react-component-library:PlanSummary
- * @displayName Plan Summary
- * @description A named recommendation with quantified facts and accept-or-adjust actions.
- * @version 0.1.0-draft.1
- * @tags ["data-display","approval"]
+ * @displayName PlanSummary
+ * @description An accept-or-adjust summary card for a proposed action, with direct and implied facts distinguished in form and text.
+ * @version 0.1.1
+ * @tags []
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
+import { useId } from "react";
+
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusBadge, type StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 
@@ -14,12 +16,14 @@ export interface PlanFact {
   label: string;
   tone?: StatusTone;
 }
+
 export interface PlanSummaryProps {
   title: string;
   kicker?: string;
   note?: string;
   facts: PlanFact[];
   items?: Array<{ label: string; implied?: boolean }>;
+  headingLevel?: 2 | 3 | 4;
   onAccept: () => void;
   acceptLabel: string;
   onAdjust?: () => void;
@@ -32,20 +36,20 @@ export function PlanSummary({
   note,
   facts,
   items = [],
+  headingLevel = 2,
   onAccept,
   acceptLabel,
   onAdjust,
   adjustLabel,
 }: PlanSummaryProps) {
+  const titleId = useId();
+  const Heading = `h${headingLevel}` as "h2" | "h3" | "h4";
+
   return (
-    <section
-      data-testid="plan-summary"
-      className="plan-summary"
-      aria-labelledby="plan-summary-title"
-    >
+    <section data-testid="plan-summary" className="plan-summary" aria-labelledby={titleId}>
       <header>
-        <span>{kicker}</span>
-        <h1 id="plan-summary-title">{title}</h1>
+        {kicker && <span>{kicker}</span>}
+        <Heading id={titleId}>{title}</Heading>
         {note && <p>{note}</p>}
       </header>
       <div className="plan-summary-facts">

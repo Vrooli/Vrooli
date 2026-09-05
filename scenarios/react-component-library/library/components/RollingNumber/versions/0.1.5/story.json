@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "FourInks",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "1,284"
+        }
+      ],
+      "id": "four-inks",
+      "mode": "pinned",
+      "name": "The same figure in four inks",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Formats",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "12.4K"
+        },
+        {
+          "kind": "text",
+          "value": "58"
+        },
+        {
+          "kind": "text",
+          "value": "20 h"
+        },
+        {
+          "kind": "text",
+          "value": "––"
+        }
+      ],
+      "id": "formats",
+      "mode": "pinned",
+      "name": "Currency, percent, duration and a silent sensor",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Rolling",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "1,28"
+        }
+      ],
+      "id": "rolling",
+      "mode": "live",
+      "name": "Only the changed digit rolls",
+      "role": "boundary"
+    }
+  ],
+  "title": "RollingNumber"
+}

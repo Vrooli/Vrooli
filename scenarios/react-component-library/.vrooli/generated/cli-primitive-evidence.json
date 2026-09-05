@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "ea703ad5558954c72e3eb7e23ea4b4f993751567cc71f9724a93a10d16eecc06",
+  "manifest_hash": "baa705dd5af057538053673f0762fc8b25f488de07ef621ce42c9bc0f235c742",
   "commands": [
     {
       "path": "adoptions link",
@@ -163,6 +163,76 @@
       "group": "preview",
       "command": "populate-store",
       "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "sketch brief",
+      "group": "sketch",
+      "command": "brief",
+      "binding": "SketchService.BuildBrief",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "sketch get",
+      "group": "sketch",
+      "command": "get",
+      "binding": "SketchService.GetSketch",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "sketch import",
+      "group": "sketch",
+      "command": "import",
+      "binding": "SketchService.ImportPage",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch note",
+      "group": "sketch",
+      "command": "note",
+      "binding": "SketchService.AddNote",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch place",
+      "group": "sketch",
+      "command": "place",
+      "binding": "SketchService.Place",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch placeholder",
+      "group": "sketch",
+      "command": "placeholder",
+      "binding": "SketchService.Placeholder",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch set",
+      "group": "sketch",
+      "command": "set",
+      "binding": "SketchService.PutSketch",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch template",
+      "group": "sketch",
+      "command": "template",
+      "binding": "SketchService.SetTemplate",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch unplace",
+      "group": "sketch",
+      "command": "unplace",
+      "binding": "SketchService.Unplace",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch verify",
+      "group": "sketch",
+      "command": "verify",
+      "binding": "SketchService.VerifySketch",
+      "declared_primitive": "proto_list"
     },
     {
       "path": "versions diff",

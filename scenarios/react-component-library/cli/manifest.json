@@ -1128,6 +1128,130 @@
           }
         }
       ]
+    },
+    {
+      "name": "sketch",
+      "description": "Design scenario pages from governed catalog assets and reconcile them with source",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read the authored sketch for one scenario page",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "GetSketch"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "set",
+          "description": "Set the sketch template or viewport without disturbing other page fields",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "flags": [
+            {"name": "template", "description": "Catalog page-template asset id"},
+            {"name": "version", "description": "Optional exact template version"},
+            {"name": "viewport", "description": "Viewport class"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "PutSketch"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "verify",
+          "description": "Reconcile every declared page region with observed source",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "VerifySketch"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "import",
+          "description": "Classify local page components through all three reuse tiers",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "flags": [{"name": "write", "bool": true, "description": "Persist the proposed sketch into the experience page"}],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "ImportPage"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "place",
+          "description": "Place a built or declared catalog asset into a sketch region",
+          "positionals": [
+            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
+            {"name": "region", "required": true, "description": "Declared page region id"},
+            {"name": "asset", "required": true, "description": "Catalog asset id"}
+          ],
+          "flags": [
+            {"name": "version", "description": "Optional exact built asset version"},
+            {"name": "note", "description": "Placement constraint"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Place"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "placeholder",
+          "description": "Record a genuinely new need after catalog reuse is exhausted",
+          "positionals": [
+            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
+            {"name": "region", "required": true, "description": "Declared page region id"},
+            {"name": "placeholder", "required": true, "description": "Stable placeholder slug"}
+          ],
+          "flags": [
+            {"name": "intent", "required": true, "description": "At least 20 characters describing the missing behavior"},
+            {"name": "note", "description": "Placement constraint"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Placeholder"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "note",
+          "description": "Attach a scoped design constraint to the sketch",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "flags": [
+            {"name": "scope", "required": true, "description": "Page, region, or asset scope"},
+            {"name": "text", "required": true, "description": "Constraint text"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "AddNote"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "unplace",
+          "description": "Move a placement into the explicit unplaced set",
+          "positionals": [
+            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
+            {"name": "region", "required": true, "description": "Placed region id"}
+          ],
+          "flags": [{"name": "reason", "required": true, "description": "Why the item no longer fits"}],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Unplace"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "template",
+          "description": "Swap the page template with an explicit region remap",
+          "positionals": [
+            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
+            {"name": "asset", "required": true, "description": "Catalog page-template asset id"}
+          ],
+          "flags": [
+            {"name": "version", "description": "Optional exact template version"},
+            {"name": "remap", "repeatable": true, "description": "Region mapping as old=new"},
+            {"name": "confirm-unplaced", "bool": true, "description": "Confirm placements that cannot be remapped"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "SetTemplate"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "brief",
+          "description": "Emit ordered implementation work and its closing verification gate",
+          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
+          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "BuildBrief"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
+          "architecture": {"primitive": "proto_list"}
+        }
+      ]
     }
   ],
   "measures": {

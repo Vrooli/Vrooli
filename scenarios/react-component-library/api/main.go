@@ -33,6 +33,7 @@ import (
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
 	previewH "react-component-library/handlers/preview"
+	sketchH "react-component-library/handlers/sketch"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
@@ -313,6 +314,7 @@ func main() {
 		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
+		sketchH.Module(filepath.Dir(scenariosRoot), log.Default(), sketchH.InventoryScannerAdapter{Scanner: inventoryScanner}),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger, componentsSvc),
 		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),

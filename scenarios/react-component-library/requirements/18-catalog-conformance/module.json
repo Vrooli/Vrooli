@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Static and browser gates that make the catalog source itself a tested surface.",
-    "last_validated_at": "2026-09-03T23:16:52-04:00",
+    "last_validated_at": "2026-09-04T00:13:53-04:00",
     "module": "catalog-conformance",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -24,7 +24,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "catalog build --check",
+          "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "unit",
           "status": "failing",
           "notes": "`pnpm run catalog:check` and `make lint-ui` passed after the catalog conformance scripts/configs were added. A temporary Button type error produced the expected TypeScript failure before removal."
@@ -34,7 +34,7 @@
     {
       "id": "CC-002",
       "title": "Full catalog preview sweep runs in a real browser",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/handlers/catalog/module.go",
           "phase": "workflow",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The BAS-backed catalog evidence path is the canonical browser gate. `pnpm run test:preview-evidence` remains separate from bounded Vitest coverage and stores one capture row per declared story."
         }
       ]
