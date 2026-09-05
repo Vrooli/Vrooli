@@ -13,18 +13,28 @@ import (
 )
 
 type connectHandler struct {
-	service *internalfacets.Service
-	logger  *log.Logger
+	service  *internalfacets.Service
+	registry *policy.Registry
+	logger   *log.Logger
 }
 
-func NewConnectHandler(service *internalfacets.Service, logger *log.Logger) *connectHandler {
+func NewConnectHandler(service *internalfacets.Service, logger *log.Logger, registries ...*policy.Registry) *connectHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &connectHandler{service: service, logger: logger}
+	var registry *policy.Registry
+	if len(registries) > 0 {
+		registry = registries[0]
+	}
+	return &connectHandler{service: service, registry: registry, logger: logger}
 }
 
 func (h *connectHandler) ListRules(ctx context.Context, req *connect.Request[rulesv1.ListRulesRequest]) (*connect.Response[rulesv1.ListRulesResponse], error) {
+	if h.registry != nil {
+		if _, err := h.registry.Resolve(ctx, req.Msg.GetScope()); err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+	}
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	rules, err := h.service.ListRules(ctx, req.Msg.GetScope())
 	if err != nil {

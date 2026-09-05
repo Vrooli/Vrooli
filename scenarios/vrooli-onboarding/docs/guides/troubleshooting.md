@@ -20,9 +20,9 @@ instead, and `doctor` reports `Backend: encrypted-file` with the key wrap
 holding it open. Create it once before provisioning anything:
 
 ```bash
-vrooli credentials store init          # a reachable TPM needs no passphrase
-printf '%s' "$PASSPHRASE" | vrooli credentials store init   # otherwise
-vrooli credentials store status        # names the wraps and what protects them
+vrooli credentials store init
+printf '%s' "$PASSPHRASE" | vrooli credentials store init
+vrooli credentials store status
 ```
 
 A host with a TPM reaches a working state after a reboot with no human action.

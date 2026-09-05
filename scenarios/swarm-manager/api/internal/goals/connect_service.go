@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"swarm-manager/internal/eta"
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -262,5 +263,12 @@ func scopeToProto(in Scope) *domainpb.GoalScope {
 }
 
 func goalResponse(in *GoalWithScope) *apipb.GoalResponse {
-	return &apipb.GoalResponse{Goal: goalToProto(in.Goal), Scope: scopeToProto(in.Scope)}
+	return &apipb.GoalResponse{Goal: goalToProto(in.Goal), Scope: scopeToProto(in.Scope), Eta: etaToProto(in.ETA)}
+}
+
+func etaToProto(in *eta.Band) *domainpb.PlanEtaBand {
+	if in == nil {
+		return nil
+	}
+	return &domainpb.PlanEtaBand{P50Hours: in.P50Hours, P80Hours: in.P80Hours, P50Label: in.P50Label, P80Label: in.P80Label, Basis: in.Basis, BasisLabel: in.BasisLabel, Confidence: in.Confidence, RemainingItems: int32(in.RemainingItems), LaneCapacity: int32(in.LaneCapacity)}
 }

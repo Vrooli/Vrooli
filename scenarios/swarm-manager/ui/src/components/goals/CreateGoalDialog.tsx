@@ -18,7 +18,7 @@ import { useBacklogStore } from "../../stores";
 import { useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
 import { BacklogCard } from "../backlog/backlog-card";
 import { ContextChipTray, type ComposerContextChip } from "../composer/ContextChipTray";
-import type { CardSelection } from "../session/context/selectable";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 import type { BacklogItem } from "../../types";
 import type { GoalWithScope } from "../../types/goal";
 

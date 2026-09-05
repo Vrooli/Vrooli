@@ -1,5 +1,10 @@
 # Wizard Flow
 
+Agent-operated setup and readiness flows use
+`prompt-manager skill read vrooli-onboarding`. Evidence-driven workflow
+regulation uses `prompt-manager skill read vrooli-onboarding-improve`; visual
+redesign findings remain outside its program actions.
+
 This document is the implementation contract for the onboarding wizard. The
 configuration substrate it reads from and writes to is documented in
 [`/docs/configuration/`](../../../docs/configuration/); the UX contract it must

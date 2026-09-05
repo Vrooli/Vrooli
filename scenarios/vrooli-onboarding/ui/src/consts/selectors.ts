@@ -138,6 +138,9 @@ const normalizeParams = (
       normalized[key] = value;
       continue;
     }
+    if (typeof value !== "string") {
+      throw new Error(`Selector '${path}' parameter '${key}' must be a string`);
+    }
     normalized[key] = value;
   }
 
@@ -308,8 +311,6 @@ const literalSelectors = {
   },
   wizard: {
     shell: "wizard-shell",
-    stepsDesktop: "wizard-steps-desktop",
-    progressBar: "progress-bar",
     prev: "wizard-prev",
     next: "wizard-next",
     welcome: "step-welcome",
@@ -317,44 +318,17 @@ const literalSelectors = {
     integrations: "step-integrations-deferred",
     operatingMode: "step-operating-mode",
     resources: "step-derived-resources",
-    scenarioSearch: "scenario-search",
-    scenarioFilter: "scenario-filter",
     host: "step-host-requirements",
     readiness: "step-readiness",
-    selectResources: "step-select-resources",
-    review: "step-review",
-    complete: "step-complete",
-    resumePrompt: "resume-prompt",
-    resumeButton: "resume-button",
-    setupOrderHint: "setup-order-hint",
-    resourcesLoading: "step-resources-loading",
-    resourcesError: "step-resources-error",
-    validationLoading: "validation-loading",
-    validationError: "validation-error",
-    validationSuccess: "validation-success",
-    validationInvalid: "validation-invalid",
-    configLoading: "config-loading",
-    configError: "config-error",
-    configOutput: "config-output",
-    copyConfig: "copy-config",
-    downloadConfig: "download-config",
-    startOver: "start-over",
-    resourceSearch: "resource-search",
-    resourceSearchClear: "resource-search-clear",
-    resourceFilterCount: "resource-filter-count",
-    resourceNoResults: "resource-no-results",
-    startOverConfirm: "start-over-confirm",
-    startOverCancel: "start-over-cancel",
-    reviewEmptyState: "review-empty-state",
-    reviewGoBack: "review-go-back",
     stepAnnouncement: "step-announcement",
+  },
+  operatingMode: {
+    toggle: "keep-running-toggle",
   },
   apply: {
     plan: "apply-plan",
+    summary: "plan-summary",
     privilegeWarning: "privilege-warning",
-    confirm: "apply-confirm",
-    progress: "apply-progress",
-    report: "apply-report",
     skippedNote: "skipped-note",
     retry: "retry",
   },
@@ -364,6 +338,10 @@ const literalSelectors = {
     remediation: "remediation",
     recheck: "recheck",
     continueDegraded: "readiness-continue-degraded",
+  },
+  run: {
+    ladder: "run-ladder",
+    id: "run-id",
   },
   host: {
     tools: "host-tools",
@@ -386,6 +364,7 @@ const literalSelectors = {
   },
   scenario: {
     list: "scenario-list",
+    search: "scenario-search",
     cascadeNote: "cascade-note",
     resourceRollup: "resource-rollup",
     catalogError: "catalog-error",
@@ -414,29 +393,9 @@ const literalSelectors = {
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
   wizard: {
-    stepIndicator: defineDynamicSelector({
-      description: "Step indicator circle by index",
-      testIdPattern: "step-indicator-${index}",
-      params: { index: { type: "number" } },
-    }),
     scenarioCard: defineDynamicSelector({
       description: "Scenario card by scenario name",
       testIdPattern: "scenario-card-${name}",
-      params: { name: { type: "string" } },
-    }),
-    resourceCard: defineDynamicSelector({
-      description: "Resource card by name",
-      testIdPattern: "resource-card-${name}",
-      params: { name: { type: "string" } },
-    }),
-    categoryToggle: defineDynamicSelector({
-      description: "Select All / Deselect All toggle per category",
-      testIdPattern: "category-toggle-${category}",
-      params: { category: { type: "string" } },
-    }),
-    removeResource: defineDynamicSelector({
-      description: "Remove resource chip button in review step",
-      testIdPattern: "remove-resource-${name}",
       params: { name: { type: "string" } },
     }),
   },

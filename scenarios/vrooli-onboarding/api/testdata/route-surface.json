@@ -75,6 +75,11 @@
       ]
     },
     {
+      "method": "POST",
+      "path": "/api/v2/recommendation/accept",
+      "surfaces": ["ui"]
+    },
+    {
       "method": "GET",
       "path": "/api/v2/resources",
       "surfaces": [
@@ -213,6 +218,16 @@
         "cli",
         "ui"
       ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/host-facts",
+      "surfaces": ["ui"]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/targets",
+      "surfaces": ["ui"]
     },
     {
       "method": "GET",

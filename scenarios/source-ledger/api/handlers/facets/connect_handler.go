@@ -15,18 +15,28 @@ import (
 )
 
 type connectHandler struct {
-	service *internalfacets.Service
-	logger  *log.Logger
+	service  *internalfacets.Service
+	registry *policy.Registry
+	logger   *log.Logger
 }
 
-func NewConnectHandler(s *internalfacets.Service, l *log.Logger) *connectHandler {
+func NewConnectHandler(s *internalfacets.Service, l *log.Logger, registries ...*policy.Registry) *connectHandler {
 	if l == nil {
 		l = log.Default()
 	}
-	return &connectHandler{service: s, logger: l}
+	var registry *policy.Registry
+	if len(registries) > 0 {
+		registry = registries[0]
+	}
+	return &connectHandler{service: s, registry: registry, logger: l}
 }
 
 func (h *connectHandler) ListFacets(ctx context.Context, req *connect.Request[facetsv1.ListFacetsRequest]) (*connect.Response[facetsv1.ListFacetsResponse], error) {
+	if h.registry != nil {
+		if _, err := h.registry.Resolve(ctx, req.Msg.GetScope()); err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+	}
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	items, err := h.service.List(ctx)
 	if err != nil {

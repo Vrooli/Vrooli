@@ -98,10 +98,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/ui/library_adoption_test.ts",
+          "ref": "ui/src/library_adoption.test.ts",
           "phase": "unit",
           "status": "failing",
-          "notes": "Evidence target: `ui/src/components/ui/library_adoption_test.ts`; this requirement remains planned until that evidence is added. asserts no scenario-local re-implementation of a library primitive remains."
+          "notes": "The test asserts no scenario-local re-implementation of a library primitive remains."
         }
       ]
     },
@@ -206,11 +206,11 @@
       "description": "search-hub already registers a configuration provider for this scenario as a capability gap with no endpoint. Filling it lets an operator ask 'where do I turn off telemetry' instead of knowing which file to open.",
       "validation": [
         {
-          "type": "test",
-          "ref": "api/v2_surface_credentials_test.go",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Evidence target: `api/v2_search_provider_test.go`; this requirement remains planned until that evidence is added. the provider returns the declared operator-controllable surface."
+          "ref": "docs/reference/configuration.md",
+          "type": "manual",
+          "phase": "docs",
+          "status": "planned",
+          "notes": "The configuration reference documents the declared operator surface and records search-hub indexing as deferred until the provider capability is shipped; this P2 requirement is not implemented yet."
         }
       ]
     },

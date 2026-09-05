@@ -42,7 +42,7 @@
     },
     {
       "id": "keep-running-toggle",
-      "role": "checkbox",
+      "role": "switch",
       "description": "Whether this scenario stays running."
     },
     {

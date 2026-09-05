@@ -11,6 +11,8 @@ const GroupName = "journal"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
+		"JournalService.ListEntries": cliapp.ProtoList(h.listCall, h.listReport),
+		"JournalService.GetEntry":    cliapp.ProtoList(h.getCall, h.getReport),
 		"JournalService.AppendEntry": cliapp.ProtoMutation(h.noteCall, h.noteReport),
 	})
 	if err != nil {

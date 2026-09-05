@@ -49,7 +49,7 @@ importers:
         version: file:../../../packages/proto/gen/typescript
       '@vrooli/react-component-library':
         specifier: file:../../../packages/react-component-library
-        version: file:../../../packages/react-component-library(react@18.3.1)
+        version: file:../../../packages/react-component-library(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react-markdown@10.1.0(@types/react@18.3.28)(react@18.3.1))(react@18.3.1)(remark-gfm@4.0.1)(shiki@4.3.1)
       '@xyflow/react':
         specifier: ^12.10.2
         version: 12.10.2(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1714,7 +1714,21 @@ packages:
   '@vrooli/react-component-library@file:../../../packages/react-component-library':
     resolution: {directory: ../../../packages/react-component-library, type: directory}
     peerDependencies:
+      mermaid: '>=11.0.0'
       react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+      react-markdown: '>=10.0.0'
+      remark-gfm: '>=4.0.0'
+      shiki: '>=4.0.0'
+    peerDependenciesMeta:
+      mermaid:
+        optional: true
+      react-markdown:
+        optional: true
+      remark-gfm:
+        optional: true
+      shiki:
+        optional: true
 
   '@xyflow/react@12.10.2':
     resolution: {integrity: sha512-CgIi6HwlcHXwlkTpr0fxLv/0sRVNZ8IdwKLzzeCscaYBwpvfcH1QFOCeaTCuEn1FQEs/B8CjnTSjhs8udgmBgQ==}
@@ -5905,20 +5919,18 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 2.11.0
 
-  '@vrooli/react-component-library@file:../../../packages/react-component-library(react@18.3.1)':
+  '@vrooli/react-component-library@file:../../../packages/react-component-library(mermaid@11.16.0)(react-dom@18.3.1(react@18.3.1))(react-markdown@10.1.0(@types/react@18.3.28)(react@18.3.1))(react@18.3.1)(remark-gfm@4.0.1)(shiki@4.3.1)':
     dependencies:
-      '@types/react': 18.3.5
-      '@types/react-dom': 18.3.0
       clsx: 2.1.1
       lucide-react: 0.424.0(react@18.3.1)
-      mermaid: 11.16.0
       react: 18.3.1
-      react-markdown: 10.1.0(@types/react@18.3.5)(react@18.3.1)
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 2.3.0
+    optionalDependencies:
+      mermaid: 11.16.0
+      react-markdown: 10.1.0(@types/react@18.3.28)(react@18.3.1)
       remark-gfm: 4.0.1
       shiki: 4.3.1
-      tailwind-merge: 2.3.0
-    transitivePeerDependencies:
-      - supports-color
 
   '@xyflow/react@12.10.2(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -8373,24 +8385,6 @@ snapshots:
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
       '@types/react': 18.3.28
-      devlop: 1.1.0
-      hast-util-to-jsx-runtime: 2.3.6
-      html-url-attributes: 3.0.1
-      mdast-util-to-hast: 13.2.1
-      react: 18.3.1
-      remark-parse: 11.0.0
-      remark-rehype: 11.1.2
-      unified: 11.0.5
-      unist-util-visit: 5.1.0
-      vfile: 6.0.3
-    transitivePeerDependencies:
-      - supports-color
-
-  react-markdown@10.1.0(@types/react@18.3.5)(react@18.3.1):
-    dependencies:
-      '@types/hast': 3.0.5
-      '@types/mdast': 4.0.4
-      '@types/react': 18.3.5
       devlop: 1.1.0
       hast-util-to-jsx-runtime: 2.3.6
       html-url-attributes: 3.0.1

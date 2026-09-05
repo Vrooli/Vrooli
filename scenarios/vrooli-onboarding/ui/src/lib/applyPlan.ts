@@ -10,6 +10,8 @@
  * surfaces disclose the same facts.
  */
 
+import { i18n } from "../i18n";
+
 export type ApplyItemState = "satisfied" | "pending" | "unknown";
 
 export interface ApplyPlanItem {
@@ -57,10 +59,10 @@ export function summarizeApplyPlan(items: ApplyPlanItem[]): ApplyPlanSummary {
 const KIND_ORDER = ["tool", "safeguard", "resource", "scenario"];
 
 const KIND_LABELS: Record<string, string> = {
-  tool: "Host tool",
-  safeguard: "Host safeguard",
-  resource: "Resource",
-  scenario: "Scenario",
+  tool: i18n.t("onboarding.applyDisclosure.hostTool"),
+  safeguard: i18n.t("onboarding.applyDisclosure.hostSafeguard"),
+  resource: i18n.t("onboarding.applyDisclosure.resource"),
+  scenario: i18n.t("onboarding.applyDisclosure.scenario"),
 };
 
 export function kindLabel(kind: string, count: number): string {
@@ -97,10 +99,10 @@ export function groupByKind(items: ApplyPlanItem[]): KindGroup[] {
  * effects rather than being a configuration save.
  */
 export const APPLY_KIND_ACTIONS: Array<{ kind: string; command: string; effect: string }> = [
-  { kind: "tool", command: "vrooli host install <name>", effect: "installs a program on this host" },
-  { kind: "safeguard", command: "vrooli host safeguard <name>", effect: "changes host configuration (sysctl, systemd, sudoers and similar)" },
-  { kind: "resource", command: "vrooli resource enable <name>", effect: "starts a local service" },
-  { kind: "scenario", command: "vrooli scenario start <name>", effect: "starts an app's processes" },
+  { kind: "tool", command: "vrooli host install <name>", effect: i18n.t("onboarding.applyDisclosure.toolEffect") },
+  { kind: "safeguard", command: "vrooli host safeguard <name>", effect: i18n.t("onboarding.applyDisclosure.safeguardEffect") },
+  { kind: "resource", command: "vrooli resource enable <name>", effect: i18n.t("onboarding.applyDisclosure.resourceEffect") },
+  { kind: "scenario", command: "vrooli scenario start <name>", effect: i18n.t("onboarding.applyDisclosure.scenarioEffect") },
 ];
 
 /**
@@ -110,7 +112,5 @@ export const APPLY_KIND_ACTIONS: Array<{ kind: string; command: string; effect: 
  * keyed on the whole selection digest, and nothing is ever removed because the
  * planner skips deselected items rather than emitting a removal.
  */
-export const APPLY_CONVERGENCE_NOTE =
-  "Every item runs even when already in place; those runs converge rather than reinstall.";
-export const APPLY_NO_REMOVAL_NOTE =
-  "Nothing is removed, disabled, or uninstalled by apply. Deselected items are skipped, not reverted.";
+export const APPLY_CONVERGENCE_NOTE = i18n.t("onboarding.applyDisclosure.convergence");
+export const APPLY_NO_REMOVAL_NOTE = i18n.t("onboarding.applyDisclosure.noRemoval");

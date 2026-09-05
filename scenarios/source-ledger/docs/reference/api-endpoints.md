@@ -132,3 +132,15 @@ The missing governed RPC bindings are tracked by Swarm Manager capture
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
 - [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns
+
+
+### Conditional journal append
+
+`AppendEntryRequest.expected_latest_id` is optional. When present, the repository
+checks the latest entry in the exact scope/kind inside the append transaction;
+empty means no predecessor. A mismatch returns `aborted`. `request_key` provides
+scope-wide replay identity, with body and kind equality checked before returning
+an existing receipt. Conflicting content returns `aborted`. `GetEntry` can look
+up a receipt by `request_key`. Request keys and compare conditions do not replace
+the caller domain's transition validation. Concurrent database contention may
+return a failure; retry the same identity, never invent a successful append.

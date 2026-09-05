@@ -10,8 +10,8 @@
 import { memo } from "react";
 import { cn } from "../../lib/utils";
 import type { Scenario } from "../../types";
-import { PickModeRow } from "../session/context/selectable-card";
-import type { CardSelection } from "../session/context/selectable";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 const STATUS_COLORS: Record<Scenario["status"], string> = {
   running: "bg-green-500/20 text-green-300",
@@ -50,9 +50,9 @@ function ScenarioCardBody({ scenario }: { scenario: Scenario }) {
 function ScenarioSummaryCardImpl({ scenario, selection }: ScenarioSummaryCardProps) {
   if (selection?.selectionMode) {
     return (
-      <PickModeRow selection={selection}>
+      <CardShell selection={selection}>
         <ScenarioCardBody scenario={scenario} />
-      </PickModeRow>
+      </CardShell>
     );
   }
 

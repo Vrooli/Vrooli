@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchV2CoreSet, fetchV2Scenarios } from "../../lib/api";
+import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
+import { i18n } from "../../i18n";
 
 interface Props {
   seed: Set<string>;
@@ -27,24 +29,26 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
   const dirty = committedKey !== draftSeed.join("\u0000");
   const members = preview.data?.members ?? [];
   return <div data-testid="step-core-set">
-    <h1 className="text-2xl font-semibold">Core supervision set</h1>
-    <p className="mt-2 text-sm text-muted">Choose the seed scenarios that must remain supervised. The preview shows every scenario and resource pulled in by their declared dependency closure.</p>
-    {scenarios.isLoading && <p role="status" className="mt-5 text-muted">Loading scenarios…</p>}
-    {scenarios.error && <p role="alert" className="mt-5 text-danger">Core-set choices could not be loaded.</p>}
-    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+    <h1 className="text-2xl font-semibold">{i18n.t("onboarding.core.heading")}</h1>
+    <p className="mt-2 text-sm text-muted">{i18n.t("onboarding.core.intro")}</p>
+    {scenarios.isLoading && <p role="status" className="mt-5 text-muted">{i18n.t("onboarding.core.loading")}</p>}
+    {scenarios.error && <p role="alert" className="mt-5 text-danger">{i18n.t("onboarding.core.error")}</p>}
+    <NavigationTree title={i18n.t("onboarding.core.tree")}>
+      <ul className="mt-5 grid gap-2 sm:grid-cols-2" data-rcl-navigation-tree-list>
       {(scenarios.data?.scenarios ?? []).map((scenario) => {
         const trusted = trustedBase.has(scenario.name);
-        return <label key={scenario.name} className="flex min-h-11 items-center gap-3 rounded-lg border border-muted p-3">
-          <input type="checkbox" checked={draft.has(scenario.name)} disabled={trusted} onChange={() => toggle(scenario.name)} aria-label={`Supervise ${scenario.name}`} data-testid="core-set-toggle" className="h-5 w-5 accent-emerald-500" />
-          <span><span className="block font-medium">{scenario.name}</span>{trusted && <span className="block text-xs text-muted">Trusted-base member; cannot be removed</span>}</span>
-        </label>;
+        return <li key={scenario.name} data-rcl-navigation-tree-item><label className="flex min-h-11 items-center gap-3 rounded-lg border border-muted p-3">
+          <input type="checkbox" checked={draft.has(scenario.name)} disabled={trusted} onChange={() => toggle(scenario.name)} aria-label={i18n.t("onboarding.core.supervise", { name: scenario.name })} data-testid="core-set-toggle" className="h-5 w-5 accent-emerald-500" />
+          <span><span className="block font-medium">{scenario.name}</span>{trusted && <span className="block text-xs text-muted">{i18n.t("onboarding.core.trusted")}</span>}</span>
+        </label></li>;
       })}
-    </div>
+      </ul>
+    </NavigationTree>
     <section className="mt-6 rounded-xl border border-muted bg-surface-muted p-4" aria-live="polite" data-testid="core-set-preview">
-      <h2 className="font-semibold">Computed closure</h2>
-      {preview.isLoading && <p role="status" className="mt-2 text-sm text-muted">Computing closure…</p>}
-      {preview.error && <p role="alert" className="mt-2 text-sm text-danger">The closure preview could not be computed. Your current seed remains visible and authoritative.</p>}
-      {preview.data && !preview.data.available && <p role="status" className="mt-2 text-sm text-warning">{preview.data.error ?? "Closure unavailable."} Seed: {preview.data.seed.join(", ")}</p>}
+      <h2 className="font-semibold">{i18n.t("onboarding.core.closure")}</h2>
+      {preview.isLoading && <p role="status" className="mt-2 text-sm text-muted">{i18n.t("onboarding.core.computing")}</p>}
+      {preview.error && <p role="alert" className="mt-2 text-sm text-danger">{i18n.t("onboarding.core.previewError")}</p>}
+      {preview.data && !preview.data.available && <p role="status" className="mt-2 text-sm text-warning">{preview.data.error ?? i18n.t("onboarding.core.unavailable")} Seed: {preview.data.seed.join(", ")}</p>}
       {preview.data?.available && <>
         <p className="mt-2 text-sm text-muted">{preview.data.member_counts?.scenario ?? 0} scenarios · {preview.data.member_counts?.resource ?? 0} resources</p>
         <ul className="mt-3 max-h-56 space-y-1 overflow-auto text-sm">
@@ -52,6 +56,6 @@ export function StepCoreSet({ seed, trustedBase, onChange }: Props) {
         </ul>
       </>}
     </section>
-    <button type="button" disabled={!dirty || preview.isLoading || preview.isError || preview.data?.available === false} onClick={() => onChange(draftSeed)} data-testid="core-set-confirm" className="mt-4 min-h-11 rounded-lg bg-primary px-4 py-2 font-medium text-on-primary disabled:cursor-not-allowed disabled:opacity-50">Confirm supervision set</button>
+    <button type="button" disabled={!dirty || preview.isLoading || preview.isError || preview.data?.available === false} onClick={() => onChange(draftSeed)} data-testid="core-set-confirm" className="mt-4 min-h-11 rounded-lg bg-primary px-4 py-2 font-medium text-on-primary disabled:cursor-not-allowed disabled:opacity-50">{i18n.t("onboarding.core.confirm")}</button>
   </div>;
 }

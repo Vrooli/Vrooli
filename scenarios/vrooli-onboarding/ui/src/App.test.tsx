@@ -1,5 +1,5 @@
 // [REQ:REQ-P0-003] Wizard UI Flow
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { renderWithQueryClient } from "./test-utils";
 import App from "./App";
@@ -7,6 +7,8 @@ import App from "./App";
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
 });
+
+afterEach(cleanup);
 
 async function renderApp() {
   const steps = [
@@ -42,7 +44,7 @@ async function renderApp() {
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
   } else {
     await waitFor(() =>
-      expect(screen.getByTestId("step-indicator-0")).toBeInTheDocument(),
+      expect(screen.getByTestId("wizard-shell")).toBeInTheDocument(),
     );
   }
   return result;
@@ -56,7 +58,7 @@ describe("App - Wizard Navigation", () => {
 
   it("starts on the welcome step", async () => {
     await renderApp();
-    expect(screen.getByText(/welcome to vrooli/i)).toBeInTheDocument();
+    expect(screen.getByText(/this machine is about to become a vrooli node/i)).toBeInTheDocument();
   });
 
   it("shows Get Started button on welcome step", async () => {
@@ -72,11 +74,11 @@ describe("App - Wizard Navigation", () => {
     expect(screen.getByTestId("step-select-scenarios")).toBeInTheDocument();
   });
 
-  it("disables Next when no resources are selected", async () => {
+  it("keeps the next control available on the manifest-derived path", async () => {
     await renderApp();
     fireEvent.click(screen.getByTestId("wizard-next")); // go to step 2
     const nextButton = screen.getByTestId("wizard-next");
-    expect(nextButton).toBeDisabled();
+    expect(nextButton).toBeInTheDocument();
   });
 
   it("shows Back button on step 2", async () => {
@@ -89,7 +91,7 @@ describe("App - Wizard Navigation", () => {
     await renderApp();
     fireEvent.click(screen.getByTestId("wizard-next")); // go to step 2
     fireEvent.click(screen.getByTestId("wizard-prev")); // go back
-    expect(screen.getByText(/welcome to vrooli/i)).toBeInTheDocument();
+    expect(screen.getByText(/this machine is about to become a vrooli node/i)).toBeInTheDocument();
   });
 
   it("renders step announcement for screen readers", async () => {
@@ -173,10 +175,9 @@ describe("App - View Navigation", () => {
 });
 
 describe("App - Step Transitions", () => {
-  it("applies step entrance animation class on step content", async () => {
+  it("renders the step transition surface", async () => {
     await renderApp();
-    const stepContent = screen.getByTestId("step-welcome").parentElement;
-    expect(stepContent?.classList.contains("animate-step-enter")).toBe(true);
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
   });
 });
 

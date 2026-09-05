@@ -7,6 +7,20 @@ import { ToastProvider } from "./components/ui/toast-provider";
 
 configureTestProviders((children) => createElement(ToastProvider, null, children));
 
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+if (typeof window !== "undefined") window.scrollTo = () => undefined;
+
 // jsdom has no Web Audio API; audio-integration's sharedAudioContext.ts
 // installs a focus/click handler that tries `new AudioContext()` to
 // satisfy autoplay policy. Stub a minimal no-op so any consumer that

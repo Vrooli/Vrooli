@@ -31,8 +31,8 @@ import { NoteIndicator } from "../ui/note-indicator";
 import { SnoozePopover } from "../command-post/SnoozePopover";
 import { snoozeKeyForBacklog } from "../../lib/snooze-utils";
 import { displayLimitsConfig } from "../../config";
-import { PickModeRow } from "../session/context/selectable-card";
-import type { CardSelection } from "../session/context/selectable";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 // All-off ItemActions used when the card renders without a sidebar action
 // context (i.e. the SessionContextPicker pick-mode path, which suppresses
@@ -120,7 +120,7 @@ function BacklogCardImpl({
   if (selection?.selectionMode) {
     const PickKindIcon = BACKLOG_KIND_ICONS[item.kind];
     return (
-      <PickModeRow selection={selection}>
+      <CardShell selection={selection}>
         {item.archivedAt != null && (
           <div className="mb-2 flex items-center gap-1.5 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-400/80">
             <Archive className="h-3 w-3 shrink-0" />
@@ -146,7 +146,7 @@ function BacklogCardImpl({
         {item.description && (
           <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">{item.description}</p>
         )}
-      </PickModeRow>
+      </CardShell>
     );
   }
 

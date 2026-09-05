@@ -7,6 +7,8 @@ const UnclassifiedFacet = "unclassified"
 type (
 	Entry struct {
 		ID, Scope, Body, FacetID, Kind, ImportKey string
+		ExpectedLatest                            *string
+		RequestKey                                string
 		Existing                                  bool
 		Attribution                               Attribution
 		Import                                    ImportProvenance

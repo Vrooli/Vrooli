@@ -1,10 +1,15 @@
 import { memo, useEffect, useMemo } from "react";
-import { Activity, AlertTriangle, CircleCheck, Package } from "lucide-react";
+import { Package } from "lucide-react";
 import { useScenariosStore } from "../../../../stores";
 import type { Scenario } from "../../../../types";
+import { scenariosService } from "../../../../services";
+import { CollectionList as BaseCollectionList, type CollectionListProps } from "@vrooli/react-component-library/CollectionList/1.0.0";
+
+function CollectionList<T>(props: CollectionListProps<T>) { return <BaseCollectionList {...props} virtualize />; }
 import { matchesSearch } from "./useSidebarSearch";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import type { ScenarioFilters, SortConfig } from "./types";
+import { ScenarioSummaryCard } from "../../../../components/scenario/scenario-summary-card";
 
 interface ScenariosTabProps {
   searchQuery: string;
@@ -28,31 +33,6 @@ function sortedScenarios(scenarios: Scenario[], sort: SortConfig) {
   });
 }
 
-function healthLabel(scenario: Scenario) {
-  const state = scenario.health?.evidenceState ?? "unavailable";
-  if (state === "fresh") return { label: "Health current", className: "text-emerald-300", Icon: CircleCheck };
-  if (state === "stale") return { label: "Health stale", className: "text-amber-300", Icon: AlertTriangle };
-  if (state === "no_evidence") return { label: "No test evidence", className: "text-slate-400", Icon: Activity };
-  return { label: "Health unavailable", className: "text-amber-300", Icon: AlertTriangle };
-}
-
-function ScenarioRow({ scenario, onItemClick }: { scenario: Scenario; onItemClick: (nodeId: string) => void }) {
-  const health = healthLabel(scenario);
-  return (
-    <button type="button" onClick={() => onItemClick(`scenario/${scenario.name}`)} className="w-full rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 text-left transition-colors hover:border-slate-700 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70" aria-label={`Open ${scenario.displayName}`} data-testid={`scenario-row-${scenario.name}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-100">{scenario.displayName}</div><div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{scenario.description || scenario.name}</div></div>
-        <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-300">{scenario.status}</span>
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
-        <span className="text-slate-500">P{scenario.priority}{scenario.isGreenfield ? " · greenfield" : ""}</span>
-        <span className={`inline-flex shrink-0 items-center gap-1 ${health.className}`}><health.Icon className="h-3 w-3" aria-hidden />{health.label}</span>
-      </div>
-      {scenario.health?.remediation?.length ? <div className="mt-1 text-[11px] text-amber-300">Needs remediation</div> : null}
-    </button>
-  );
-}
-
 function LoadingSkeleton() { return <div className="space-y-1.5">{[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-lg border border-slate-800/80 bg-slate-900/50" />)}</div>; }
 
 function ScenariosTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch }: ScenariosTabProps) {
@@ -70,7 +50,19 @@ function ScenariosTabImpl({ searchQuery, filters, sort, onItemClick, onClearSear
   if (status === "loading" && scenarios.length === 0) return <LoadingSkeleton />;
   if (error && scenarios.length === 0) return <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">Failed to load scenarios: {error.message}</div>;
   if (filtered.length === 0) return <SidebarEmptyState icon={Package} title="No scenarios match." hint="Adjust search or filters to find a scenario." query={searchQuery} onClearSearch={onClearSearch} />;
-  return <div className="space-y-1.5" data-testid="scenarios-tab">{filtered.map((scenario) => <ScenarioRow key={scenario.name} scenario={scenario} onItemClick={onItemClick} />)}</div>;
+  return <CollectionList
+    items={filtered}
+    getKey={(scenario) => scenario.name}
+    label="Scenarios"
+    onOpen={(scenario) => onItemClick(`scenario/${scenario.name}`)}
+    selection={{ mode: "none", enterOn: ["shortcut"] }}
+    actions={[
+      { id: "open", label: "Open", onSelect: (selected) => { const scenario = selected[0]; if (scenario) onItemClick(`scenario/${scenario.name}`); } },
+      { id: "restart", label: "Restart", bulk: true, disabled: (scenario) => scenario.status === "running" ? false : "Only running scenarios can be restarted", onSelect: async (selected) => { for (const scenario of selected) await scenariosService.restart(scenario.name); } },
+    ]}
+    renderItem={(scenario) => <ScenarioSummaryCard scenario={scenario} />}
+    className="space-y-1.5"
+  />;
 }
 
 export const ScenariosTab = memo(ScenariosTabImpl);

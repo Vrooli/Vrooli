@@ -29,7 +29,8 @@
       "id": "ready",
       "description": "The plan is shown and awaiting confirmation.",
       "setup": {
-        "route": "/setup/apply"
+        "route": "/setup/apply",
+        "settleMs": 3000
       }
     },
     {
@@ -52,7 +53,7 @@
   "elements": [
     {
       "id": "apply-plan",
-      "role": "list",
+      "role": "region",
       "description": "The items that will be applied, in dependency order."
     },
     {
@@ -64,7 +65,7 @@
       "id": "apply-confirm",
       "role": "button",
       "description": "Runs apply.",
-      "name": "Apply"
+      "name": "Apply selection"
     },
     {
       "id": "apply-progress",
@@ -177,7 +178,7 @@
   "bindings": {
     "elements": {
       "apply-plan": {
-        "testid": "apply-plan"
+        "testid": "plan-summary"
       },
       "privilege-warning": {
         "testid": "privilege-warning"

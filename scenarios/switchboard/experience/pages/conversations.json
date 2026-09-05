@@ -450,5 +450,10 @@
         "testid": "conversations-gate-region"
       }
     }
+  },
+  "sketch": {
+    "template": {
+      "asset": "templates.conversation-page"
+    }
   }
 }

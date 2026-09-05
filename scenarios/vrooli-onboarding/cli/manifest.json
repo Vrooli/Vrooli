@@ -17,23 +17,28 @@
     },
     {
       "name": "control",
+      "flat": true,
       "description": "Inspect and apply the node configuration",
       "commands": [
         {"name":"closure","description":"Show the transitive selection closure","binding":{"kind":"local","handler":"control.closure"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"apply","description":"Apply the committed node configuration","flags":[{"name":"target","description":"Optional registered node id; defaults to this node"}],"binding":{"kind":"local","handler":"control.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
-      ],
-      "groups": [
-        {"name":"scenarios","description":"Inspect manifest-derived scenarios","commands":[{"name":"list","description":"List scenarios and dependencies","binding":{"kind":"local","handler":"control.scenarios.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]},
-        {"name":"union","description":"Export the deployment union","commands":[{"name":"export","description":"Write the deployment union JSON","binding":{"kind":"local","handler":"control.union.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","filesystem:write"]}}]},
-        {"name":"host","description":"Inspect host requirements and safeguards","commands":[{"name":"list","description":"List host requirements","binding":{"kind":"local","handler":"control.host.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},{"name":"set-config","description":"Set one safeguard configuration value","flags":[{"name":"target","description":"Safeguard configuration key"},{"name":"value","description":"Safeguard configuration value"}],"binding":{"kind":"local","handler":"control.host.set-config"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}}]}
+        {"name":"apply","description":"Apply the committed node configuration","binding":{"kind":"local","handler":"control.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
       ]
+    },
+    {
+      "name":"scenarios","description":"Inspect manifest-derived scenarios","commands":[{"name":"list","description":"List scenarios and dependencies","binding":{"kind":"local","handler":"control.scenarios.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]
+    },
+    {
+      "name":"union","description":"Export the deployment union","commands":[{"name":"export","description":"Write the deployment union JSON","flags":[{"name":"output","description":"Output JSON path"}],"binding":{"kind":"local","handler":"control.union.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","filesystem:write"]}}]
+    },
+    {
+      "name":"host","description":"Inspect host requirements and safeguards","commands":[{"name":"list","description":"List host requirements","binding":{"kind":"local","handler":"control.host.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},{"name":"set-config","description":"Set one safeguard configuration value","flags":[{"name":"name","description":"Safeguard name"},{"name":"key","description":"Configuration key"},{"name":"value-json","description":"JSON-encoded configuration value"}],"binding":{"kind":"local","handler":"control.host.set-config"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}},{"name":"set-recipient","description":"Set the notification recipient","flags":[{"name":"subject","description":"Recipient subject"}],"binding":{"kind":"local","handler":"control.host.set-recipient"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}}]
     },
     {
       "name": "credentials",
       "description": "Inspect and provision node credentials",
       "commands": [
         {"name":"list","description":"List credential descriptors","binding":{"kind":"local","handler":"credentials.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"provision","description":"Provision a credential from standard input","binding":{"kind":"local","handler":"credentials.provision"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"provision","description":"Provision a credential from standard input","flags":[{"name":"logical-id","description":"Credential logical id"},{"name":"field","description":"Credential field"}],"binding":{"kind":"local","handler":"credentials.provision"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
         {"name":"doctor","description":"Diagnose the credential authority","binding":{"kind":"local","handler":"credentials.doctor"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     },
@@ -52,8 +57,8 @@
       "description": "Inspect and apply operator capabilities",
       "commands": [
         {"name":"list","description":"List capability descriptors and status","binding":{"kind":"local","handler":"capabilities.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"preview","description":"Preview a capability action","binding":{"kind":"local","handler":"capabilities.preview"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"apply","description":"Apply a capability action","binding":{"kind":"local","handler":"capabilities.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+        {"name":"preview","description":"Preview a capability action","flags":[{"name":"id","description":"Capability id"}],"binding":{"kind":"local","handler":"capabilities.preview"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"apply","description":"Apply a capability action","flags":[{"name":"id","description":"Capability id"},{"name":"confirm","description":"Confirm the reviewed capability preview"}],"binding":{"kind":"local","handler":"capabilities.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
       ]
     },
     {
@@ -70,10 +75,10 @@
       "description": "Configure one node through the onboarding workflow",
       "commands": [
         {"name":"status","description":"Show onboarding session status","binding":{"kind":"local","handler":"wizard.status"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"commit","description":"Commit and apply a selection document","binding":{"kind":"local","handler":"wizard.commit"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
-        {"name":"export","description":"Export the current selection","binding":{"kind":"local","handler":"wizard.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"run","description":"Walk the onboarding capability steps","binding":{"kind":"local","handler":"wizard.run"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
-        {"name":"core-set","description":"Preview and update the operator core seed","binding":{"kind":"local","handler":"wizard.core-set"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+        {"name":"commit","description":"Commit and apply a selection document","flags":[{"name":"selection","description":"Path to a selection document"}],"binding":{"kind":"local","handler":"wizard.commit"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"export","description":"Export the current selection","flags":[{"name":"output","description":"Output selection document path"}],"binding":{"kind":"local","handler":"wizard.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"run","description":"Walk the onboarding capability steps","flags":[{"name":"interactive","description":"Walk all onboarding steps in the terminal"},{"name":"accept-recommendation","description":"Use the manifest-derived starter profile"},{"name":"non-interactive","description":"Never read input"},{"name":"from-step","description":"Start at a declared step id"},{"name":"restart","description":"Restart from the first declared step"}],"binding":{"kind":"local","handler":"wizard.run"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"core-set","description":"Preview and update the operator core seed","flags":[{"name":"add","description":"Comma-separated scenarios to add"},{"name":"remove","description":"Comma-separated scenarios to remove"}],"binding":{"kind":"local","handler":"wizard.core-set"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
       ]
     }
   ],

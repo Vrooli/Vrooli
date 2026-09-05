@@ -27,7 +27,9 @@ func startStagingRetention(ctx context.Context, manifestPath, root string, owner
 		}
 	}
 	namespace, err := storage.ScenarioNamespace("scenario-to-desktop")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	owner.Root = root
 	runner := scheduler.New(interval, func(ctx context.Context) error {
 		cycle, cancel := context.WithTimeout(ctx, 10*time.Minute)

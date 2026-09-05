@@ -7,9 +7,9 @@
 ## Work ladder
 
 - Rung: W3
-- Evidence: onboarding had a scenario-specific Cloudflare bootstrap route, client, and UI predicate; those were removed. Credential provisioning now uses the generic descriptor-driven path, while tunnel-manager owns completion of its derived credentials during its lifecycle. Onboarding API and UI suites pass.
-- Blocker: the broader remote VPS evidence limitation below remains; it does not block the generic onboarding implementation.
-- Measured: 2026-08-18
+- Evidence: onboarding has no scenario-specific Cloudflare bootstrap route, client, or UI predicate. Credential provisioning uses the generic descriptor-driven path, while tunnel-manager owns completion of its derived credentials during its lifecycle. API tests, targeted UI tests, typecheck, production builds, BaseStyles/token censuses, the discriminating scenario-canonical-layer gate, selector checks, and the required BAS registry build pass. W0, W1, and W2 pass. The latest focused V2/health/glossary suite passes 59 tests, and fresh ui-health validation reports zero status-bar mismatch errors. The latest targeted experience run `20260904-024646-57d6df68` passes at L3 with zero findings; workflow run `20260904-025648-a960cdb8` passes at L5 with zero failed phases after data-backed wait synchronization.
+- Blocker: the broader remote VPS evidence limitation below remains; plan-level comprehensive runs and the shared component-library baseline remain blocked by pre-existing/unrelated infrastructure and catalog drift. The latest comprehensive run `20260904-040316-78e2633e` is terminal **FAIL** (19/27 phases passed); its remaining errors include dependency tidy drift, storage coverage, generic unit-policy/test execution, Lighthouse accessibility, tidiness budget, security findings, and the incomplete immutable baseline. The current catalog readiness report still includes stale global scaffold/gate debt from older live library versions; the six current target-version governed tests pass.
+- Measured: 2026-09-04
 
 ## Current evidence
 
@@ -125,14 +125,14 @@ authority. Revisit when the release-authority trust anchor is initialized and
 the evidence provider exposes a signed receipt contract; until then, receipt
 hashes remain integrity evidence rather than release authorization.
 
-### Plan baseline comparison is clean
+### Plan baseline comparison remains unavailable
 
-The captured Git Control Tower baseline exists and is synchronized, but the
-fresh three-member comparison `vrooli-onboarding-final-20260812` is
-**clean**. The baseline remains the original pre-edit collection at SHA
-`8019a9ecb760b1c15b53e50eef3e7ba74140bc7b`; the comparison classified the
-BAS and Test Genie changes as preexisting and onboarding as clean. This is a
-valid final verdict without recapturing the baseline.
+The current two-member Git Control Tower collection is **partial**. Generation
+4 was acknowledged and re-anchored, but the required react-component-library
+member could not start because run `20260904-020748-06377a77` was already
+queued; its single owner-managed wait ended with zero phases. The onboarding
+experience and workflow evidence are current and targeted, but no
+comprehensive regression comparison is claimed.
 
 ### Alternate-state experience evidence remains fixture-governed
 
@@ -168,5 +168,6 @@ requirement is deliberately planned rather than presented as complete.
   share the same selection-to-patch translation; endpoint and no-dead-command
   contract tests pass.
 - BAS selector manifests are generated as part of UI build/test, all six
-  onboarding journeys are executable, and the comprehensive onboarding suite
-  is green.
+  onboarding journeys are executable, and the targeted onboarding experience
+  and workflow suites are green. The comprehensive suite remains an unclaimed
+  baseline because its required shared-library member was scheduler-contended.

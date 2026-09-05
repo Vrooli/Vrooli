@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "name": "onboarding-recommended-path-to-apply",
+    "description": "Use the recommended setup and reach the apply run surface with no more than three operator interactions.",
+    "requirement": "ONB-UX-RECOMMENDED-PATH",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "experience-onboarding", "evidence_lane": "plan-doD", "journey_id": "recommended-path-to-apply", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "mutating"
+  },
+  "id": "00000000-0000-4000-8000-000000000013",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-recommended-path-to-apply",
+  "folder_path": "/bas/cases/experience",
+  "description": "Use the recommendation, open the apply surface, and start the governed run.",
+  "tags": ["reset:none", "evidence_lane:plan-doD"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1280, "viewport_height": 800 },
+    "nodes": [
+      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/welcome", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
+      { "id": "wait-plan", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/apply.summary", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Recommended plan renders" } } },
+      { "id": "accept-recommendation", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/apply.summary button:first-of-type" }, "metadata": { "label": "Use recommended setup" } } },
+      { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply" } } },
+      { "id": "wait-apply-plan", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/apply.plan", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Apply plan renders" } } },
+      { "id": "apply-recommendation", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/apply.summary button:first-of-type" }, "metadata": { "label": "Apply selection" } } },
+      { "id": "wait-run", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/run.ladder", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Run ladder renders" } } },
+      { "id": "assert-run-id", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/run.id", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Applied recommendation must expose the governed run id" }, "metadata": { "label": "Applied run is resumable" } } }
+    ],
+    "edges": [
+      { "source": "open-welcome", "target": "wait-plan" },
+      { "source": "wait-plan", "target": "accept-recommendation" },
+      { "source": "accept-recommendation", "target": "open-apply" },
+      { "source": "open-apply", "target": "wait-apply-plan" },
+      { "source": "wait-apply-plan", "target": "apply-recommendation" },
+      { "source": "apply-recommendation", "target": "wait-run" },
+      { "source": "wait-run", "target": "assert-run-id" }
+    ]
+  }
+}

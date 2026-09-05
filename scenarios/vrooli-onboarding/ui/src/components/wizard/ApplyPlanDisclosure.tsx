@@ -9,6 +9,7 @@ import {
   kindLabel,
   summarizeApplyPlan,
 } from "../../lib/applyPlan";
+import { i18n } from "../../i18n";
 
 /**
  * The operator's disclosure before consenting to host changes.
@@ -22,9 +23,14 @@ import {
 export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
   if (items.length === 0) {
     return (
-      <p data-testid="apply-plan" role="note" className="mt-2 text-sm text-muted">
-        Current selection has no consented host changes.
-      </p>
+      <>
+        <p data-testid="apply-plan" role="note" className="mt-2 text-sm text-muted">
+          {i18n.t("onboarding.applyDisclosure.noChanges")}
+        </p>
+        <p data-testid="privilege-warning" role="note" className="mt-3 text-sm text-muted">
+          {i18n.t("onboarding.applyDisclosure.noPrivilege")}
+        </p>
+      </>
     );
   }
 
@@ -33,12 +39,11 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
   return (
     <div data-testid="apply-plan">
       <p data-testid="apply-plan-summary" className="mt-2 text-sm text-foreground">
-        {summary.total} selected item{summary.total === 1 ? "" : "s"}: {summary.pending.length} not yet in
-        place, {summary.satisfied.length} already in place, {summary.unknown.length} not sampled.
+        {i18n.t("onboarding.applyDisclosure.summary", { total: summary.total, plural: summary.total === 1 ? "" : "s", pending: summary.pending.length, satisfied: summary.satisfied.length, unknown: summary.unknown.length })}
       </p>
 
       <details data-testid="apply-plan-effects" className="mt-3 rounded-lg border border-border bg-surface p-3 text-sm">
-        <summary className="cursor-pointer font-medium text-foreground">What &quot;apply&quot; does to this host</summary>
+        <summary className="cursor-pointer font-medium text-foreground">{i18n.t("onboarding.applyDisclosure.effects")}</summary>
         <ul role="list" className="mt-2 space-y-1 text-muted">
           {APPLY_KIND_ACTIONS.map((action) => (
             <li key={action.kind}>
@@ -53,7 +58,7 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
       {summary.pending.length > 0 && (
         <PlanSection
           testID="apply-plan-pending"
-          heading={`Not yet in place — these change this host (${summary.pending.length}${summary.elevatedPending > 0 ? `, ${summary.elevatedPending} elevated` : ""})`}
+          heading={i18n.t("onboarding.applyDisclosure.pending", { count: summary.pending.length, elevated: summary.elevatedPending > 0 ? i18n.t("onboarding.applyDisclosure.elevated", { count: summary.elevatedPending }) : "" })}
           items={summary.pending}
           tone="warning"
           detailed
@@ -62,7 +67,7 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
       {summary.satisfied.length > 0 && (
         <PlanSection
           testID="apply-plan-satisfied"
-          heading={`Already in place — verified present on this host (${summary.satisfied.length})`}
+          heading={i18n.t("onboarding.applyDisclosure.satisfied", { count: summary.satisfied.length })}
           items={summary.satisfied}
           tone="muted"
         />
@@ -70,7 +75,7 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
       {summary.unknown.length > 0 && (
         <PlanSection
           testID="apply-plan-unknown"
-          heading={`Not sampled — checking these costs a control-plane round trip each, so this plan did not (${summary.unknown.length})`}
+          heading={i18n.t("onboarding.applyDisclosure.unknown", { count: summary.unknown.length })}
           items={summary.unknown}
           tone="muted"
         />
@@ -80,13 +85,12 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
         <p data-testid="privilege-warning" role="note" className="mt-3 flex items-start gap-2 text-sm text-warning">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            {summary.elevatedTotal} item{summary.elevatedTotal === 1 ? "" : "s"} run with elevated privilege and
-            change host state. No undeclared host action is performed.
+            {i18n.t("onboarding.applyDisclosure.elevatedWarning", { count: summary.elevatedTotal, plural: summary.elevatedTotal === 1 ? "" : "s" })}
           </span>
         </p>
       ) : (
         <p data-testid="privilege-warning" role="note" className="mt-3 text-sm text-muted">
-          No item in this plan requires elevated privilege. No undeclared host action is performed.
+          {i18n.t("onboarding.applyDisclosure.noPrivilege")}
         </p>
       )}
     </div>
@@ -122,9 +126,9 @@ function PlanSection({
               <ul role="list" className="mt-1 space-y-0.5 pl-4">
                 {group.items.map((item) => (
                   <li key={item.id} data-testid={`apply-plan-item-${item.id}`}>
-                    {item.privileged && <span aria-label="elevated" className="mr-1 text-warning">!</span>}
+                    {item.privileged && <span aria-label={i18n.t("onboarding.applyDisclosure.elevatedLabel")} className="mr-1 text-warning">!</span>}
                     {item.name}
-                    <span className="text-muted"> ({item.required ? "required" : "optional"}{item.privileged ? ", elevated" : ""})</span>
+                    <span className="text-muted"> ({item.required ? i18n.t("onboarding.applyDisclosure.required") : i18n.t("onboarding.applyDisclosure.optional")}{item.privileged ? `, ${i18n.t("onboarding.applyDisclosure.elevatedLabel")}` : ""})</span>
                   </li>
                 ))}
               </ul>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Wand2, Activity, BookOpen } from "lucide-react";
+import { Wand2, Activity, BookOpen, ChevronDown } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
@@ -10,6 +10,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { stepRegistry } from "./components/wizard/stepRegistry";
 import { fetchV2Targets } from "./lib/api";
 import type { OnboardingTarget } from "./types";
+import { i18n } from "./i18n";
 
 type AppView = "wizard" | "dashboard" | "glossary";
 
@@ -27,19 +28,19 @@ const NAV_ITEMS: {
 }[] = [
   {
     id: "wizard",
-    label: "Setup Wizard",
+    label: i18n.t("onboarding.app.setupWizard"),
     icon: <Wand2 className="h-4 w-4" aria-hidden="true" />,
     testId: "nav-wizard",
   },
   {
     id: "dashboard",
-    label: "Health Dashboard",
+    label: i18n.t("onboarding.app.healthDashboard"),
     icon: <Activity className="h-4 w-4" aria-hidden="true" />,
     testId: "nav-dashboard",
   },
   {
     id: "glossary",
-    label: "Glossary",
+    label: i18n.t("onboarding.app.glossary"),
     icon: <BookOpen className="h-4 w-4" aria-hidden="true" />,
     testId: "nav-glossary",
   },
@@ -54,7 +55,9 @@ export default function App() {
   const [target, setTarget] = useState(() => new URLSearchParams(window.location.search).get("target") || "local");
   const [targetOptions, setTargetOptions] = useState<OnboardingTarget[]>([{ id: "local", name: "This machine", status: "local" }]);
   useEffect(() => {
-    fetchV2Targets().then((result) => setTargetOptions(result.targets)).catch(() => undefined);
+    fetchV2Targets().then((result) => {
+      if (Array.isArray(result?.targets) && result.targets.length > 0) setTargetOptions(result.targets);
+    }).catch(() => undefined);
   }, []);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -78,6 +81,8 @@ export default function App() {
     nextLabel,
     isLastStep,
     totalSteps,
+    planAccepted,
+    acceptRecommendation,
   } = useWizardState();
 
   // WAI-ARIA tablist keyboard navigation: Left/Right arrows, Home/End
@@ -129,31 +134,38 @@ export default function App() {
     setHostConfig,
     setResourceEnabled,
     target,
+    acceptRecommendation,
+    onAdjustRecommendation: () => goToStep(1),
   });
 
   return (
-    <div className="min-h-full bg-surface text-foreground">
+    <div className="min-h-full bg-surface text-foreground" data-plan-accepted={planAccepted ? "true" : "false"}>
       {/* Skip to content link for screen readers */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:outline-none"
         data-testid="skip-to-content"
       >
-        Skip to main content
+        {i18n.t("onboarding.app.skip")}
       </a>
 
       {/* Navigation */}
       <div
         role="navigation"
         data-testid="app-nav"
-        aria-label="Main navigation"
-        className="sticky top-0 z-50 border-b border-muted bg-surface/95 backdrop-blur-sm"
+        aria-label={i18n.t("onboarding.app.mainNavigation")}
+        className="app-bar"
       >
         <div
-          className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3"
+          className="app-bar__inner"
           role="tablist"
-          aria-label="Application views"
+          aria-label={i18n.t("onboarding.app.applicationViews")}
         >
+          <div className="app-brand" aria-label={i18n.t("onboarding.app.brand")}>
+            <span className="app-brand__mark" aria-hidden="true">V</span>
+            <span>{i18n.t("onboarding.app.brand")}</span>
+          </div>
+          <div className="app-tabs">
           {NAV_ITEMS.map((item, idx) => (
             <Button
               variant="ghost"
@@ -165,12 +177,13 @@ export default function App() {
               data-testid={item.testId}
               onClick={() => setView(item.id)}
               onKeyDown={handleTabKeyDown}
+              style={{ minBlockSize: "var(--tap-target-min)" }}
               aria-selected={view === item.id}
               aria-controls={`tabpanel-${item.id}`}
               id={`tab-${item.id}`}
               tabIndex={view === item.id ? 0 : -1}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3",
+                "app-tab min-h-11 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
                   ? "bg-surface-subtle text-foreground"
@@ -191,7 +204,7 @@ export default function App() {
               {item.id === "wizard" && selectedScenarios.size > 0 && (
                 <span
                   className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-primary"
-                  aria-label={`${selectedScenarios.size} scenarios selected`}
+                  aria-label={i18n.t("onboarding.app.selected", { count: selectedScenarios.size })}
                   data-testid="nav-wizard-badge"
                 >
                   {selectedScenarios.size}
@@ -199,6 +212,17 @@ export default function App() {
               )}
             </Button>
           ))}
+          </div>
+          <label className="target-chip" data-interactive={targetOptions.length > 1 ? "true" : "false"}>
+            <span className="target-chip__dot" aria-hidden="true" />
+            <span className="sr-only">{i18n.t("onboarding.app.setupTarget")}</span>
+            {targetOptions.length > 1 ? <>
+              <select value={target} onChange={(event) => setTarget(event.target.value)} aria-label={i18n.t("onboarding.app.setupTarget")}>
+                {targetOptions.map((option) => <option key={option.id} value={option.id}>{option.id === "local" ? "local" : option.name ?? option.id}</option>)}
+              </select>
+              <ChevronDown aria-hidden="true" />
+            </> : <span>{target === "local" ? "local" : target}</span>}
+          </label>
         </div>
       </div>
 
@@ -209,7 +233,7 @@ export default function App() {
         aria-atomic="true"
         data-testid="step-announcement"
       >
-        {view === "wizard" && `Step ${currentStep + 1} of ${totalSteps}`}
+        {view === "wizard" && i18n.t("onboarding.app.step", { current: currentStep + 1, total: totalSteps })}
       </div>
 
       {/* Content */}
@@ -228,8 +252,8 @@ export default function App() {
                 data-testid="wizard-loading"
                 role="status"
               >
-                <h1 className="text-2xl font-semibold">Welcome to Vrooli</h1>
-                Loading onboarding steps…
+                <h1 className="text-2xl font-semibold">{i18n.t("onboarding.app.welcome")}</h1>
+                {i18n.t("onboarding.app.loadingSteps")}
               </div>
             </div>
           )}
@@ -240,7 +264,7 @@ export default function App() {
                 data-testid="wizard-error"
                 role="alert"
               >
-                <h1 className="text-2xl font-semibold">Welcome to Vrooli</h1>
+                <h1 className="text-2xl font-semibold">{i18n.t("onboarding.app.welcome")}</h1>
                 {stepsError}
               </div>
             </div>
@@ -271,11 +295,6 @@ export default function App() {
                   window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
                 }}
                 targetOptions={targetOptions}
-                stepContents={steps.map((step, index) => index === currentStep ? (
-                  <div ref={stepContentRef} key={step.id} className="animate-step-enter">
-                    {renderStep(step)}
-                  </div>
-                ) : null)}
               >
                 <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
                   {steps[currentStep] && renderStep(steps[currentStep])}

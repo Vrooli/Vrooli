@@ -206,7 +206,7 @@ func NewServer(port int) *Server {
 	generationRecordStore := &generationRecordStoreAdapter{store: recordsStore}
 	generationService := generation.NewService(
 		generation.WithVrooliRoot(vrooliRoot),
- generation.WithStagingRoot(storePaths.StagingRoot),
+		generation.WithStagingRoot(storePaths.StagingRoot),
 		generation.WithTemplateDir(templateDir),
 		generation.WithBuildStore(generationBuildStore),
 		generation.WithLogger(logger),
@@ -345,7 +345,9 @@ func NewServer(port int) *Server {
 		stagingErr = startStagingRetention(lifecycleCtx, filepath.Join(scenarioRoot, "scenario-to-desktop", ".vrooli", "service.json"), stagingRoot,
 			pipeline.StagingRetention{Status: pipelineOrchestrator.GetStatus, KeepLatest: 1,
 				InUse: func(app, path string) bool {
- if smokeTestStore.HasActiveForScenario(app) { return true }
+					if smokeTestStore.HasActiveForScenario(app) {
+						return true
+					}
 					if status, ok := generationBuildStore.Get(filepath.Base(path)); ok && status != nil && status.Status == "building" {
 						return true
 					}

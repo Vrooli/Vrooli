@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "name": "onboarding-token-geometry",
+    "description": "Verify canonical token resolution and switch alignment in a real browser.",
+    "requirement": "ONB-UX-DESIGN-SYSTEM",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "experience-onboarding", "evidence_lane": "plan-doD" },
+    "execution_mode": "observer"
+  },
+  "id": "00000000-0000-4000-8000-000000000013",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-token-geometry",
+  "folder_path": "/bas/cases/evidence",
+  "description": "Verify resolved tap-target and switch geometry.",
+  "tags": ["reset:none", "evidence_lane:plan-doD"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 390, "viewport_height": 844 },
+    "nodes": [
+      { "id": "open-operating-mode", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/operating-mode", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open operating mode" } } },
+      { "id": "wait-toggle", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/operatingMode.toggle", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Switch renders" } } },
+      { "id": "assert-tap-target", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.shell", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-plan-evidence-tap-target-min", "expected": { "stringValue": "44px" }, "timeout_ms": 10000, "failure_message": "The canonical tap-target token must resolve to 44px" }, "metadata": { "label": "Tap target resolves" } } },
+      { "id": "assert-switch-margin", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.shell", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-plan-evidence-switch-margin-block-start", "expected": { "stringValue": "10px" }, "timeout_ms": 10000, "failure_message": "The switch indicator must align inside the 44px tap target" }, "metadata": { "label": "Switch aligns" } } }
+    ],
+    "edges": [
+      { "source": "open-operating-mode", "target": "wait-toggle" },
+      { "source": "wait-toggle", "target": "assert-tap-target" },
+      { "source": "assert-tap-target", "target": "assert-switch-margin" }
+    ]
+  }
+}

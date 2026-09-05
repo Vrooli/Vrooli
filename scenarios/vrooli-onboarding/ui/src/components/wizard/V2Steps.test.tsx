@@ -7,7 +7,8 @@ import { HostRequirementStep } from "./HostRequirementStep";
 import { StepIntegrationsDeferred } from "./StepIntegrationsDeferred";
 import { StepOperatingMode } from "./StepOperatingMode";
 import { StepApply } from "./StepApply";
-import { StepReadiness } from "./StepReadiness";
+import { StepCredentials } from "./StepCredentials";
+import { StepReady } from "./StepReady";
 import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 
@@ -124,10 +125,10 @@ describe("V2 onboarding wizard steps", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /qdrant/i }));
     expect(onResourceToggle).toHaveBeenCalledWith("qdrant", true);
     expect(screen.getByRole("checkbox", { name: /postgres/i })).toBeDisabled();
-    fireEvent.change(screen.getByTestId("scenario-search"), { target: { value: "does-not-exist" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search scenarios" }), { target: { value: "does-not-exist" } });
     expect(screen.getByText("No scenarios match this filter. Clear it to see the full catalog.")).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId("scenario-search"), { target: { value: "" } });
-    fireEvent.change(screen.getByTestId("scenario-filter"), { target: { value: "available" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search scenarios" }), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /Available/ }));
     expect(screen.getByTestId("scenario-card-writer")).toBeInTheDocument();
     expect(screen.queryByTestId("scenario-card-control-plane")).not.toBeInTheDocument();
   });
@@ -163,20 +164,20 @@ describe("V2 onboarding wizard steps", () => {
   it("persists operating-mode choices through its owner callback", async () => {
     const onAutoRestart = vi.fn();
     renderWithProviders(<StepOperatingMode selected={new Set(["writer"])} onAutoRestart={onAutoRestart} />);
-    const checkbox = await screen.findByRole("checkbox", { name: "Keep writer running" });
+    const checkbox = await screen.findByRole("switch", { name: "Keep writer running" });
     fireEvent.click(checkbox);
     expect(onAutoRestart).toHaveBeenCalledWith("writer", true);
   });
 
   it("provisions a credential without exposing its value and renders validation groups", async () => {
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
     await waitFor(() => expect(api.provisionCredential).toHaveBeenCalledWith({ logical_id: "openrouter", field: "api_key", value: "secret-value" }));
     expect(input).toHaveValue("");
 
-    renderWithProviders(<StepReadiness title="Validation" />);
+    renderWithProviders(<StepReady />);
     expect(await screen.findByText("Host requirements")).toBeInTheDocument();
     expect(screen.getByText("Integrations")).toBeInTheDocument();
     expect(screen.getByText("alpha/github-oauth")).toBeInTheDocument();
@@ -184,7 +185,7 @@ describe("V2 onboarding wizard steps", () => {
 
   it("surfaces provider failures", async () => {
     api.fetchV2Readiness.mockRejectedValueOnce(new Error("probe unavailable"));
-    renderWithProviders(<StepReadiness title="Validation" />);
+    renderWithProviders(<StepReady />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Readiness could not be checked");
   });
 
@@ -200,7 +201,7 @@ describe("V2 onboarding wizard steps", () => {
       degraded_acknowledged: false,
     });
     api.acknowledgeDegraded.mockResolvedValue({ status: "acknowledged", readiness_digest: "digest-under-test" });
-    renderWithProviders(<StepReadiness title="Validation" />);
+    renderWithProviders(<StepReady />);
     expect(await screen.findByTestId("readiness-degraded")).toHaveTextContent("vrooli/remote-desktop:username");
     fireEvent.click(await screen.findByTestId("readiness-continue-degraded"));
     await waitFor(() => expect(api.acknowledgeDegraded).toHaveBeenCalledWith("digest-under-test"));
@@ -214,7 +215,7 @@ describe("V2 onboarding wizard steps", () => {
       blockers: [{ kind: "credential", name: "vrooli/calendar:jwt-secret", reason: "the credential is declared and not configured", remediation: "Provide it on the credentials step." }],
       degraded: [],
     });
-    renderWithProviders(<StepReadiness title="Validation" />);
+    renderWithProviders(<StepReady />);
     expect(await screen.findByTestId("readiness-blockers")).toHaveTextContent("vrooli/calendar:jwt-secret");
     expect(screen.getByTestId("finish-blocked")).toBeInTheDocument();
     expect(screen.queryByTestId("readiness-continue-degraded")).toBeNull();
@@ -240,7 +241,7 @@ describe("V2 onboarding wizard steps", () => {
     expect(onConfig).toHaveBeenLastCalledWith("host_safeguards", "firewall", { mode: "enforce", enabled: true, retries: 3 });
   });
 
-  it("renders provider guidance and the idempotent apply report", async () => {
+  it("keeps provider guidance out of the focused apply report", async () => {
     api.fetchV2Readiness.mockResolvedValueOnce({
       status: "ready",
       scenarios: [],
@@ -252,13 +253,14 @@ describe("V2 onboarding wizard steps", () => {
       credential_diagnosis: { provider: { backend: "native", condition: "ready", explanation: "Available", fix: "None" } },
       recovery: { receipt_exists: false, entry_count: 0, uncovered: [] },
     });
-    renderWithProviders(<StepReadiness title="Apply" />);
-    expect(await screen.findByTestId("backend-diagnosis")).toHaveTextContent("Available");
-    expect(screen.getByTestId("credential-obtain-link")).toHaveAttribute("href", "https://example.test/key");
-    fireEvent.click(screen.getByTestId("apply-confirm"));
+    renderWithProviders(<StepApply />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Review and apply" })).toBeInTheDocument();
+    expect(screen.queryByTestId("backend-diagnosis")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("credential-obtain-link")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Apply selection" }));
     await waitFor(() => expect(api.applyOnboarding).toHaveBeenCalled());
-    expect(await screen.findByTestId("apply-report")).toHaveTextContent("postgres");
-    expect(await screen.findByTestId("apply-report")).toHaveTextContent("applied");
+    expect(await screen.findByTestId("run-ladder")).toHaveTextContent("postgres");
+    expect(await screen.findByTestId("run-ladder")).toHaveTextContent("pending");
   });
 
   it("surfaces capability status and provider evidence without owner-specific rendering", async () => {
@@ -273,7 +275,7 @@ describe("V2 onboarding wizard steps", () => {
         state: "needs_operator_input", missing_inputs: ["destination"], remediation: "Choose a destination.", updated_at: "now",
       }],
     });
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     expect(await screen.findByTestId("capability-card-demo-capability")).toHaveTextContent("Protect a demo artifact");
     fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByTestId("capability-confirm-demo-capability"));
@@ -298,7 +300,7 @@ describe("V2 onboarding wizard steps", () => {
         remediation: "run a recovery drill",
       }],
     });
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     expect(await screen.findByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("recovery-drill · verified");
     expect(screen.getByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("run a recovery drill");
     expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
@@ -321,7 +323,7 @@ describe("V2 onboarding wizard steps", () => {
         state: "needs_operator_input", missing_inputs: ["destination", "passphrase"], remediation: "Choose a destination and enter the passphrase.", updated_at: "now",
       }],
     });
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     expect(await screen.findByTestId("capability-card-secret-capability")).toBeInTheDocument();
     const destination = screen.getByLabelText("Destination");
     fireEvent.change(destination, { target: { value: "/mnt/approved" } });
@@ -354,7 +356,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     api.previewCapability.mockRejectedValueOnce(new Error("preview unavailable"));
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     fireEvent.change(await screen.findByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByLabelText(/Enabled/));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
@@ -379,14 +381,14 @@ describe("V2 onboarding wizard steps", () => {
       integrations: [],
       checked_at: "2026-07-29T00:00:00Z",
     });
-    renderWithProviders(<StepReadiness title="Validation" />);
+    renderWithProviders(<StepReady />);
     expect(await screen.findByTestId("readiness-summary")).toHaveTextContent("missing");
     expect(screen.queryByText(/secrets-manager backup export/i)).not.toBeInTheDocument();
   });
 
   it("keeps the apply route as a distinct step identity", async () => {
     renderWithProviders(<StepApply />);
-    expect(await screen.findByRole("heading", { name: "Apply" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Review and apply" })).toBeInTheDocument();
   });
 
   it("waits for an async partial apply and exposes retry evidence", async () => {
@@ -396,8 +398,8 @@ describe("V2 onboarding wizard steps", () => {
       { name: "firewall", outcome: "failed", error: "permission denied" },
       { name: "writer", outcome: "blocked", error: "blocked by firewall" },
     ] });
-    renderWithProviders(<StepReadiness title="Apply" />);
-    fireEvent.click(await screen.findByTestId("apply-confirm"));
+    renderWithProviders(<StepApply />);
+    fireEvent.click(await screen.findByRole("button", { name: "Apply selection" }));
     expect(await screen.findByTestId("skipped-note")).toHaveTextContent("Some items were skipped or failed");
     fireEvent.click(screen.getByTestId("retry"));
     await waitFor(() => expect(api.applyOnboarding).toHaveBeenCalledTimes(initialApplyCalls + 2));
@@ -405,7 +407,7 @@ describe("V2 onboarding wizard steps", () => {
 
   it("reports credential provisioning failure without clearing the input", async () => {
     api.provisionCredential.mockRejectedValueOnce(new Error("authority unavailable"));
-    renderWithProviders(<StepReadiness title="Credentials" />);
+    renderWithProviders(<StepCredentials />);
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));

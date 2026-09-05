@@ -1,16 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchV2Scenarios } from "../../lib/api";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Switch } from "@vrooli/react-component-library/Switch/1";
+import { i18n } from "../../i18n";
 
 export function StepOperatingMode({ selected, overrides, onAutoRestart }: { selected: Set<string>; overrides?: Record<string, { auto_restart?: boolean }>; onAutoRestart: (name: string, enabled: boolean) => void }) {
   const { data } = useQuery({ queryKey: ["v2-scenarios"], queryFn: fetchV2Scenarios });
   const scenarios = (data?.scenarios ?? []).filter((scenario) => scenario.system_required || selected.has(scenario.name));
-  return <div data-testid="step-operating-mode">
-    <h1 className="text-xl font-semibold sm:text-2xl">Operating mode</h1>
-    <p className="mt-2 text-sm text-muted">Keep-running choices start with each scenario manifest’s recommendation and are saved as operator-state overrides.</p>
-    <div className="mt-6 space-y-3">{scenarios.length === 0 && <div data-testid="operating-mode-row" role="group" className="rounded-xl border border-muted bg-surface-muted p-4"><span data-testid="recommendation-note" role="note" className="text-sm text-muted">Loading operating-mode recommendations…</span><input data-testid="keep-running-toggle" type="checkbox" disabled aria-label="Keep selected scenarios running" className="sr-only" /></div>}{scenarios.map((scenario) => {
+  const alwaysOn = scenarios.filter((scenario) => scenario.auto_restart);
+  const onDemand = scenarios.filter((scenario) => !scenario.auto_restart);
+  const renderGroup = (label: string, group: typeof scenarios) => <SettingsList.Group label={label}>
+    {group.map((scenario) => {
       const autoRestart = overrides?.[scenario.name]?.auto_restart ?? scenario.auto_restart;
       const overridden = overrides?.[scenario.name]?.auto_restart !== undefined;
-      return <label key={scenario.name} data-testid="operating-mode-row" role="group" className="flex items-center justify-between rounded-xl border border-muted bg-surface-muted p-4"><span><span className="block font-medium">{scenario.name}</span><span className="text-xs text-muted" data-testid="recommendation-note" role="note">{scenario.auto_restart ? "Recommended to keep running" : "Recommended on demand"}</span>{overridden && <span className="mt-1 block text-xs text-primary-soft" data-testid="override-indicator" role="note">Operator override saved</span>}</span><input type="checkbox" checked={autoRestart} onChange={(event) => onAutoRestart(scenario.name, event.target.checked)} aria-label={`Keep ${scenario.name} running`} data-testid="keep-running-toggle" className="min-h-11 min-w-11 accent-emerald-500" /></label>;
-    })}</div>
+      return <div key={scenario.name} data-testid="operating-mode-row"><SettingsList.Row label={<span data-testid="operating-mode-row-name">{scenario.name}</span>} hint={<span data-testid="recommendation-note" role="note">{overridden ? i18n.t("onboarding.mode.override", { recommendation: scenario.auto_restart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") }) : i18n.t("onboarding.mode.recommendation", { recommendation: scenario.auto_restart ? i18n.t("onboarding.mode.always") : i18n.t("onboarding.mode.demand") })}{overridden && <span className="block text-primary-soft" data-testid="override-indicator">{i18n.t("onboarding.mode.saved")}</span>}</span>}>
+        <Switch checked={autoRestart} onChange={(event) => onAutoRestart(scenario.name, event.currentTarget.checked)} aria-label={i18n.t("onboarding.mode.keep", { name: scenario.name })} data-testid="keep-running-toggle" />
+      </SettingsList.Row></div>;
+    })}
+  </SettingsList.Group>;
+  return <div data-testid="step-operating-mode">
+    <p className="surface-eyebrow">{i18n.t("onboarding.mode.eyebrow")}</p>
+    <h1 className="text-xl font-semibold sm:text-2xl">{i18n.t("onboarding.mode.heading")}</h1>
+    <p className="mt-2 text-sm text-muted">{i18n.t("onboarding.mode.intro")}</p>
+    <SettingsList className="mt-6" variant="auto" density="comfortable">
+      {scenarios.length === 0 && <SettingsList.Group label={i18n.t("onboarding.mode.loading")}><SettingsList.Row label={i18n.t("onboarding.mode.operatingMode")} hint={<span data-testid="recommendation-note" role="note">{i18n.t("onboarding.mode.loadingRecommendations")}</span>}><Switch disabled aria-label={i18n.t("onboarding.mode.keepSelected")} data-testid="keep-running-toggle" /></SettingsList.Row></SettingsList.Group>}
+      {alwaysOn.length > 0 && renderGroup(i18n.t("onboarding.mode.alwaysOn"), alwaysOn)}
+      {onDemand.length > 0 && renderGroup(i18n.t("onboarding.mode.onDemand"), onDemand)}
+    </SettingsList>
   </div>;
 }

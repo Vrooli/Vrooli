@@ -31,9 +31,9 @@ already decided is lost or read-only.
 ## In a terminal
 
 ```bash
-vrooli-onboarding wizard run --interactive      # same capability flow used by the UI
-vrooli-onboarding wizard run --accept-recommendation --non-interactive # explicit starter profile
-vrooli-onboarding wizard status   # readiness and committed state as JSON/text
+vrooli-onboarding wizard run --interactive
+vrooli-onboarding wizard run --accept-recommendation --non-interactive
+vrooli-onboarding wizard status
 ```
 
 ## Without prompts
@@ -60,9 +60,9 @@ A VPS, a CI runner, and a headless bundle host have no native credential store.
 Initialize the encrypted file store once, before provisioning anything:
 
 ```bash
-vrooli credentials store init                              # a reachable TPM needs no passphrase
-printf '%s' "$PASSPHRASE" | vrooli credentials store init  # otherwise
-vrooli credentials doctor                                  # names the backend and the fix
+vrooli credentials store init
+printf '%s' "$PASSPHRASE" | vrooli credentials store init
+vrooli credentials doctor
 ```
 
 ## If something is not ready

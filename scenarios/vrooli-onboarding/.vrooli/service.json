@@ -146,5 +146,12 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {"source": "skills/vrooli-onboarding/SKILL.md", "programs": []},
+    "improve": {"source": "skills/vrooli-onboarding-improve/SKILL.md", "programs": []},
+    "feature": [],
+    "learning": {"scope": "vrooli-onboarding-usage"},
+    "waivers": {}
   }
 }

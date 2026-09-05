@@ -28,6 +28,20 @@
   "children": "Try again",
   "component": "button",
   "content": "# Shared markdown\\n\\n| State | Value |\\n| --- | --- |\\n| Ready | yes |\\n\\n\\u003e Keep operator context visible.\\n\\n```ts\\nconst stable = true;\\n```",
+  "data-display": {
+    "bulk-action-bar": {
+      "selection-actions": "Selection actions",
+      "selection-workflow": "Selection workflow",
+      "title": {
+        "a-real-bulk-action-lifecycle": "A real bulk action lifecycle",
+        "completion-closes-the-loop": "Completion closes the loop",
+        "partial-failure-names-the-work-left-behind-detai": "Partial failure names the work left behind",
+        "progress-stays-attached-to-the-decision-detail-a": "Progress stays attached to the decision",
+        "retry-is-a-continuation-not-a-reset-detail-the-s": "Retry is a continuation, not a reset",
+        "transport-failure-preserves-intent": "Transport failure preserves intent"
+      }
+    }
+  },
   "default": "comfortable",
   "density": "compact",
   "description": "The default foundation contract.",

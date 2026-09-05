@@ -12,6 +12,7 @@ import (
 	localdb "source-ledger/internal/database"
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/journal"
+	"source-ledger/internal/policy"
 
 	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
 )
@@ -24,7 +25,15 @@ func newHandler(t *testing.T) (*connectHandler, *journal.SQLiteRepository) {
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(internalfacets.Schema)))
 	repo := internalfacets.NewSQLiteRepository(db.Primary())
 	require.NoError(t, repo.Seed(context.Background()))
-	return NewConnectHandler(internalfacets.NewService(repo), nil), journal.NewSQLiteRepository(db.Primary())
+	registry := policy.NewRegistry(db.Primary())
+	require.NoError(t, registry.Ensure(context.Background(), policy.BuiltInDefaults()))
+	return NewConnectHandler(internalfacets.NewService(repo), nil, registry), journal.NewSQLiteRepository(db.Primary())
+}
+
+func TestListFacetsRejectsUnregisteredScope(t *testing.T) {
+	h, _ := newHandler(t)
+	_, err := h.ListFacets(context.Background(), connect.NewRequest(&facetsv1.ListFacetsRequest{Scope: "no-such-scope-xyz"}))
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestAssignFacetRejectsUnknownFacetAndSetsPin(t *testing.T) { // [REQ:VMEM-P1-006] [REQ:VMEM-P1-010]

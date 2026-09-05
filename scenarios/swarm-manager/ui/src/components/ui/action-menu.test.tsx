@@ -32,7 +32,7 @@ describe("ActionMenu", () => {
     // container carries the canonical popover surface, and the item list is
     // the role="menu" region.
     const menu = screen.getByTestId("actions-menu");
-    expect(menu.className).toContain("bg-slate-900");
+    expect(menu.className).toContain("rcl-context-menu__surface");
     expect(screen.getByRole("menu")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("delete-action"));

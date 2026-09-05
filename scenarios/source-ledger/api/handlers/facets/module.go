@@ -11,11 +11,12 @@ import (
 
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/module"
+	"source-ledger/internal/policy"
 )
 
-func Module(db *database.RoutedDB, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, logger *log.Logger, registries ...*policy.Registry) module.Module {
 	svc := internalfacets.NewService(internalfacets.NewSQLiteRepository(db.Primary()))
-	path, handler := facetsconnect.NewFacetsServiceHandler(NewConnectHandler(svc, logger))
+	path, handler := facetsconnect.NewFacetsServiceHandler(NewConnectHandler(svc, logger, registries...))
 	return module.Module{Name: "facets", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}
 }
 

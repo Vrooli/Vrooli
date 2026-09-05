@@ -4,7 +4,8 @@ import { DerivedResourceStep } from "./DerivedResourceStep";
 import { HostRequirementStep } from "./HostRequirementStep";
 import { StepIntegrationsDeferred } from "./StepIntegrationsDeferred";
 import { StepOperatingMode } from "./StepOperatingMode";
-import { StepReadiness } from "./StepReadiness";
+import { StepCredentials } from "./StepCredentials";
+import { StepReady } from "./StepReady";
 import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 import { StepWelcome } from "./StepWelcome";
@@ -29,12 +30,14 @@ export interface StepRegistryProps {
   ) => void;
   setResourceEnabled: (name: string, enabled: boolean) => void;
   target: string;
+  acceptRecommendation?: () => Promise<void>;
+  onAdjustRecommendation?: () => void;
 }
 
 type StepRenderer = (props: StepRegistryProps) => ReactNode;
 
 export const stepRegistry: Record<string, StepRenderer> = {
-  welcome: () => <StepWelcome />,
+  welcome: ({ acceptRecommendation, onAdjustRecommendation }) => <StepWelcome onAccept={acceptRecommendation} onAdjust={onAdjustRecommendation} />,
   scenarios: ({ selectedScenarios, toggleScenario }) => (
     <ScenarioCatalogStep
       selected={selectedScenarios}
@@ -55,7 +58,7 @@ export const stepRegistry: Record<string, StepRenderer> = {
       onToggle={setResourceEnabled}
     />
   ),
-  credentials: ({ target }) => <StepReadiness title="Credentials" target={target} />,
+  credentials: ({ target }) => <StepCredentials target={target} />,
   integrations: () => <StepIntegrationsDeferred />,
   host: ({ setHostOptIn, setHostConfig }) => (
     <HostRequirementStep
@@ -78,5 +81,5 @@ export const stepRegistry: Record<string, StepRenderer> = {
     />
   ),
   apply: () => <StepApply />,
-  validation: ({ target }) => <StepReadiness title="Validation" target={target} />,
+  validation: ({ target }) => <StepReady target={target} />,
 };

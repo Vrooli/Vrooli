@@ -98,6 +98,27 @@
           "status": "failing"
         }
       ]
+    },
+    {
+      "id": "STD-INTEGRATION-STAGING-RETENTION",
+      "title": "Bounded desktop packaging staging",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "description": "Scenario to Desktop MUST enforce configurable age and retained-byte budgets over complete staging builds, use canonical storage paths, and protect active pipelines, builds, smoke tests and live desktop sessions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pipeline/staging_retention_test.go::TestStagingRetentionCapacityProtectsLiveWork",
+          "phase": "unit",
+          "status": "planned"
+        },
+        {
+          "type": "test",
+          "ref": "api/pipeline/staging_retention_test.go::TestStagingRetentionUnknownGraceAndUnavailableOwner",
+          "phase": "unit",
+          "status": "planned"
+        }
+      ]
     }
   ]
 }

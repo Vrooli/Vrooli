@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"source-ledger/internal/journal"
 )
@@ -110,3 +111,27 @@ func (r *Repository) PruneResolvedEmbeddingRetries(context.Context) (int, error)
 }
 
 var _ journal.Repository = (*Repository)(nil)
+
+func (r *Repository) ListRecent(ctx context.Context, kind string, limit int) ([]journal.Entry, error) {
+	entries, err := r.List(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	out := []journal.Entry{}
+	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
+		if kind == "" || entries[i].Kind == kind {
+			out = append(out, entries[i])
+		}
+	}
+	return out, nil
+}
+
+func (r *Repository) CountInWindow(_ context.Context, from, to time.Time) (int64, error) {
+	var count int64
+	for _, e := range r.ListOut {
+		if !e.CreatedAt.Before(from) && e.CreatedAt.Before(to) {
+			count++
+		}
+	}
+	return count, r.ListErr
+}

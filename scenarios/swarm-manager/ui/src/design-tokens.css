@@ -131,6 +131,9 @@
 /* rcl:tokens:begin */
   --border-thin: 1px;
   --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-border-strong: color-mix(in srgb, var(--color-border) 72%, var(--color-foreground));
+  --color-danger-foreground: color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground));
+  --color-scrim: color-mix(in srgb, var(--color-shell) 52%, transparent);
   --color-surface-sunken: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background));
   --control-height: 2.75rem;
   --control-height-lg: 3.25rem;
@@ -145,11 +148,23 @@
   --control-size-xs: 32px;
   --dur-enter: var(--dur-quick);
   --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
+  --glow-primary: rgba(51,214,255,.5);
+  --overlay-drawer-top-gap: 32px;
+  --overlay-grabber-block: 4px;
+  --overlay-grabber-inline: 36px;
+  --overlay-menu-align: 0px;
   --panel-padding: var(--space-md);
   --panel-radius: var(--radius-panel);
+  --provenance-absent: var(--color-muted-foreground);
+  --provenance-cached: var(--color-warning);
+  --provenance-measured: var(--color-success);
+  --provenance-sample: #b7a6ff;
   --radius-overlay: 1rem;
   --space-4xl: 80px;
   --space-4xs: 4px;
+  --text-wall: clamp(5rem, 16vw, 20rem);
+  --text-xs: 12px;
+  --weight-medium: 500;
 /* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],

@@ -8,7 +8,7 @@
 import { useCallback, useState, type ChangeEvent, type CSSProperties, type Ref } from "react";
 import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
 import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1";
-import { ListChecks, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
 import { CreateGoalDialog } from "../../../../components/goals/CreateGoalDialog";
@@ -34,7 +34,6 @@ import { GoalsTab } from "./GoalsTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
 import { ScenariosTab } from "./ScenariosTab";
-import { useSidebarSelection } from "./useSidebarSelection";
 
 interface SidebarProps {
   onItemClick: (nodeId: string) => void;
@@ -89,8 +88,6 @@ export function Sidebar({
     [dispatch],
   );
   const { activeTab } = state;
-  const selection = useSidebarSelection(activeTab);
-  const showSelectionControls = !aiMode && selection.selectable;
   const createAction = !aiMode ? createActionForTab(activeTab, {
     onCreateGoal: () => setShowCreateGoal(true),
     onCreateBacklog: () => {
@@ -153,33 +150,7 @@ export function Sidebar({
 
         {/* Search */}
         <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200/20 px-3 py-2">
-          {showSelectionControls && selection.selectionMode ? (
-            <div className="flex min-h-8 flex-wrap items-center justify-between gap-1.5 rounded-lg border border-slate-700/70 bg-slate-900/80 px-2 text-xs" data-testid="sidebar-selection-controls">
-              <span className="whitespace-nowrap text-slate-300" data-testid="sidebar-selected-count">
-                {selection.selectedCount} selected
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={selection.selectAllVisible}
-                  disabled={selection.visibleIds.length === 0}
-                  className="rounded border border-slate-700/60 px-2 py-1 text-slate-300 hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  data-testid="sidebar-select-all-visible"
-                >
-                  Select all visible
-                </button>
-                <button
-                  type="button"
-                  onClick={selection.cancelSelection}
-                  className="rounded border border-slate-700/60 px-2 py-1 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
-                  data-testid="sidebar-cancel-selection"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="relative">
+          <div className="relative">
               <SearchBar
                 placeholder={aiMode ? "Semantic search..." : "Search..."}
                 value={state.searchQuery}
@@ -187,7 +158,7 @@ export function Sidebar({
                 widthClass="w-full"
                 className={cn(
                   "h-8 text-[16px] md:text-sm",
-                  (aiAvailable || showSelectionControls || createAction) && "pr-36",
+                  (aiAvailable || createAction) && "pr-36",
                 )}
                 data-testid="sidebar-search"
               />
@@ -210,21 +181,8 @@ export function Sidebar({
                   aiAvailable={aiAvailable}
                   unavailableReason={aiSearchStatus.status?.message ?? aiSearchStatus.error ?? undefined}
                 />
-                {showSelectionControls && (
-                  <button
-                    type="button"
-                    onClick={selection.toggleMode}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-700/70 hover:text-slate-100"
-                    title="Select visible items"
-                    aria-label="Select visible items"
-                    data-testid="sidebar-select-mode"
-                  >
-                    <ListChecks className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                )}
               </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Tabs — hidden in AI mode since AI search spans all entities */}
@@ -250,7 +208,7 @@ export function Sidebar({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-2.5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2.5">
           {aiMode ? (
             <AISearchResults query={debouncedSearch} onItemClick={onItemClick} />
           ) : (
@@ -262,10 +220,6 @@ export function Sidebar({
                   sort={state.sorts.backlog}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
-                  selectionMode={selection.selectionMode}
-                  selectedIds={selection.selectedIds}
-                  onToggleSelection={selection.toggleItem}
-                  onVisibleIdsChange={selection.pruneToVisible}
                   onCreateBacklog={createAction?.tab === "backlog" ? createAction.onClick : undefined}
                   onCreateFromPlan={() => setShowCreateFromPlan(true)}
                 />
@@ -277,10 +231,6 @@ export function Sidebar({
                   sort={state.sorts.captures}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
-                  selectionMode={selection.selectionMode}
-                  selectedIds={selection.selectedIds}
-                  onToggleSelection={selection.toggleItem}
-                  onVisibleIdsChange={selection.pruneToVisible}
                   onCreateCapture={createAction?.tab === "captures" ? createAction.onClick : undefined}
                 />
               )}
@@ -300,10 +250,6 @@ export function Sidebar({
                   sort={state.sorts.executions}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
-                  selectionMode={selection.selectionMode}
-                  selectedIds={selection.selectedIds}
-                  onToggleSelection={selection.toggleItem}
-                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "sessions" && (
@@ -313,10 +259,6 @@ export function Sidebar({
                   sort={state.sorts.sessions}
                   onOpenSession={onOpenAgentSession}
                   onClearSearch={clearSearch}
-                  selectionMode={selection.selectionMode}
-                  selectedIds={selection.selectedIds}
-                  onToggleSelection={selection.toggleItem}
-                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "scenarios" && (

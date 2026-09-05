@@ -31,17 +31,18 @@ func (s *connectService) GetPortfolioStats(ctx context.Context, _ *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build portfolio stats: %w", err))
 	}
 	return connect.NewResponse(&statsv1.PortfolioStats{
-		ObservedAt:          timestamppb.New(resp.GeneratedAt),
-		SwarmThroughput:     int64(resp.Throughput.CompletedLast7Days),
-		ThroughputStats:     int64(resp.Throughput.CreatedLast7Days),
-		SwarmActiveAgents:   int64(resp.Agent.TotalExecutions),
-		AgentStats:          resp.Agent.SuccessRate,
-		TimingStats:         resp.Timing.AvgExecutionMinutes,
-		BlockingStats:       int64(resp.Blocking.CurrentlyBlocked),
-		DashboardStats:      int64(resp.Dashboard.TotalBacklogSize),
-		CompositeThroughput: int64(resp.Dashboard.TotalCompletedAllTime),
-		ReviewStats:         int64(resp.Review.RoundsCompleted),
-		ScopeStats:          int64(len(resp.Scope.Goals)),
+		ObservedAt:           timestamppb.New(resp.GeneratedAt),
+		SwarmThroughput:      int64(resp.Throughput.CompletedLast7Days),
+		ThroughputStats:      int64(resp.Throughput.CreatedLast7Days),
+		SwarmActiveAgents:    int64(resp.Agent.TotalExecutions),
+		AgentStats:           resp.Agent.SuccessRate * 100,
+		TimingStats:          resp.Timing.AvgExecutionMinutes,
+		BlockingStats:        int64(resp.Blocking.CurrentlyBlocked),
+		DashboardStats:       int64(resp.Dashboard.TotalBacklogSize),
+		CompositeThroughput:  int64(resp.Dashboard.TotalCompletedAllTime),
+		ReviewStats:          int64(resp.Review.RoundsCompleted),
+		ScopeStats:           int64(len(resp.Scope.Goals)),
+		AgentStatsSampleSize: int64(resp.Agent.SuccessRateSampleSize),
 	}), nil
 }
 

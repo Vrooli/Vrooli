@@ -12,6 +12,7 @@ import (
 	localdb "source-ledger/internal/database"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/journal"
+	"source-ledger/internal/policy"
 	"source-ledger/internal/testutil/mocks"
 )
 
@@ -32,6 +33,44 @@ func TestSeedHasExactlySixStableFacets(t *testing.T) {
 	items, err := s.List(context.Background())
 	require.NoError(t, err)
 	require.Len(t, items, 6)
+}
+
+func TestScopedListingsAreIsolatedAndDefaultToAgentMemory(t *testing.T) {
+	s, _ := newService(t)
+	ctx := context.Background()
+	repo, ok := s.repo.(*SQLiteRepository)
+	require.True(t, ok)
+
+	_, err := s.CreateRule(ctx, Rule{ID: "agent-rule", Scope: "agent-memory", Priority: 10, FacetID: "episode"})
+	require.NoError(t, err)
+	_, err = s.CreateRule(ctx, Rule{ID: "team-rule", Scope: "team-ledger", Priority: 10, FacetID: "episode"})
+	require.NoError(t, err)
+
+	defaultRules, err := s.repo.ListRules(ctx, "")
+	require.NoError(t, err)
+	teamRules, err := s.repo.ListRules(ctx, "team-ledger")
+	require.NoError(t, err)
+	require.Len(t, defaultRules, 1, "blank scope defaults to agent-memory")
+	require.Equal(t, "agent-rule", defaultRules[0].ID)
+	require.Len(t, teamRules, 1, "explicit scope returns only its own rules")
+	require.Equal(t, "team-rule", teamRules[0].ID)
+
+	_, err = repo.db.ExecContext(ctx, `
+INSERT INTO facet_definitions(id,scope,label,classification_guidance,created_at)
+VALUES('team-episode','team-ledger','Team episode','Team-specific episode',?)`, time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	_, err = repo.db.ExecContext(ctx, `
+INSERT INTO facet_policies(facet_id,scope,retention_policy,compaction_eligible,resident_budget)
+VALUES('team-episode','team-ledger','retain',0,4)`)
+	require.NoError(t, err)
+
+	defaultFacets, err := s.repo.List(ctx)
+	require.NoError(t, err)
+	teamFacets, err := s.repo.List(policy.WithScope(ctx, "team-ledger"))
+	require.NoError(t, err)
+	require.Len(t, defaultFacets, 6, "blank context defaults to the agent-memory vocabulary")
+	require.Len(t, teamFacets, 1, "explicit context returns only its own facets")
+	require.Equal(t, "team-episode", teamFacets[0].ID)
 }
 
 func TestUnknownFacetIsHardError(t *testing.T) {

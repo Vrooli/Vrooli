@@ -182,10 +182,10 @@ func main() {
 		healthH.Module(db, "source-ledger-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		journalH.Module(db, gatewayClient, facetService, log.Default()),
-		facetsH.Module(db, log.Default()),
+		facetsH.Module(db, log.Default(), registry),
 		forestH.Module(forestService, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
-		rulesH.Module(db, log.Default(), gatewayClient),
+		rulesH.ModuleWithRegistry(db, log.Default(), registry, gatewayClient),
 		scopesH.Module(db, registry, registerScopeProvider, log.Default(), internalrecall.NewSQLiteSource(db.Primary())),
 	)
 

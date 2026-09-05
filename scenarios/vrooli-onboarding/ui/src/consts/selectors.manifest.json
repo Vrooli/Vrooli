@@ -48,14 +48,6 @@
       "testId": "wizard-shell",
       "selector": "[data-testid=\"wizard-shell\"]"
     },
-    "wizard.stepsDesktop": {
-      "testId": "wizard-steps-desktop",
-      "selector": "[data-testid=\"wizard-steps-desktop\"]"
-    },
-    "wizard.progressBar": {
-      "testId": "progress-bar",
-      "selector": "[data-testid=\"progress-bar\"]"
-    },
     "wizard.prev": {
       "testId": "wizard-prev",
       "selector": "[data-testid=\"wizard-prev\"]"
@@ -84,14 +76,6 @@
       "testId": "step-derived-resources",
       "selector": "[data-testid=\"step-derived-resources\"]"
     },
-    "wizard.scenarioSearch": {
-      "testId": "scenario-search",
-      "selector": "[data-testid=\"scenario-search\"]"
-    },
-    "wizard.scenarioFilter": {
-      "testId": "scenario-filter",
-      "selector": "[data-testid=\"scenario-filter\"]"
-    },
     "wizard.host": {
       "testId": "step-host-requirements",
       "selector": "[data-testid=\"step-host-requirements\"]"
@@ -100,133 +84,25 @@
       "testId": "step-readiness",
       "selector": "[data-testid=\"step-readiness\"]"
     },
-    "wizard.selectResources": {
-      "testId": "step-select-resources",
-      "selector": "[data-testid=\"step-select-resources\"]"
-    },
-    "wizard.review": {
-      "testId": "step-review",
-      "selector": "[data-testid=\"step-review\"]"
-    },
-    "wizard.complete": {
-      "testId": "step-complete",
-      "selector": "[data-testid=\"step-complete\"]"
-    },
-    "wizard.resumePrompt": {
-      "testId": "resume-prompt",
-      "selector": "[data-testid=\"resume-prompt\"]"
-    },
-    "wizard.resumeButton": {
-      "testId": "resume-button",
-      "selector": "[data-testid=\"resume-button\"]"
-    },
-    "wizard.setupOrderHint": {
-      "testId": "setup-order-hint",
-      "selector": "[data-testid=\"setup-order-hint\"]"
-    },
-    "wizard.resourcesLoading": {
-      "testId": "step-resources-loading",
-      "selector": "[data-testid=\"step-resources-loading\"]"
-    },
-    "wizard.resourcesError": {
-      "testId": "step-resources-error",
-      "selector": "[data-testid=\"step-resources-error\"]"
-    },
-    "wizard.validationLoading": {
-      "testId": "validation-loading",
-      "selector": "[data-testid=\"validation-loading\"]"
-    },
-    "wizard.validationError": {
-      "testId": "validation-error",
-      "selector": "[data-testid=\"validation-error\"]"
-    },
-    "wizard.validationSuccess": {
-      "testId": "validation-success",
-      "selector": "[data-testid=\"validation-success\"]"
-    },
-    "wizard.validationInvalid": {
-      "testId": "validation-invalid",
-      "selector": "[data-testid=\"validation-invalid\"]"
-    },
-    "wizard.configLoading": {
-      "testId": "config-loading",
-      "selector": "[data-testid=\"config-loading\"]"
-    },
-    "wizard.configError": {
-      "testId": "config-error",
-      "selector": "[data-testid=\"config-error\"]"
-    },
-    "wizard.configOutput": {
-      "testId": "config-output",
-      "selector": "[data-testid=\"config-output\"]"
-    },
-    "wizard.copyConfig": {
-      "testId": "copy-config",
-      "selector": "[data-testid=\"copy-config\"]"
-    },
-    "wizard.downloadConfig": {
-      "testId": "download-config",
-      "selector": "[data-testid=\"download-config\"]"
-    },
-    "wizard.startOver": {
-      "testId": "start-over",
-      "selector": "[data-testid=\"start-over\"]"
-    },
-    "wizard.resourceSearch": {
-      "testId": "resource-search",
-      "selector": "[data-testid=\"resource-search\"]"
-    },
-    "wizard.resourceSearchClear": {
-      "testId": "resource-search-clear",
-      "selector": "[data-testid=\"resource-search-clear\"]"
-    },
-    "wizard.resourceFilterCount": {
-      "testId": "resource-filter-count",
-      "selector": "[data-testid=\"resource-filter-count\"]"
-    },
-    "wizard.resourceNoResults": {
-      "testId": "resource-no-results",
-      "selector": "[data-testid=\"resource-no-results\"]"
-    },
-    "wizard.startOverConfirm": {
-      "testId": "start-over-confirm",
-      "selector": "[data-testid=\"start-over-confirm\"]"
-    },
-    "wizard.startOverCancel": {
-      "testId": "start-over-cancel",
-      "selector": "[data-testid=\"start-over-cancel\"]"
-    },
-    "wizard.reviewEmptyState": {
-      "testId": "review-empty-state",
-      "selector": "[data-testid=\"review-empty-state\"]"
-    },
-    "wizard.reviewGoBack": {
-      "testId": "review-go-back",
-      "selector": "[data-testid=\"review-go-back\"]"
-    },
     "wizard.stepAnnouncement": {
       "testId": "step-announcement",
       "selector": "[data-testid=\"step-announcement\"]"
+    },
+    "operatingMode.toggle": {
+      "testId": "keep-running-toggle",
+      "selector": "[data-testid=\"keep-running-toggle\"]"
     },
     "apply.plan": {
       "testId": "apply-plan",
       "selector": "[data-testid=\"apply-plan\"]"
     },
+    "apply.summary": {
+      "testId": "plan-summary",
+      "selector": "[data-testid=\"plan-summary\"]"
+    },
     "apply.privilegeWarning": {
       "testId": "privilege-warning",
       "selector": "[data-testid=\"privilege-warning\"]"
-    },
-    "apply.confirm": {
-      "testId": "apply-confirm",
-      "selector": "[data-testid=\"apply-confirm\"]"
-    },
-    "apply.progress": {
-      "testId": "apply-progress",
-      "selector": "[data-testid=\"apply-progress\"]"
-    },
-    "apply.report": {
-      "testId": "apply-report",
-      "selector": "[data-testid=\"apply-report\"]"
     },
     "apply.skippedNote": {
       "testId": "skipped-note",
@@ -255,6 +131,14 @@
     "readiness.continueDegraded": {
       "testId": "readiness-continue-degraded",
       "selector": "[data-testid=\"readiness-continue-degraded\"]"
+    },
+    "run.ladder": {
+      "testId": "run-ladder",
+      "selector": "[data-testid=\"run-ladder\"]"
+    },
+    "run.id": {
+      "testId": "run-id",
+      "selector": "[data-testid=\"run-id\"]"
     },
     "host.tools": {
       "testId": "host-tools",
@@ -311,6 +195,10 @@
     "scenario.list": {
       "testId": "scenario-list",
       "selector": "[data-testid=\"scenario-list\"]"
+    },
+    "scenario.search": {
+      "testId": "scenario-search",
+      "selector": "[data-testid=\"scenario-search\"]"
     },
     "scenario.cascadeNote": {
       "testId": "cascade-note",
@@ -390,54 +278,10 @@
     }
   },
   "dynamicSelectors": {
-    "wizard.stepIndicator": {
-      "description": "Step indicator circle by index",
-      "selectorPattern": "[data-testid=\"step-indicator-${index}\"]",
-      "testIdPattern": "step-indicator-${index}",
-      "params": [
-        {
-          "name": "index",
-          "type": "number"
-        }
-      ]
-    },
     "wizard.scenarioCard": {
       "description": "Scenario card by scenario name",
       "selectorPattern": "[data-testid=\"scenario-card-${name}\"]",
       "testIdPattern": "scenario-card-${name}",
-      "params": [
-        {
-          "name": "name",
-          "type": "string"
-        }
-      ]
-    },
-    "wizard.resourceCard": {
-      "description": "Resource card by name",
-      "selectorPattern": "[data-testid=\"resource-card-${name}\"]",
-      "testIdPattern": "resource-card-${name}",
-      "params": [
-        {
-          "name": "name",
-          "type": "string"
-        }
-      ]
-    },
-    "wizard.categoryToggle": {
-      "description": "Select All / Deselect All toggle per category",
-      "selectorPattern": "[data-testid=\"category-toggle-${category}\"]",
-      "testIdPattern": "category-toggle-${category}",
-      "params": [
-        {
-          "name": "category",
-          "type": "string"
-        }
-      ]
-    },
-    "wizard.removeResource": {
-      "description": "Remove resource chip button in review step",
-      "selectorPattern": "[data-testid=\"remove-resource-${name}\"]",
-      "testIdPattern": "remove-resource-${name}",
       "params": [
         {
           "name": "name",

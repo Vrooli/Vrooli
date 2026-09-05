@@ -4,8 +4,24 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "source-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "9064e5a04fc62d5b6857b6399151c99af48bb71fe6e2be832e66694642c5a191",
+  "manifest_hash": "33df42c5a7ab11e989de3ffe7dddadc56640ece369035c49a2d1a6d7dab5e5cc",
   "commands": [
+    {
+      "path": "journal get",
+      "group": "journal",
+      "command": "get",
+      "binding": "JournalService.GetEntry",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "journal list",
+      "group": "journal",
+      "command": "list",
+      "binding": "JournalService.ListEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
     {
       "path": "journal note",
       "group": "journal",
@@ -13,6 +29,12 @@
       "binding": "JournalService.AppendEntry",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "measures appended",
+      "group": "measures",
+      "command": "appended",
+      "binding": "JournalService.CountEntries"
     },
     {
       "path": "policy reset",

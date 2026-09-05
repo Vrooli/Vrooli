@@ -14,8 +14,8 @@ import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { isActiveAgentSession } from "../../stores";
 import type { AgentSession } from "../../types";
-import { PickModeRow } from "./context/selectable-card";
-import type { CardSelection } from "./context/selectable";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 const STATUS_COLORS: Record<AgentSession["status"], string> = {
   draft: "bg-slate-700/60 text-slate-300",
@@ -110,9 +110,9 @@ function SessionSummaryCardImpl({
 }: SessionSummaryCardProps) {
   if (selection?.selectionMode) {
     return (
-      <PickModeRow selection={selection}>
+      <CardShell selection={selection}>
         <SessionCardBody session={session} />
-      </PickModeRow>
+      </CardShell>
     );
   }
 

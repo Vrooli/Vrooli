@@ -3,6 +3,7 @@ package journal
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var ErrAppendConflict = errors.New("journal append conflicts with predecessor or request key")
 
 type SQLiteRepository struct{ db *sql.DB }
 
@@ -24,6 +27,9 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 		err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND import_key=?`, e.Scope, e.ImportKey).Scan(&id)
 		if err == nil {
 			existing, err := r.Get(ctx, id)
+			if err == nil && e.RequestKey != "" && (existing.Body != e.Body || existing.Kind != e.Kind) {
+				return Entry{}, ErrAppendConflict
+			}
 			existing.Existing = true
 			return existing, err
 		}
@@ -42,6 +48,16 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 		return Entry{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if e.ExpectedLatest != nil {
+		var latest string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND kind=? ORDER BY created_at DESC,rowid DESC LIMIT 1`, e.Scope, e.Kind).Scan(&latest)
+		if err != nil && err != sql.ErrNoRows {
+			return Entry{}, err
+		}
+		if latest != *e.ExpectedLatest {
+			return Entry{}, ErrAppendConflict
+		}
+	}
 	var importKey any
 	if e.ImportKey != "" {
 		importKey = e.ImportKey
@@ -100,6 +116,12 @@ func (r *SQLiteRepository) Get(ctx context.Context, id string) (Entry, error) {
 
 func (r *SQLiteRepository) List(ctx context.Context, limit int) ([]Entry, error) {
 	return r.list(ctx, "WHERE e.scope = ?", limit, policy.ScopeFromContext(ctx))
+}
+
+func (r *SQLiteRepository) CountInWindow(ctx context.Context, from, to time.Time) (int64, error) {
+	var count int64
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE scope = ? AND created_at >= ? AND created_at < ?`, policy.ScopeFromContext(ctx), from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
 }
 
 func (r *SQLiteRepository) ListAfter(ctx context.Context, cursor string, limit int) ([]Entry, error) {
@@ -239,11 +261,25 @@ func (r *SQLiteRepository) PruneResolvedEmbeddingRetries(ctx context.Context) (i
 	return int(n), err
 }
 
+func (r *SQLiteRepository) ListRecent(ctx context.Context, kind string, limit int) ([]Entry, error) {
+	where := "WHERE e.scope = ?"
+	args := []any{policy.ScopeFromContext(ctx)}
+	if kind != "" {
+		where += " AND e.kind = ?"
+		args = append(args, kind)
+	}
+	return r.listOrdered(ctx, where, "e.created_at DESC,e.rowid DESC", limit, args...)
+}
+
 func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, args ...any) ([]Entry, error) {
+	return r.listOrdered(ctx, where, "e.created_at ASC,e.id ASC", limit, args...)
+}
+
+func (r *SQLiteRepository) listOrdered(ctx context.Context, where, order string, limit int, args ...any) ([]Entry, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
-	q := `SELECT e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.verification_status,e.harness_session_id,e.harness_kind,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at FROM entries e ` + where + ` ORDER BY e.created_at ASC,e.id ASC LIMIT ?`
+	q := `SELECT e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.verification_status,e.harness_session_id,e.harness_kind,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at FROM entries e ` + where + ` ORDER BY ` + order + ` LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {

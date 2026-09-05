@@ -66,5 +66,13 @@ export function useGoalMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, addTargets, removeTargets, setPriority };
+  const archive = useActionMutation({
+    mutationFn: (name: string) => goalsService.archive(name),
+    errorMessage: "Couldn't archive that goal",
+    successMessage: "Goal archived",
+    source: "useGoalMutations.archive",
+    onSuccess: invalidate,
+  });
+
+  return { create, addTargets, removeTargets, setPriority, archive };
 }

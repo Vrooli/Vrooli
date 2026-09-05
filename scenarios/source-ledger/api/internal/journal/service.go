@@ -2,7 +2,9 @@ package journal
 
 import (
 	"context"
+	"database/sql"
 	"strings"
+	"time"
 
 	"source-ledger/internal/inference"
 	"source-ledger/internal/policy"
@@ -14,6 +16,10 @@ type Service struct {
 	repo      Repository
 	inference inference.Client
 	facets    FacetResolver
+}
+
+func (s *Service) CountInWindow(ctx context.Context, from, to time.Time) (int64, error) {
+	return s.repo.CountInWindow(ctx, from, to)
 }
 
 // FacetResolver is the journal's narrow policy seam. The facets domain owns
@@ -34,6 +40,10 @@ func NewService(repo Repository, client inference.Client, facetResolvers ...Face
 
 func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 	e.Scope = string(policy.NormalizeScope(e.Scope))
+	if e.RequestKey != "" {
+		e.ImportKey = "request:" + e.RequestKey
+	}
+
 	// An empty verification status means this entry has not passed a provenance
 	// seam yet — a direct caller rather than the Connect handler. Derive the
 	// full attribution here so both seams persist identical correlation.
@@ -50,6 +60,9 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 		if existing, found, err := s.repo.FindByImportKey(ctx, e.ImportKey); err != nil {
 			return Entry{}, err
 		} else if found {
+			if e.RequestKey != "" && (existing.Body != e.Body || existing.Kind != e.Kind) {
+				return Entry{}, ErrAppendConflict
+			}
 			existing.Existing = true
 			return existing, nil
 		}
@@ -237,4 +250,19 @@ func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (Retry
 		result.Processed++
 	}
 	return result, nil
+}
+
+func (s *Service) ListRecent(ctx context.Context, kind string, limit int) ([]Entry, error) {
+	return s.repo.ListRecent(ctx, kind, limit)
+}
+
+func (s *Service) GetByRequestKey(ctx context.Context, key string) (Entry, error) {
+	e, found, err := s.repo.FindByImportKey(ctx, "request:"+key)
+	if err != nil {
+		return Entry{}, err
+	}
+	if !found {
+		return Entry{}, sql.ErrNoRows
+	}
+	return e, nil
 }

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"source-ledger/internal/policy"
+
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -87,4 +89,27 @@ func TestSQLiteAppendAdvancesJournalHighWaterMark(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT rowid FROM entries WHERE id=?`, created.ID).Scan(&rowID))
 	require.NoError(t, db.QueryRow(`SELECT max_rowid FROM journal_high_water_mark WHERE id=1`).Scan(&marked))
 	require.Equal(t, rowID, marked)
+}
+
+// Latest checkpoint reads must filter before limiting and isolate team scopes.
+func TestListRecentFiltersKindScopeAndUsesAppendOrderForTies(t *testing.T) { // [REQ:SL-P0-004]
+	db, err := sql.Open("sqlite", "file:journal-latest?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(Schema())
+	require.NoError(t, err)
+	for _, row := range []struct{ id, scope, kind, body string }{
+		{"z-active", "team:director-swarm", "walk-checkpoint", "active"},
+		{"a-complete", "team:director-swarm", "walk-checkpoint", "completed"},
+		{"noise", "team:director-swarm", "observation", "unrelated"},
+		{"other", "team:other", "walk-checkpoint", "wrong scope"},
+	} {
+		_, err = db.Exec(`INSERT INTO entries(id,scope,body,facet_id,kind,created_at) VALUES(?,?,?,'unclassified',?,'2026-09-04T00:00:00Z')`, row.id, row.scope, row.body, row.kind)
+		require.NoError(t, err)
+	}
+	repo := NewSQLiteRepository(db)
+	rows, err := repo.ListRecent(policy.WithScope(context.Background(), "team:director-swarm"), "walk-checkpoint", 1)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "a-complete", rows[0].ID)
 }

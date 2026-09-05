@@ -127,7 +127,12 @@ describe("useWizardState", () => {
 
     act(() => result.current.toggleScenario("scenario-a"));
     expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(5));
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/operator-state"),
+        expect.objectContaining({ method: "PATCH" }),
+      );
+    });
   });
 
   it("startOver resets navigation and local selections", async () => {

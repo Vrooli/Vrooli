@@ -14,6 +14,8 @@ export interface SessionContextOption extends AgentSessionContextRef {
   title: string;
   subtitle?: string;
   nodeId?: string;
+  /** Full source entity retained for card-backed picker rendering. */
+  entity?: BacklogItem | GoalWithScope | Capture | ExecutionRecord | AgentActivity | Scenario | AgentSession;
   /**
    * The resolved context body, when the client already holds it. The composer
    * chip renders this so the operator can read what is actually being sent.
@@ -30,6 +32,7 @@ export function backlogOption(item: BacklogItem): SessionContextOption {
   return {
     type: "backlog_item",
     ref,
+    entity: item,
     title: item.title || item.name,
     subtitle: `${item.kind} · ${item.status}`,
     nodeId: `backlog-item/${ref}`,
@@ -40,6 +43,7 @@ export function goalOption(item: GoalWithScope): SessionContextOption {
   return {
     type: "goal",
     ref: item.goal.name,
+    entity: item,
     title: item.goal.title || item.goal.name,
     subtitle: `${item.goal.status} · ${Math.round(item.scope.progressPct)}% complete`,
     nodeId: `goal/${item.goal.name}`,
@@ -50,6 +54,7 @@ export function captureOption(capture: Capture): SessionContextOption {
   return {
     type: "capture",
     ref: capture.id,
+    entity: capture,
     title: capture.text.slice(0, 80) || capture.id,
     subtitle: capture.status,
     nodeId: `capture/${capture.id}`,
@@ -60,6 +65,7 @@ export function executionOption(execution: ExecutionRecord): SessionContextOptio
   return {
     type: "execution",
     ref: execution.executionId,
+    entity: execution,
     title: `${execution.backlogKind}/${execution.backlogName}`,
     subtitle: execution.status,
     nodeId: `execution-record/${execution.executionId}`,
@@ -71,6 +77,7 @@ export function activityOption(activity: AgentActivity): SessionContextOption {
   return {
     type: "agent_activity",
     ref,
+    entity: activity,
     title: activity.ownerName || activity.runId || ref,
     subtitle: activity.status,
     nodeId: `agent-activity/${ref}`,
@@ -81,6 +88,7 @@ export function scenarioOption(scenario: Scenario): SessionContextOption {
   return {
     type: "scenario",
     ref: scenario.name,
+    entity: scenario,
     title: scenario.name,
     subtitle: scenario.status,
     nodeId: `scenario/${scenario.name}`,
@@ -91,6 +99,7 @@ export function sessionOption(session: AgentSession): SessionContextOption {
   return {
     type: "session",
     ref: session.id,
+    entity: session,
     title: session.title || session.id,
     subtitle: `${session.kind} · ${session.status}`,
     nodeId: `/sessions/${session.id}`,

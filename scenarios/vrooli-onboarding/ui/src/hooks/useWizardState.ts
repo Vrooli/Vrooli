@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchOperatorState,
-  fetchV2Recommendation,
   fetchV2Session,
   fetchV2Steps,
+  acceptV2Recommendation,
   saveOperatorState,
   saveV2SessionStep,
 } from "../lib/api";
@@ -25,13 +25,14 @@ export function useWizardState() {
   const [operatorState, setOperatorState] = useState<OperatorState | null>(
     null,
   );
+  const [planAccepted, setPlanAccepted] = useState(false);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const prevStepRef = useRef(currentStep);
 
   // V2 re-entry loads durable operator choices, not database-backed progress.
   useEffect(() => {
-    Promise.all([fetchV2Steps(), fetchOperatorState(), fetchV2Recommendation()])
-      .then(([model, state, recommendation]) => {
+    Promise.all([fetchV2Steps(), fetchOperatorState()])
+      .then(([model, state]) => {
         setSteps(model.steps.slice().sort((a, b) => a.ordinal - b.ordinal));
         setStepsError(null);
         setCurrentStep(stepForPath(window.location.pathname, model.steps));
@@ -41,19 +42,6 @@ export function useWizardState() {
             .filter(([, choice]) => choice.enabled)
             .map(([name]) => name),
         );
-        const recommendedScenarios = recommendation?.scenarios ?? [];
-        if (selected.size === 0 && recommendedScenarios.length > 0) {
-          recommendedScenarios.forEach((name) => selected.add(name));
-          const patch = {
-            active_profile: recommendation?.profile ?? "starter",
-            scenarios: Object.fromEntries(
-              recommendedScenarios.map((name) => [name, { enabled: true }]),
-            ) as Record<string, { enabled: boolean }>,
-          };
-          saveOperatorState(patch)
-            .then(setOperatorState)
-            .catch(() => undefined);
-        }
         setSelectedScenarios(selected);
       })
       .catch(() => {
@@ -208,6 +196,12 @@ export function useWizardState() {
     moveToStep(Math.min(currentStep + 1, steps.length - 1));
   }, [currentStep, moveToStep, steps.length]);
 
+  const acceptRecommendation = useCallback(async () => {
+    const session = await acceptV2Recommendation();
+    setPlanAccepted(true);
+    moveToStep(session.first_unsatisfied_step, true);
+  }, [moveToStep]);
+
   const goPrev = useCallback(() => {
     moveToStep(Math.max(currentStep - 1, 0));
   }, [currentStep, moveToStep]);
@@ -269,5 +263,7 @@ export function useWizardState() {
     nextLabel,
     isLastStep,
     totalSteps: steps.length,
+    planAccepted,
+    acceptRecommendation,
   };
 }

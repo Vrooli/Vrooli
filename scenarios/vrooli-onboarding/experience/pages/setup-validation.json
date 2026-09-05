@@ -33,7 +33,8 @@
       "id": "checking",
       "description": "The probe pass is running.",
       "setup": {
-        "route": "/setup/validation"
+        "route": "/setup/validation",
+        "settleMs": 3000
       }
     },
     {

@@ -70,6 +70,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v2/scenarios", s.handleV2Scenarios).Methods("GET")
 	s.router.HandleFunc("/api/v2/core-set", s.handleV2CoreSet).Methods("GET")
 	s.router.HandleFunc("/api/v2/recommendation", s.handleV2Recommendation).Methods("GET")
+	s.router.HandleFunc("/api/v2/recommendation/accept", s.handleV2RecommendationAccept).Methods("POST")
 	s.router.HandleFunc("/api/v2/resources", s.handleV2Resources).Methods("GET")
 	s.router.HandleFunc("/api/v2/closure", s.handleV2Closure).Methods("GET")
 	s.router.HandleFunc("/api/v2/union", s.handleV2Union).Methods("GET")
@@ -89,6 +90,7 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/api/v2/capabilities/preview", onboardingMutationAuth(http.HandlerFunc(s.handleV2CapabilityPreview))).Methods("POST")
 	s.router.Handle("/api/v2/capabilities/apply", onboardingMutationAuth(http.HandlerFunc(s.handleV2CapabilityApply))).Methods("POST")
 	s.router.HandleFunc("/api/v2/host-requirements", s.handleV2HostRequirements).Methods("GET")
+	s.router.HandleFunc("/api/v2/host-facts", s.handleV2HostFacts).Methods("GET")
 	s.router.HandleFunc("/api/v2/readiness", s.handleV2Readiness).Methods("GET")
 	s.router.Handle("/api/v2/credentials/provision", onboardingMutationAuth(http.HandlerFunc(s.handleV2CredentialProvision))).Methods("POST")
 	s.router.HandleFunc("/api/v2/credentials/doctor", s.handleV2CredentialDoctor).Methods("GET")
@@ -130,7 +132,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
-		ScenarioName: onboardingScenarioName,
+		ScenarioName: "vrooli-onboarding",
 	}) {
 		return // Process was re-exec'd after rebuild
 	}

@@ -12,8 +12,8 @@ import { memo } from "react";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib/format-utils";
 import type { ExecutionRecord } from "../../types";
-import { PickModeRow } from "../session/context/selectable-card";
-import type { CardSelection } from "../session/context/selectable";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-slate-700/60 text-slate-300",
@@ -72,9 +72,9 @@ function ExecutionSummaryCardImpl({
 }: ExecutionSummaryCardProps) {
   if (selection?.selectionMode) {
     return (
-      <PickModeRow selection={selection}>
+      <CardShell selection={selection}>
         <ExecutionCardBody item={item} />
-      </PickModeRow>
+      </CardShell>
     );
   }
 

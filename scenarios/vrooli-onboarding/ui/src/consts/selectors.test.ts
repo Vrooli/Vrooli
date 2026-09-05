@@ -42,9 +42,9 @@ describe("selectors registry", () => {
       expect(selectors.wizard.prev).toBe("wizard-prev");
       expect(selectors.wizard.next).toBe("wizard-next");
       expect(selectors.wizard.welcome).toBe("step-welcome");
-      expect(selectors.wizard.selectResources).toBe("step-select-resources");
-      expect(selectors.wizard.review).toBe("step-review");
-      expect(selectors.wizard.complete).toBe("step-complete");
+      expect(selectors.wizard.scenarios).toBe("step-select-scenarios");
+      expect(selectors.wizard.resources).toBe("step-derived-resources");
+      expect(selectors.wizard.readiness).toBe("step-readiness");
     });
 
     it("exposes dashboard selectors", () => {
@@ -61,26 +61,9 @@ describe("selectors registry", () => {
   });
 
   describe("dynamic selectors", () => {
-    it("wizard.stepIndicator returns testId with index", () => {
-      const fn = getDynamic(selectors.wizard.stepIndicator);
-      expect(fn({ index: 0 })).toBe("step-indicator-0");
-      expect(fn({ index: 3 })).toBe("step-indicator-3");
-    });
-
-    it("wizard.resourceCard returns testId with name", () => {
-      const fn = getDynamic(selectors.wizard.resourceCard);
-      expect(fn({ name: "postgres" })).toBe("resource-card-postgres");
-      expect(fn({ name: "redis" })).toBe("resource-card-redis");
-    });
-
-    it("wizard.categoryToggle returns testId with category", () => {
-      const fn = getDynamic(selectors.wizard.categoryToggle);
-      expect(fn({ category: "databases" })).toBe("category-toggle-databases");
-    });
-
-    it("wizard.removeResource returns testId with name", () => {
-      const fn = getDynamic(selectors.wizard.removeResource);
-      expect(fn({ name: "redis" })).toBe("remove-resource-redis");
+    it("wizard.scenarioCard returns testId with name", () => {
+      const fn = getDynamic(selectors.wizard.scenarioCard);
+      expect(fn({ name: "writer" })).toBe("scenario-card-writer");
     });
 
     it("dashboard.healthCard returns testId with name", () => {
@@ -99,18 +82,18 @@ describe("selectors registry", () => {
     });
 
     it("throws for missing required parameter", () => {
-      const fn = getDynamic(selectors.wizard.stepIndicator);
+      const fn = getDynamic(selectors.wizard.scenarioCard);
       expect(() => fn({})).toThrow(/missing parameter/i);
     });
 
     it("throws for wrong parameter type (expects number)", () => {
-      const fn = getDynamic(selectors.wizard.stepIndicator);
-      expect(() => fn({ index: "abc" })).toThrow(/must be numeric/i);
+      const fn = getDynamic(selectors.wizard.scenarioCard);
+      expect(() => fn({ name: 1 })).toThrow(/must be a string/i);
     });
 
     it("throws for unknown extra parameters", () => {
-      const fn = getDynamic(selectors.wizard.stepIndicator);
-      expect(() => fn({ index: 0, extra: "nope" })).toThrow(/unknown parameter/i);
+      const fn = getDynamic(selectors.wizard.scenarioCard);
+      expect(() => fn({ name: "writer", extra: "nope" })).toThrow(/unknown parameter/i);
     });
   });
 
@@ -129,25 +112,24 @@ describe("selectors registry", () => {
     });
 
     it("contains dynamic selectors with description and params", () => {
-      const entry = selectorsManifest.dynamicSelectors["wizard.stepIndicator"];
+      const entry = selectorsManifest.dynamicSelectors["wizard.scenarioCard"];
       expect(entry).toBeDefined();
-      expect(entry?.description).toBe("Step indicator circle by index");
-      expect(entry?.params).toEqual([{ name: "index", type: "number" }]);
-      expect(entry?.testIdPattern).toBe("step-indicator-${index}");
+      expect(entry?.description).toBe("Scenario card by scenario name");
+      expect(entry?.params).toEqual([{ name: "name", type: "string" }]);
+      expect(entry?.testIdPattern).toBe("scenario-card-${name}");
     });
 
     it("maps all literal selector keys", () => {
       const keys = Object.keys(selectorsManifest.selectors);
       expect(keys.length).toBeGreaterThan(10);
       expect(keys).toContain("nav.wizard");
-      expect(keys).toContain("wizard.progressBar");
+      expect(keys).toContain("wizard.scenarios");
       expect(keys).toContain("glossary.empty");
     });
 
     it("maps all dynamic selector keys", () => {
       const dynamicKeys = Object.keys(selectorsManifest.dynamicSelectors);
-      expect(dynamicKeys).toContain("wizard.stepIndicator");
-      expect(dynamicKeys).toContain("wizard.resourceCard");
+      expect(dynamicKeys).toContain("wizard.scenarioCard");
       expect(dynamicKeys).toContain("dashboard.healthCard");
       expect(dynamicKeys).toContain("glossary.entry");
     });

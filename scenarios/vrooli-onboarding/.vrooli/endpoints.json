@@ -231,6 +231,14 @@
       "description": "Returns the minimal named starter profile, its scenario selection, and required resource closure for browser and terminal parity."
     },
     {
+      "id": "recommendation-accept",
+      "path": "/api/v2/recommendation/accept",
+      "method": "POST",
+      "category": "selection",
+      "summary": "Accept the manifest-derived starter profile",
+      "description": "Idempotently writes the recommended scenario choices and returns the durable onboarding session position."
+    },
+    {
       "id": "resources-derived",
       "path": "/api/v2/resources",
       "method": "GET",
@@ -353,6 +361,14 @@
       "summary": "Generated onboarding step model"
     },
     {
+      "id": "targets",
+      "path": "/api/v2/targets",
+      "method": "GET",
+      "category": "host",
+      "summary": "List reachable onboarding targets",
+      "description": "Returns the local machine and reachable remote targets when the bridge is available."
+    },
+    {
       "id": "operator-inputs",
       "path": "/api/v2/operator-inputs",
       "method": "GET",
@@ -412,6 +428,15 @@
         "ONB-HOST-RISK-DISCLOSURE",
         "ONB-HOST-CONFIG-FORMS"
       ]
+    },
+    {
+      "id": "host-facts",
+      "path": "/api/v2/host-facts",
+      "method": "GET",
+      "category": "host",
+      "summary": "Read-only host facts for first paint",
+      "description": "Returns optional CPU, memory, disk, GPU, and platform facts. The probe is bounded and degrades to available=false when the host is slow or unavailable.",
+      "requirements": ["ONB-HOST-FACTS"]
     },
     {
       "id": "readiness",

@@ -10,6 +10,9 @@ import { matchesSearch } from "./useSidebarSearch";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import type { SortConfig } from "./types";
 import { GoalProgressCard } from "../../../../components/goals/GoalProgressCard";
+import { CollectionList as BaseCollectionList, type CollectionListProps } from "@vrooli/react-component-library/CollectionList/1.0.0";
+
+function CollectionList<T>(props: CollectionListProps<T>) { return <BaseCollectionList {...props} virtualize />; }
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -63,7 +66,7 @@ function GoalsTabImpl({
   onCreateGoal,
 }: GoalsTabProps) {
   const { data: goals = [], isLoading, error } = useGoals();
-  const { setPriority } = useGoalMutations();
+  const { setPriority, archive } = useGoalMutations();
 
   const filtered = goals
     .filter((goal) => goal.goal.status === "active")
@@ -124,11 +127,17 @@ function GoalsTabImpl({
   }
 
   return (
-    <div className="space-y-1.5" data-testid="goals-tab">
-      {sorted.map((goal) => {
-        return (
+    <CollectionList
+      items={sorted}
+      getKey={(goal) => goal.goal.name}
+      label="Goals"
+      selection={{ mode: "none", enterOn: ["shortcut"] }}
+      actions={[
+        { id: "open", label: "Open", onSelect: (selected) => { const goal = selected[0]; if (goal) onItemClick(`goal/${goal.goal.name}`); } },
+        { id: "archive", label: "Archive", tone: "destructive", bulk: true, onSelect: async (selected) => { for (const goal of selected) await archive.mutateAsync(goal.goal.name); } },
+      ]}
+      renderItem={(goal) => (
           <GoalProgressCard
-            key={goal.goal.name}
             title={goal.goal.title}
             subtitle={`${Math.round(goal.scope.progressPct)}% · ${goal.scope.completedCount}/${goal.scope.total}${goal.eta ? ` · ETA ${goal.eta.p50Label}-${goal.eta.p80Label}` : ""}`}
             priority={goal.goal.priority}
@@ -176,9 +185,9 @@ function GoalsTabImpl({
               </>
             )}
           />
-        );
-      })}
-    </div>
+      )}
+      className="space-y-1.5"
+    />
   );
 }
 

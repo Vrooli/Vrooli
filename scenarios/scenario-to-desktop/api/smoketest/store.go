@@ -211,10 +211,12 @@ func (m *DefaultCancelManager) Clear(id string) {
 
 // HasActiveForScenario protects staging used by any running smoke test.
 func (s *FileStore) HasActiveForScenario(scenario string) bool {
- s.mu.RLock()
- defer s.mu.RUnlock()
- for _, status := range s.statusMap {
-  if status != nil && status.ScenarioName == scenario && status.Status != "passed" && status.Status != "failed" { return true }
- }
- return false
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, status := range s.statusMap {
+		if status != nil && status.ScenarioName == scenario && status.Status != "passed" && status.Status != "failed" {
+			return true
+		}
+	}
+	return false
 }

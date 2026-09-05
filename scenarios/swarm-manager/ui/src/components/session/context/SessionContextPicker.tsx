@@ -14,14 +14,15 @@ import {
   useExecutionStore,
   useScenariosStore,
 } from "../../../stores";
-import type { AgentSessionContextType, AgentSessionKind } from "../../../types";
+import type { AgentSessionContextType, AgentSessionKind, AgentSession, BacklogItem, Capture, ExecutionRecord, Scenario } from "../../../types";
 import { ContextChipTray } from "../../composer/ContextChipTray";
 import { BacklogCard } from "../../backlog/backlog-card";
+import { GoalProgressCard } from "../../goals/GoalProgressCard";
 import { ExecutionSummaryCard } from "../../execution/execution-summary-card";
 import { ScenarioSummaryCard } from "../../scenario/scenario-summary-card";
 import { SessionSummaryCard } from "../session-summary-card";
-import { PickModeRow } from "./selectable-card";
-import type { CardSelection } from "./selectable";
+import { CaptureCard } from "../../capture/capture-card";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1.0.0";
 import { allowedContextTypesForKind, CONTEXT_TYPE_CAPS, CONTEXT_TYPE_LABELS, totalContextCapForKind } from "./session-context-config";
 import { buildContextOptionsByType } from "./session-context-options";
 import { backlogItemIsStale, executionIsFailedOrStale, STARTER_FILTER_TARGET_TYPE, type StarterContextFilterKey } from "./starter-context-filters";
@@ -157,18 +158,6 @@ function SessionContextPickerContent({
       ? `${CONTEXT_TYPE_LABELS[activeType]} allows ${activeTypeCap} selections.`
       : "";
 
-  const toggle = (option: SessionContextOption) => {
-    const key = contextKey(option.type, option.ref);
-    if (selectedKeys.has(key)) {
-      setDraft((items) => items.filter((item) => contextKey(item.type, item.ref) !== key));
-      return;
-    }
-    if (draft.length >= totalCap || draft.filter((item) => item.type === option.type).length >= CONTEXT_TYPE_CAPS[option.type]) {
-      return;
-    }
-    setDraft((items) => [...items, option]);
-  };
-
   const remove = (type: AgentSessionContextType, ref: string) => {
     setDraft((items) => items.filter((item) => !(item.type === type && item.ref === ref)));
   };
@@ -177,84 +166,107 @@ function SessionContextPickerContent({
   // list share this disabled state (selection policy lives here, not in cards).
   const capReached = draft.length >= totalCap || activeTypeCount >= activeTypeCap;
 
-  const selectionFor = (option: SessionContextOption): CardSelection => {
-    const selected = selectedKeys.has(contextKey(option.type, option.ref));
-    const disabled = !selected && capReached;
-    return {
-      selectionMode: true,
-      selected,
-      disabled,
-      disabledReason: disabled ? capMessage : undefined,
-      onToggleSelect: () => toggle(option),
-    };
-  };
-
   const matchesNeedle = (option: SessionContextOption): boolean => {
     const needle = query.trim().toLowerCase();
     if (!needle) return true;
     return `${option.title} ${option.subtitle ?? ""} ${option.ref}`.toLowerCase().includes(needle);
   };
 
-  // Singleton / cardless / deferred (capture, agent_activity) types keep the
-  // flat title+subtitle row via the shared PickModeRow.
-  const fallbackRow = (option: SessionContextOption) => (
-    <PickModeRow key={contextKey(option.type, option.ref)} selection={selectionFor(option)}>
-      <span className="block truncate text-sm font-medium leading-5">{option.title}</span>
-      <span className="block truncate text-xs leading-5 text-slate-400">{option.subtitle || option.ref}</span>
-    </PickModeRow>
-  );
+  type PickerRow = {
+    option: SessionContextOption;
+    entity?: BacklogItem | GoalWithScope | Capture | ExecutionRecord | AgentSession | Scenario;
+  };
 
-  const renderPickNodes = () => {
+  const pickerRows = useMemo<PickerRow[]>(() => {
     switch (activeType) {
       case "backlog_item":
-        return backlogItems
+        return visibleBacklogItems
           .map((entity) => ({ entity, option: backlogOption(entity) }))
           .filter(({ option }) => matchesNeedle(option))
           .slice(0, 80)
-          .map(({ entity, option }) => (
-            <BacklogCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
-          ));
-	  case "goal":
-		return (optionsByType[activeType] ?? []).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
+          .map(({ entity, option }) => ({ entity, option }));
+      case "goal":
+        return (optionsByType[activeType] ?? [])
+          .filter(matchesNeedle)
+          .slice(0, 80)
+          .map((option) => ({ option, entity: goals.find((goal) => goal.goal.name === option.ref) }));
       case "execution":
         return visibleExecutions
           .map((entity) => ({ entity, option: executionOption(entity) }))
           .filter(({ option }) => matchesNeedle(option))
           .slice(0, 80)
-          .map(({ entity, option }) => (
-            <ExecutionSummaryCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
-          ));
+          .map(({ entity, option }) => ({ entity, option }));
       case "session":
         return sessions
           .filter((session) => session.id !== currentSessionId)
           .map((entity) => ({ entity, option: sessionOption(entity) }))
           .filter(({ option }) => matchesNeedle(option))
           .slice(0, 80)
-          .map(({ entity, option }) => (
-            <SessionSummaryCard key={contextKey(option.type, option.ref)} session={entity} selection={selectionFor(option)} />
-          ));
+          .map(({ entity, option }) => ({ entity, option }));
       case "scenario":
         return scenarios
           .map((entity) => ({ entity, option: scenarioOption(entity) }))
           .filter(({ option }) => matchesNeedle(option))
           .slice(0, 80)
-          .map(({ entity, option }) => (
-            <ScenarioSummaryCard key={contextKey(option.type, option.ref)} scenario={entity} selection={selectionFor(option)} />
-          ));
+          .map(({ entity, option }) => ({ entity, option }));
       case "capture":
-        return captures.map(captureOption).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
+        return captures.map((entity) => ({ entity, option: captureOption(entity) })).filter(({ option }) => matchesNeedle(option)).slice(0, 80);
       case "agent_activity":
-        return activities.map(activityOption).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
+        return activities.map(activityOption).filter(matchesNeedle).slice(0, 80).map((option) => ({ option }));
       case "operations_briefing":
-        return [operationsBriefingOption()].filter(matchesNeedle).map(fallbackRow);
+        return [operationsBriefingOption()].filter(matchesNeedle).map((option) => ({ option }));
       case "startup_brief":
-        return [startupBriefOption(sessionKind)].filter(matchesNeedle).map(fallbackRow);
+        return [startupBriefOption(sessionKind)].filter(matchesNeedle).map((option) => ({ option }));
       default:
         return [];
     }
-  };
+  }, [activities, activeType, captures, currentSessionId, executions, goals, matchesNeedle, optionsByType, scenarios, sessionKind, sessions, visibleBacklogItems, visibleExecutions]);
 
-  const pickNodes = renderPickNodes();
+  const selectedKeysForList = useMemo(() => [...selectedKeys], [selectedKeys]);
+  const selection = useMemo(() => ({
+    mode: "multi" as const,
+    retain: "keep" as const,
+    selected: selectedKeysForList,
+    selectable: (row: PickerRow) => {
+      const selected = selectedKeys.has(contextKey(row.option.type, row.option.ref));
+      return !selected && capReached ? (capMessage || "Selection limit reached") : false;
+    },
+    onChange: (keys: string[]) => {
+      const visibleKeys = new Set(keys);
+      setDraft((current) => {
+        const next = new Map(current.map((item) => [contextKey(item.type, item.ref), item]));
+        pickerRows.forEach(({ option }) => {
+          const key = contextKey(option.type, option.ref);
+          if (visibleKeys.has(key)) next.set(key, option);
+          else next.delete(key);
+        });
+        return [...next.values()];
+      });
+    },
+  }), [capMessage, capReached, pickerRows, selectedKeys, selectedKeysForList]);
+
+  const renderPickerRow = (row: PickerRow, _state: { selection: { selectionMode: boolean; selected: boolean; disabled?: boolean; disabledReason?: string; onToggleSelect?: () => void } }) => {
+    if (row.option.type === "backlog_item" && row.entity) {
+      return <BacklogCard item={row.entity as BacklogItem} />;
+    }
+    if (row.option.type === "goal" && row.entity) {
+      const goal = row.entity as GoalWithScope;
+      return <GoalProgressCard title={goal.goal.title || goal.goal.name} subtitle={row.option.subtitle} priority={goal.goal.priority} completed={goal.scope.completedCount} total={goal.scope.total} targets={goal.scope.targets.length} ready={goal.scope.ready.length} blocked={goal.scope.blockedCount} />;
+    }
+    if (row.option.type === "capture" && row.entity) {
+      return <CaptureCard capture={row.entity as Capture} />;
+    }
+    if (row.option.type === "execution" && row.entity) {
+      return <ExecutionSummaryCard item={row.entity as ExecutionRecord} />;
+    }
+    if (row.option.type === "session" && row.entity) {
+      return <SessionSummaryCard session={row.entity as AgentSession} />;
+    }
+    if (row.option.type === "scenario" && row.entity) {
+      return <ScenarioSummaryCard scenario={row.entity as Scenario} />;
+    }
+    return <div className="min-w-0 px-2.5 py-2"><span className="block truncate text-sm font-medium leading-5">{row.option.title}</span><span className="block truncate text-xs leading-5 text-slate-400">{row.option.subtitle || row.option.ref}</span></div>;
+  };
 
   return (
     <BottomSheet
@@ -321,8 +333,16 @@ function SessionContextPickerContent({
         />
 
         <div className="max-h-[56vh] overflow-y-auto px-2.5 py-2.5 sm:max-h-[50vh] sm:px-3" data-testid={selectors.agentSessions.contextEntityList}>
-          {pickNodes.length > 0 ? (
-            <div className="space-y-1.5">{pickNodes}</div>
+          {pickerRows.length > 0 ? (
+            <CollectionList
+              items={pickerRows}
+              getKey={(row) => contextKey(row.option.type, row.option.ref)}
+              label={`${CONTEXT_TYPE_LABELS[activeType]} context`}
+              selection={selection}
+              bulkBar="none"
+              renderItem={renderPickerRow}
+              className="space-y-1.5"
+            />
           ) : (
             <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-500">
               No matching context.

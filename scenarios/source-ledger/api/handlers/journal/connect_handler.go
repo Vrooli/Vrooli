@@ -3,8 +3,10 @@ package journal
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,12 +15,30 @@ import (
 	"source-ledger/internal/policy"
 
 	"github.com/vrooli/api-core/provenance"
+	measures "github.com/vrooli/measures-go"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 )
 
 type connectHandler struct {
 	service *internaljournal.Service
 	logger  *log.Logger
+}
+
+func (h *connectHandler) CountEntries(ctx context.Context, req *connect.Request[journalv1.CountEntriesRequest]) (*connect.Response[journalv1.CountEntriesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	window := req.Msg.GetWindow()
+	rng, err := measures.ResolveTimeWindow(window, time.Now().UTC(), time.UTC)
+	if window == nil || window.GetWindow() == nil {
+		rng, err = measures.ResolveToken(measures.TokenThisWeek, time.Now().UTC(), time.UTC)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	count, err := h.service.CountInWindow(ctx, rng.From, rng.To)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&journalv1.CountEntriesResponse{Count: count}), nil
 }
 
 func NewConnectHandler(service *internaljournal.Service, logger *log.Logger) *connectHandler {
@@ -40,8 +60,14 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 			}
 		}
 	}
+	if req.Msg.ExpectedLatestId != nil && strings.TrimSpace(req.Msg.GetKind()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("kind"))
+	}
 	created, err := h.service.Append(ctx, entryFromAppend(req.Msg, provenance.FromContext(ctx)))
 	if err != nil {
+		if errors.Is(err, internaljournal.ErrAppendConflict) {
+			return nil, connect.NewError(connect.CodeAborted, err)
+		}
 		h.logger.Printf("journal.AppendEntry: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -50,10 +76,16 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 
 func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if strings.TrimSpace(req.Msg.GetId()) == "" {
+	if strings.TrimSpace(req.Msg.GetId()) == "" && req.Msg.GetRequestKey() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("id"))
 	}
-	entry, err := h.service.Get(ctx, req.Msg.GetId())
+	var entry internaljournal.Entry
+	var err error
+	if req.Msg.GetRequestKey() != "" {
+		entry, err = h.service.GetByRequestKey(ctx, req.Msg.GetRequestKey())
+	} else {
+		entry, err = h.service.Get(ctx, req.Msg.GetId())
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -75,7 +107,14 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 	}
 	var entries []internaljournal.Entry
 	var err error
-	if req.Msg.GetCursor() == "" {
+	if req.Msg.GetNewestFirst() {
+		if req.Msg.GetCursor() != "" || req.Msg.GetFacetId() != "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("newest_first cannot combine with cursor or facet_id"))
+		}
+		entries, err = h.service.ListRecent(ctx, req.Msg.GetKind(), limit)
+	} else if req.Msg.GetKind() != "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("kind requires newest_first"))
+	} else if req.Msg.GetCursor() == "" {
 		entries, err = h.service.List(ctx, limit)
 	} else {
 		entries, err = h.service.ListAfter(ctx, req.Msg.GetCursor(), limit)
@@ -90,7 +129,7 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 			resp.Entries = append(resp.Entries, entryToProto(entry))
 		}
 	}
-	if len(entries) == limit {
+	if len(entries) == limit && !req.Msg.GetNewestFirst() {
 		resp.NextCursor = entries[len(entries)-1].ID
 	}
 	return connect.NewResponse(resp), nil
@@ -139,9 +178,10 @@ func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provena
 	attribution, correlation := internaljournal.AttributionFrom(source, internaljournal.Attribution{})
 	return internaljournal.Entry{
 		Body: body, Scope: string(policy.NormalizeScope(in.GetScope())), FacetID: in.GetFacetId(), Kind: in.GetKind(),
-		Attribution: attribution,
-		Correlation: correlation,
-		ImportKey:   importKey(in.GetImportProvenance()),
+		Attribution:    attribution,
+		Correlation:    correlation,
+		ImportKey:      importKey(in.GetImportProvenance()),
+		ExpectedLatest: in.ExpectedLatestId, RequestKey: in.GetRequestKey(),
 	}
 }
 

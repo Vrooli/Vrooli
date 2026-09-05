@@ -21,7 +21,7 @@ import (
 
 // DefaultService is the default implementation of the generation Service.
 type DefaultService struct {
-	stagingRoot func() (string, error)
+	stagingRoot    func() (string, error)
 	vrooliRoot     string
 	templateDir    string
 	builds         BuildStore
@@ -87,7 +87,7 @@ func WithVrooliRoot(root string) ServiceOption {
 
 // WithStagingRoot supplies the canonical staging root, including isolated test storage.
 func WithStagingRoot(resolve func() (string, error)) ServiceOption {
- return func(s *DefaultService) { s.stagingRoot = resolve }
+	return func(s *DefaultService) { s.stagingRoot = resolve }
 }
 
 // WithTemplateDir sets the template directory.
@@ -180,10 +180,10 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	}
 
 	if pathErr != nil {
- buildStatus.Status = "failed"
- buildStatus.ErrorLog = append(buildStatus.ErrorLog, pathErr.Error())
- return buildStatus
- }
+		buildStatus.Status = "failed"
+		buildStatus.ErrorLog = append(buildStatus.ErrorLog, pathErr.Error())
+		return buildStatus
+	}
 
 	if metadata != nil {
 		buildStatus.Metadata["auto_detected"] = includeMetadata
@@ -418,7 +418,7 @@ func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string
 			return config.OutputPath, destinationPath, nil
 		}
 		path, err := s.stagingOutputPath(config.AppName, buildID)
- return path, destinationPath, err
+		return path, destinationPath, err
 	case "custom":
 		if config.OutputPath != "" {
 			return config.OutputPath, destinationPath, nil
@@ -434,16 +434,22 @@ func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string
 
 // stagingOutputPath resolves temporary outputs through the shared storage locator.
 func (s *DefaultService) stagingOutputPath(appName, buildID string) (string, error) {
- resolve := s.stagingRoot
- if resolve == nil {
-  locator, err := storagepaths.NewLocator()
-  if err != nil { return "", err }
-  resolve = locator.StagingRoot
- }
- root, err := resolve()
- if err != nil { return "", err }
- if !filepath.IsAbs(root) { return "", fmt.Errorf("staging root must be absolute") }
- return filepath.Join(root, appName, buildID), nil
+	resolve := s.stagingRoot
+	if resolve == nil {
+		locator, err := storagepaths.NewLocator()
+		if err != nil {
+			return "", err
+		}
+		resolve = locator.StagingRoot
+	}
+	root, err := resolve()
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(root) {
+		return "", fmt.Errorf("staging root must be absolute")
+	}
+	return filepath.Join(root, appName, buildID), nil
 }
 
 // loadSigningConfig loads the signing configuration from the file repository for a scenario.

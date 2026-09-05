@@ -1,12 +1,15 @@
 // [REQ:REQ-P0-003] Welcome Step Component
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach } from "vitest";
 // provider-free-exception: StepWelcome is static wizard content with no provider dependency.
 import { StepWelcome } from "./StepWelcome";
+
+afterEach(cleanup);
 
 describe("StepWelcome", () => {
   it("renders welcome heading", () => {
     render(<StepWelcome />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Welcome to Vrooli");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("This machine is about to become a Vrooli node");
   });
 
   it("renders step-welcome test id", () => {
@@ -16,32 +19,26 @@ describe("StepWelcome", () => {
 
   it("shows description text", () => {
     render(<StepWelcome />);
-    expect(screen.getByText(/guide you through configuring/i)).toBeInTheDocument();
+    expect(screen.getByText(/nothing is written until you approve it/i)).toBeInTheDocument();
   });
 
-  it("shows 3 info cards for wizard steps", () => {
+  it("states the three setup commitments", () => {
     render(<StepWelcome />);
-    expect(screen.getByText("Select Scenarios")).toBeInTheDocument();
-    expect(screen.getByText("Review Permissions")).toBeInTheDocument();
-    expect(screen.getByText("Apply and Verify")).toBeInTheDocument();
+    expect(screen.getByText("Installs local services")).toBeInTheDocument();
+    expect(screen.getByText("Asks before touching the host")).toBeInTheDocument();
+    expect(screen.getByText("Stays reversible")).toBeInTheDocument();
   });
 
-  it("shows Get Started hint text", () => {
-    render(<StepWelcome />);
-    expect(screen.getByText(/click/i)).toBeInTheDocument();
-    expect(screen.getByText("Get Started")).toBeInTheDocument();
-  });
-
-  it("renders Rocket icon with aria-hidden", () => {
+  it("keeps decorative icons out of the accessibility tree", () => {
     render(<StepWelcome />);
     const container = screen.getByTestId("step-welcome");
     const svg = container.querySelector("svg");
     expect(svg).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("has proper text contrast (slate-200 for body text)", () => {
+  it("uses the semantic welcome lede treatment", () => {
     render(<StepWelcome />);
-    const description = screen.getByText(/guide you through configuring/i);
-    expect(description.className).toContain("text-foreground");
+    const description = screen.getByText(/nothing is written until you approve it/i);
+    expect(description.className).toContain("welcome-screen__lede");
   });
 });

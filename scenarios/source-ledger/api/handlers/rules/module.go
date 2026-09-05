@@ -6,6 +6,7 @@ import (
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/module"
+	"source-ledger/internal/policy"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -15,8 +16,12 @@ import (
 )
 
 func Module(db *database.RoutedDB, logger *log.Logger, classifiers ...inference.Client) module.Module {
+	return ModuleWithRegistry(db, logger, nil, classifiers...)
+}
+
+func ModuleWithRegistry(db *database.RoutedDB, logger *log.Logger, registry *policy.Registry, classifiers ...inference.Client) module.Module {
 	svc := internalfacets.NewService(internalfacets.NewSQLiteRepository(db.Primary()), classifiers...)
-	path, handler := rulesconnect.NewClassificationRulesServiceHandler(NewConnectHandler(svc, logger))
+	path, handler := rulesconnect.NewClassificationRulesServiceHandler(NewConnectHandler(svc, logger, registry))
 	return module.Module{Name: "rules", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}
 }
 

@@ -1,5 +1,5 @@
 // [REQ:REQ-P2-004] Glossary Panel Component Tests
-import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { vi } from "vitest";
 import { renderWithQueryClient, mockFetchSuccess, mockFetchPending } from "../../test-utils";
 import { GlossaryPanel } from "./GlossaryPanel";
@@ -92,9 +92,9 @@ describe("GlossaryPanel", () => {
     mockFetchSuccess(mockGlossaryData);
     renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
-      expect(screen.getAllByText("core")).toHaveLength(2);
+      expect(within(screen.getByTestId("glossary-list")).getAllByText("core")).toHaveLength(2);
     });
-    expect(screen.getByText("ai")).toBeInTheDocument();
+    expect(within(screen.getByTestId("glossary-list")).getByText("ai")).toBeInTheDocument();
   });
 
   it("renders heading with proper hierarchy", () => {
@@ -171,7 +171,7 @@ describe("GlossaryPanel", () => {
   it("renders subheading text", () => {
     mockFetchPending();
     renderWithQueryClient(<GlossaryPanel />);
-    expect(screen.getByText(/look up vrooli terms/i)).toBeInTheDocument();
+    expect(screen.getByText(/without needing to read the codebase first/i)).toBeInTheDocument();
   });
 
   it("glossary list uses dl element for proper term/definition semantics", async () => {

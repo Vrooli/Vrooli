@@ -82,17 +82,8 @@ function renderTabs() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(["backlog-summary"], {
-    feedback: {
-      items: [
-        { kind: "idea", name: "needs-answer", pending_decisions: 2 },
-      ],
-    },
-    maturity: {
-      items: [
-        { kind: "idea", name: "plan-ready", ready: true, pending_items: 0 },
-      ],
-    },
+  queryClient.setQueryData(["next-actions-feed"], {
+    entries: [{ entity_kind: "backlog_item" }, { entity_kind: "backlog_item" }],
   });
 
   return render(

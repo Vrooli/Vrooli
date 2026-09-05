@@ -51,6 +51,16 @@ export interface V2Recommendation {
   resources: string[];
   explanation: string;
 }
+export interface V2HostFactsResponse {
+  available: boolean;
+  reason?: string;
+  cpu_count?: number;
+  memory_total_bytes?: number;
+  memory_available_bytes?: number;
+  disk_free_bytes?: number;
+  gpus?: string[];
+  platform?: string;
+}
 
 export interface SupervisionAttributionStep {
   name: string;
@@ -185,6 +195,7 @@ export interface V2ApplyPlanResponse {
 }
 export interface V2SessionResponse {
   step: number;
+  step_id?: string;
   first_unsatisfied_step: number;
   completion: boolean;
 }

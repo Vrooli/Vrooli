@@ -24,7 +24,7 @@ func (s *Server) handleV2Targets(w http.ResponseWriter, r *http.Request) {
 		// response says why remote choices are absent instead of inventing a
 		// stale node list.
 		w.Header().Set("X-Vrooli-Target-Discovery", "bridge-unavailable")
-		writeJSON(w, http.StatusOK, map[string]any{"targets": targets, "error": err.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"targets": targets, "error": err.Error()})
 		return
 	}
 	for _, node := range nodes {

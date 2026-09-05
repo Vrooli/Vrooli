@@ -72,11 +72,11 @@ consume to decide what to ship.
 vrooli-onboarding credentials list               # descriptors + configured status, never values
 printf '%s' "$VALUE" | vrooli-onboarding credentials provision --logical-id <id> --field <field>
 vrooli-onboarding credentials doctor             # backend condition and its fix
-vrooli-onboarding store status                   # metadata-only encrypted-store status
-printf '%s' "$PASSPHRASE" | vrooli-onboarding store init
-printf '%s' "$PASSPHRASE" | vrooli-onboarding store unlock
-printf '%s\n%s\n' "$CURRENT" "$NEW" | vrooli-onboarding store change-passphrase
-printf '%s' "$PASSPHRASE" | vrooli-onboarding store rewrap
+vrooli credentials store status                 # metadata-only encrypted-store status
+printf '%s' "$PASSPHRASE" | vrooli credentials store init
+printf '%s' "$PASSPHRASE" | vrooli credentials store unlock
+printf '%s\n%s\n' "$CURRENT" "$NEW" | vrooli credentials store change-passphrase
+printf '%s' "$PASSPHRASE" | vrooli credentials store rewrap
 ```
 
 A value is read from standard input only. A value-bearing flag is **rejected**,
